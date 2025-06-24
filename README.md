@@ -37,12 +37,22 @@ src/
 │   └── cli.py
 tests/
 ├── agents/
-│   ├── test_refiner.py
-│   ├── test_historian.py
-│   ├── test_critic.py
-│   └── test_synthesis.py
+│   └── test_base_agent.py
+│   ├── critic/
+│   │   ├── test_agent.py
+│   │   └── test_main.py
+│   ├── historian/
+│   │   ├── test_agent.py
+│   │   └── test_main.py
+│   ├── refiner/
+│   │   ├── test_agent.py
+│   │   └── test_main.py
+│   └── synthesis/
+│       ├── test_agent.py
+│       └── test_main.py
 ├── test_context.py
-└── test_orchestrator.py
+├── test_orchestrator.py
+├── test_cli.py
 ```
 
 ---
