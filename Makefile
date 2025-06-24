@@ -20,5 +20,9 @@ format:
 typecheck:
 	mypy src/ tests/
 
+check:
+	$(MAKE) format
+	$(MAKE) typecheck
+
 clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +

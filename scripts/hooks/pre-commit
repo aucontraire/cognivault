@@ -1,13 +1,22 @@
 #!/bin/sh
 
-echo "🔧 Running code formatter..."
+echo "🔧 Pre-commit hook: Running code formatter..."
 make format
-
 status=$?
+
 if [ $status -ne 0 ]; then
   echo "❌ Formatting failed. Commit aborted."
   exit 1
 fi
 
-echo "✅ Formatting complete. Proceeding with commit."
+echo "✅ Formatting complete. Proceeding with type check..."
+
+echo "🚧 Pre-commit hook: Running type checks..."
+make typecheck
+if [ $? -ne 0 ]; then
+  echo "❌ Type check failed. Commit aborted."
+  exit 1
+fi
+
+echo "✅ Type check complete. Proceeding with commit."
 exit 0
