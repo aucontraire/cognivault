@@ -1,0 +1,47 @@
+# ===========================
+# Core Dependencies
+# ===========================
+openai>=1.3.0
+tiktoken
+typer[all]
+pydantic>=2.0
+
+# ===========================
+# Retrieval
+# ===========================
+faiss-cpu           # Or comment this out and use chromadb
+# chromadb          # Optional alternative to FAISS
+
+# ===========================
+# Embedding and NLP
+# ===========================
+numpy
+scikit-learn
+
+# ===========================
+# Markdown Handling
+# ===========================
+python-frontmatter
+markdown
+beautifulsoup4
+
+# ===========================
+# Logging & Debugging
+# ===========================
+loguru
+watchdog
+rich                # Pretty logging/output
+
+# ===========================
+# Development Tools
+# ===========================
+pytest
+pytest-cov
+ruff
+black
+mypy
+
+# ===========================
+# Diagram/Visualization (Optional Future)
+# ===========================
+graphviz

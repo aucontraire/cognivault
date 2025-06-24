@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+env/
+venv/
+*.egg-info/
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+
+# Logs and outputs
+src/cognivault/logs/
+*.log
+
+# System files
+.DS_Store
