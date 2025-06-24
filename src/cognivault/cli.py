@@ -27,5 +27,5 @@ def main(
         print(f"\n{emoji} {agent_name}:\n{output.strip()}\n")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     app()

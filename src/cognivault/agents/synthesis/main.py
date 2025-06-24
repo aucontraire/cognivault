@@ -8,7 +8,7 @@ def run_synthesis(query: str) -> str:
     return result.agent_outputs.get("Synthesis", "[No output]")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     query = input("Enter a query: ").strip()
     output = run_synthesis(query)
     print("\n🔗 Synthesis Output:\n", output)

@@ -8,7 +8,7 @@ def run_historian(query: str) -> str:
     return result.agent_outputs.get("Historian", "[No output]")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     query = input("Enter a query: ").strip()
     output = run_historian(query)
     print("\n🕵️ Historian Output:\n", output)

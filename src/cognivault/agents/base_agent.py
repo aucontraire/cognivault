@@ -8,4 +8,4 @@ class BaseAgent(ABC):
 
     @abstractmethod
     def run(self, context: AgentContext) -> AgentContext:
-        pass
+        pass  # pragma: no cover

@@ -8,7 +8,7 @@ def run_refiner(query: str) -> str:
     return result.agent_outputs.get("Refiner", "[No output]")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     query = input("Enter a query: ").strip()
     output = run_refiner(query)
     print("\n🧠 Refiner Output:\n", output)

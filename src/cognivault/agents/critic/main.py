@@ -8,7 +8,7 @@ def run_critic(query: str) -> str:
     return result.agent_outputs.get("Critic", "[No output]")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     query = input("Enter a query: ").strip()
     output = run_critic(query)
     print("\n🤔 Critic Output:\n", output)
