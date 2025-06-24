@@ -13,7 +13,11 @@ lint:
 	ruff check src/ tests/
 
 format:
+	black src/ tests/
 	ruff format src/ tests/
+
+typecheck:
+	mypy src/ tests/
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +

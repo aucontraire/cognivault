@@ -1,4 +1,4 @@
-from agent import HistorianAgent
+from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.context import AgentContext
 
 

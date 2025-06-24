@@ -1,5 +1,6 @@
 from typing import Optional
 
+from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.agents.historian.agent import HistorianAgent
@@ -12,7 +13,7 @@ class AgentOrchestrator:
         self.critic_enabled = critic_enabled
         self.only = only
 
-        self.agents = []
+        self.agents: list[BaseAgent] = []
         if only is None or only == "refiner":
             self.agents.append(RefinerAgent())
         if only is None or only == "historian":

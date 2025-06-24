@@ -1,4 +1,4 @@
-from agent import RefinerAgent
+from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.context import AgentContext
 
 
