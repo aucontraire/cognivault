@@ -1,4 +1,4 @@
-.PHONY: install test run lint format clean
+.PHONY: install test run lint format clean coverage-all coverage coverage-one
 
 install:
 	bash scripts/setup.sh
@@ -26,3 +26,12 @@ check:
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +
+
+coverage-all:
+	PYTHONPATH=src pytest --cov=cognivault --cov-report=term-missing tests/
+
+coverage:
+	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/
+
+coverage-one:
+	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}

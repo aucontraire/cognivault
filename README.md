@@ -105,6 +105,45 @@ Covers:
 - Orchestrator pipeline
 - All 4 core agents
 
+### View Coverage
+
+Run the full test suite with a coverage report:
+
+```bash
+make coverage-all
+```
+
+This executes:
+
+```bash
+PYTHONPATH=src pytest --cov=cognivault --cov-report=term-missing tests/
+```
+
+Run coverage on a specific module:
+
+```bash
+make coverage m=cli
+```
+
+This executes:
+
+```bash
+PYTHONPATH=src pytest --cov=cognivault.cli --cov-report=term-missing tests/
+```
+
+Run coverage on a module with custom log level:
+
+```bash
+LOG_LEVEL=INFO make coverage-one m=orchestrator
+```
+
+This executes:
+
+```bash
+PYTHONPATH=src pytest --cov=cognivault.orchestrator --cov-report=term-missing tests/ --log-cli-level=INFO
+```
+
+
 ---
 
 ## 🌍 How CogniVault Differs

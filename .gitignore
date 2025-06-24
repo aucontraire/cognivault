@@ -17,6 +17,7 @@ venv/
 # Logs and outputs
 src/cognivault/logs/
 *.log
+.coverage
 
 # System files
 .DS_Store
