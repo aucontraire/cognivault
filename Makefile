@@ -1,13 +1,13 @@
 .PHONY: install test run lint format clean
 
 install:
-	pip install -r requirements.txt
+	bash scripts/setup.sh
 
 test:
 	PYTHONPATH=src pytest tests/
 
 run:
-	PYTHONPATH=src python -m cognivault.cli "Is Mexico’s democracy becoming more robust?" --critic $(if $(ONLY),--only=$(ONLY),)
+	PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(CRITIC),--critic=$(CRITIC),) $(if $(ONLY),--only=$(ONLY),)
 
 lint:
 	ruff check src/ tests/

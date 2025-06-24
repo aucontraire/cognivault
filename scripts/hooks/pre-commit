@@ -1,0 +1,13 @@
+#!/bin/sh
+
+echo "🔧 Running code formatter..."
+make format
+
+status=$?
+if [ $status -ne 0 ]; then
+  echo "❌ Formatting failed. Commit aborted."
+  exit 1
+fi
+
+echo "✅ Formatting complete. Proceeding with commit."
+exit 0

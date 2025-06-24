@@ -13,8 +13,8 @@ echo "📦 Installing dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-echo "📁 Creating directory structure and stubs..."
-bash ./scaffold.sh  # <- if you save the above mkdir/touch script as scaffold.sh
+echo "🪝 Installing Git hooks..."
+bash ./scripts/setup-hooks.sh
 
 echo "✅ Setup complete. Run with:"
-echo "python src/cognivault/cli.py ask 'Why is democracy shifting globally?' --critic"
+echo 'make run QUESTION="Why is democracy shifting globally?" CRITIC=True ONLY=refiner'

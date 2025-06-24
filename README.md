@@ -72,22 +72,22 @@ Each agent in CogniVault plays a distinct role in the cognitive reflection and s
 To run the full pipeline with all agents:
 
 ```bash
-make run
+make run QUESTION="Is democracy becoming more robust globally?"
 ```
 
 This executes:
 
 ```bash
-PYTHONPATH=src python -m cognivault.cli "Your question here?" --critic
+PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(CRITIC),--critic=$(CRITIC),) $(if $(ONLY),--only=$(ONLY),)
 ```
 
 You can also run a **single agent in isolation** using the `ONLY` environment variable:
 
 ```bash
-make run ONLY=refiner
-make run ONLY=critic
-make run ONLY=historian
-make run ONLY=synthesis
+make run QUESTION="What are the benefits of a polycentric governance model?" ONLY=refiner
+make run QUESTION="How does historical context affect AI safety debates?" ONLY=critic
+make run QUESTION="What long-term trends influence democratic erosion?" ONLY=historian
+make run QUESTION="What’s the synthesized conclusion from all agents?" ONLY=synthesis
 ```
 
 This maps to the CLI flag `--only=agent_name`, allowing you to test or debug specific agents.
@@ -95,7 +95,7 @@ This maps to the CLI flag `--only=agent_name`, allowing you to test or debug spe
 The `--critic` flag is optional (default: `True`). You can disable it like this:
 
 ```bash
-make run ONLY=refiner --critic False
+make run QUESTION="Should we always value dissent in democratic societies?" ONLY=refiner CRITIC=False
 ```
 ---
 

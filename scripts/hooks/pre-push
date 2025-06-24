@@ -1,0 +1,18 @@
+#!/bin/bash
+
+echo "🚧 Pre-push hook: running type checks..."
+make typecheck
+if [ $? -ne 0 ]; then
+  echo "❌ Type check failed. Push aborted."
+  exit 1
+fi
+
+echo "🧪 Running tests..."
+make test
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed. Push aborted."
+  exit 1
+fi
+
+echo "✅ All checks passed. Proceeding with push."
+exit 0
