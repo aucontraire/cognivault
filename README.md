@@ -47,6 +47,24 @@ tests/
 
 ---
 
+## 🧠 Agent Roles
+
+Each agent in CogniVault plays a distinct role in the cognitive reflection and synthesis pipeline:
+
+- ### 🔍 Refiner
+  The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system.
+
+- ### 🧾 Historian
+  The **HistorianAgent** provides relevant context from previous conversations or memory. It simulates long-term knowledge by surfacing pertinent background or earlier reflections.
+
+- ### 🧠 Critic
+  The **CriticAgent** evaluates the refined input or historical perspective. It identifies assumptions, weaknesses, or inconsistencies—acting as a thoughtful devil’s advocate.
+
+- ### 🧵 Synthesis
+  The **SynthesisAgent** gathers the outputs of the other agents and composes a final, unified response. This synthesis is designed to be insightful, coherent, and markdown-friendly for knowledge wikis or future reflection.
+
+---
+
 ## 🖥️ Usage
 
 ### Run the assistant
