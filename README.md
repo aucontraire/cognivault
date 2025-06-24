@@ -78,25 +78,20 @@ make run QUESTION="Is democracy becoming more robust globally?"
 This executes:
 
 ```bash
-PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(CRITIC),--critic=$(CRITIC),) $(if $(ONLY),--only=$(ONLY),)
+PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(AGENTS),--agents=$(AGENTS),)
 ```
 
-You can also run a **single agent in isolation** using the `ONLY` environment variable:
+You can also run a **single agent in isolation** using the `AGENTS` environment variable:
 
 ```bash
-make run QUESTION="What are the benefits of a polycentric governance model?" ONLY=refiner
-make run QUESTION="How does historical context affect AI safety debates?" ONLY=critic
-make run QUESTION="What long-term trends influence democratic erosion?" ONLY=historian
-make run QUESTION="What’s the synthesized conclusion from all agents?" ONLY=synthesis
+make run QUESTION="What are the benefits of a polycentric governance model?" AGENTS=refiner
+make run QUESTION="How does historical context affect AI safety debates?" AGENTS=critic
+make run QUESTION="What long-term trends influence democratic erosion?" AGENTS=historian
+make run QUESTION="What’s the synthesized conclusion from all agents?" AGENTS=synthesis
 ```
 
-This maps to the CLI flag `--only=agent_name`, allowing you to test or debug specific agents.
+This maps to the CLI flag `--agents=name1,name2`, allowing you to run any combination of agents by name. Leave unset to run the full pipeline.
 
-The `--critic` flag is optional (default: `True`). You can disable it like this:
-
-```bash
-make run QUESTION="Should we always value dissent in democratic societies?" ONLY=refiner CRITIC=False
-```
 ---
 
 ## 🧪 Run Tests
@@ -122,7 +117,7 @@ It’s designed as a memory-enhanced thinking partner that integrates cleanly wi
 
 ## 🔭 Roadmap
 
-- [ ] Agent toggles via CLI (`--only`, `--save`, etc.)
+- [x] Agent toggles via CLI (`--agents=name1,name2`)
 - [ ] Asynchronous agent execution
 - [ ] Markdown exporter for wiki integration
 - [ ] Optional file/vector store persistence

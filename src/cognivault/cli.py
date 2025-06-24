@@ -7,10 +7,10 @@ app = typer.Typer()
 @app.command()
 def main(
     query: str,
-    critic: bool = True,
-    only: str = typer.Option(None, help="Run only a single agent by name"),
+    agents: str = typer.Option(None, help="Comma-separated list of agents to run (e.g., 'refiner,critic')"),
 ):
-    orchestrator = AgentOrchestrator(critic_enabled=critic, only=only)
+    agents_to_run = [agent.strip() for agent in agents.split(",")] if agents else None
+    orchestrator = AgentOrchestrator(agents_to_run=agents_to_run)
     context = orchestrator.run(query)
 
     emoji_map = {

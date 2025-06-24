@@ -7,7 +7,8 @@ test:
 	PYTHONPATH=src pytest tests/
 
 run:
-	PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(CRITIC),--critic=$(CRITIC),) $(if $(ONLY),--only=$(ONLY),)
+	PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" \
+	$(if $(AGENTS),--agents=$(AGENTS),)
 
 lint:
 	ruff check src/ tests/

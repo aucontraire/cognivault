@@ -17,4 +17,4 @@ echo "🪝 Installing Git hooks..."
 bash ./scripts/setup-hooks.sh
 
 echo "✅ Setup complete. Run with:"
-echo 'make run QUESTION="Why is democracy shifting globally?" CRITIC=True ONLY=refiner'
+echo 'make run QUESTION="Why is democracy shifting globally?" AGENTS=refiner,critic'

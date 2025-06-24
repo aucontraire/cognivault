@@ -42,7 +42,7 @@ def test_orchestrator_with_empty_query():
 
 
 def test_orchestrator_with_only_refiner():
-    orchestrator = AgentOrchestrator(only="refiner")
+    orchestrator = AgentOrchestrator(agents_to_run=["refiner"])
     context = orchestrator.run("Test single agent execution")
 
     # Only Refiner should be present
@@ -56,7 +56,7 @@ def test_orchestrator_with_only_refiner():
 
 
 def test_orchestrator_with_only_critic():
-    orchestrator = AgentOrchestrator(only="critic")
+    orchestrator = AgentOrchestrator(agents_to_run=["critic"])
     context = orchestrator.run("Test critic agent in isolation")
 
     assert list(context.agent_outputs.keys()) == ["Critic"]
@@ -66,7 +66,7 @@ def test_orchestrator_with_only_critic():
 
 
 def test_orchestrator_with_only_historian():
-    orchestrator = AgentOrchestrator(only="historian")
+    orchestrator = AgentOrchestrator(agents_to_run=["historian"])
     context = orchestrator.run("Test historian agent in isolation")
 
     assert list(context.agent_outputs.keys()) == ["Historian"]
@@ -76,7 +76,7 @@ def test_orchestrator_with_only_historian():
 
 
 def test_orchestrator_with_only_synthesis():
-    orchestrator = AgentOrchestrator(only="synthesis")
+    orchestrator = AgentOrchestrator(agents_to_run=["synthesis"])
     context = orchestrator.run("Test synthesis agent in isolation")
 
     assert list(context.agent_outputs.keys()) == ["Synthesis"]
@@ -86,7 +86,7 @@ def test_orchestrator_with_only_synthesis():
 
 
 def test_orchestrator_with_invalid_only_name():
-    orchestrator = AgentOrchestrator(only="fakeagent")
+    orchestrator = AgentOrchestrator(agents_to_run=["fakeagent"])
     context = orchestrator.run("Test invalid agent name")
 
     assert context.agent_outputs == {}
