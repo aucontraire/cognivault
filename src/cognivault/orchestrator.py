@@ -1,7 +1,7 @@
-from cognivault.agents.refiner import RefinerAgent
-from cognivault.agents.critic import CriticAgent
-from cognivault.agents.historian import HistorianAgent
-from cognivault.agents.synthesis import SynthesisAgent
+from cognivault.agents.refiner.agent import RefinerAgent
+from cognivault.agents.critic.agent import CriticAgent
+from cognivault.agents.historian.agent import HistorianAgent
+from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext
 
 

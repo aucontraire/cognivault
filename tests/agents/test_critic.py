@@ -1,5 +1,5 @@
 import pytest
-from cognivault.agents.critic import CriticAgent
+from cognivault.agents.critic.agent import CriticAgent
 from cognivault.context import AgentContext
 
 

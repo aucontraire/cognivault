@@ -1,4 +1,4 @@
-from cognivault.agents.synthesis import SynthesisAgent
+from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext
 
 
