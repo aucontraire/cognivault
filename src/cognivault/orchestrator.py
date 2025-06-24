@@ -16,7 +16,7 @@ class AgentOrchestrator:
         self.agents_to_run = (
             [a.lower() for a in agents_to_run] if agents_to_run else None
         )
-        self.agents = []
+        self.agents: list[BaseAgent] = []
 
         if self.agents_to_run:
             for agent_name in self.agents_to_run:
