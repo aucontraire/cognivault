@@ -7,7 +7,9 @@ app = typer.Typer()
 @app.command()
 def main(
     query: str,
-    agents: str = typer.Option(None, help="Comma-separated list of agents to run (e.g., 'refiner,critic')"),
+    agents: str = typer.Option(
+        None, help="Comma-separated list of agents to run (e.g., 'refiner,critic')"
+    ),
 ):
     agents_to_run = [agent.strip() for agent in agents.split(",")] if agents else None
     orchestrator = AgentOrchestrator(agents_to_run=agents_to_run)

@@ -9,9 +9,13 @@ from cognivault.context import AgentContext
 
 
 class AgentOrchestrator:
-    def __init__(self, critic_enabled: bool = True, agents_to_run: Optional[list[str]] = None):
+    def __init__(
+        self, critic_enabled: bool = True, agents_to_run: Optional[list[str]] = None
+    ):
         self.critic_enabled = critic_enabled
-        self.agents_to_run = [a.lower() for a in agents_to_run] if agents_to_run else None
+        self.agents_to_run = (
+            [a.lower() for a in agents_to_run] if agents_to_run else None
+        )
         self.agents = []
 
         if self.agents_to_run:
