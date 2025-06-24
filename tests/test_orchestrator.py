@@ -39,3 +39,55 @@ def test_orchestrator_with_empty_query():
     assert "Refiner" in context.agent_outputs
     assert context.agent_outputs["Refiner"]
     assert context.final_synthesis is not None
+
+
+def test_orchestrator_with_only_refiner():
+    orchestrator = AgentOrchestrator(only="refiner")
+    context = orchestrator.run("Test single agent execution")
+
+    # Only Refiner should be present
+    assert list(context.agent_outputs.keys()) == ["Refiner"]
+    assert "Refiner" in context.agent_outputs
+    assert "Historian" not in context.agent_outputs
+    assert "Critic" not in context.agent_outputs
+    assert "Synthesis" not in context.agent_outputs
+
+    assert context.final_synthesis is None  # Synthesis should not have run
+
+
+def test_orchestrator_with_only_critic():
+    orchestrator = AgentOrchestrator(only="critic")
+    context = orchestrator.run("Test critic agent in isolation")
+
+    assert list(context.agent_outputs.keys()) == ["Critic"]
+    assert "Critic" in context.agent_outputs
+    assert "No refined output found" in context.agent_outputs["Critic"]
+    assert context.final_synthesis is None
+
+
+def test_orchestrator_with_only_historian():
+    orchestrator = AgentOrchestrator(only="historian")
+    context = orchestrator.run("Test historian agent in isolation")
+
+    assert list(context.agent_outputs.keys()) == ["Historian"]
+    assert "Historian" in context.agent_outputs
+    assert "Note from" in context.agent_outputs["Historian"]
+    assert context.final_synthesis is None
+
+
+def test_orchestrator_with_only_synthesis():
+    orchestrator = AgentOrchestrator(only="synthesis")
+    context = orchestrator.run("Test synthesis agent in isolation")
+
+    assert list(context.agent_outputs.keys()) == ["Synthesis"]
+    assert "Synthesis" in context.agent_outputs
+    assert context.agent_outputs["Synthesis"].strip() == ""
+    assert context.final_synthesis == ""
+
+
+def test_orchestrator_with_invalid_only_name():
+    orchestrator = AgentOrchestrator(only="fakeagent")
+    context = orchestrator.run("Test invalid agent name")
+
+    assert context.agent_outputs == {}
+    assert context.final_synthesis is None

@@ -5,8 +5,12 @@ app = typer.Typer()
 
 
 @app.command()
-def main(query: str, critic: bool = True):
-    orchestrator = AgentOrchestrator(critic_enabled=critic)
+def main(
+    query: str,
+    critic: bool = True,
+    only: str = typer.Option(None, help="Run only a single agent by name"),
+):
+    orchestrator = AgentOrchestrator(critic_enabled=critic, only=only)
     context = orchestrator.run(query)
 
     emoji_map = {

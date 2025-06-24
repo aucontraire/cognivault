@@ -7,7 +7,7 @@ test:
 	PYTHONPATH=src pytest tests/
 
 run:
-	PYTHONPATH=src python -m cognivault.cli "Is Mexico’s democracy becoming more robust?" --critic
+	PYTHONPATH=src python -m cognivault.cli "Is Mexico’s democracy becoming more robust?" --critic $(if $(ONLY),--only=$(ONLY),)
 
 lint:
 	ruff check src/ tests/

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.agents.historian.agent import HistorianAgent
@@ -6,14 +8,19 @@ from cognivault.context import AgentContext
 
 
 class AgentOrchestrator:
-    def __init__(self, critic_enabled: bool = True):
+    def __init__(self, critic_enabled: bool = True, only: Optional[str] = None):
         self.critic_enabled = critic_enabled
-        self.agents = [
-            RefinerAgent(),
-            HistorianAgent(),
-            CriticAgent() if self.critic_enabled else None,
-            SynthesisAgent(),
-        ]
+        self.only = only
+
+        self.agents = []
+        if only is None or only == "refiner":
+            self.agents.append(RefinerAgent())
+        if only is None or only == "historian":
+            self.agents.append(HistorianAgent())
+        if (only is None or only == "critic") and self.critic_enabled:
+            self.agents.append(CriticAgent())
+        if only is None or only == "synthesis":
+            self.agents.append(SynthesisAgent())
 
     def run(self, query: str) -> AgentContext:
         context = AgentContext(query=query)

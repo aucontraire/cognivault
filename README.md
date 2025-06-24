@@ -51,21 +51,34 @@ tests/
 
 ### Run the assistant
 
+To run the full pipeline with all agents:
+
 ```bash
 make run
 ```
 
-This triggers:
+This executes:
 
 ```bash
 PYTHONPATH=src python -m cognivault.cli "Your question here?" --critic
 ```
 
-### CLI Options
+You can also run a **single agent in isolation** using the `ONLY` environment variable:
 
-- `--critic`: Enable/disable the Critic agent  
-- *(More flags like `--only` and `--save` coming soon)*
+```bash
+make run ONLY=refiner
+make run ONLY=critic
+make run ONLY=historian
+make run ONLY=synthesis
+```
 
+This maps to the CLI flag `--only=agent_name`, allowing you to test or debug specific agents.
+
+The `--critic` flag is optional (default: `True`). You can disable it like this:
+
+```bash
+make run ONLY=refiner --critic False
+```
 ---
 
 ## 🧪 Run Tests
