@@ -81,6 +81,14 @@ Covers:
 
 ---
 
+## 🌍 How CogniVault Differs
+
+Unlike typical LLM assistants or AutoGPT-style agents, CogniVault focuses on *structured introspection* rather than task completion. While tools like LangGraph or Reflexion optimize for task-solving or dynamic planning, CogniVault enables long-term insight formation across modular agent roles — including Refiner, Historian, Critic, and Synthesis.
+
+It’s designed as a memory-enhanced thinking partner that integrates cleanly with personal wikis, supports test-driven CLI use, and remains light enough for future microservice deployment or API integration.
+
+---
+
 ## 🔭 Roadmap
 
 - [ ] Agent toggles via CLI (`--only`, `--save`, etc.)
