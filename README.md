@@ -20,10 +20,18 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 src/
 ├── cognivault/
 │   ├── agents/
-│   │   ├── refiner.py
-│   │   ├── historian.py
-│   │   ├── critic.py
-│   │   └── synthesis.py
+│   │   ├── refiner/
+│   │   │   ├── agent.py
+│   │   │   └── main.py
+│   │   ├── critic/
+│   │   │   ├── agent.py
+│   │   │   └── main.py
+│   │   ├── historian/
+│   │   │   ├── agent.py
+│   │   │   └── main.py
+│   │   └── synthesis/
+│   │       ├── agent.py
+│   │       └── main.py
 │   ├── context.py
 │   ├── orchestrator.py
 │   └── cli.py
@@ -93,4 +101,3 @@ Coming soon: contributor guide and code of conduct.
 ## 📜 License
 
 MIT
-```
