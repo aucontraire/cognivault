@@ -1,14 +1,16 @@
 import pytest
+import asyncio
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.context import AgentContext
 
 
-def test_historian_agent_adds_mock_history():
+@pytest.mark.asyncio
+async def test_historian_agent_adds_mock_history():
     query = "Has Mexico seen electoral reforms recently?"
     context = AgentContext(query=query)
 
     agent = HistorianAgent()
-    result_context = agent.run(context)
+    result_context = await agent.run(context)
 
     assert "Historian" in result_context.agent_outputs
     output = result_context.agent_outputs["Historian"]
