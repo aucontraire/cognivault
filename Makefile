@@ -8,7 +8,8 @@ test:
 
 run:
 	PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" \
-	$(if $(AGENTS),--agents=$(AGENTS),)
+	$(if $(AGENTS),--agents=$(AGENTS),) \
+	$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),)
 
 lint:
 	ruff check src/ tests/
@@ -28,10 +29,10 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +
 
 coverage-all:
-	PYTHONPATH=src pytest --cov=cognivault --cov-report=term-missing tests/
+	PYTHONPATH=src pytest --cov=cognivault --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
 
 coverage:
-	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/
+	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
 
 coverage-one:
 	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}

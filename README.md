@@ -102,6 +102,16 @@ make run QUESTION="What’s the synthesized conclusion from all agents?" AGENTS=
 
 This maps to the CLI flag `--agents=name1,name2`, allowing you to run any combination of agents by name. Leave unset to run the full pipeline.
 
+### Control Log Level
+
+You can control the logging verbosity using the `LOG_LEVEL` environment variable. Available levels include `DEBUG`, `INFO`, `WARNING`, and `ERROR`.
+
+```bash
+make run QUESTION="your query here" AGENTS=refiner,critic LOG_LEVEL=DEBUG
+```
+
+This helps in debugging and understanding agent behavior during development.
+
 ---
 
 ## 🧪 Run Tests
@@ -123,6 +133,16 @@ Run the full test suite with a coverage report:
 make coverage-all
 ```
 
+### Control Log Level During Coverage
+
+You can set a log level when running test coverage to see debug output during test runs:
+
+```bash
+LOG_LEVEL=DEBUG make coverage-all
+```
+
+This can help trace detailed agent behavior while viewing test coverage results.
+
 This executes:
 
 ```bash
@@ -131,28 +151,21 @@ PYTHONPATH=src pytest --cov=cognivault --cov-report=term-missing tests/
 
 Run coverage on a specific module:
 
-```bash
-make coverage m=cli
 ```
-
-This executes:
+Run coverage on a specific module:
 
 ```bash
-PYTHONPATH=src pytest --cov=cognivault.cli --cov-report=term-missing tests/
+make coverage-one m=cli LOG_LEVEL=INFO
 ```
 
-Run coverage on a module with custom log level:
+- `m` is required — it's the submodule path under `cognivault`.
+- `LOG_LEVEL` is optional (defaults to `WARNING`). Set it to `INFO` or `DEBUG` to see logging output during test runs.
 
+💡 Example:
 ```bash
-LOG_LEVEL=INFO make coverage-one m=orchestrator
+make coverage-one m=orchestrator LOG_LEVEL=DEBUG
 ```
-
-This executes:
-
-```bash
-PYTHONPATH=src pytest --cov=cognivault.orchestrator --cov-report=term-missing tests/ --log-cli-level=INFO
 ```
-
 
 ---
 
