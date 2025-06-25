@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from cognivault.config.logging_config import setup_logging
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.context import AgentContext
@@ -6,17 +7,31 @@ from cognivault.context import AgentContext
 setup_logging()
 
 
-def run_refiner(query: str) -> str:
+async def run_refiner(query: str) -> str:
+    """
+    Run the RefinerAgent asynchronously with the given query.
+
+    Parameters
+    ----------
+    query : str
+        The input query to refine.
+
+    Returns
+    -------
+    str
+        The refined output from the RefinerAgent.
+    """
+    agent = RefinerAgent()
     context = AgentContext(query=query)
-    result = RefinerAgent().run(context)
-    logging.info(f"[Refiner Main] Running refiner with query: {query}")
+    result = await agent.run(context)
+    logging.info(f"[{agent.name}] Running agent with query: {query}")
     logging.info(
-        f"[Refiner Main] Refiner output: {result.agent_outputs.get('Refiner', '[No output]')}"
+        f"[{agent.name}] Output: {result.agent_outputs.get(agent.name, '[No output]')}"
     )
-    return result.agent_outputs.get("Refiner", "[No output]")
+    return result.agent_outputs.get(agent.name, "[No output]")
 
 
 if __name__ == "__main__":  # pragma: no cover
     query = input("Enter a query: ").strip()
-    output = run_refiner(query)
+    output = asyncio.run(run_refiner(query))
     print("\n🧠 Refiner Output:\n", output)

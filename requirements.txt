@@ -7,6 +7,11 @@ typer[all]
 pydantic>=2.0
 
 # ===========================
+# Async Backends
+# ===========================
+trio>=0.24.0
+
+# ===========================
 # Retrieval
 # ===========================
 faiss-cpu           # Or comment this out and use chromadb
@@ -36,6 +41,7 @@ rich                # Pretty logging/output
 # Development Tools
 # ===========================
 pytest
+pytest-asyncio
 pytest-cov
 ruff
 black

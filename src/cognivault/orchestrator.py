@@ -1,4 +1,8 @@
 import logging
+import asyncio
+
+MAX_RETRIES = 3
+TIMEOUT_SECONDS = 10
 from cognivault.config.logging_config import setup_logging
 
 setup_logging()
@@ -15,9 +19,42 @@ from cognivault.context import AgentContext
 
 
 class AgentOrchestrator:
+    """
+    Coordinates and runs a set of AI agents to process a user query.
+
+    This orchestrator initializes the appropriate agents based on the specified configuration,
+    then executes them asynchronously in parallel. The results are merged into a shared context.
+
+    Parameters
+    ----------
+    critic_enabled : bool, optional
+        Whether to include the CriticAgent in the execution pipeline. Default is True.
+    agents_to_run : list of str, optional
+        A list of agent names to run explicitly. If None, a default pipeline is used.
+
+    Attributes
+    ----------
+    agents : list of BaseAgent
+        The list of initialized agents that will be run.
+    critic_enabled : bool
+        Flag indicating whether the CriticAgent is enabled.
+    agents_to_run : list of str or None
+        Custom list of agents to run, or None if using the default pipeline.
+    """
+
     def __init__(
         self, critic_enabled: bool = True, agents_to_run: Optional[list[str]] = None
     ):
+        """
+        Initialize the AgentOrchestrator with optional critic and custom agent list.
+
+        Parameters
+        ----------
+        critic_enabled : bool, optional
+            Whether to enable the CriticAgent in the pipeline. Default is True.
+        agents_to_run : list of str, optional
+            Explicit list of agent names to run. If None, the default pipeline is used.
+        """
         self.critic_enabled = critic_enabled
         self.agents_to_run = (
             [a.lower() for a in agents_to_run] if agents_to_run else None
@@ -50,17 +87,54 @@ class AgentOrchestrator:
                 f"Default agent order: {[agent.__class__.__name__ for agent in self.agents]}"
             )
 
-    def run(self, query: str) -> AgentContext:
-        logger.info(f"Running orchestrator with query: {query}")
+    async def run(self, query: str) -> AgentContext:
+        """
+        Run all agents concurrently with the provided query.
+
+        Parameters
+        ----------
+        query : str
+            The user query to be processed by the agents.
+
+        Returns
+        -------
+        AgentContext
+            The updated agent context after all agents have completed execution.
+        """
+        logger.info(f"[AgentOrchestrator] Running orchestrator with query: {query}")
         context = AgentContext(query=query)
 
-        for agent in self.agents:
-            if agent is not None:
-                logger.info(f"Running agent: {agent.name}")
-                context = agent.run(context)
-                logger.info(f"Completed agent: {agent.name}")
-                if isinstance(agent, SynthesisAgent):
-                    logger.debug(f"Setting final_synthesis from {agent.name}")
-                    context.final_synthesis = context.get_output(agent.name)
+        async def run_agent(agent: BaseAgent, context: AgentContext) -> None:
+            logger.info(f"[AgentOrchestrator] Running agent: {agent.name}")
+            retries = 0
+            while retries < MAX_RETRIES:
+                try:
+                    await asyncio.wait_for(agent.run(context), timeout=TIMEOUT_SECONDS)
+                    logger.info(f"[AgentOrchestrator] Completed agent: {agent.name}")
+                    if isinstance(agent, SynthesisAgent):
+                        logger.debug(f"Setting final_synthesis from {agent.name}")
+                        context.final_synthesis = context.get_output(agent.name)
+                    break  # Success, break out of retry loop
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        f"[AgentOrchestrator] Timeout while running agent: {agent.name}"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[AgentOrchestrator] Error running agent {agent.name}: {e}"
+                    )
+                retries += 1
+                if retries < MAX_RETRIES:
+                    logger.info(
+                        f"[AgentOrchestrator] Retrying agent {agent.name} (attempt {retries + 1})"
+                    )
+                else:
+                    logger.error(
+                        f"[AgentOrchestrator] Agent {agent.name} failed after {MAX_RETRIES} retries"
+                    )
+
+        await asyncio.gather(
+            *(run_agent(agent, context) for agent in self.agents if agent is not None)
+        )
 
         return context
