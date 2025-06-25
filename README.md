@@ -165,7 +165,6 @@ make coverage-one m=cli LOG_LEVEL=INFO
 ```bash
 make coverage-one m=orchestrator LOG_LEVEL=DEBUG
 ```
-```
 
 ---
 
