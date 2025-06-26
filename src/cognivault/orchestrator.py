@@ -110,10 +110,16 @@ class AgentOrchestrator:
             while retries < MAX_RETRIES:
                 try:
                     await asyncio.wait_for(agent.run(context), timeout=TIMEOUT_SECONDS)
-                    logger.info(f"[AgentOrchestrator] Completed agent: {agent.name}")
+                    if agent.name not in context.agent_trace:
+                        logger.debug(
+                            f"Skipping log_trace because agent '{agent.name}' handled it internally."
+                        )
                     if isinstance(agent, SynthesisAgent):
                         logger.debug(f"Setting final_synthesis from {agent.name}")
-                        context.final_synthesis = context.get_output(agent.name)
+                        output = context.get_output(agent.name)
+                        if isinstance(output, str):
+                            context.set_final_synthesis(output)
+                    logger.info(f"[AgentOrchestrator] Completed agent: {agent.name}")
                     break  # Success, break out of retry loop
                 except asyncio.TimeoutError:
                     logger.warning(

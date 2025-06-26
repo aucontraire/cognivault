@@ -52,5 +52,6 @@ class HistorianAgent(BaseAgent):
         context.retrieved_notes = mock_history
         context.add_agent_output(self.name, retrieved_text)
         self.logger.info(f"[{self.name}] Retrieved notes: {retrieved_text}")
+        context.log_trace(self.name, input_data=query, output_data=retrieved_text)
 
         return context

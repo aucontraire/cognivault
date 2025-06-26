@@ -39,4 +39,5 @@ class RefinerAgent(BaseAgent):
         logger.debug(f"[{self.name}] Output: {refined_output}")
 
         context.add_agent_output(self.name, refined_output)
+        context.log_trace(self.name, input_data=query, output_data=refined_output)
         return context

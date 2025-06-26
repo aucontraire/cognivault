@@ -23,12 +23,11 @@ async def run_refiner(query: str) -> str:
     """
     agent = RefinerAgent()
     context = AgentContext(query=query)
-    result = await agent.run(context)
+    await agent.run(context)
+    output = context.get_output(agent.name)
     logging.info(f"[{agent.name}] Running agent with query: {query}")
-    logging.info(
-        f"[{agent.name}] Output: {result.agent_outputs.get(agent.name, '[No output]')}"
-    )
-    return result.agent_outputs.get(agent.name, "[No output]")
+    logging.info(f"[{agent.name}] Output: {output}")
+    return output or "[No output]"
 
 
 if __name__ == "__main__":  # pragma: no cover

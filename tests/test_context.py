@@ -24,3 +24,36 @@ def test_user_config_and_final_synthesis_defaults():
     context = AgentContext(query="Impact of social media on elections")
     assert context.user_config == {}
     assert context.final_synthesis is None
+
+
+def test_update_and_get_user_config():
+    context = AgentContext(query="AI alignment")
+    context.update_user_config({"verbosity": "high", "style": "explanatory"})
+
+    assert context.user_config["verbosity"] == "high"
+    assert context.get_user_config("style") == "explanatory"
+    assert (
+        context.get_user_config("nonexistent", default="default_val") == "default_val"
+    )
+
+
+def test_set_and_get_final_synthesis():
+    context = AgentContext(query="Ethics in AI")
+    context.set_final_synthesis("AI ethics involves balancing risks and benefits.")
+
+    assert (
+        context.get_final_synthesis()
+        == "AI ethics involves balancing risks and benefits."
+    )
+
+
+def test_log_trace():
+    context = AgentContext(query="History of AI")
+    context.log_trace(
+        "Historian", input_data="Query: History", output_data="AI history summary"
+    )
+
+    assert "Historian" in context.agent_trace
+    assert isinstance(context.agent_trace["Historian"], list)
+    assert context.agent_trace["Historian"][0]["input"] == "Query: History"
+    assert "timestamp" in context.agent_trace["Historian"][0]

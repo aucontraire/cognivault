@@ -26,11 +26,11 @@ async def run_historian(query: str) -> str:
     agent = HistorianAgent()
     context = AgentContext(query=query)
     logger.info(f"[{agent.name}] Running agent with query: {query}")
-    result = await agent.run(context)
-    logger.info(
-        f"[{agent.name}] Output: {result.agent_outputs.get(agent.name, '[No output]')}"
-    )
-    return result.agent_outputs.get(agent.name, "[No output]")
+    await agent.run(context)
+    output = context.get_output(agent.name)
+    logger.info(f"[{agent.name}] Output: {output}")
+    logger.debug(f"[{agent.name}] Trace: {context.agent_trace.get(agent.name, [])}")
+    return output or "[No output]"
 
 
 if __name__ == "__main__":  # pragma: no cover
