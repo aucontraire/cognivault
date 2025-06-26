@@ -9,7 +9,8 @@ test:
 run:
 	PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" \
 	$(if $(AGENTS),--agents=$(AGENTS),) \
-	$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),)
+	$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) \
+	$(if $(EXPORT_MD),--export-md,)
 
 lint:
 	ruff check src/ tests/

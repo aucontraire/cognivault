@@ -14,6 +14,22 @@ async def test_cli_runs_with_refiner(capsys):
 
 
 @pytest.mark.asyncio
+async def test_cli_runs_with_export_md(tmp_path, capsys):
+    query = "What is the role of memory in cognition?"
+    export_path = tmp_path / "dummy_export.md"
+
+    # Patch the MarkdownExporter to write to a known location
+    from unittest.mock import patch
+
+    with patch("cognivault.store.wiki_adapter.MarkdownExporter.export") as mock_export:
+        mock_export.return_value = str(export_path)
+        await cli_main(query, agents="refiner", log_level="INFO", export_md=True)
+        mock_export.assert_called_once()
+        captured = capsys.readouterr()
+        assert "📄 Markdown exported to:" in captured.out
+
+
+@pytest.mark.asyncio
 async def test_cli_runs_with_multiple_agents(capsys):
     await cli_main(
         "What causes political polarization?", agents="refiner,critic", log_level="INFO"

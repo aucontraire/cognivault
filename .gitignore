@@ -18,6 +18,7 @@ venv/
 src/cognivault/logs/
 *.log
 .coverage
+/src/cognivault/notes/*.md
 
 # System files
 .DS_Store
