@@ -13,7 +13,7 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 Clone the repo and run a basic question through the CLI:
 
 ```bash
-git clone https://github.com/yourname/cognivault.git
+git clone https://github.com/aucontraire/cognivault.git
 cd cognivault
 bash setup.sh
 make run QUESTION="What are the long-term effects of AI in education?"
