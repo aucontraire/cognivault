@@ -24,7 +24,7 @@ async def run_critic(query: str) -> str:
     logger.info(f"[{agent.name}] Running agent with query: {query}")
     context = AgentContext(query=query)
     result = await agent.run(context)
-    output = result.agent_outputs.get("Critic", "[No output]")
+    output = result.get_output("Critic") or "[No output]"
     logger.info(f"[{agent.name}] Output: {output}")
     return output
 

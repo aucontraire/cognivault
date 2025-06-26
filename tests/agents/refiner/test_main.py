@@ -9,9 +9,11 @@ from cognivault.agents.refiner.main import run_refiner
 async def test_run_refiner_returns_expected_output(mock_agent_class):
     mock_agent = AsyncMock()
     mock_agent.name = "Refiner"
-    mock_result = AsyncMock()
-    mock_result.agent_outputs = {"Refiner": "Mocked refiner output"}
-    mock_agent.run.return_value = mock_result
+
+    async def mock_run(context):
+        context.add_agent_output("Refiner", "Mocked refiner output")
+
+    mock_agent.run.side_effect = mock_run
     mock_agent_class.return_value = mock_agent
 
     query = "What causes revolutions?"

@@ -49,6 +49,7 @@ class CriticAgent(BaseAgent):
             self.logger.debug(f"[{self.name}] Generated critique: {critique}")
 
         context.add_agent_output(self.name, critique)
+        context.log_trace(self.name, input_data=refined_output, output_data=critique)
         self.logger.debug(
             f"[{self.name}] Updated context with {self.name} output: {critique}"
         )

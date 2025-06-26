@@ -10,7 +10,7 @@ async def run_synthesis(query: str) -> str:
     context = AgentContext(query=query)
     agent = SynthesisAgent()
     result = await agent.run(context)
-    return result.agent_outputs.get("Synthesis", "[No output]")
+    return context.get_output("Synthesis") or "[No output]"
 
 
 if __name__ == "__main__":  # pragma: no cover

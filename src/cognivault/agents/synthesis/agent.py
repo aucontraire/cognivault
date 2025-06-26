@@ -46,4 +46,5 @@ class SynthesisAgent(BaseAgent):
         synthesized_note = "\n".join(combined)
         logger.info(f"[{self.name}] Synthesized note:\n{synthesized_note}")
         context.add_agent_output(self.name, synthesized_note)
+        context.log_trace(self.name, input_data=outputs, output_data=synthesized_note)
         return context

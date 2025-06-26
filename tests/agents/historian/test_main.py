@@ -8,7 +8,8 @@ async def test_run_historian(monkeypatch):
         name = "Historian"
 
         async def run(self, context):
-            return type("Result", (), {"agent_outputs": {"Historian": "Test Output"}})()
+            context.add_agent_output("Historian", "Test Output")
+            return context
 
     monkeypatch.setattr(
         "cognivault.agents.historian.main.HistorianAgent", DummyHistorianAgent
