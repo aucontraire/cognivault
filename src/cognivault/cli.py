@@ -7,11 +7,17 @@ from typing import Optional
 
 from cognivault.config.logging_config import setup_logging
 from cognivault.orchestrator import AgentOrchestrator
+from cognivault.store.wiki_adapter import MarkdownExporter
 
 app = typer.Typer()
 
 
-async def run(query: str, agents: Optional[str] = None, log_level: str = "INFO"):
+async def run(
+    query: str,
+    agents: Optional[str] = None,
+    log_level: str = "INFO",
+    export_md: bool = False,
+):
     cli_name = "CLI"
     # Configure logging based on CLI-provided level
     try:
@@ -45,6 +51,11 @@ async def run(query: str, agents: Optional[str] = None, log_level: str = "INFO")
         emoji = emoji_map.get(agent_name, "🧠")
         print(f"\n{emoji} {agent_name}:\n{output.strip()}\n")
 
+    if export_md:
+        exporter = MarkdownExporter()
+        md_path = exporter.export(context.agent_outputs, query)
+        print(f"📄 Markdown exported to: {md_path}")
+
 
 @app.command()
 def main(
@@ -54,6 +65,9 @@ def main(
     ),
     log_level: str = typer.Option(
         "INFO", help="Logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)"
+    ),
+    export_md: bool = typer.Option(
+        False, "--export-md", help="Export the agent outputs to a markdown file"
     ),
 ):
     """
@@ -67,9 +81,11 @@ def main(
         Comma-separated list of agents to run (e.g., 'refiner,critic'). If None, all agents are run.
     log_level : str, optional
         Logging level to use (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL). Default is 'INFO'.
+    export_md : bool, optional
+        Whether to export the agent outputs to a markdown file. Default is False.
     """
 
-    asyncio.run(run(query, agents, log_level))
+    asyncio.run(run(query, agents, log_level, export_md))
 
 
 if __name__ == "__main__":  # pragma: no cover

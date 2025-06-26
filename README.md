@@ -3,6 +3,8 @@
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
+![Markdown Export](https://img.shields.io/badge/markdown-export-green)
+![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
 
 CogniVault is a modular, CLI-based multi-agent assistant designed to help you reflect, refine, and organize your thoughts through structured dialogue and cumulative insight. It simulates a memory-augmented thinking partner, enabling long-term knowledge building across multiple agent perspectives.
 
@@ -51,12 +53,22 @@ src/
 │   │   └── synthesis/
 │   │       ├── agent.py
 │   │       └── main.py
+│   ├── cli.py
+│   ├── config/
+│   │   └── logging_config.py
 │   ├── context.py
+│   ├── logs/
+│   ├── notes/
 │   ├── orchestrator.py
-│   └── cli.py
+│   ├── retrieval/
+│   │   ├── embedding.py
+│   │   └── vector_store.py
+│   └── store/
+│       ├── utils.py
+│       └── wiki_adapter.py
 tests/
 ├── agents/
-│   └── test_base_agent.py
+│   ├── test_base_agent.py
 │   ├── critic/
 │   │   ├── test_agent.py
 │   │   └── test_main.py
@@ -69,9 +81,12 @@ tests/
 │   └── synthesis/
 │       ├── test_agent.py
 │       └── test_main.py
-├── test_context.py
-├── test_orchestrator.py
+├── store/
+│   ├── test_utils.py
+│   └── test_wiki_adapter.py
 ├── test_cli.py
+├── test_context.py
+└── test_orchestrator.py
 ```
 
 ---
@@ -155,6 +170,16 @@ make run QUESTION="your query here" AGENTS=refiner,critic LOG_LEVEL=DEBUG
 ```
 
 This helps in debugging and understanding agent behavior during development.
+
+### Export Markdown Output
+
+To save the output of agent responses as a markdown file (for integration into a personal wiki or digital garden), use the `EXPORT_MD=1` flag:
+
+```bash
+make run QUESTION="What is cognition?" AGENTS=refiner,critic EXPORT_MD=1
+```
+
+This will generate a `.md` file in `src/cognivault/notes/` with YAML frontmatter metadata including the title, date, agents, filename, source, and a UUID. The content is formatted for easy future retrieval and indexing.
 
 ---
 
