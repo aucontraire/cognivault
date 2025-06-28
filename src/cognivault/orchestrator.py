@@ -10,12 +10,16 @@ logger = logging.getLogger(__name__)
 
 from typing import Optional
 
+
+from cognivault.config.openai_config import OpenAIConfig
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext
+from cognivault.llm.openai import OpenAIChatLLM
+from cognivault.llm.llm_interface import LLMInterface
 
 
 class AgentOrchestrator:
@@ -64,11 +68,19 @@ class AgentOrchestrator:
         )
         self.agents: list[BaseAgent] = []
 
+        llm_config = OpenAIConfig.load()
+        llm: LLMInterface = OpenAIChatLLM(
+            api_key=llm_config.api_key,
+            model=llm_config.model,
+            base_url=llm_config.base_url,
+        )
+        refiner_agent = RefinerAgent(llm=llm)
+
         if self.agents_to_run:
             logger.debug("Custom agent list specified.")
             for agent_name in self.agents_to_run:
                 if agent_name == "refiner":
-                    self.agents.append(RefinerAgent())
+                    self.agents.append(refiner_agent)
                 elif agent_name == "historian":
                     self.agents.append(HistorianAgent())
                 elif agent_name == "synthesis":
@@ -79,7 +91,7 @@ class AgentOrchestrator:
                     print(f"[DEBUG] Unknown agent name: {agent_name}")
                 logger.debug(f"Added agent: {agent_name}")
         else:
-            self.agents = [RefinerAgent(), HistorianAgent()]
+            self.agents = [refiner_agent, HistorianAgent()]
             if self.critic_enabled:
                 self.agents.append(CriticAgent())
             self.agents.append(SynthesisAgent())

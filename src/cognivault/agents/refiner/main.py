@@ -3,6 +3,8 @@ import asyncio
 from cognivault.config.logging_config import setup_logging
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.context import AgentContext
+from cognivault.llm.openai import OpenAIChatLLM
+from cognivault.config.openai_config import OpenAIConfig
 
 setup_logging()
 
@@ -21,7 +23,15 @@ async def run_refiner(query: str) -> str:
     str
         The refined output from the RefinerAgent.
     """
-    agent = RefinerAgent()
+    llm_config = OpenAIConfig.load()
+
+    llm = OpenAIChatLLM(
+        api_key=llm_config.api_key,
+        model=llm_config.model,
+        base_url=llm_config.base_url,
+    )
+
+    agent = RefinerAgent(llm=llm)
     context = AgentContext(query=query)
     await agent.run(context)
     output = context.get_output(agent.name)

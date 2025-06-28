@@ -1,7 +1,7 @@
 # ===========================
 # Core Dependencies
 # ===========================
-openai>=1.3.0
+openai==1.92.3
 tiktoken
 typer[all]
 pydantic>=2.0
@@ -36,6 +36,7 @@ beautifulsoup4
 loguru
 watchdog
 rich                # Pretty logging/output
+python-dotenv       # For loading environment variables from .env
 
 # ===========================
 # Development Tools
@@ -46,6 +47,11 @@ pytest-cov
 ruff
 black
 mypy
+
+# ===========================
+# Testing Mocks for LLMs
+# ===========================
+openai-responses>=0.12.0
 
 # ===========================
 # Diagram/Visualization (Optional Future)
