@@ -1,0 +1,39 @@
+- name: enhancement
+  color: 84b6eb
+  description: New feature or request
+
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+
+- name: refactor
+  color: fbca04
+  description: Code quality or architecture improvement
+
+- name: area:llm
+  color: 1d76db
+  description: Related to language model logic or API interaction
+
+- name: area:orchestrator
+  color: 0052cc
+  description: Related to agent coordination and query orchestration
+
+- name: tech-debt
+  color: b60205
+  description: Deferred cleanup or architectural rework
+
+- name: question
+  color: cc317c
+  description: Further information is requested
+
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on

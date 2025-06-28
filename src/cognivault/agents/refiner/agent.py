@@ -1,5 +1,6 @@
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.context import AgentContext
+from cognivault.llm.llm_interface import LLMInterface
 
 import logging
 import asyncio
@@ -15,8 +16,9 @@ class RefinerAgent(BaseAgent):
     behavior of a note-taking assistant that structures ideas into a clear format.
     """
 
-    def __init__(self):
+    def __init__(self, llm: LLMInterface):
         super().__init__("Refiner")
+        self.llm: LLMInterface = llm
 
     async def run(self, context: AgentContext) -> AgentContext:
         """
@@ -35,7 +37,15 @@ class RefinerAgent(BaseAgent):
         await asyncio.sleep(0.1)  # Simulate asynchronous work
         query = context.query.strip()
         logger.info(f"[{self.name}] Running agent with query: {query}")
-        refined_output = f"[Refined Note] Based on: '{query}'\n\nThis is a structured draft created by the Refiner agent."
+
+        response = self.llm.generate(query)
+
+        if not hasattr(response, "text"):
+            raise ValueError("LLMResponse missing 'text' field")
+
+        text = response.text
+
+        refined_output = f"[Refined Note] Based on: '{query}'\n\n{text}"
         logger.debug(f"[{self.name}] Output: {refined_output}")
 
         context.add_agent_output(self.name, refined_output)

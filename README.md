@@ -21,7 +21,7 @@ bash setup.sh
 make run QUESTION="What are the long-term effects of AI in education?"
 ```
 
-See [🖥️ Usage](#️-usage) for running specific agents and debugging options.
+See [🖥️ Usage](#️usage) for running specific agents and debugging options.
 
 ---
 
@@ -32,6 +32,7 @@ See [🖥️ Usage](#️-usage) for running specific agents and debugging option
 - 🔁 **Orchestrator pipeline** supports dynamic agent control
 - 📄 **Markdown-ready output** for integration with personal wikis
 - 🧪 **Full test suite** with `pytest` for all core components
+- 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
 
 ---
 
@@ -41,47 +42,78 @@ See [🖥️ Usage](#️-usage) for running specific agents and debugging option
 src/
 ├── cognivault/
 │   ├── agents/
-│   │   ├── refiner/
-│   │   │   ├── agent.py
-│   │   │   └── main.py
 │   │   ├── critic/
+│   │   │   ├── __init__.py
 │   │   │   ├── agent.py
 │   │   │   └── main.py
 │   │   ├── historian/
+│   │   │   ├── __init__.py
+│   │   │   ├── agent.py
+│   │   │   └── main.py
+│   │   ├── refiner/
+│   │   │   ├── __init__.py
 │   │   │   ├── agent.py
 │   │   │   └── main.py
 │   │   └── synthesis/
+│   │       ├── __init__.py
 │   │       ├── agent.py
 │   │       └── main.py
+│   ├── base_agent.py
 │   ├── cli.py
 │   ├── config/
+│   │   ├── __init__.py
 │   │   └── logging_config.py
 │   ├── context.py
+│   ├── docs/
+│   │   ├── LANDSCAPE.md
+│   │   └── RESEARCH.md
+│   ├── llm/
+│   │   ├── __init__.py
+│   │   ├── llm_interface.py
+│   │   ├── openai.py
+│   │   └── stub.py
 │   ├── logs/
+│   │   └── interaction_00001.json
 │   ├── notes/
+│   │   ├── 2025-06-26T06-45-24_what-is-cognition.md
+│   │   ├── 2025-06-26T06-47-28_what-is-cognition.md
+│   │   ├── 2025-06-26T10-04-47_what-is-cognition.md
+│   │   └── sample_note.md
 │   ├── orchestrator.py
 │   ├── retrieval/
+│   │   ├── __init__.py
 │   │   ├── embedding.py
 │   │   └── vector_store.py
 │   └── store/
+│       ├── __init__.py
 │       ├── utils.py
 │       └── wiki_adapter.py
 tests/
 ├── agents/
-│   ├── test_base_agent.py
 │   ├── critic/
+│   │   ├── __init__.py
 │   │   ├── test_agent.py
 │   │   └── test_main.py
 │   ├── historian/
+│   │   ├── __init__.py
 │   │   ├── test_agent.py
 │   │   └── test_main.py
 │   ├── refiner/
+│   │   ├── __init__.py
 │   │   ├── test_agent.py
 │   │   └── test_main.py
 │   └── synthesis/
+│       ├── __init__.py
 │       ├── test_agent.py
 │       └── test_main.py
+├── test_base_agent.py
+├── llm/
+│   ├── __init__.py
+│   ├── test_llm_interface.py
+│   ├── test_openai.py
+│   └── test_stub.py
 ├── store/
+│   ├── __init__.py
 │   ├── test_utils.py
 │   └── test_wiki_adapter.py
 ├── test_cli.py
@@ -134,9 +166,27 @@ Hooks are installed automatically by `setup.sh`, but you can manually install or
 
 ---
 
+## 🔐 LLM Configuration
+
+CogniVault supports OpenAI out of the box via a `.env` file in the root of the project:
+
+```env
+OPENAI_API_KEY=your-key-here
+OPENAI_MODEL=gpt-4
+OPENAI_API_BASE=https://api.openai.com/v1  # Optional
+```
+
+These credentials are automatically loaded using `python-dotenv` via the `OpenAIConfig` class in `cognivault/config/openai_config.py`.
+
+You can define new LLMs or stubs and inject them by extending the `LLMInterface` contract.
+
+---
+
 ## 🖥️ Usage
 
 ### Run the assistant
+
+Make sure your `.env` file is configured with your OpenAI credentials if using the OpenAI LLM backend.
 
 To run the full pipeline with all agents:
 
@@ -147,7 +197,13 @@ make run QUESTION="Is democracy becoming more robust globally?"
 This executes:
 
 ```bash
-PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(AGENTS),--agents=$(AGENTS),)
+PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(AGENTS),--agents=$(AGENTS),) $(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) $(if $(EXPORT_MD),--export-md,)
+```
+
+⚠️ Note: `$(QUESTION)` is a Makefile variable — this syntax only works with `make run`. If you're calling the Python CLI directly, use standard shell quotes:
+
+```bash
+PYTHONPATH=src python -m cognivault.cli "What is cognition?" --agents=refiner,critic
 ```
 
 You can also run a **single agent in isolation** using the `AGENTS` environment variable:
@@ -180,6 +236,24 @@ make run QUESTION="What is cognition?" AGENTS=refiner,critic EXPORT_MD=1
 ```
 
 This will generate a `.md` file in `src/cognivault/notes/` with YAML frontmatter metadata including the title, date, agents, filename, source, and a UUID. The content is formatted for easy future retrieval and indexing.
+
+📄 Output saved to: `src/cognivault/notes/2025-06-26T10-04-47_what-is-cognition.md`
+
+With frontmatter like:
+
+```markdown
+---
+agents:
+  - Refiner
+  - Critic
+date: 2025-06-26T10:04:47
+filename: 2025-06-26T10-04-47_what-is-cognition.md
+source: cli
+summary: Draft response from agents about the definition and scope of the question.
+title: What is cognition?
+uuid: 8fab709a-8fc4-464a-b16b-b7a55c84aedf
+---
+```
 
 ---
 
