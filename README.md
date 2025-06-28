@@ -174,11 +174,40 @@ CogniVault supports OpenAI out of the box via a `.env` file in the root of the p
 OPENAI_API_KEY=your-key-here
 OPENAI_MODEL=gpt-4
 OPENAI_API_BASE=https://api.openai.com/v1  # Optional
+COGNIVAULT_LLM=openai  # Change to "stub" to use a mock LLM for testing
 ```
 
-These credentials are automatically loaded using `python-dotenv` via the `OpenAIConfig` class in `cognivault/config/openai_config.py`.
+You can define new LLM backends by extending the `LLMInterface` and registering them in the `LLMFactory`. The active backend is selected via the environment variable `COGNIVAULT_LLM`.
 
-You can define new LLMs or stubs and inject them by extending the `LLMInterface` contract.
+Example:
+```env
+COGNIVAULT_LLM=openai  # or "stub" for mock runs
+```
+
+The `OPENAI_*` variables below are only required when using the OpenAI backend:
+
+---
+
+## 🧩 Advanced: Adding a Custom LLM
+
+To integrate your own model (e.g. hosted model or different provider like Anthropic, Mistral, or local inference):
+
+1. **Implement the interface**:
+   Create a new class that inherits from `LLMInterface` in `src/cognivault/llm/llm_interface.py`.
+
+2. **Add to factory**:
+   Register your new implementation in `LLMFactory` (`src/cognivault/llm/factory.py`) under a new provider name.
+
+3. **Update the enum**:
+   Add your provider to `LLMProvider` in `src/cognivault/llm/provider_enum.py`.
+
+4. **Configure it**:
+   In your `.env`, set:
+   ```
+   COGNIVAULT_LLM=yourprovider
+   ```
+
+This approach allows you to cleanly swap or combine LLMs in the future with minimal change to your orchestrator or agent code.
 
 ---
 
