@@ -128,7 +128,8 @@ tests/
 Each agent in CogniVault plays a distinct role in the cognitive reflection and synthesis pipeline:
 
 - ### 🔍 Refiner
-  The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system.
+  The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system.  
+  📄 [RefinerAgent Charter](./docs/agents/refiner/charter.md)
 
 - ### 🧾 Historian
   The **HistorianAgent** provides relevant context from previous conversations or memory. It simulates long-term knowledge by surfacing pertinent background or earlier reflections.
