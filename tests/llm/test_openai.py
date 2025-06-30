@@ -155,6 +155,42 @@ def test_streaming_with_logging_hook(mock_openai_chat_completion):
     assert any("[OpenAIChatLLM][streaming] Test" in log for log in logs)
 
 
+def test_generate_with_system_prompt_logging(mock_openai_chat_completion):
+    # Set up proper mock structure
+    message = MagicMock()
+    message.content = "System response"
+
+    choice = MagicMock()
+    choice.message = message
+    choice.finish_reason = "stop"
+
+    usage = MagicMock()
+    usage.total_tokens = 15
+
+    mock_response = MagicMock()
+    mock_response.choices = [choice]
+    mock_response.usage = usage
+
+    mock_openai_chat_completion.create.return_value = mock_response
+
+    logs = []
+
+    def log_hook(msg):
+        logs.append(msg)
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+    _ = llm.generate(
+        prompt="User prompt",
+        system_prompt="You are a helpful assistant",
+        stream=False,
+        on_log=log_hook,
+    )
+
+    # Verify system prompt is logged
+    assert any("System Prompt: You are a helpful assistant" in log for log in logs)
+    assert any("Prompt: User prompt" in log for log in logs)
+
+
 def test_generate_api_error_with_logging(mock_openai_chat_completion):
     from openai import APIError
 

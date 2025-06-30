@@ -23,3 +23,7 @@ src/cognivault/logs/
 
 # System files
 .DS_Store
+
+# Ignore batch test output files but keep the directory
+scripts/agents/refiner/outputs/*
+!scripts/agents/refiner/outputs/.gitkeep

@@ -1,6 +1,6 @@
 import openai
-from typing import Any, Iterator, Optional, Callable, Union, cast
-from openai.types.chat import ChatCompletion
+from typing import Any, Iterator, Optional, Callable, Union, cast, List, Dict
+from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from .llm_interface import LLMInterface, LLMResponse
 
 
@@ -32,6 +32,7 @@ class OpenAIChatLLM(LLMInterface):
         self,
         prompt: str,
         *,
+        system_prompt: Optional[str] = None,
         stream: bool = False,
         on_log: Optional[Callable[[str], None]] = None,
         **kwargs: Any,
@@ -43,6 +44,8 @@ class OpenAIChatLLM(LLMInterface):
         ----------
         prompt : str
             The prompt to send to the LLM.
+        system_prompt : str, optional
+            System prompt to provide context/instructions to the LLM.
         stream : bool, optional
             Whether to yield partial output tokens (default is False).
         on_log : Callable[[str], None], optional
@@ -57,13 +60,21 @@ class OpenAIChatLLM(LLMInterface):
         """
         if on_log:
             on_log(f"[OpenAIChatLLM] Prompt: {prompt}")
+            if system_prompt:
+                on_log(f"[OpenAIChatLLM] System Prompt: {system_prompt}")
             on_log(f"[OpenAIChatLLM] Stream: {stream}, Model: {self.model}")
+
+        # Build messages array with optional system prompt
+        messages: List[ChatCompletionMessageParam] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
 
         try:
             assert isinstance(self.model, str), "model must be a string"
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 stream=stream,
                 **kwargs,
             )
