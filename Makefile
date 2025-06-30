@@ -1,4 +1,4 @@
-.PHONY: install test run lint format clean coverage-all coverage coverage-one test-agent-%
+.PHONY: install test run lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-%
 
 install:
 	bash scripts/setup.sh
@@ -40,3 +40,6 @@ coverage-one:
 
 test-agent-%:
 	PYTHONPATH=src python scripts/agents/$*/test_batch.py
+
+run-agent-cli-%:
+	PYTHONPATH=src python -m cognivault.agents.$*.main $(ARGS)
