@@ -44,6 +44,7 @@ class LLMInterface(ABC):
         self,
         prompt: str,
         *,
+        system_prompt: Optional[str] = None,
         stream: bool = False,
         on_log: Optional[Callable[[str], None]] = None,
         **kwargs: Any,
@@ -55,6 +56,8 @@ class LLMInterface(ABC):
         ----------
         prompt : str
             The prompt text to send to the LLM.
+        system_prompt : str, optional
+            System prompt to provide context/instructions to the LLM.
         stream : bool, optional
             Whether to yield partial output tokens (for streaming).
         on_log : Callable[[str], None], optional

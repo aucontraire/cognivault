@@ -129,7 +129,8 @@ Each agent in CogniVault plays a distinct role in the cognitive reflection and s
 
 - ### 🔍 Refiner
   The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system.  
-  📄 [RefinerAgent Charter](./docs/agents/refiner/charter.md)
+  📄 [RefinerAgent Charter](./docs/agents/refiner/charter.md)  
+  It now uses a structured system prompt with passive and active modes to better guide its reasoning process. See the [prompts.py documentation](./src/cognivault/agents/refiner/prompts.py) for details.
 
 - ### 🧾 Historian
   The **HistorianAgent** provides relevant context from previous conversations or memory. It simulates long-term knowledge by surfacing pertinent background or earlier reflections.
@@ -194,7 +195,8 @@ The `OPENAI_*` variables below are only required when using the OpenAI backend:
 To integrate your own model (e.g. hosted model or different provider like Anthropic, Mistral, or local inference):
 
 1. **Implement the interface**:
-   Create a new class that inherits from `LLMInterface` in `src/cognivault/llm/llm_interface.py`.
+   Create a new class that inherits from `LLMInterface` in `src/cognivault/llm/llm_interface.py`.  
+   Note that the `generate` method now supports an optional `system_prompt` parameter to provide more flexible prompt control.
 
 2. **Add to factory**:
    Register your new implementation in `LLMFactory` (`src/cognivault/llm/factory.py`) under a new provider name.
@@ -314,7 +316,12 @@ make test
 Covers:
 - Agent context
 - Orchestrator pipeline
-- All 4 core agents
+- All 4 core agents  
+- The Refiner agent now includes system prompt tests to ensure prompt correctness and robustness.  
+Use the new batch test tool with:  
+```bash
+make test-agent-refiner
+```
 
 ### View Coverage
 
@@ -353,6 +360,17 @@ make coverage-one m=cli LOG_LEVEL=INFO
 ```bash
 make coverage-one m=orchestrator LOG_LEVEL=DEBUG
 ```
+
+---
+
+## 📈 Prompt Evaluation Tools
+
+We provide a specialized tool for evaluating prompt performance and behavior:
+
+- `scripts/agents/refiner/test_batch.py` runs batch tests on the Refiner agent's prompts, enabling detailed analysis of output variations.  
+- The tool includes git version metadata in its output to help track prompt changes and reproducibility.
+
+This facilitates prompt tuning and validation during development and experimentation.
 
 ---
 

@@ -1,4 +1,4 @@
-.PHONY: install test run lint format clean coverage-all coverage coverage-one
+.PHONY: install test run lint format clean coverage-all coverage coverage-one test-agent-%
 
 install:
 	bash scripts/setup.sh
@@ -16,7 +16,7 @@ lint:
 	ruff check src/ tests/
 
 format:
-	black src/ tests/
+	black src/ tests/ scripts/
 	ruff format src/ tests/
 
 typecheck:
@@ -37,3 +37,6 @@ coverage:
 
 coverage-one:
 	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
+
+test-agent-%:
+	PYTHONPATH=src python scripts/agents/$*/test_batch.py

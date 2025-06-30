@@ -11,6 +11,7 @@ class StubLLM(LLMInterface):
         self,
         prompt: str,
         *,
+        system_prompt: Optional[str] = None,
         stream: bool = False,
         on_log: Optional[Callable[[str], None]] = None,
         **kwargs: Any,
@@ -22,6 +23,8 @@ class StubLLM(LLMInterface):
         ----------
         prompt : str
             The input text prompt to simulate a response for.
+        system_prompt : str, optional
+            System prompt to provide context/instructions. Included in mock response.
         stream : bool, optional
             If True, simulate streaming output. Ignored in this stub.
         on_log : Callable[[str], None], optional
@@ -34,8 +37,14 @@ class StubLLM(LLMInterface):
         LLMResponse
             A canned response object.
         """
+        response_text = f"[STUB RESPONSE] You asked: {prompt}"
+        if system_prompt:
+            response_text = (
+                f"[STUB RESPONSE] System: {system_prompt[:50]}... | User: {prompt}"
+            )
+
         return LLMResponse(
-            text=f"[STUB RESPONSE] You asked: {prompt}",
+            text=response_text,
             tokens_used=0,
             model_name="stub-llm",
             finish_reason="stop",
