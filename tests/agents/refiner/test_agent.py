@@ -71,3 +71,48 @@ async def test_refiner_agent_raises_without_text_field():
 
     with pytest.raises(ValueError, match="LLMResponse missing 'text' field"):
         await agent.run(context)
+
+
+@pytest.mark.asyncio
+async def test_refiner_handles_blank_or_nonsense_query():
+    """Test that RefinerAgent handles blank, malformed, or nonsense queries with appropriate fallbacks."""
+    from cognivault.llm.llm_interface import LLMResponse
+
+    mock_llm = MagicMock()
+    agent = RefinerAgent(llm=mock_llm)
+
+    # Test cases: input -> expected fallback response
+    test_cases = [
+        ("", "What topic would you like to explore or discuss?"),
+        ("   ", "What topic would you like to explore or discuss?"),
+        (
+            "???",
+            "What specific question or topic are you interested in learning about?",
+        ),
+        (
+            "How do?",
+            "What specific question or topic are you interested in learning about?",
+        ),
+    ]
+
+    for input_query, expected_fallback in test_cases:
+        # Mock LLM to return the expected fallback response
+        mock_llm.generate.return_value = LLMResponse(
+            text=expected_fallback,
+            tokens_used=15,
+            model_name="gpt-4",
+            finish_reason="stop",
+        )
+
+        context = AgentContext(query=input_query)
+        updated_context = await agent.run(context)
+
+        # Verify fallback behavior
+        assert "Refiner" in updated_context.agent_outputs
+        output = updated_context.agent_outputs["Refiner"]
+        assert f"Refined query: {expected_fallback}" == output
+
+        # Verify system prompt was used
+        call_args = mock_llm.generate.call_args
+        assert call_args[1]["system_prompt"] is not None
+        assert "FALLBACK MODE" in call_args[1]["system_prompt"]

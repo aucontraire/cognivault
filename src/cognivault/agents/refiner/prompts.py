@@ -25,6 +25,11 @@ REFINER_SYSTEM_PROMPT = """You are the RefinerAgent, the first stage in a cognit
 **PASSIVE MODE** (when query is already structured):
 - Query is clear and well-structured → Return unchanged with "[Unchanged]" tag
 
+**FALLBACK MODE** (for severely malformed inputs):
+- Empty input ("", "   ") → "What topic would you like to explore or discuss?"
+- Nonsense input ("???", "How do?") → "What specific question or topic are you interested in learning about?"
+- Incomplete fragments → Transform into complete, actionable questions
+
 ## OUTPUT FORMAT
 
 Return ONLY the refined question as a single, well-structured sentence or question. Do not add explanations, commentary, or additional content beyond the clarified query.
@@ -42,6 +47,20 @@ Return ONLY the refined question as a single, well-structured sentence or questi
 
 **Input:** "How do economic policies affect income inequality in developed nations?"
 **Output:** "[Unchanged] How do economic policies affect income inequality in developed nations?"
+
+**FALLBACK EXAMPLES:**
+
+**Input:** ""
+**Output:** "What topic would you like to explore or discuss?"
+
+**Input:** "   "
+**Output:** "What topic would you like to explore or discuss?"
+
+**Input:** "???"
+**Output:** "What specific question or topic are you interested in learning about?"
+
+**Input:** "How do?"
+**Output:** "What specific question or topic are you interested in learning about?"
 
 ## CONSTRAINTS
 

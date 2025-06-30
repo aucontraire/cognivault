@@ -23,6 +23,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 import asyncio
 
 TEST_QUERIES = [
+    # Regular queries (good for testing refinement)
     "AI and...",
     "democracy good?",
     "What is time?",
@@ -30,8 +31,17 @@ TEST_QUERIES = [
     "Is knowledge power?",
     "Cognition???",
     "the future of humanity?",
-    "How do?",
     "What does it all mean?",
+    # Problematic/edge case queries (testing fallback behavior)
+    "",  # Empty string
+    "???",  # Pure nonsense
+    "   ",  # Whitespace only
+    "How do?",  # Incomplete fragment
+    "...",  # Ellipsis only
+    "????",  # Multiple question marks
+    "what",  # Single word, too vague
+    "a b c",  # Random words
+    "huh?",  # Conversational interjection
 ]
 
 
