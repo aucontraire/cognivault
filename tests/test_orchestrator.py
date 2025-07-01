@@ -141,7 +141,10 @@ def test_orchestrator_with_only_critic():
 
     assert list(context.agent_outputs.keys()) == ["Critic"]
     assert "Critic" in context.agent_outputs
-    assert "No refined output found" in context.agent_outputs["Critic"]
+    assert (
+        "No refined output available from RefinerAgent to critique."
+        in context.agent_outputs["Critic"]
+    )
     # Check agent_trace for Critic
     assert "Critic" in context.agent_trace
     assert isinstance(context.agent_trace["Critic"], list)

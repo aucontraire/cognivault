@@ -27,7 +27,7 @@ class AgentOrchestrator:
     Coordinates and runs a set of AI agents to process a user query.
 
     This orchestrator initializes the appropriate agents based on the specified configuration,
-    then executes them asynchronously in parallel. The results are merged into a shared context.
+    then executes them sequentially to handle agent dependencies. The results are merged into a shared context.
 
     Parameters
     ----------
@@ -86,14 +86,14 @@ class AgentOrchestrator:
                 elif agent_name == "synthesis":
                     self.agents.append(SynthesisAgent())
                 elif agent_name == "critic":
-                    self.agents.append(CriticAgent())
+                    self.agents.append(CriticAgent(llm=llm))
                 else:
                     print(f"[DEBUG] Unknown agent name: {agent_name}")
                 logger.debug(f"Added agent: {agent_name}")
         else:
             self.agents = [refiner_agent, HistorianAgent()]
             if self.critic_enabled:
-                self.agents.append(CriticAgent())
+                self.agents.append(CriticAgent(llm=llm))
             self.agents.append(SynthesisAgent())
             logger.debug(
                 f"Default agent order: {[agent.__class__.__name__ for agent in self.agents]}"
@@ -101,7 +101,7 @@ class AgentOrchestrator:
 
     async def run(self, query: str) -> AgentContext:
         """
-        Run all agents concurrently with the provided query.
+        Run all agents sequentially with the provided query.
 
         Parameters
         ----------
@@ -151,8 +151,9 @@ class AgentOrchestrator:
                         f"[AgentOrchestrator] Agent {agent.name} failed after {MAX_RETRIES} retries"
                     )
 
-        await asyncio.gather(
-            *(run_agent(agent, context) for agent in self.agents if agent is not None)
-        )
+        # Run agents sequentially to handle dependencies (e.g., Critic depends on Refiner)
+        for agent in self.agents:
+            if agent is not None:
+                await run_agent(agent, context)
 
         return context
