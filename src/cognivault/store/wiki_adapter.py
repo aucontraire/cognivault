@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 import json
 import uuid
+import hashlib
 from typing import KeysView
 from .utils import slugify_title
 
@@ -37,8 +38,12 @@ class MarkdownExporter:
             Path to the written markdown file.
         """
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        slug = slugify_title(question)
-        filename = f"{timestamp.replace(':', '-')}_{slug}.md"
+
+        # Truncate question to 40 characters for readability, add hash for uniqueness
+        truncated_question = question[:40].rstrip()
+        slug = slugify_title(truncated_question)
+        short_hash = hashlib.sha1(question.encode()).hexdigest()[:6]
+        filename = f"{timestamp.replace(':', '-')}_{slug}_{short_hash}.md"
         filepath = os.path.join(self.output_dir, filename)
 
         metadata = self._build_metadata(question, agent_outputs, timestamp, filename)

@@ -31,8 +31,9 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🧠 **Multi-agent orchestration**: Refiner, Historian, Critic, Synthesis
 - 🔁 **Orchestrator pipeline** supports dynamic agent control
 - 📄 **Markdown-ready output** for integration with personal wikis
-- 🧪 **Full test suite** with `pytest` for all core components
+- 🧪 **Full test suite** with `pytest` for all core components (100% coverage)
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
+- 📋 **Agent Registry**: Dynamic agent registration system for extensible architecture
 
 ---
 
@@ -45,7 +46,8 @@ src/
 │   │   ├── critic/
 │   │   │   ├── __init__.py
 │   │   │   ├── agent.py
-│   │   │   └── main.py
+│   │   │   ├── main.py
+│   │   │   └── prompts.py
 │   │   ├── historian/
 │   │   │   ├── __init__.py
 │   │   │   ├── agent.py
@@ -53,12 +55,14 @@ src/
 │   │   ├── refiner/
 │   │   │   ├── __init__.py
 │   │   │   ├── agent.py
-│   │   │   └── main.py
+│   │   │   ├── main.py
+│   │   │   └── prompts.py
 │   │   └── synthesis/
 │   │       ├── __init__.py
 │   │       ├── agent.py
 │   │       └── main.py
 │   ├── base_agent.py
+│   ├── registry.py
 │   ├── cli.py
 │   ├── config/
 │   │   ├── __init__.py
@@ -93,7 +97,8 @@ tests/
 │   ├── critic/
 │   │   ├── __init__.py
 │   │   ├── test_agent.py
-│   │   └── test_main.py
+│   │   ├── test_main.py
+│   │   └── test_prompts.py
 │   ├── historian/
 │   │   ├── __init__.py
 │   │   ├── test_agent.py
@@ -102,10 +107,11 @@ tests/
 │   │   ├── __init__.py
 │   │   ├── test_agent.py
 │   │   └── test_main.py
-│   └── synthesis/
-│       ├── __init__.py
-│       ├── test_agent.py
-│       └── test_main.py
+│   ├── synthesis/
+│   │   ├── __init__.py
+│   │   ├── test_agent.py
+│   │   └── test_main.py
+│   └── test_registry.py
 ├── test_base_agent.py
 ├── llm/
 │   ├── __init__.py
@@ -128,9 +134,7 @@ tests/
 Each agent in CogniVault plays a distinct role in the cognitive reflection and synthesis pipeline:
 
 - ### 🔍 Refiner
-  The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system.  
-  📄 [RefinerAgent Charter](./docs/agents/refiner/charter.md)  
-  It now uses a structured system prompt with passive and active modes to better guide its reasoning process. See the [prompts.py documentation](./src/cognivault/agents/refiner/prompts.py) for details.
+  The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system. It uses a comprehensive system prompt with passive and active modes to guide its reasoning process. See [`prompts.py`](./src/cognivault/agents/refiner/prompts.py) for implementation details.
 
 - ### 🧾 Historian
   The **HistorianAgent** provides relevant context from previous conversations or memory. It simulates long-term knowledge by surfacing pertinent background or earlier reflections.
@@ -140,6 +144,18 @@ Each agent in CogniVault plays a distinct role in the cognitive reflection and s
 
 - ### 🧵 Synthesis
   The **SynthesisAgent** gathers the outputs of the other agents and composes a final, unified response. This synthesis is designed to be insightful, coherent, and markdown-friendly for knowledge wikis or future reflection.
+
+### 📋 Agent Registry
+
+The **Agent Registry** provides a centralized system for managing agent types, dependencies, and creation logic. It enables dynamic agent loading while maintaining type safety and proper dependency injection. Key features include:
+
+- **Dynamic Registration**: Register new agents programmatically with metadata
+- **Dependency Tracking**: Define agent dependencies for proper execution order
+- **LLM Interface Management**: Automatically handles LLM requirement validation
+- **Pipeline Validation**: Validates agent pipelines before execution
+- **Extensible Architecture**: Prepared for future LangGraph integration
+
+The registry supports both the current architecture and future dynamic loading capabilities. See [`registry.py`](./src/cognivault/agents/registry.py) for implementation details.
 
 ---
 
@@ -314,13 +330,16 @@ make test
 ```
 
 Covers:
-- Agent context
-- Orchestrator pipeline
-- All 4 core agents  
-- The Refiner agent now includes system prompt tests to ensure prompt correctness and robustness.  
-Use the new batch test tool with:  
+- Agent context and orchestrator pipeline
+- All 4 core agents with comprehensive system prompt testing
+- Agent Registry with dynamic registration and dependency management
+- 100% test coverage across all modules
+- Both Refiner and Critic agents include comprehensive system prompt tests to ensure prompt correctness and robustness
+
+Use the batch test tools for agent evaluation:  
 ```bash
-make test-agent-refiner
+make test-agent-refiner    # Refiner agent batch testing
+make test-agent-critic     # Critic agent batch testing
 ```
 
 ### View Coverage
@@ -365,12 +384,13 @@ make coverage-one m=orchestrator LOG_LEVEL=DEBUG
 
 ## 📈 Prompt Evaluation Tools
 
-We provide a specialized tool for evaluating prompt performance and behavior:
+We provide specialized tools for evaluating prompt performance and behavior:
 
-- `scripts/agents/refiner/test_batch.py` runs batch tests on the Refiner agent's prompts, enabling detailed analysis of output variations.  
-- The tool includes git version metadata in its output to help track prompt changes and reproducibility.
+- `scripts/agents/refiner/test_batch.py` runs batch tests on the Refiner agent's prompts, enabling detailed analysis of output variations
+- `scripts/agents/critic/test_batch.py` runs batch tests on the Critic agent's cognitive reflection pipeline, testing bias detection and confidence scoring
+- Both tools include git version metadata in their output to help track prompt changes and reproducibility
 
-This facilitates prompt tuning and validation during development and experimentation.
+These tools facilitate prompt tuning and validation during development and experimentation, ensuring consistent agent behavior across different scenarios.
 
 ---
 

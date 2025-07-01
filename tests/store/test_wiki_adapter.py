@@ -16,10 +16,11 @@ def test_markdown_export_creates_file(tmp_path):
     # Validate file was created
     assert os.path.exists(filepath)
 
-    # Validate filename format and contents
+    # Validate filename format and contents (includes 6-character hash)
     filename = os.path.basename(filepath)
     assert re.match(
-        r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}_what-is-cognition\.md", filename
+        r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}_what-is-cognition_[a-f0-9]{6}\.md",
+        filename,
     )
 
     with open(filepath, "r", encoding="utf-8") as f:

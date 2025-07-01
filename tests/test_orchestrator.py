@@ -141,7 +141,10 @@ def test_orchestrator_with_only_critic():
 
     assert list(context.agent_outputs.keys()) == ["Critic"]
     assert "Critic" in context.agent_outputs
-    assert "No refined output found" in context.agent_outputs["Critic"]
+    assert (
+        "No refined output available from RefinerAgent to critique."
+        in context.agent_outputs["Critic"]
+    )
     # Check agent_trace for Critic
     assert "Critic" in context.agent_trace
     assert isinstance(context.agent_trace["Critic"], list)
@@ -280,3 +283,19 @@ def test_orchestrator_skips_log_trace_if_handled_externally(caplog):
         "Skipping log_trace because agent 'Silent'" in message
         for message in caplog.messages
     )
+
+
+def test_orchestrator_core_agent_creation_failure():
+    """Test orchestrator handles core agent creation failures."""
+    from unittest.mock import Mock, patch
+
+    # Mock the registry to fail when creating a core agent
+    mock_registry = Mock()
+    mock_registry.create_agent.side_effect = ValueError("Mock agent creation failed")
+
+    with patch(
+        "cognivault.orchestrator.get_agent_registry", return_value=mock_registry
+    ):
+        # This should raise the ValueError when trying to create core agents
+        with pytest.raises(ValueError, match="Mock agent creation failed"):
+            AgentOrchestrator()
