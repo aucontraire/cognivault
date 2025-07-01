@@ -13,10 +13,7 @@ from typing import Optional
 
 from cognivault.config.openai_config import OpenAIConfig
 from cognivault.agents.base_agent import BaseAgent
-from cognivault.agents.refiner.agent import RefinerAgent
-from cognivault.agents.critic.agent import CriticAgent
-from cognivault.agents.historian.agent import HistorianAgent
-from cognivault.agents.synthesis.agent import SynthesisAgent
+from cognivault.agents.registry import get_agent_registry
 from cognivault.context import AgentContext
 from cognivault.llm.openai import OpenAIChatLLM
 from cognivault.llm.llm_interface import LLMInterface
@@ -68,33 +65,42 @@ class AgentOrchestrator:
         )
         self.agents: list[BaseAgent] = []
 
+        # Initialize LLM for agents that require it
         llm_config = OpenAIConfig.load()
         llm: LLMInterface = OpenAIChatLLM(
             api_key=llm_config.api_key,
             model=llm_config.model,
             base_url=llm_config.base_url,
         )
-        refiner_agent = RefinerAgent(llm=llm)
+
+        # Get agent registry
+        registry = get_agent_registry()
 
         if self.agents_to_run:
             logger.debug("Custom agent list specified.")
             for agent_name in self.agents_to_run:
-                if agent_name == "refiner":
-                    self.agents.append(refiner_agent)
-                elif agent_name == "historian":
-                    self.agents.append(HistorianAgent())
-                elif agent_name == "synthesis":
-                    self.agents.append(SynthesisAgent())
-                elif agent_name == "critic":
-                    self.agents.append(CriticAgent(llm=llm))
-                else:
+                try:
+                    agent = registry.create_agent(agent_name, llm=llm)
+                    self.agents.append(agent)
+                    logger.debug(f"Added agent: {agent_name}")
+                except ValueError as e:
+                    logger.warning(f"Failed to create agent '{agent_name}': {e}")
                     print(f"[DEBUG] Unknown agent name: {agent_name}")
-                logger.debug(f"Added agent: {agent_name}")
         else:
-            self.agents = [refiner_agent, HistorianAgent()]
+            # Default pipeline: refiner -> historian -> (optional critic) -> synthesis
+            default_agents = ["refiner", "historian"]
             if self.critic_enabled:
-                self.agents.append(CriticAgent(llm=llm))
-            self.agents.append(SynthesisAgent())
+                default_agents.append("critic")
+            default_agents.append("synthesis")
+
+            for agent_name in default_agents:
+                try:
+                    agent = registry.create_agent(agent_name, llm=llm)
+                    self.agents.append(agent)
+                except ValueError as e:
+                    logger.error(f"Failed to create core agent '{agent_name}': {e}")
+                    raise
+
             logger.debug(
                 f"Default agent order: {[agent.__class__.__name__ for agent in self.agents]}"
             )
@@ -126,7 +132,7 @@ class AgentOrchestrator:
                         logger.debug(
                             f"Skipping log_trace because agent '{agent.name}' handled it internally."
                         )
-                    if isinstance(agent, SynthesisAgent):
+                    if agent.name == "Synthesis":
                         logger.debug(f"Setting final_synthesis from {agent.name}")
                         output = context.get_output(agent.name)
                         if isinstance(output, str):

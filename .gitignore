@@ -27,3 +27,5 @@ src/cognivault/logs/
 # Ignore batch test output files but keep the directory
 scripts/agents/refiner/outputs/*
 !scripts/agents/refiner/outputs/.gitkeep
+scripts/agents/critic/outputs/*
+!scripts/agents/critic/outputs/.gitkeep
