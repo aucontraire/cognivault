@@ -1,6 +1,7 @@
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
+from cognivault.config.app_config import get_config
 from .prompts import REFINER_SYSTEM_PROMPT
 
 import logging
@@ -40,7 +41,10 @@ class RefinerAgent(BaseAgent):
         AgentContext
             The updated context with the refined query added under the agent's name.
         """
-        await asyncio.sleep(0.1)  # Simulate asynchronous work
+        # Use configurable simulation delay if enabled
+        config = get_config()
+        if config.execution.enable_simulation_delay:
+            await asyncio.sleep(config.execution.simulation_delay_seconds)
         query = context.query.strip()
         logger.info(f"[{self.name}] Processing query: {query}")
 
