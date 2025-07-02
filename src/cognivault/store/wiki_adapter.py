@@ -3,8 +3,9 @@ from datetime import datetime
 import json
 import uuid
 import hashlib
-from typing import KeysView
+from typing import KeysView, Optional
 from .utils import slugify_title
+from cognivault.config.app_config import get_config
 
 
 class MarkdownExporter:
@@ -17,8 +18,12 @@ class MarkdownExporter:
         Directory where markdown files will be saved (default is "./src/cognivault/notes").
     """
 
-    def __init__(self, output_dir: str = "./src/cognivault/notes"):
-        self.output_dir = output_dir
+    def __init__(self, output_dir: Optional[str] = None):
+        # Use configuration default if not provided
+        config = get_config()
+        self.output_dir = (
+            output_dir if output_dir is not None else config.files.notes_directory
+        )
         os.makedirs(self.output_dir, exist_ok=True)
 
     def export(self, agent_outputs: dict, question: str) -> str:
@@ -39,11 +44,19 @@ class MarkdownExporter:
         """
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
-        # Truncate question to 40 characters for readability, add hash for uniqueness
-        truncated_question = question[:40].rstrip()
+        # Use configuration for filename generation parameters
+        config = get_config()
+        truncate_length = config.files.question_truncate_length
+        hash_length = config.files.hash_length
+        separator = config.files.filename_separator
+
+        # Truncate question for readability, add hash for uniqueness
+        truncated_question = question[:truncate_length].rstrip()
         slug = slugify_title(truncated_question)
-        short_hash = hashlib.sha1(question.encode()).hexdigest()[:6]
-        filename = f"{timestamp.replace(':', '-')}_{slug}_{short_hash}.md"
+        short_hash = hashlib.sha1(question.encode()).hexdigest()[:hash_length]
+        filename = (
+            f"{timestamp.replace(':', '-')}{separator}{slug}{separator}{short_hash}.md"
+        )
         filepath = os.path.join(self.output_dir, filename)
 
         metadata = self._build_metadata(question, agent_outputs, timestamp, filename)

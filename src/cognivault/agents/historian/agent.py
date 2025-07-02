@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.context import AgentContext
+from cognivault.config.app_config import get_config
 
 
 class HistorianAgent(BaseAgent):
@@ -39,14 +40,13 @@ class HistorianAgent(BaseAgent):
         query = context.query.strip()
         self.logger.info(f"[{self.name}] Received query: {query}")
 
-        # Simulate delay for asynchronous behavior
-        await asyncio.sleep(0.1)
+        # Use configurable simulation delay if enabled
+        config = get_config()
+        if config.execution.enable_simulation_delay:
+            await asyncio.sleep(config.execution.simulation_delay_seconds)
 
-        # For now, simulate retrieval of past notes or history
-        mock_history = [
-            "Note from 2024-10-15: Mexico had a third party win the presidency.",
-            "Note from 2024-11-05: Discussion on judiciary reforms in Mexico.",
-        ]
+        # Use configurable mock history data
+        mock_history = config.testing.mock_history_entries
 
         retrieved_text = "\n".join(mock_history)
         context.retrieved_notes = mock_history

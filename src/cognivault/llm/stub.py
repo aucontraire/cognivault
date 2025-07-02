@@ -1,4 +1,5 @@
 from cognivault.llm.llm_interface import LLMInterface, LLMResponse
+from cognivault.config.app_config import get_config
 from typing import Iterator, Optional, Callable, Any, Union
 
 
@@ -37,15 +38,21 @@ class StubLLM(LLMInterface):
         LLMResponse
             A canned response object.
         """
+        # Use configuration for mock response parameters
+        config = get_config()
+        tokens_used = config.models.mock_tokens_used
+        truncate_length = config.models.mock_response_truncate_length
+
         response_text = f"[STUB RESPONSE] You asked: {prompt}"
         if system_prompt:
+            truncated_system = system_prompt[:truncate_length]
             response_text = (
-                f"[STUB RESPONSE] System: {system_prompt[:50]}... | User: {prompt}"
+                f"[STUB RESPONSE] System: {truncated_system}... | User: {prompt}"
             )
 
         return LLMResponse(
             text=response_text,
-            tokens_used=0,
+            tokens_used=tokens_used,
             model_name="stub-llm",
             finish_reason="stop",
         )

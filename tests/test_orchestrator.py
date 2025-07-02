@@ -5,8 +5,12 @@ import logging
 from cognivault.orchestrator import AgentOrchestrator
 from cognivault.orchestrator import BaseAgent, AgentContext
 from cognivault.llm.llm_interface import LLMResponse
-
-TIMEOUT_SECONDS = 10  # Should match the orchestrator's timeout, adjust if needed
+from cognivault.config.app_config import (
+    ApplicationConfig,
+    Environment,
+    set_config,
+    reset_config,
+)
 
 
 class TimeoutAgent(BaseAgent):
@@ -14,7 +18,12 @@ class TimeoutAgent(BaseAgent):
         super().__init__(name="Timeout")
 
     async def run(self, context: AgentContext):
-        await asyncio.sleep(TIMEOUT_SECONDS + 5)
+        # Use configuration for timeout calculation
+        from cognivault.config.app_config import get_config
+
+        config = get_config()
+        timeout_seconds = config.get_timeout_for_environment()
+        await asyncio.sleep(timeout_seconds + 5)
 
 
 class SilentAgent(BaseAgent):
@@ -299,3 +308,151 @@ def test_orchestrator_core_agent_creation_failure():
         # This should raise the ValueError when trying to create core agents
         with pytest.raises(ValueError, match="Mock agent creation failed"):
             AgentOrchestrator()
+
+
+class TestOrchestratorConfiguration:
+    """Test suite for orchestrator configuration integration."""
+
+    def setup_method(self):
+        """Reset global configuration before each test."""
+        reset_config()
+
+    def teardown_method(self):
+        """Reset global configuration after each test."""
+        reset_config()
+
+    def test_orchestrator_uses_config_defaults(self):
+        """Test that orchestrator uses configuration defaults."""
+        # Set up custom configuration
+        config = ApplicationConfig()
+        config.execution.critic_enabled = False
+        config.execution.default_agents = ["refiner", "synthesis"]
+        set_config(config)
+
+        # Create orchestrator without explicit parameters
+        orchestrator = AgentOrchestrator()
+
+        # Should use configuration defaults
+        assert orchestrator.critic_enabled is False
+        agent_names = [agent.name for agent in orchestrator.agents]
+        assert "Refiner" in agent_names
+        assert "Synthesis" in agent_names
+        assert "Critic" not in agent_names
+
+    def test_orchestrator_explicit_params_override_config(self):
+        """Test that explicit parameters override configuration."""
+        # Set up custom configuration
+        config = ApplicationConfig()
+        config.execution.critic_enabled = False
+        set_config(config)
+
+        # Create orchestrator with explicit critic_enabled=True
+        orchestrator = AgentOrchestrator(critic_enabled=True)
+
+        # Should use explicit parameter, not configuration
+        assert orchestrator.critic_enabled is True
+        agent_names = [agent.name for agent in orchestrator.agents]
+        assert "Critic" in agent_names
+
+    def test_orchestrator_uses_config_timeout_settings(self):
+        """Test that orchestrator uses configuration timeout settings."""
+        config = ApplicationConfig()
+        config.execution.max_retries = 5
+        config.execution.timeout_seconds = 20
+        config.execution.retry_delay_seconds = 2.0
+        config.environment = Environment.TESTING
+        config.testing.test_timeout_multiplier = 2.0
+        set_config(config)
+
+        orchestrator = AgentOrchestrator(agents_to_run=[])
+
+        # Create a test agent that tracks configuration usage
+        class ConfigTestAgent(BaseAgent):
+            def __init__(self):
+                super().__init__("ConfigTest")
+                self.config_values = {}
+
+            async def run(self, context: AgentContext):
+                from cognivault.config.app_config import get_config
+
+                config = get_config()
+                self.config_values = {
+                    "max_retries": config.execution.max_retries,
+                    "timeout": config.get_timeout_for_environment(),
+                    "retry_delay": config.execution.retry_delay_seconds,
+                }
+                context.add_agent_output(self.name, "Test completed")
+
+        test_agent = ConfigTestAgent()
+        orchestrator.agents = [test_agent]
+
+        # Run the orchestrator (it will access configuration internally)
+        context = asyncio.run(orchestrator.run("Test configuration usage"))
+
+        # Verify configuration was accessed correctly
+        assert test_agent.config_values["max_retries"] == 5
+        assert (
+            test_agent.config_values["timeout"] == 40
+        )  # 20 * 2.0 multiplier for testing
+        assert test_agent.config_values["retry_delay"] == 2.0
+
+    def test_orchestrator_dynamic_agent_pipeline(self):
+        """Test orchestrator with dynamically configured agent pipeline."""
+        config = ApplicationConfig()
+        config.execution.default_agents = ["historian", "refiner", "synthesis"]
+        config.execution.critic_enabled = True
+        set_config(config)
+
+        orchestrator = AgentOrchestrator()
+
+        # Should follow configured pipeline order with critic inserted appropriately
+        agent_names = [agent.name for agent in orchestrator.agents]
+
+        # Historian should be first (as configured)
+        assert agent_names[0] == "Historian"
+        # Refiner should be second
+        assert agent_names[1] == "Refiner"
+        # Critic should be inserted after refiner
+        assert agent_names[2] == "Critic"
+        # Synthesis should be last
+        assert agent_names[3] == "Synthesis"
+
+    def test_orchestrator_critic_enabled_no_refiner_in_pipeline(self):
+        """Test critic handling when refiner is not in the default agent pipeline."""
+        config = ApplicationConfig()
+        config.execution.default_agents = ["historian", "synthesis"]  # No refiner
+        config.execution.critic_enabled = True
+        set_config(config)
+
+        orchestrator = AgentOrchestrator()
+
+        # When refiner is not in pipeline but critic is enabled,
+        # critic should be appended to the end
+        agent_names = [agent.name for agent in orchestrator.agents]
+
+        assert "Historian" in agent_names
+        assert "Synthesis" in agent_names
+        assert "Critic" in agent_names  # Should be appended
+        assert "Refiner" not in agent_names
+
+    def test_orchestrator_remove_critic_from_pipeline(self):
+        """Test removing critic from pipeline when critic_enabled=False."""
+        config = ApplicationConfig()
+        config.execution.default_agents = [
+            "refiner",
+            "critic",
+            "historian",
+            "synthesis",
+        ]
+        config.execution.critic_enabled = False  # Explicitly disable critic
+        set_config(config)
+
+        orchestrator = AgentOrchestrator()
+
+        # Critic should be removed from the pipeline
+        agent_names = [agent.name for agent in orchestrator.agents]
+
+        assert "Refiner" in agent_names
+        assert "Historian" in agent_names
+        assert "Synthesis" in agent_names
+        assert "Critic" not in agent_names  # Should be removed

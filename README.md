@@ -34,6 +34,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🧪 **Full test suite** with `pytest` for all core components (100% coverage)
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
 - 📋 **Agent Registry**: Dynamic agent registration system for extensible architecture
+- ⚙️ **Configuration Management**: Centralized configuration system with environment variables and JSON file support
 
 ---
 
@@ -66,6 +67,7 @@ src/
 │   ├── cli.py
 │   ├── config/
 │   │   ├── __init__.py
+│   │   ├── app_config.py
 │   │   └── logging_config.py
 │   ├── context.py
 │   ├── docs/
@@ -113,6 +115,10 @@ tests/
 │   │   └── test_main.py
 │   └── test_registry.py
 ├── test_base_agent.py
+├── config/
+│   ├── __init__.py
+│   ├── test_app_config.py
+│   └── test_openai_config.py
 ├── llm/
 │   ├── __init__.py
 │   ├── test_llm_interface.py
@@ -184,25 +190,143 @@ Hooks are installed automatically by `setup.sh`, but you can manually install or
 
 ---
 
+## ⚙️ Configuration Management
+
+CogniVault features a comprehensive configuration system that centralizes all application settings, replacing scattered magic numbers and constants throughout the codebase. The configuration system supports multiple environments and provides flexible configuration through environment variables and JSON files.
+
+### Configuration Categories
+
+- **ExecutionConfig**: Agent timeouts, retries, simulation delays, and pipeline settings
+- **FileConfig**: Directory paths, file size limits, filename generation settings
+- **ModelConfig**: LLM provider settings, token limits, temperature, and mock data
+- **TestConfig**: Testing timeouts, simulation settings, and mock history data
+
+### Environment Variables
+
+Configure CogniVault using `COGNIVAULT_*` prefixed environment variables:
+
+```env
+# Environment and logging
+COGNIVAULT_ENV=development  # development, testing, production
+COGNIVAULT_LOG_LEVEL=INFO   # DEBUG, INFO, WARNING, ERROR
+COGNIVAULT_DEBUG=false      # Enable debug mode
+
+# Execution settings
+COGNIVAULT_MAX_RETRIES=3
+COGNIVAULT_TIMEOUT_SECONDS=10
+COGNIVAULT_RETRY_DELAY=1.0
+COGNIVAULT_SIMULATION_DELAY=false
+COGNIVAULT_SIMULATION_DELAY_SECONDS=0.1
+COGNIVAULT_CRITIC_ENABLED=true
+
+# File handling
+COGNIVAULT_NOTES_DIR=./src/cognivault/notes
+COGNIVAULT_LOGS_DIR=./src/cognivault/logs
+COGNIVAULT_QUESTION_TRUNCATE=40
+COGNIVAULT_HASH_LENGTH=6
+COGNIVAULT_MAX_FILE_SIZE=10485760  # 10MB
+
+# Model settings
+COGNIVAULT_LLM=openai  # LLM provider selection
+COGNIVAULT_MAX_TOKENS=4096
+COGNIVAULT_TEMPERATURE=0.7
+
+# Testing
+COGNIVAULT_TEST_TIMEOUT_MULTIPLIER=1.5
+COGNIVAULT_TEST_SIMULATION=true
+```
+
+### JSON Configuration Files
+
+You can also use JSON configuration files for more complex setups:
+
+```json
+{
+  "environment": "production",
+  "log_level": "INFO",
+  "debug_mode": false,
+  "execution": {
+    "max_retries": 5,
+    "timeout_seconds": 30,
+    "critic_enabled": true,
+    "default_agents": ["refiner", "historian", "critic", "synthesis"]
+  },
+  "files": {
+    "notes_directory": "/app/data/notes",
+    "logs_directory": "/app/data/logs"
+  },
+  "models": {
+    "default_provider": "openai",
+    "temperature": 0.8
+  }
+}
+```
+
+### Programmatic Configuration
+
+For advanced use cases, you can configure CogniVault programmatically:
+
+```python
+from cognivault.config.app_config import ApplicationConfig, Environment, set_config
+
+# Create custom configuration
+config = ApplicationConfig()
+config.environment = Environment.PRODUCTION
+config.execution.max_retries = 5
+config.files.notes_directory = "/custom/path"
+
+# Set as global configuration
+set_config(config)
+
+# Load from file
+config = ApplicationConfig.from_file("/path/to/config.json")
+set_config(config)
+```
+
+### Environment-Specific Behavior
+
+The configuration system automatically adjusts behavior based on the environment:
+
+- **Development**: Standard timeouts and full logging
+- **Testing**: Extended timeouts (multiplied by `test_timeout_multiplier`), simulation enabled
+- **Production**: Optimized settings, reduced logging
+
+### Configuration Validation
+
+All configuration values are automatically validated with clear error messages:
+
+```python
+config = ApplicationConfig()
+config.execution.max_retries = -1  # Invalid
+errors = config.validate()
+# Returns: ["max_retries must be non-negative"]
+```
+
+---
+
 ## 🔐 LLM Configuration
 
 CogniVault supports OpenAI out of the box via a `.env` file in the root of the project:
 
 ```env
+# LLM Provider Configuration
+COGNIVAULT_LLM=openai  # Change to "stub" to use a mock LLM for testing
+
+# OpenAI-specific settings (only required when using OpenAI)
 OPENAI_API_KEY=your-key-here
 OPENAI_MODEL=gpt-4
 OPENAI_API_BASE=https://api.openai.com/v1  # Optional
-COGNIVAULT_LLM=openai  # Change to "stub" to use a mock LLM for testing
+
+# Model behavior (part of configuration system)
+COGNIVAULT_MAX_TOKENS=4096
+COGNIVAULT_TEMPERATURE=0.7
 ```
 
 You can define new LLM backends by extending the `LLMInterface` and registering them in the `LLMFactory`. The active backend is selected via the environment variable `COGNIVAULT_LLM`.
 
-Example:
-```env
-COGNIVAULT_LLM=openai  # or "stub" for mock runs
-```
+The LLM backend is now part of the centralized configuration system. Set `COGNIVAULT_LLM=openai` for OpenAI or `COGNIVAULT_LLM=stub` for testing with mock responses.
 
-The `OPENAI_*` variables below are only required when using the OpenAI backend:
+The `OPENAI_*` variables are only required when using the OpenAI backend:
 
 ---
 

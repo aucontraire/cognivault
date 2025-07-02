@@ -1,22 +1,18 @@
 import logging
 import asyncio
-
-MAX_RETRIES = 3
-TIMEOUT_SECONDS = 10
-from cognivault.config.logging_config import setup_logging
-
-setup_logging()
-logger = logging.getLogger(__name__)
-
 from typing import Optional
 
-
+from cognivault.config.logging_config import setup_logging
+from cognivault.config.app_config import get_config
 from cognivault.config.openai_config import OpenAIConfig
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
 from cognivault.context import AgentContext
 from cognivault.llm.openai import OpenAIChatLLM
 from cognivault.llm.llm_interface import LLMInterface
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class AgentOrchestrator:
@@ -44,7 +40,9 @@ class AgentOrchestrator:
     """
 
     def __init__(
-        self, critic_enabled: bool = True, agents_to_run: Optional[list[str]] = None
+        self,
+        critic_enabled: Optional[bool] = None,
+        agents_to_run: Optional[list[str]] = None,
     ):
         """
         Initialize the AgentOrchestrator with optional critic and custom agent list.
@@ -52,11 +50,19 @@ class AgentOrchestrator:
         Parameters
         ----------
         critic_enabled : bool, optional
-            Whether to enable the CriticAgent in the pipeline. Default is True.
+            Whether to enable the CriticAgent in the pipeline. If None, uses configuration default.
         agents_to_run : list of str, optional
             Explicit list of agent names to run. If None, the default pipeline is used.
         """
-        self.critic_enabled = critic_enabled
+        # Get application configuration
+        config = get_config()
+
+        # Use configuration defaults if not explicitly provided
+        self.critic_enabled = (
+            critic_enabled
+            if critic_enabled is not None
+            else config.execution.critic_enabled
+        )
         self.agents_to_run = (
             [a.lower() for a in agents_to_run] if agents_to_run else None
         )
@@ -87,11 +93,17 @@ class AgentOrchestrator:
                     logger.warning(f"Failed to create agent '{agent_name}': {e}")
                     print(f"[DEBUG] Unknown agent name: {agent_name}")
         else:
-            # Default pipeline: refiner -> historian -> (optional critic) -> synthesis
-            default_agents = ["refiner", "historian"]
-            if self.critic_enabled:
-                default_agents.append("critic")
-            default_agents.append("synthesis")
+            # Use default pipeline from configuration
+            default_agents = config.execution.default_agents.copy()
+            if self.critic_enabled and "critic" not in default_agents:
+                # Insert critic after refiner if it exists, otherwise add to end
+                if "refiner" in default_agents:
+                    refiner_index = default_agents.index("refiner")
+                    default_agents.insert(refiner_index + 1, "critic")
+                else:
+                    default_agents.append("critic")
+            elif not self.critic_enabled and "critic" in default_agents:
+                default_agents.remove("critic")
 
             for agent_name in default_agents:
                 try:
@@ -122,12 +134,18 @@ class AgentOrchestrator:
         logger.info(f"[AgentOrchestrator] Running orchestrator with query: {query}")
         context = AgentContext(query=query)
 
+        # Get configuration for execution parameters
+        config = get_config()
+        max_retries = config.execution.max_retries
+        timeout_seconds = config.get_timeout_for_environment()
+        retry_delay = config.execution.retry_delay_seconds
+
         async def run_agent(agent: BaseAgent, context: AgentContext) -> None:
             logger.info(f"[AgentOrchestrator] Running agent: {agent.name}")
             retries = 0
-            while retries < MAX_RETRIES:
+            while retries < max_retries:
                 try:
-                    await asyncio.wait_for(agent.run(context), timeout=TIMEOUT_SECONDS)
+                    await asyncio.wait_for(agent.run(context), timeout=timeout_seconds)
                     if agent.name not in context.agent_trace:
                         logger.debug(
                             f"Skipping log_trace because agent '{agent.name}' handled it internally."
@@ -148,13 +166,16 @@ class AgentOrchestrator:
                         f"[AgentOrchestrator] Error running agent {agent.name}: {e}"
                     )
                 retries += 1
-                if retries < MAX_RETRIES:
+                if retries < max_retries:
                     logger.info(
                         f"[AgentOrchestrator] Retrying agent {agent.name} (attempt {retries + 1})"
                     )
+                    # Add configurable delay between retries
+                    if retry_delay > 0:
+                        await asyncio.sleep(retry_delay)
                 else:
                     logger.error(
-                        f"[AgentOrchestrator] Agent {agent.name} failed after {MAX_RETRIES} retries"
+                        f"[AgentOrchestrator] Agent {agent.name} failed after {max_retries} retries"
                     )
 
         # Run agents sequentially to handle dependencies (e.g., Critic depends on Refiner)
