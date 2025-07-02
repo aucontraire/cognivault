@@ -87,7 +87,7 @@ class ModelConfig:
 
 
 @dataclass
-class TestConfig:
+class DevelopmentConfig:
     """Configuration for testing and development."""
 
     # Test timeouts and delays
@@ -106,6 +106,12 @@ class TestConfig:
     # Coverage and quality thresholds
     prompt_min_length: int = 2000
     prompt_max_length: int = 8000
+
+    # Context management settings
+    max_context_size_bytes: int = 1024 * 1024  # 1MB default
+    max_snapshots: int = 5
+    enable_context_compression: bool = True
+    context_compression_threshold: float = 0.8  # Compress when 80% of max size
 
 
 @dataclass
@@ -126,7 +132,7 @@ class ApplicationConfig:
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     files: FileConfig = field(default_factory=FileConfig)
     models: ModelConfig = field(default_factory=ModelConfig)
-    testing: TestConfig = field(default_factory=TestConfig)
+    testing: DevelopmentConfig = field(default_factory=DevelopmentConfig)
 
     @classmethod
     def from_env(cls) -> "ApplicationConfig":
@@ -205,6 +211,18 @@ class ApplicationConfig:
         )
         config.testing.test_simulation_enabled = (
             os.getenv("COGNIVAULT_TEST_SIMULATION", "true").lower() == "true"
+        )
+
+        # Context management configuration
+        config.testing.max_context_size_bytes = int(
+            os.getenv("COGNIVAULT_MAX_CONTEXT_SIZE_BYTES", str(1024 * 1024))
+        )
+        config.testing.max_snapshots = int(os.getenv("COGNIVAULT_MAX_SNAPSHOTS", "5"))
+        config.testing.enable_context_compression = (
+            os.getenv("COGNIVAULT_ENABLE_CONTEXT_COMPRESSION", "true").lower() == "true"
+        )
+        config.testing.context_compression_threshold = float(
+            os.getenv("COGNIVAULT_CONTEXT_COMPRESSION_THRESHOLD", "0.8")
         )
 
         return config
@@ -320,6 +338,10 @@ class ApplicationConfig:
                 "mock_history_entries": self.testing.mock_history_entries,
                 "prompt_min_length": self.testing.prompt_min_length,
                 "prompt_max_length": self.testing.prompt_max_length,
+                "max_context_size_bytes": self.testing.max_context_size_bytes,
+                "max_snapshots": self.testing.max_snapshots,
+                "enable_context_compression": self.testing.enable_context_compression,
+                "context_compression_threshold": self.testing.context_compression_threshold,
             },
         }
 

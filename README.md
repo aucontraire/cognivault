@@ -35,6 +35,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
 - 📋 **Agent Registry**: Dynamic agent registration system for extensible architecture
 - ⚙️ **Configuration Management**: Centralized configuration system with environment variables and JSON file support
+- 🧠 **Enhanced Context Management**: Advanced memory management with compression, snapshots, and size monitoring
 
 ---
 
@@ -130,6 +131,7 @@ tests/
 │   └── test_wiki_adapter.py
 ├── test_cli.py
 ├── test_context.py
+├── test_context_enhanced.py
 └── test_orchestrator.py
 ```
 
@@ -162,6 +164,75 @@ The **Agent Registry** provides a centralized system for managing agent types, d
 - **Extensible Architecture**: Prepared for future LangGraph integration
 
 The registry supports both the current architecture and future dynamic loading capabilities. See [`registry.py`](./src/cognivault/agents/registry.py) for implementation details.
+
+### 🧠 Enhanced Context Management
+
+CogniVault features enterprise-grade context management designed to prevent memory bloat and provide robust state management for long-running agent conversations. Key features include:
+
+- **Automatic Size Monitoring**: Real-time tracking of context size with configurable limits
+- **Smart Compression**: Automatic gzip compression and content truncation when size limits are exceeded
+- **Context Snapshots**: Create immutable snapshots of context state for rollback capabilities
+- **Memory Optimization**: Intelligent cleanup of old data while preserving essential information
+- **Parallel Processing Support**: Context cloning for safe concurrent agent execution
+
+#### Context Management Features
+
+The enhanced context system provides several key capabilities:
+
+```python
+from cognivault.context import AgentContext
+
+# Create context with automatic size monitoring
+context = AgentContext(query="What is AI safety?")
+
+# Create a snapshot for later rollback
+snapshot_id = context.create_snapshot(label="before_refinement")
+
+# Add agent outputs (automatically monitored for size)
+context.add_agent_output("refiner", "Refined query about AI safety...")
+
+# Get memory usage statistics
+usage = context.get_memory_usage()
+print(f"Total size: {usage['total_size_bytes']} bytes")
+print(f"Snapshots: {usage['snapshots_count']}")
+
+# Optimize memory if needed
+stats = context.optimize_memory()
+print(f"Size reduced by {stats['size_reduction_bytes']} bytes")
+
+# Restore from snapshot if needed
+context.restore_snapshot(snapshot_id)
+
+# Clone for parallel processing
+cloned_context = context.clone()
+```
+
+#### Configurable Context Settings
+
+Context management behavior can be configured via environment variables:
+
+```env
+# Context size limits (default: 1MB)
+COGNIVAULT_MAX_CONTEXT_SIZE_BYTES=1048576
+
+# Maximum snapshots to keep (default: 5)
+COGNIVAULT_MAX_SNAPSHOTS=5
+
+# Enable automatic compression (default: true)
+COGNIVAULT_ENABLE_CONTEXT_COMPRESSION=true
+
+# Compression threshold (default: 0.8 = 80% of max size)
+COGNIVAULT_CONTEXT_COMPRESSION_THRESHOLD=0.8
+```
+
+The context management system automatically:
+- Monitors context size during agent operations
+- Applies compression when size limits are exceeded
+- Truncates large outputs intelligently
+- Maintains agent trace history with size limits
+- Provides detailed memory usage statistics
+
+This ensures CogniVault can handle long-running conversations and complex multi-agent workflows without memory issues, making it suitable for production deployments and extended research sessions.
 
 ---
 
@@ -234,6 +305,12 @@ COGNIVAULT_TEMPERATURE=0.7
 # Testing
 COGNIVAULT_TEST_TIMEOUT_MULTIPLIER=1.5
 COGNIVAULT_TEST_SIMULATION=true
+
+# Context Management
+COGNIVAULT_MAX_CONTEXT_SIZE_BYTES=1048576  # 1MB
+COGNIVAULT_MAX_SNAPSHOTS=5
+COGNIVAULT_ENABLE_CONTEXT_COMPRESSION=true
+COGNIVAULT_CONTEXT_COMPRESSION_THRESHOLD=0.8
 ```
 
 ### JSON Configuration Files
