@@ -1,9 +1,9 @@
 import os
 from typing import Optional
 from dataclasses import dataclass
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-load_dotenv()
+load_dotenv(find_dotenv(), override=True)
 
 
 @dataclass

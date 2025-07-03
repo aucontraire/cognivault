@@ -13,7 +13,7 @@ from cognivault.config.app_config import (
     ExecutionConfig,
     FileConfig,
     ModelConfig,
-    TestConfig,
+    DevelopmentConfig,
     Environment,
     LogLevel,
     get_config,
@@ -70,12 +70,12 @@ class TestModelConfig:
         assert config.mock_response_truncate_length == 50
 
 
-class TestTestConfig:
-    """Test suite for TestConfig."""
+class TestDevelopmentConfig:
+    """Test suite for DevelopmentConfig."""
 
     def test_default_values(self):
-        """Test that TestConfig has correct default values."""
-        config = TestConfig()
+        """Test that DevelopmentConfig has correct default values."""
+        config = DevelopmentConfig()
 
         assert config.test_timeout_multiplier == 1.5
         assert config.test_simulation_enabled is True
@@ -98,7 +98,7 @@ class TestApplicationConfig:
         assert isinstance(config.execution, ExecutionConfig)
         assert isinstance(config.files, FileConfig)
         assert isinstance(config.models, ModelConfig)
-        assert isinstance(config.testing, TestConfig)
+        assert isinstance(config.testing, DevelopmentConfig)
 
     def test_from_env_basic(self):
         """Test creating configuration from environment variables."""
