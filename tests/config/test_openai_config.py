@@ -1,4 +1,3 @@
-import os
 import pytest
 from cognivault.config.openai_config import OpenAIConfig
 

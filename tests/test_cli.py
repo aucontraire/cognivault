@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from cognivault.context import AgentContext
 import pytest
 from cognivault.cli import run as cli_main

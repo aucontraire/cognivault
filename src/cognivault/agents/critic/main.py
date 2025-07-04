@@ -1,4 +1,3 @@
-import logging
 import asyncio
 import argparse
 import sys
@@ -37,7 +36,7 @@ async def run_critic(query: str, debug: bool = False) -> tuple[str, Optional[dic
         try:
             llm_config = OpenAIConfig.load()
             model_name = llm_config.model
-        except:
+        except Exception:
             model_name = "stub-llm" if hasattr(llm, "model_name") else "unknown"
 
         debug_info = {
@@ -61,7 +60,7 @@ async def run_critic(query: str, debug: bool = False) -> tuple[str, Optional[dic
         print(
             f"[DEBUG] Simulated Refiner output for critique: 'Refined query: {query}'"
         )
-        print(f"[DEBUG] Running CriticAgent...")
+        print("[DEBUG] Running CriticAgent...")
 
     # Run the agent
     await agent.run(context)
@@ -81,7 +80,7 @@ async def run_critic(query: str, debug: bool = False) -> tuple[str, Optional[dic
         )
 
         print(f"[DEBUG] Raw agent output: {output}")
-        print(f"[DEBUG] Processing complete")
+        print("[DEBUG] Processing complete")
 
     return critic_output, debug_info
 

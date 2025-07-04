@@ -1,5 +1,4 @@
 import logging
-import asyncio
 from typing import Optional
 
 from cognivault.config.logging_config import setup_logging
@@ -134,49 +133,29 @@ class AgentOrchestrator:
         logger.info(f"[AgentOrchestrator] Running orchestrator with query: {query}")
         context = AgentContext(query=query)
 
-        # Get configuration for execution parameters
-        config = get_config()
-        max_retries = config.execution.max_retries
-        timeout_seconds = config.get_timeout_for_environment()
-        retry_delay = config.execution.retry_delay_seconds
+        # Configuration is now handled at the agent level
+        # Each agent manages its own retry policy and timeout
 
         async def run_agent(agent: BaseAgent, context: AgentContext) -> None:
             logger.info(f"[AgentOrchestrator] Running agent: {agent.name}")
-            retries = 0
-            while retries < max_retries:
-                try:
-                    await asyncio.wait_for(agent.run(context), timeout=timeout_seconds)
-                    if agent.name not in context.agent_trace:
-                        logger.debug(
-                            f"Skipping log_trace because agent '{agent.name}' handled it internally."
-                        )
-                    if agent.name == "Synthesis":
-                        logger.debug(f"Setting final_synthesis from {agent.name}")
-                        output = context.get_output(agent.name)
-                        if isinstance(output, str):
-                            context.set_final_synthesis(output)
-                    logger.info(f"[AgentOrchestrator] Completed agent: {agent.name}")
-                    break  # Success, break out of retry loop
-                except asyncio.TimeoutError:
-                    logger.warning(
-                        f"[AgentOrchestrator] Timeout while running agent: {agent.name}"
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"[AgentOrchestrator] Error running agent {agent.name}: {e}"
-                    )
-                retries += 1
-                if retries < max_retries:
-                    logger.info(
-                        f"[AgentOrchestrator] Retrying agent {agent.name} (attempt {retries + 1})"
-                    )
-                    # Add configurable delay between retries
-                    if retry_delay > 0:
-                        await asyncio.sleep(retry_delay)
-                else:
-                    logger.error(
-                        f"[AgentOrchestrator] Agent {agent.name} failed after {max_retries} retries"
-                    )
+            try:
+                # Use the agent's built-in retry logic instead of orchestrator-level retries
+                await agent.run_with_retry(context)
+
+                # Handle synthesis agent special case
+                if agent.name == "Synthesis":
+                    logger.debug(f"Setting final_synthesis from {agent.name}")
+                    output = context.get_output(agent.name)
+                    if isinstance(output, str):
+                        context.set_final_synthesis(output)
+
+                logger.info(f"[AgentOrchestrator] Completed agent: {agent.name}")
+
+            except Exception as e:
+                logger.error(f"[AgentOrchestrator] Agent {agent.name} failed: {e}")
+                # Let the exception propagate to handle failure scenarios
+                # This will be caught by higher-level error handling
+                raise
 
         # Run agents sequentially to handle dependencies (e.g., Critic depends on Refiner)
         for agent in self.agents:

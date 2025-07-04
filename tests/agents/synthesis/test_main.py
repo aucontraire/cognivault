@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from unittest.mock import patch, AsyncMock
 
 from cognivault.agents.synthesis.main import run_synthesis

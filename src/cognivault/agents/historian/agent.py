@@ -1,11 +1,11 @@
 import logging
 import asyncio
 
-logger = logging.getLogger(__name__)
-
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.context import AgentContext
 from cognivault.config.app_config import get_config
+
+logger = logging.getLogger(__name__)
 
 
 class HistorianAgent(BaseAgent):

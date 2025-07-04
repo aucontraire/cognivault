@@ -1,7 +1,6 @@
 import pytest
-import asyncio
 import sys
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock
 from cognivault.agents.critic import main as critic_main
 
 
@@ -246,7 +245,6 @@ async def test_run_critic_no_output(monkeypatch):
 
 def test_parse_args_with_query():
     """Test argument parsing with query provided."""
-    import sys
 
     original_argv = sys.argv
     try:
@@ -260,7 +258,6 @@ def test_parse_args_with_query():
 
 def test_parse_args_without_query():
     """Test argument parsing without query (interactive mode)."""
-    import sys
 
     original_argv = sys.argv
     try:
@@ -274,7 +271,6 @@ def test_parse_args_without_query():
 
 def test_parse_args_short_flags():
     """Test argument parsing with short flags."""
-    import sys
 
     original_argv = sys.argv
     try:

@@ -1,10 +1,11 @@
 import pytest
-import json
+
 from unittest.mock import patch, MagicMock
 from cognivault.context import (
     AgentContext,
     ContextSnapshot,
     ContextCompressionManager,
+    StateTransitionError,
 )
 
 
@@ -268,10 +269,10 @@ class TestEnhancedAgentContext:
 
         # Create multiple snapshots
         context.add_agent_output("agent1", "output1")
-        snapshot1 = context.create_snapshot()
+        context.create_snapshot()
 
         context.add_agent_output("agent2", "output2")
-        snapshot2 = context.create_snapshot()
+        context.create_snapshot()
 
         snapshots = context.list_snapshots()
 
@@ -477,3 +478,73 @@ class TestEnhancedAgentContext:
         # Test get_final_synthesis
         context.set_final_synthesis("Test synthesis")
         assert context.get_final_synthesis() == "Test synthesis"
+
+    @patch("cognivault.context.ContextSnapshot")
+    def test_create_execution_snapshot_failure(self, mock_snapshot_cls):
+        """Test error handling during execution snapshot creation."""
+        context = AgentContext(query="Failing snapshot test")
+
+        # Simulate ContextSnapshot raising an exception
+        mock_snapshot_cls.side_effect = Exception("Simulated snapshot error")
+
+        with pytest.raises(StateTransitionError) as exc_info:
+            context.create_execution_snapshot(label="should fail")
+
+        exception = exc_info.value
+        assert isinstance(exception, StateTransitionError)
+        assert exception.error_code == "state_transition_failed"
+        assert exception.agent_id == "context_manager"
+        assert exception.state_details == "Simulated snapshot error"
+
+    @patch.object(AgentContext, "restore_snapshot", return_value=True)
+    def test_restore_execution_snapshot_failure(self, mock_restore_snapshot):
+        """Test error handling during execution snapshot restore."""
+        context = AgentContext(query="Restore failure test")
+        snapshot_id = "2024-01-01T00:00:00Z_0"
+        context.execution_state = {
+            f"snapshot_{snapshot_id}_execution_data": "invalid_state"
+        }
+
+        with pytest.raises(StateTransitionError) as exc_info:
+            context.restore_execution_snapshot(snapshot_id)
+
+        exception = exc_info.value
+        assert isinstance(exception, StateTransitionError)
+        assert exception.error_code == "state_transition_failed"
+        assert exception.agent_id == "context_manager"
+        assert snapshot_id in str(exception)
+
+    def test_get_rollback_options_fallback(self):
+        """Test get_rollback_options with missing execution state."""
+        context = AgentContext(query="Rollback edge case")
+        context.create_snapshot()  # Create a basic snapshot
+
+        rollback_options = context.get_rollback_options()
+        assert isinstance(rollback_options, list)
+        assert len(rollback_options) == 1
+        assert "snapshot_id" in rollback_options[0]
+        assert "overall_success" in rollback_options[0]
+        assert rollback_options[0]["overall_success"] is True  # fallback default
+
+    def test_get_rollback_options_partial_execution_state(self):
+        """Test get_rollback_options when some execution metadata is missing."""
+        context = AgentContext(query="Partial rollback test")
+
+        # Create a snapshot
+        snapshot_id = context.create_snapshot()
+
+        # Manually add partial execution state (missing 'success', etc.)
+        timestamp, _ = snapshot_id.rsplit("_", 1)
+        key = f"snapshot_{timestamp}_{len(context.snapshots)}_execution_data"
+        context.execution_state[key] = {
+            "successful_agents": ["AgentX"],
+            # 'failed_agents' and 'success' keys are omitted
+        }
+
+        options = context.get_rollback_options()
+        assert isinstance(options, list)
+        assert len(options) == 1
+        assert options[0]["snapshot_id"].startswith(snapshot_id.split("_")[0])
+        assert options[0]["successful_agents"] == ["AgentX"]
+        assert options[0]["failed_agents"] == []
+        assert options[0]["overall_success"] is True  # Should fall back to default

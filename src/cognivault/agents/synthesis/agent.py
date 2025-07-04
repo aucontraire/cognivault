@@ -1,9 +1,9 @@
 import logging
 
-logger = logging.getLogger(__name__)
-
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.context import AgentContext
+
+logger = logging.getLogger(__name__)
 
 
 class SynthesisAgent(BaseAgent):
