@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 
 from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext

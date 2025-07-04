@@ -1,4 +1,3 @@
-import os
 import pytest
 from cognivault.llm.factory import LLMFactory
 from cognivault.llm.provider_enum import LLMProvider

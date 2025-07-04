@@ -1,4 +1,3 @@
-import logging
 import asyncio
 import argparse
 import sys
@@ -37,7 +36,7 @@ async def run_refiner(query: str, debug: bool = False) -> tuple[str, Optional[di
         try:
             llm_config = OpenAIConfig.load()
             model_name = llm_config.model
-        except:
+        except Exception:
             model_name = "stub-llm" if hasattr(llm, "model_name") else "unknown"
 
         debug_info = {
@@ -54,7 +53,7 @@ async def run_refiner(query: str, debug: bool = False) -> tuple[str, Optional[di
         # debug_info is guaranteed to be not None when debug=True
         assert debug_info is not None
         print(f"[DEBUG] Model: {debug_info['model']}")
-        print(f"[DEBUG] Running RefinerAgent...")
+        print("[DEBUG] Running RefinerAgent...")
 
     # Run the agent
     await agent.run(context)
@@ -82,7 +81,7 @@ async def run_refiner(query: str, debug: bool = False) -> tuple[str, Optional[di
         )
 
         print(f"[DEBUG] Raw agent output: {output}")
-        print(f"[DEBUG] Processing complete")
+        print("[DEBUG] Processing complete")
 
     return refined_output, debug_info
 

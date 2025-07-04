@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import patch, MagicMock, PropertyMock
-from unittest.mock import patch
 from cognivault.llm.openai import OpenAIChatLLM
 from cognivault.llm.llm_interface import LLMResponse
 
@@ -127,7 +126,7 @@ def test_generate_with_logging_hook(mock_openai_chat_completion):
 
 def test_base_url_sets_api_base(mock_openai_chat_completion):
     with patch("cognivault.llm.openai.openai.OpenAI") as mock_openai_client:
-        llm = OpenAIChatLLM(
+        OpenAIChatLLM(
             api_key="test-key", model="gpt-4", base_url="https://custom.openai.com"
         )
         mock_openai_client.assert_called_with(
@@ -193,8 +192,8 @@ def test_generate_with_system_prompt_logging(mock_openai_chat_completion):
 
 def test_generate_api_error_with_logging(mock_openai_chat_completion):
     from openai import APIError
-
     from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMError
 
     dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
     mock_openai_chat_completion.create.side_effect = APIError(
@@ -208,8 +207,324 @@ def test_generate_api_error_with_logging(mock_openai_chat_completion):
 
     llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
 
-    with pytest.raises(APIError):
+    with pytest.raises(LLMError, match="Mock API error"):
         llm.generate(prompt="Trigger API failure", stream=False, on_log=log_hook)
 
     assert any("Mock API error" in log for log in logs)
     assert any("[OpenAIChatLLM][error]" in log for log in logs)
+
+
+def test_unexpected_error_handling(mock_openai_chat_completion):
+    """Test handling of unexpected (non-OpenAI) exceptions."""
+    from cognivault.exceptions.llm_errors import LLMError
+
+    # Simulate an unexpected error (not an OpenAI APIError)
+    mock_openai_chat_completion.create.side_effect = ValueError("Unexpected error")
+
+    logs = []
+
+    def log_hook(msg):
+        logs.append(msg)
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMError) as exc_info:
+        llm.generate(prompt="Test", stream=False, on_log=log_hook)
+
+    assert "Unexpected error during OpenAI API call" in str(exc_info.value)
+    assert exc_info.value.error_code == "unexpected_error"
+    assert exc_info.value.llm_provider == "openai"
+    # Check logging of unexpected error
+    assert any("[OpenAIChatLLM][unexpected_error]" in log for log in logs)
+
+
+def test_quota_error_handling(mock_openai_chat_completion):
+    """Test handling of quota/billing errors."""
+    from openai import APIError
+    from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMQuotaError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    # Test quota exceeded error
+    quota_error = APIError(
+        "You have exceeded your quota", request=dummy_request, body="{}"
+    )
+    mock_openai_chat_completion.create.side_effect = quota_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMQuotaError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.quota_type == "api_credits"
+
+
+def test_auth_error_handling(mock_openai_chat_completion):
+    """Test handling of authentication errors."""
+    from openai import APIError
+    from httpx import Request, Response
+    from cognivault.exceptions.llm_errors import LLMAuthError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    # Create a mock response with 401 status
+    response = Response(status_code=401, request=dummy_request)
+    auth_error = APIError("Invalid API key", request=dummy_request, body="{}")
+    auth_error.response = response
+
+    mock_openai_chat_completion.create.side_effect = auth_error
+
+    llm = OpenAIChatLLM(api_key="invalid-key", model="gpt-4")
+
+    with pytest.raises(LLMAuthError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.auth_issue == "invalid_api_key"
+
+
+def test_rate_limit_error_handling(mock_openai_chat_completion):
+    """Test handling of rate limit errors."""
+    from openai import APIError
+    from httpx import Request, Response, Headers
+    from cognivault.exceptions.llm_errors import LLMRateLimitError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    # Create response with rate limit headers
+    headers = Headers({"retry-after": "60"})
+    response = Response(status_code=429, request=dummy_request, headers=headers)
+    rate_error = APIError("Rate limit exceeded", request=dummy_request, body="{}")
+    rate_error.response = response
+
+    mock_openai_chat_completion.create.side_effect = rate_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMRateLimitError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.rate_limit_type == "requests_per_minute"
+    assert exc_info.value.retry_after_seconds == 60.0
+
+
+def test_rate_limit_error_without_retry_after(mock_openai_chat_completion):
+    """Test rate limit error handling without retry-after header."""
+    from openai import APIError
+    from httpx import Request, Response
+    from cognivault.exceptions.llm_errors import LLMRateLimitError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = Response(status_code=429, request=dummy_request)
+    rate_error = APIError("Rate limit exceeded", request=dummy_request, body="{}")
+    rate_error.response = response
+
+    mock_openai_chat_completion.create.side_effect = rate_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMRateLimitError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert exc_info.value.retry_after_seconds is None
+
+
+def test_context_limit_error_handling(mock_openai_chat_completion):
+    """Test handling of context length limit errors."""
+    from openai import APIError
+    from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMContextLimitError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    # Error message with "token limit" pattern (easier to match)
+    context_error = APIError(
+        "Request exceeds token limit", request=dummy_request, body="{}"
+    )
+
+    mock_openai_chat_completion.create.side_effect = context_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMContextLimitError) as exc_info:
+        llm.generate(prompt="Very long prompt...", stream=False)
+
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.model_name == "gpt-4"
+    # When regex parsing fails, defaults to 0
+    assert exc_info.value.token_count == 0
+    assert exc_info.value.max_tokens == 0
+
+
+def test_context_limit_error_without_token_parsing(mock_openai_chat_completion):
+    """Test context limit error without parseable token counts."""
+    from openai import APIError
+    from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMContextLimitError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    # Error message without parseable token counts
+    context_error = APIError(
+        "Context length limit exceeded", request=dummy_request, body="{}"
+    )
+
+    mock_openai_chat_completion.create.side_effect = context_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMContextLimitError) as exc_info:
+        llm.generate(prompt="Long prompt", stream=False)
+
+    assert exc_info.value.token_count == 0  # Default when parsing fails
+    assert exc_info.value.max_tokens == 0
+
+
+def test_model_not_found_error_handling(mock_openai_chat_completion):
+    """Test handling of model not found errors."""
+    from openai import APIError
+    from httpx import Request, Response
+    from cognivault.exceptions.llm_errors import LLMModelNotFoundError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = Response(status_code=404, request=dummy_request)
+
+    model_error = APIError(
+        "Model 'nonexistent-model' not found", request=dummy_request, body="{}"
+    )
+    model_error.response = response
+
+    mock_openai_chat_completion.create.side_effect = model_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="nonexistent-model")
+
+    with pytest.raises(LLMModelNotFoundError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.model_name == "nonexistent-model"
+
+
+def test_server_error_handling(mock_openai_chat_completion):
+    """Test handling of server errors (500+)."""
+    from openai import APIError
+    from httpx import Request, Response
+    from cognivault.exceptions.llm_errors import LLMServerError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = Response(status_code=500, request=dummy_request)
+
+    server_error = APIError("Internal server error", request=dummy_request, body="{}")
+    server_error.response = response
+    # Set the status_code attribute that the error handler looks for
+    server_error.status_code = 500
+
+    mock_openai_chat_completion.create.side_effect = server_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMServerError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.http_status == 500
+
+
+def test_generic_llm_error_handling(mock_openai_chat_completion):
+    """Test handling of generic API errors that don't match specific patterns."""
+    from openai import APIError
+    from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    generic_error = APIError("Some other API error", request=dummy_request, body="{}")
+
+    mock_openai_chat_completion.create.side_effect = generic_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert "Some other API error" in str(exc_info.value)
+    assert exc_info.value.llm_provider == "openai"
+    assert (
+        exc_info.value.error_code == "unknown_api_error"
+    )  # This is the actual error code used
+
+
+def test_rate_limit_retry_after_invalid_value(mock_openai_chat_completion):
+    """Test rate limit error handling with invalid retry-after header value."""
+    from openai import APIError
+    from httpx import Request, Response, Headers
+    from cognivault.exceptions.llm_errors import LLMRateLimitError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    # Create response with invalid retry-after header
+    headers = Headers({"retry-after": "invalid-value"})
+    response = Response(status_code=429, request=dummy_request, headers=headers)
+    rate_error = APIError("Rate limit exceeded", request=dummy_request, body="{}")
+    rate_error.response = response
+
+    mock_openai_chat_completion.create.side_effect = rate_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMRateLimitError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    # Should handle invalid retry-after value gracefully
+    assert exc_info.value.retry_after_seconds is None
+
+
+def test_context_limit_with_valid_token_parsing(mock_openai_chat_completion):
+    """Test context limit error with successful token parsing."""
+    from openai import APIError
+    from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMContextLimitError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+
+    # Error message that contains "token limit" and matches the regex pattern correctly
+    context_error = APIError(
+        "Request exceeds token limit: has 5000 tokens but maximum is 4096",
+        request=dummy_request,
+        body="{}",
+    )
+
+    mock_openai_chat_completion.create.side_effect = context_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMContextLimitError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    # Should successfully parse token counts
+    assert exc_info.value.token_count == 5000
+    assert exc_info.value.max_tokens == 4096
+
+
+def test_timeout_error_handling(mock_openai_chat_completion):
+    """Test handling of timeout errors."""
+    from openai import APITimeoutError
+    from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMTimeoutError
+
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+    timeout_error = APITimeoutError(request=dummy_request)
+
+    mock_openai_chat_completion.create.side_effect = timeout_error
+
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    with pytest.raises(LLMTimeoutError) as exc_info:
+        llm.generate(prompt="Test", stream=False)
+
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.timeout_seconds == 30.0
+    assert exc_info.value.timeout_type == "api_request"

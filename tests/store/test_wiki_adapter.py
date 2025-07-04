@@ -1,6 +1,5 @@
 import os
 import re
-import pytest
 from cognivault.store.wiki_adapter import MarkdownExporter
 
 

@@ -3,10 +3,11 @@ import json
 import gzip
 import hashlib
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Set
 from copy import deepcopy
 from pydantic import BaseModel, Field, ConfigDict
 from .config.app_config import get_config
+from .exceptions import StateTransitionError
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,16 @@ class ContextCompressionManager:
 
 
 class AgentContext(BaseModel):
-    """Enhanced agent context with size management, compression, and snapshot capabilities."""
+    """
+    Enhanced agent context with size management, compression, snapshot capabilities,
+    and LangGraph-compatible features for DAG-based orchestration.
+
+    Features:
+    - Agent-isolated mutations to prevent shared global state issues
+    - Execution state tracking for failure propagation semantics
+    - Reversible state transitions with structured trace metadata
+    - Success/failure tracking for conditional execution logic
+    """
 
     query: str
     retrieved_notes: Optional[List[str]] = []
@@ -103,6 +113,26 @@ class AgentContext(BaseModel):
     )
     snapshots: List[ContextSnapshot] = Field(default_factory=list)
     current_size: int = 0
+
+    # LangGraph-compatible execution state tracking
+    execution_state: Dict[str, Any] = Field(default_factory=dict)
+    agent_execution_status: Dict[str, str] = Field(
+        default_factory=dict
+    )  # pending, running, completed, failed
+    successful_agents: Set[str] = Field(default_factory=set)
+    failed_agents: Set[str] = Field(default_factory=set)
+    agent_dependencies: Dict[str, List[str]] = Field(default_factory=dict)
+
+    # Success tracking for artifact export logic
+    success: bool = True
+
+    # Agent isolation tracking
+    agent_mutations: Dict[str, List[str]] = Field(
+        default_factory=dict
+    )  # Track which agent modified what
+    locked_fields: Set[str] = Field(
+        default_factory=set
+    )  # Fields that can't be modified
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -399,3 +429,405 @@ class AgentContext(BaseModel):
         cloned.context_id = f"{self.context_id}_clone_{datetime.now().microsecond}"
         logger.debug(f"Cloned context {self.context_id} to {cloned.context_id}")
         return cloned
+
+    # LangGraph-compatible execution state management
+
+    def start_agent_execution(
+        self, agent_name: str, step_id: Optional[str] = None
+    ) -> None:
+        """
+        Mark an agent as starting execution.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent starting execution
+        step_id : str, optional
+            Step identifier for trace tracking
+        """
+        self.agent_execution_status[agent_name] = "running"
+        if step_id:
+            self.execution_state[f"{agent_name}_step_id"] = step_id
+
+        self.execution_state[f"{agent_name}_start_time"] = datetime.now(
+            timezone.utc
+        ).isoformat()
+        logger.debug(f"Agent '{agent_name}' started execution")
+        self._update_size()
+
+    def complete_agent_execution(self, agent_name: str, success: bool = True) -> None:
+        """
+        Mark an agent as completing execution.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent completing execution
+        success : bool
+            Whether the execution was successful
+        """
+        if success:
+            self.agent_execution_status[agent_name] = "completed"
+            self.successful_agents.add(agent_name)
+            self.failed_agents.discard(agent_name)
+        else:
+            self.agent_execution_status[agent_name] = "failed"
+            self.failed_agents.add(agent_name)
+            self.successful_agents.discard(agent_name)
+            self.success = False  # Mark overall context as failed
+
+        self.execution_state[f"{agent_name}_end_time"] = datetime.now(
+            timezone.utc
+        ).isoformat()
+        logger.debug(f"Agent '{agent_name}' completed execution (success: {success})")
+        self._update_size()
+
+    def set_agent_dependencies(self, agent_name: str, dependencies: List[str]) -> None:
+        """
+        Set dependencies for an agent (used for conditional execution).
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent
+        dependencies : List[str]
+            List of agent names this agent depends on
+        """
+        self.agent_dependencies[agent_name] = dependencies
+        logger.debug(f"Set dependencies for '{agent_name}': {dependencies}")
+
+    def check_agent_dependencies(self, agent_name: str) -> Dict[str, bool]:
+        """
+        Check if an agent's dependencies are satisfied.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent to check
+
+        Returns
+        -------
+        Dict[str, bool]
+            Dictionary mapping dependency names to satisfaction status
+        """
+        dependencies = self.agent_dependencies.get(agent_name, [])
+        return {dep: dep in self.successful_agents for dep in dependencies}
+
+    def can_agent_execute(self, agent_name: str) -> bool:
+        """
+        Check if an agent can execute based on its dependencies.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent to check
+
+        Returns
+        -------
+        bool
+            True if all dependencies are satisfied, False otherwise
+        """
+        dependency_status = self.check_agent_dependencies(agent_name)
+        return all(dependency_status.values())
+
+    def get_execution_summary(self) -> Dict[str, Any]:
+        """
+        Get a summary of execution state for all agents.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Summary of agent execution states
+        """
+        return {
+            "total_agents": len(self.agent_execution_status),
+            "successful_agents": list(self.successful_agents),
+            "failed_agents": list(self.failed_agents),
+            "running_agents": [
+                name
+                for name, status in self.agent_execution_status.items()
+                if status == "running"
+            ],
+            "pending_agents": [
+                name
+                for name, status in self.agent_execution_status.items()
+                if status == "pending"
+            ],
+            "overall_success": self.success,
+            "context_id": self.context_id,
+        }
+
+    # Agent isolation methods
+
+    def _track_mutation(self, agent_name: str, field_name: str) -> None:
+        """Track which agent modified which field for isolation purposes."""
+        if agent_name not in self.agent_mutations:
+            self.agent_mutations[agent_name] = []
+        self.agent_mutations[agent_name].append(field_name)
+
+    def _check_field_isolation(self, agent_name: str, field_name: str) -> bool:
+        """
+        Check if an agent can modify a field based on isolation rules.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent attempting modification
+        field_name : str
+            Name of the field being modified
+
+        Returns
+        -------
+        bool
+            True if modification is allowed, False otherwise
+        """
+        # Check if field is locked
+        if field_name in self.locked_fields:
+            return False
+
+        # Check if another agent already owns this field
+        for other_agent, mutations in self.agent_mutations.items():
+            if other_agent != agent_name and field_name in mutations:
+                logger.warning(
+                    f"Agent '{agent_name}' attempting to modify field '{field_name}' "
+                    f"already modified by '{other_agent}'"
+                )
+                return False
+
+        return True
+
+    def lock_field(self, field_name: str) -> None:
+        """
+        Lock a field to prevent further modifications.
+
+        Parameters
+        ----------
+        field_name : str
+            Name of the field to lock
+        """
+        self.locked_fields.add(field_name)
+        logger.debug(f"Locked field '{field_name}' from further modifications")
+
+    def unlock_field(self, field_name: str) -> None:
+        """
+        Unlock a previously locked field.
+
+        Parameters
+        ----------
+        field_name : str
+            Name of the field to unlock
+        """
+        self.locked_fields.discard(field_name)
+        logger.debug(f"Unlocked field '{field_name}' for modifications")
+
+    def add_agent_output_isolated(self, agent_name: str, output: Any) -> bool:
+        """
+        Add agent output with isolation checking.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent
+        output : Any
+            Output to add
+
+        Returns
+        -------
+        bool
+            True if addition was successful, False if blocked by isolation rules
+        """
+        field_name = f"agent_outputs.{agent_name}"
+
+        if not self._check_field_isolation(agent_name, field_name):
+            logger.error(
+                f"Agent '{agent_name}' blocked from modifying its output due to isolation rules"
+            )
+            return False
+
+        self.agent_outputs[agent_name] = output
+        self._track_mutation(agent_name, field_name)
+        self._update_size()
+        self._check_size_limits()
+        logger.info(f"Added output for agent '{agent_name}': {str(output)[:100]}...")
+        return True
+
+    def get_agent_mutation_history(self) -> Dict[str, List[str]]:
+        """
+        Get the history of field mutations by each agent.
+
+        Returns
+        -------
+        Dict[str, List[str]]
+            Dictionary mapping agent names to lists of fields they modified
+        """
+        return dict(self.agent_mutations)
+
+    # Enhanced snapshot methods with execution state
+
+    def create_execution_snapshot(self, label: Optional[str] = None) -> str:
+        """
+        Create a snapshot that includes execution state for LangGraph compatibility.
+
+        Parameters
+        ----------
+        label : str, optional
+            Optional label for the snapshot
+
+        Returns
+        -------
+        str
+            Snapshot ID for later restoration
+        """
+        timestamp = datetime.now(timezone.utc).isoformat()
+        snapshot_id = f"{timestamp}_{len(self.snapshots)}"
+
+        # Enhanced snapshot with execution state
+        snapshot_data = {
+            "context_id": self.context_id,
+            "timestamp": timestamp,
+            "query": self.query,
+            "agent_outputs": deepcopy(self.agent_outputs),
+            "retrieved_notes": deepcopy(self.retrieved_notes),
+            "user_config": deepcopy(self.user_config),
+            "final_synthesis": self.final_synthesis,
+            "agent_trace": deepcopy(self.agent_trace),
+            "size_bytes": self.current_size,
+            "execution_state": deepcopy(self.execution_state),
+            "agent_execution_status": dict(self.agent_execution_status),
+            "successful_agents": set(self.successful_agents),
+            "failed_agents": set(self.failed_agents),
+            "agent_dependencies": deepcopy(self.agent_dependencies),
+            "success": self.success,
+            "agent_mutations": deepcopy(self.agent_mutations),
+            "locked_fields": set(self.locked_fields),
+        }
+
+        try:
+            snapshot = ContextSnapshot(
+                context_id=self.context_id,
+                timestamp=timestamp,
+                query=self.query,
+                agent_outputs=deepcopy(self.agent_outputs),
+                retrieved_notes=deepcopy(self.retrieved_notes),
+                user_config=deepcopy(self.user_config),
+                final_synthesis=self.final_synthesis,
+                agent_trace=deepcopy(self.agent_trace),
+                size_bytes=self.current_size,
+            )
+
+            # Store extended data in a separate field
+            snapshot.compressed = False  # Mark as having extended data
+
+            self.snapshots.append(snapshot)
+
+            # Store execution state in execution_state for this snapshot
+            self.execution_state[f"snapshot_{snapshot_id}_execution_data"] = (
+                snapshot_data
+            )
+
+            logger.info(
+                f"Created execution snapshot {snapshot_id}"
+                + (f" with label '{label}'" if label else "")
+            )
+            return snapshot_id
+
+        except Exception as e:
+            logger.error(f"Failed to create execution snapshot: {e}")
+            raise StateTransitionError(
+                transition_type="snapshot_creation_failed",
+                state_details=str(e),
+                step_id=snapshot_id,
+                agent_id="context_manager",
+                cause=e,
+            )
+
+    def restore_execution_snapshot(self, snapshot_id: str) -> bool:
+        """
+        Restore context including execution state from a snapshot.
+
+        Parameters
+        ----------
+        snapshot_id : str
+            The snapshot ID to restore
+
+        Returns
+        -------
+        bool
+            True if restoration was successful, False otherwise
+        """
+        try:
+            # First try standard snapshot restoration
+            if self.restore_snapshot(snapshot_id):
+                # Then restore execution state if available
+                execution_data_key = f"snapshot_{snapshot_id}_execution_data"
+                if execution_data_key in self.execution_state:
+                    snapshot_data = self.execution_state[execution_data_key]
+
+                    self.execution_state = deepcopy(
+                        snapshot_data.get("execution_state", {})
+                    )
+                    self.agent_execution_status = dict(
+                        snapshot_data.get("agent_execution_status", {})
+                    )
+                    self.successful_agents = set(
+                        snapshot_data.get("successful_agents", set())
+                    )
+                    self.failed_agents = set(snapshot_data.get("failed_agents", set()))
+                    self.agent_dependencies = deepcopy(
+                        snapshot_data.get("agent_dependencies", {})
+                    )
+                    self.success = snapshot_data.get("success", True)
+                    self.agent_mutations = deepcopy(
+                        snapshot_data.get("agent_mutations", {})
+                    )
+                    self.locked_fields = set(snapshot_data.get("locked_fields", set()))
+
+                    logger.info(f"Restored execution state from snapshot {snapshot_id}")
+
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to restore execution snapshot {snapshot_id}: {e}")
+            raise StateTransitionError(
+                transition_type="snapshot_restore_failed",
+                from_state="current",
+                to_state=snapshot_id,
+                state_details=str(e),
+                step_id=snapshot_id,
+                agent_id="context_manager",
+                cause=e,
+            )
+
+    def get_rollback_options(self) -> List[Dict[str, Any]]:
+        """
+        Get available rollback options with execution state info.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            List of available rollback points with metadata
+        """
+        options = []
+        for snapshot in self.snapshots:
+            execution_data_key = (
+                f"snapshot_{snapshot.timestamp}_{len(self.snapshots)}_execution_data"
+            )
+            execution_data = self.execution_state.get(execution_data_key, {})
+
+            options.append(
+                {
+                    "snapshot_id": f"{snapshot.timestamp}_{len(self.snapshots)}",
+                    "timestamp": snapshot.timestamp,
+                    "size_bytes": snapshot.size_bytes,
+                    "successful_agents": list(
+                        execution_data.get("successful_agents", [])
+                    ),
+                    "failed_agents": list(execution_data.get("failed_agents", [])),
+                    "overall_success": execution_data.get("success", True),
+                    "agents_count": len(snapshot.agent_outputs),
+                }
+            )
+
+        return options

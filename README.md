@@ -1,12 +1,36 @@
 # 🧠 CogniVault
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
 
 CogniVault is a modular, CLI-based multi-agent assistant designed to help you reflect, refine, and organize your thoughts through structured dialogue and cumulative insight. It simulates a memory-augmented thinking partner, enabling long-term knowledge building across multiple agent perspectives.
+
+## 🎯 Recent Achievements
+
+**LangGraph-Ready Foundation Complete** - CogniVault now features enterprise-grade error handling and state management designed for seamless future migration to LangGraph DAG-based orchestration:
+
+✅ **Issue 1: Exception Package & Trace-Ready Hierarchy** - 100% Complete  
+- Comprehensive `src/cognivault/exceptions/` package with organized modules
+- Structured exception hierarchy with LangGraph-compatible error routing  
+- Trace-compatible metadata (step_id, agent_id, timestamp) for all operations
+- Agent boundary isolation and error severity classification
+
+✅ **Issue 2: Agent-Level Error Handling & Node-Ready Design** - 100% Complete  
+- Agent-isolated error boundaries with retry logic moved into individual agents
+- Configurable retry policies and circuit breakers per agent type
+- OpenAI-specific error mapping with comprehensive LLM exception handling
+- Agent execution tracing with structured metadata for DAG compatibility
+
+✅ **Issue 3: Context State Management & Reversible Transitions** - 98% Complete  
+- Enhanced context system with reversible state transitions via snapshots
+- Agent-isolated context mutations preventing shared global state issues
+- Structured trace schema as sidecar context field
+- Execution flow tracking with node_id and edge metadata
+
+**Test Coverage Achievement**: Improved from 86% → 98% (+12 percentage points) with all critical modules at 98-100% coverage.
 
 ---
 
@@ -31,11 +55,14 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🧠 **Multi-agent orchestration**: Refiner, Historian, Critic, Synthesis
 - 🔁 **Orchestrator pipeline** supports dynamic agent control
 - 📄 **Markdown-ready output** for integration with personal wikis
-- 🧪 **Full test suite** with `pytest` for all core components (100% coverage)
+- 🧪 **Full test suite** with `pytest` for all core components (98% coverage)
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
 - 📋 **Agent Registry**: Dynamic agent registration system for extensible architecture
 - ⚙️ **Configuration Management**: Centralized configuration system with environment variables and JSON file support
 - 🧠 **Enhanced Context Management**: Advanced memory management with compression, snapshots, and size monitoring
+- 🛡️ **Enterprise Error Handling**: Comprehensive exception hierarchy with LangGraph-ready agent isolation
+- 🔄 **Agent-Level Resilience**: Circuit breakers, retry policies, and timeout management per agent
+- 📊 **Execution Tracing**: Structured metadata and trace logging for debugging and observability
 
 ---
 
@@ -71,6 +98,13 @@ src/
 │   │   ├── app_config.py
 │   │   └── logging_config.py
 │   ├── context.py
+│   ├── exceptions/
+│   │   ├── __init__.py
+│   │   ├── agent_errors.py
+│   │   ├── config_errors.py
+│   │   ├── io_errors.py
+│   │   ├── llm_errors.py
+│   │   └── orchestration_errors.py
 │   ├── docs/
 │   │   ├── LANDSCAPE.md
 │   │   └── RESEARCH.md
@@ -120,6 +154,14 @@ tests/
 │   ├── __init__.py
 │   ├── test_app_config.py
 │   └── test_openai_config.py
+├── exceptions/
+│   ├── __init__.py
+│   ├── test_agent_errors.py
+│   ├── test_base_exceptions.py
+│   ├── test_config_errors.py
+│   ├── test_io_errors.py
+│   ├── test_llm_errors.py
+│   └── test_orchestration_errors.py
 ├── llm/
 │   ├── __init__.py
 │   ├── test_llm_interface.py
@@ -233,6 +275,77 @@ The context management system automatically:
 - Provides detailed memory usage statistics
 
 This ensures CogniVault can handle long-running conversations and complex multi-agent workflows without memory issues, making it suitable for production deployments and extended research sessions.
+
+### 🛡️ Enterprise Error Handling & Agent Resilience
+
+CogniVault features a comprehensive error handling system designed for production reliability and future LangGraph DAG compatibility. The system provides structured exception hierarchies, agent-isolated error boundaries, and sophisticated retry mechanisms.
+
+#### Exception Hierarchy
+
+The `src/cognivault/exceptions/` package provides organized, typed exceptions with LangGraph-compatible error routing:
+
+- **Agent Errors** (`agent_errors.py`): AgentExecutionError, AgentTimeoutError, AgentDependencyMissingError, AgentResourceError
+- **LLM Errors** (`llm_errors.py`): LLMQuotaError, LLMAuthError, LLMRateLimitError, LLMTimeoutError, LLMContextLimitError
+- **Configuration Errors** (`config_errors.py`): ConfigurationError, ConfigValidationError, EnvironmentError, APIKeyMissingError
+- **I/O Errors** (`io_errors.py`): FileOperationError, MarkdownExportError, DiskSpaceError, PermissionError
+- **Orchestration Errors** (`orchestration_errors.py`): Pipeline and dependency management exceptions
+
+#### Agent-Level Resilience Features
+
+Each agent operates with isolated error boundaries and configurable resilience patterns:
+
+```python
+from cognivault.agents.base_agent import BaseAgent, RetryConfig, CircuitBreakerState
+
+# Configure agent-specific retry behavior
+retry_config = RetryConfig(
+    max_retries=3,
+    base_delay=1.0,
+    exponential_backoff=True,
+    jitter=True
+)
+
+# Agent with circuit breaker protection
+agent = ConcreteAgent(
+    name="MyAgent",
+    retry_config=retry_config,
+    timeout_seconds=30.0,
+    enable_circuit_breaker=True
+)
+
+# Execution with automatic retry and error isolation
+result = await agent.run_with_retry(context)
+```
+
+#### Key Resilience Features
+
+- **Circuit Breakers**: Prevent cascade failures with configurable failure thresholds
+- **Exponential Backoff**: Intelligent retry delays with jitter to prevent thundering herd
+- **Agent Isolation**: Error boundaries prevent one agent failure from affecting others
+- **Trace Metadata**: All operations include step_id, agent_id, and timestamp for observability
+- **LLM Error Mapping**: Comprehensive OpenAI error handling with structured exception conversion
+- **Timeout Management**: Per-agent timeout configuration with graceful degradation
+
+#### Structured Error Context
+
+All exceptions include rich context for debugging and monitoring:
+
+```python
+try:
+    result = await agent.run_with_retry(context)
+except AgentExecutionError as e:
+    print(f"Agent: {e.agent_name}")
+    print(f"Step ID: {e.step_id}")
+    print(f"Retry Policy: {e.retry_policy}")
+    print(f"Context: {e.context}")
+    print(f"User Message: {e.get_user_message()}")
+```
+
+This error handling foundation prepares CogniVault for LangGraph migration by providing:
+- Agent-isolated boundaries (future LangGraph nodes)
+- Structured error routing (future conditional DAG edges)
+- Trace-compatible metadata (future execution tracking)
+- Reversible state management (future DAG reentrant execution)
 
 ---
 
@@ -534,7 +647,10 @@ Covers:
 - Agent context and orchestrator pipeline
 - All 4 core agents with comprehensive system prompt testing
 - Agent Registry with dynamic registration and dependency management
-- 100% test coverage across all modules
+- Comprehensive exception hierarchy with error handling scenarios
+- Agent-level resilience with circuit breakers and retry logic
+- OpenAI LLM integration with extensive error mapping
+- 98% test coverage across all modules with critical paths at 100%
 - Both Refiner and Critic agents include comprehensive system prompt tests to ensure prompt correctness and robustness
 
 Use the batch test tools for agent evaluation:  

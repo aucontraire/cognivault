@@ -1,7 +1,5 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-import argparse
-import sys
 from io import StringIO
 
 from cognivault.agents.refiner.main import run_refiner, parse_args, main

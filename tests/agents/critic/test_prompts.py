@@ -1,6 +1,5 @@
 """Tests for the CriticAgent prompts module."""
 
-import pytest
 from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
 
 

@@ -1,7 +1,17 @@
 import openai
-from typing import Any, Iterator, Optional, Callable, Union, cast, List, Dict
+from typing import Any, Iterator, Optional, Callable, Union, cast, List
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from .llm_interface import LLMInterface, LLMResponse
+from cognivault.exceptions import (
+    LLMQuotaError,
+    LLMAuthError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    LLMContextLimitError,
+    LLMModelNotFoundError,
+    LLMServerError,
+    LLMError,
+)
 
 
 class OpenAIChatLLM(LLMInterface):
@@ -81,7 +91,20 @@ class OpenAIChatLLM(LLMInterface):
         except openai.APIError as e:
             if on_log:
                 on_log(f"[OpenAIChatLLM][error] {str(e)}")
-            raise
+
+            # Convert OpenAI API errors to our structured exception hierarchy
+            self._handle_openai_error(e)
+        except Exception as e:
+            if on_log:
+                on_log(f"[OpenAIChatLLM][unexpected_error] {str(e)}")
+
+            # Handle non-OpenAI exceptions
+            raise LLMError(
+                message=f"Unexpected error during OpenAI API call: {str(e)}",
+                llm_provider="openai",
+                error_code="unexpected_error",
+                cause=e,
+            )
 
         if stream:
 
@@ -122,3 +145,137 @@ class OpenAIChatLLM(LLMInterface):
                 model_name=self.model,
                 finish_reason=finish_reason,
             )
+
+    def _handle_openai_error(self, error: openai.APIError) -> None:
+        """
+        Convert OpenAI API errors to structured CogniVault exceptions.
+
+        Parameters
+        ----------
+        error : openai.APIError
+            The OpenAI API error to convert
+
+        Raises
+        ------
+        LLMError
+            Appropriate CogniVault LLM exception based on the error type
+        """
+        error_message = str(error)
+        error_code = getattr(error, "code", None)
+        status_code = getattr(error, "status_code", None)
+
+        # Handle quota/billing errors
+        if (
+            error_code == "insufficient_quota"
+            or "quota" in error_message.lower()
+            or "billing" in error_message.lower()
+        ):
+            raise LLMQuotaError(
+                llm_provider="openai", quota_type="api_credits", cause=error
+            )
+
+        # Handle authentication errors
+        if (
+            error_code == "invalid_api_key"
+            or status_code == 401
+            or "authentication" in error_message.lower()
+            or "api key" in error_message.lower()
+        ):
+            raise LLMAuthError(
+                llm_provider="openai", auth_issue="invalid_api_key", cause=error
+            )
+
+        # Handle rate limiting errors
+        if (
+            error_code == "rate_limit_exceeded"
+            or status_code == 429
+            or "rate limit" in error_message.lower()
+        ):
+            # Try to extract retry-after header
+            retry_after = None
+            if hasattr(error, "response") and error.response:
+                retry_after_header = error.response.headers.get("retry-after")
+                if retry_after_header:
+                    try:
+                        retry_after = float(retry_after_header)
+                    except ValueError:
+                        pass
+
+            raise LLMRateLimitError(
+                llm_provider="openai",
+                rate_limit_type="requests_per_minute",
+                retry_after_seconds=retry_after,
+                cause=error,
+            )
+
+        # Handle context length errors
+        if (
+            error_code == "context_length_exceeded"
+            or "context length" in error_message.lower()
+            or "token limit" in error_message.lower()
+        ):
+            # Try to extract token counts from error message
+            token_count = None
+            max_tokens = None
+
+            # Parse error message for token info (OpenAI usually provides this)
+            import re
+
+            token_match = re.search(
+                r"(\d+)\s*(?:tokens?).*?(?:maximum|limit).*?(\d+)",
+                error_message.lower(),
+            )
+            if token_match:
+                try:
+                    token_count = int(token_match.group(1))
+                    max_tokens = int(token_match.group(2))
+                except ValueError:
+                    pass
+
+            raise LLMContextLimitError(
+                llm_provider="openai",
+                model_name=self.model or "unknown",
+                token_count=token_count or 0,
+                max_tokens=max_tokens or 0,
+                cause=error,
+            )
+
+        # Handle model not found errors
+        if (
+            error_code == "model_not_found"
+            or status_code == 404
+            or "model" in error_message.lower()
+            and "not found" in error_message.lower()
+        ):
+            raise LLMModelNotFoundError(
+                llm_provider="openai", model_name=self.model or "unknown", cause=error
+            )
+
+        # Handle server errors (5xx)
+        if status_code and 500 <= status_code < 600:
+            raise LLMServerError(
+                llm_provider="openai",
+                http_status=status_code,
+                error_details=error_message,
+                cause=error,
+            )
+
+        # Handle timeout errors
+        if "timeout" in error_message.lower() or isinstance(
+            error, openai.APITimeoutError
+        ):
+            raise LLMTimeoutError(
+                llm_provider="openai",
+                timeout_seconds=30.0,  # Default timeout, could be extracted from config
+                timeout_type="api_request",
+                cause=error,
+            )
+
+        # Default fallback for unknown OpenAI errors
+        raise LLMError(
+            message=f"OpenAI API error: {error_message}",
+            llm_provider="openai",
+            error_code=error_code or "unknown_api_error",
+            context={"status_code": status_code, "error_type": type(error).__name__},
+            cause=error,
+        )

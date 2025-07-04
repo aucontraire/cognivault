@@ -1,12 +1,12 @@
 import logging
-from cognivault.config.logging_config import setup_logging
+import asyncio
 
-setup_logging()
-logger = logging.getLogger(__name__)
+from cognivault.config.logging_config import setup_logging
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.context import AgentContext
 
-import asyncio
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 async def run_historian(query: str) -> str:

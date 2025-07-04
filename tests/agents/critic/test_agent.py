@@ -1,11 +1,12 @@
 import pytest
 from unittest.mock import MagicMock
 
-pytest_plugins = ("pytest_asyncio",)
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMResponse
 from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
+
+pytest_plugins = ("pytest_asyncio",)
 
 
 def create_mock_llm(response_text: str) -> MagicMock:

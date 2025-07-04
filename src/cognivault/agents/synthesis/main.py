@@ -9,7 +9,7 @@ async def run_synthesis(query: str) -> str:
 
     context = AgentContext(query=query)
     agent = SynthesisAgent()
-    result = await agent.run(context)
+    await agent.run(context)
     return context.get_output("Synthesis") or "[No output]"
 
 
