@@ -218,6 +218,11 @@ from .orchestration_errors import (
     DependencyResolutionError,
     WorkflowTimeoutError,
     StateTransitionError,
+    CircuitBreakerError,
+    ConditionalExecutionError,
+    GracefulDegradationWarning,
+    FailurePropagationStrategy,
+    ExecutionPath,
 )
 from .io_errors import (
     IOError,
@@ -263,6 +268,11 @@ __all__ = [
     "DependencyResolutionError",
     "WorkflowTimeoutError",
     "StateTransitionError",
+    "CircuitBreakerError",
+    "ConditionalExecutionError",
+    "GracefulDegradationWarning",
+    "FailurePropagationStrategy",
+    "ExecutionPath",
     # IO errors
     "IOError",
     "FileOperationError",

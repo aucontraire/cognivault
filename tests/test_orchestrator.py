@@ -299,6 +299,12 @@ def test_orchestrator_core_agent_creation_failure():
     # Mock the registry to fail when creating a core agent
     mock_registry = Mock()
     mock_registry.create_agent.side_effect = ValueError("Mock agent creation failed")
+    # Mock dependency resolution to return default agents
+    mock_registry.resolve_dependencies.return_value = [
+        "refiner",
+        "historian",
+        "synthesis",
+    ]
 
     with patch(
         "cognivault.orchestrator.get_agent_registry", return_value=mock_registry
@@ -410,10 +416,10 @@ class TestOrchestratorConfiguration:
         assert agent_names[0] == "Historian"
         # Refiner should be second
         assert agent_names[1] == "Refiner"
-        # Critic should be inserted after refiner
-        assert agent_names[2] == "Critic"
-        # Synthesis should be last
-        assert agent_names[3] == "Synthesis"
+        # Synthesis should be third (configured order, no dependencies)
+        assert agent_names[2] == "Synthesis"
+        # Critic should be last (depends on refiner, so comes after dependency resolution)
+        assert agent_names[3] == "Critic"
 
     def test_orchestrator_critic_enabled_no_refiner_in_pipeline(self):
         """Test critic handling when refiner is not in the default agent pipeline."""

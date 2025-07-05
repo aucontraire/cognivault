@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from cognivault.agents.base_agent import BaseAgent, RetryConfig, CircuitBreakerState
 from cognivault.context import AgentContext
 from cognivault.exceptions import (
@@ -75,7 +75,6 @@ class FlakyAgent(BaseAgent):
 
 
 # Basic functionality tests
-import pytest
 
 
 @pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
@@ -262,7 +261,7 @@ async def test_run_with_retry_with_step_id(anyio_backend):
     context = AgentContext(query="test")
     step_id = "custom_step_123"
 
-    result = await agent.run_with_retry(context, step_id=step_id)
+    await agent.run_with_retry(context, step_id=step_id)
 
     # Check that step metadata was added to context
     metadata_key = f"{agent.name}_step_metadata"

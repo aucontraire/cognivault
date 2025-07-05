@@ -123,6 +123,11 @@ class AgentContext(BaseModel):
     failed_agents: Set[str] = Field(default_factory=set)
     agent_dependencies: Dict[str, List[str]] = Field(default_factory=dict)
 
+    # Execution path tracing for LangGraph DAG edge compatibility
+    execution_edges: List[Dict[str, Any]] = Field(default_factory=list)
+    conditional_routing: Dict[str, Any] = Field(default_factory=dict)
+    path_metadata: Dict[str, Any] = Field(default_factory=dict)
+
     # Success tracking for artifact export logic
     success: bool = True
 
@@ -831,3 +836,130 @@ class AgentContext(BaseModel):
             )
 
         return options
+
+    def add_execution_edge(
+        self,
+        from_agent: str,
+        to_agent: str,
+        edge_type: str = "normal",
+        condition: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Add an execution edge for LangGraph DAG compatibility.
+
+        Parameters
+        ----------
+        from_agent : str
+            Source agent name
+        to_agent : str
+            Target agent name
+        edge_type : str, optional
+            Type of edge (normal, conditional, fallback, recovery)
+        condition : Optional[str]
+            Condition that triggered this edge
+        metadata : Optional[Dict[str, Any]]
+            Additional edge metadata
+        """
+        edge = {
+            "from_agent": from_agent,
+            "to_agent": to_agent,
+            "edge_type": edge_type,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "condition": condition,
+            "metadata": metadata or {},
+        }
+        self.execution_edges.append(edge)
+        logger.debug(f"Added execution edge: {from_agent} -> {to_agent} ({edge_type})")
+
+    def record_conditional_routing(
+        self,
+        decision_point: str,
+        condition: str,
+        chosen_path: str,
+        alternative_paths: List[str],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Record conditional routing decision for LangGraph DAG mapping.
+
+        Parameters
+        ----------
+        decision_point : str
+            Where the routing decision was made
+        condition : str
+            The condition that was evaluated
+        chosen_path : str
+            The path that was chosen
+        alternative_paths : List[str]
+            Paths that were not taken
+        metadata : Optional[Dict[str, Any]]
+            Additional routing metadata
+        """
+        routing_record = {
+            "decision_point": decision_point,
+            "condition": condition,
+            "chosen_path": chosen_path,
+            "alternative_paths": alternative_paths,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metadata": metadata or {},
+        }
+
+        if decision_point not in self.conditional_routing:
+            self.conditional_routing[decision_point] = []
+        self.conditional_routing[decision_point].append(routing_record)
+
+        logger.debug(
+            f"Recorded conditional routing at {decision_point}: chose {chosen_path}"
+        )
+
+    def set_path_metadata(self, key: str, value: Any) -> None:
+        """
+        Set execution path metadata for LangGraph compatibility.
+
+        Parameters
+        ----------
+        key : str
+            Metadata key
+        value : Any
+            Metadata value
+        """
+        self.path_metadata[key] = value
+        logger.debug(f"Set path metadata: {key} = {value}")
+
+    def get_execution_graph(self) -> Dict[str, Any]:
+        """
+        Get execution graph representation for LangGraph compatibility.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Graph representation with nodes, edges, and routing decisions
+        """
+        nodes = []
+        for agent_name in self.agent_outputs.keys():
+            status = self.agent_execution_status.get(agent_name, "unknown")
+            nodes.append(
+                {
+                    "id": agent_name,
+                    "type": "agent",
+                    "status": status,
+                    "success": agent_name in self.successful_agents,
+                    "failed": agent_name in self.failed_agents,
+                }
+            )
+
+        return {
+            "nodes": nodes,
+            "edges": self.execution_edges,
+            "conditional_routing": self.conditional_routing,
+            "path_metadata": self.path_metadata,
+            "execution_summary": {
+                "total_agents": len(nodes),
+                "successful_agents": len(self.successful_agents),
+                "failed_agents": len(self.failed_agents),
+                "success_rate": (
+                    len(self.successful_agents) / len(nodes) if nodes else 0
+                ),
+            },
+        }
