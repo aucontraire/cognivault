@@ -24,13 +24,20 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 - OpenAI-specific error mapping with comprehensive LLM exception handling
 - Agent execution tracing with structured metadata for DAG compatibility
 
-✅ **Issue 3: Context State Management & Reversible Transitions** - 98% Complete  
+✅ **Issue 3: Context State Management & Reversible Transitions** - 100% Complete  
 - Enhanced context system with reversible state transitions via snapshots
 - Agent-isolated context mutations preventing shared global state issues
 - Structured trace schema as sidecar context field
 - Execution flow tracking with node_id and edge metadata
 
-**Test Coverage Achievement**: Improved from 86% → 98% (+12 percentage points) with all critical modules at 98-100% coverage.
+✅ **Issue 4: Failure Propagation & Conditional Execution Semantics** - 100% Complete  
+- LangGraph-compatible failure propagation strategies (FAIL_FAST, WARN_CONTINUE, CONDITIONAL_FALLBACK, GRACEFUL_DEGRADATION)
+- Agent dependency resolution with topological sorting and circular dependency detection
+- Health check validation system with graceful degradation for non-critical agents
+- Execution path tracing with edge metadata for future LangGraph DAG migration
+- Conditional routing decision recording and alternative path tracking
+
+**Test Coverage Achievement**: Improved from 86% → 98% (+12 percentage points) with **514 tests passing** and all critical modules at 98-100% coverage.
 
 ---
 
@@ -63,6 +70,8 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🛡️ **Enterprise Error Handling**: Comprehensive exception hierarchy with LangGraph-ready agent isolation
 - 🔄 **Agent-Level Resilience**: Circuit breakers, retry policies, and timeout management per agent
 - 📊 **Execution Tracing**: Structured metadata and trace logging for debugging and observability
+- 🔀 **Failure Propagation**: LangGraph-compatible conditional execution with graceful degradation strategies
+- 🏥 **Health Checks**: Agent validation system with dependency resolution and circular dependency detection
 
 ---
 
@@ -205,7 +214,15 @@ The **Agent Registry** provides a centralized system for managing agent types, d
 - **Pipeline Validation**: Validates agent pipelines before execution
 - **Extensible Architecture**: Prepared for future LangGraph integration
 
-The registry supports both the current architecture and future dynamic loading capabilities. See [`registry.py`](./src/cognivault/agents/registry.py) for implementation details.
+The registry supports both the current architecture and future dynamic loading capabilities, featuring:
+
+- **Dependency Resolution**: Automatic topological sorting of agent execution order using Kahn's algorithm
+- **Failure Strategies**: Per-agent failure propagation policies (FAIL_FAST, WARN_CONTINUE, CONDITIONAL_FALLBACK, GRACEFUL_DEGRADATION)
+- **Health Checks**: Agent validation system with configurable health check functions
+- **Critical Agent Classification**: Distinguish between critical and optional agents for graceful degradation
+- **Fallback Agent Support**: Alternative agent execution paths for failure scenarios
+
+See [`registry.py`](./src/cognivault/agents/registry.py) for implementation details.
 
 ### 🧠 Enhanced Context Management
 
@@ -276,6 +293,66 @@ The context management system automatically:
 
 This ensures CogniVault can handle long-running conversations and complex multi-agent workflows without memory issues, making it suitable for production deployments and extended research sessions.
 
+### 🔀 Failure Propagation & Conditional Execution
+
+CogniVault features a sophisticated failure propagation system designed for LangGraph DAG compatibility. The system provides conditional execution semantics, graceful degradation strategies, and intelligent dependency resolution.
+
+#### Failure Propagation Strategies
+
+Each agent can be configured with specific failure handling strategies:
+
+- **FAIL_FAST**: Stop immediately on any failure (default for critical agents)
+- **WARN_CONTINUE**: Log warning but continue execution (for optional components)  
+- **CONDITIONAL_FALLBACK**: Try alternative execution paths
+- **GRACEFUL_DEGRADATION**: Skip non-critical agents and continue with reduced functionality
+
+#### Execution Path Tracking
+
+The system tracks execution paths for future LangGraph DAG migration:
+
+- **NORMAL**: Standard execution flow
+- **FALLBACK**: Alternative execution when primary agent fails
+- **DEGRADED**: Reduced functionality mode
+- **RECOVERY**: Recovery from previous failures
+
+#### Agent Dependency Resolution
+
+CogniVault automatically resolves agent dependencies using topological sorting:
+
+- **Dependency Tracking**: Define which agents depend on others
+- **Circular Dependency Detection**: Prevents infinite dependency loops
+- **Optimal Execution Order**: Automatically determines best execution sequence
+- **Health Checks**: Validates agent readiness before execution
+
+#### Example: Conditional Execution Configuration
+
+The orchestrator automatically handles different failure strategies:
+
+- **Critical agent failures** (Refiner): FAIL_FAST - stops execution immediately
+- **Optional agent failures** (Critic): GRACEFUL_DEGRADATION - skips and continues
+- **Warning-only failures** (Historian): WARN_CONTINUE - logs warning but continues
+- **Fallback strategies** (Synthesis): CONDITIONAL_FALLBACK - tries alternative paths
+
+```python
+orchestrator = AgentOrchestrator()
+context = await orchestrator.run("Your question")
+
+# Check execution path and degradation status
+if context.execution_edges:
+    print(f"Execution path: {context.path_metadata}")
+if context.conditional_routing:
+    print(f"Conditional decisions: {context.conditional_routing}")
+```
+
+#### LangGraph DAG Compatibility
+
+The failure propagation system is designed for seamless LangGraph migration:
+
+- **Node Isolation**: Each agent operates as an isolated node with error boundaries
+- **Conditional Edges**: Failure strategies map directly to LangGraph conditional routing
+- **State Management**: Execution context preserves state for DAG reentrance
+- **Edge Metadata**: All execution decisions are tracked for DAG edge configuration
+
 ### 🛡️ Enterprise Error Handling & Agent Resilience
 
 CogniVault features a comprehensive error handling system designed for production reliability and future LangGraph DAG compatibility. The system provides structured exception hierarchies, agent-isolated error boundaries, and sophisticated retry mechanisms.
@@ -294,28 +371,10 @@ The `src/cognivault/exceptions/` package provides organized, typed exceptions wi
 
 Each agent operates with isolated error boundaries and configurable resilience patterns:
 
-```python
-from cognivault.agents.base_agent import BaseAgent, RetryConfig, CircuitBreakerState
-
-# Configure agent-specific retry behavior
-retry_config = RetryConfig(
-    max_retries=3,
-    base_delay=1.0,
-    exponential_backoff=True,
-    jitter=True
-)
-
-# Agent with circuit breaker protection
-agent = ConcreteAgent(
-    name="MyAgent",
-    retry_config=retry_config,
-    timeout_seconds=30.0,
-    enable_circuit_breaker=True
-)
-
-# Execution with automatic retry and error isolation
-result = await agent.run_with_retry(context)
-```
+- **Retry Configuration**: Configurable max retries, base delay, exponential backoff, and jitter
+- **Circuit Breaker Protection**: Prevents cascade failures with configurable thresholds
+- **Timeout Management**: Per-agent timeout configuration with graceful degradation
+- **Error Isolation**: Agent boundaries prevent one failure from affecting others
 
 #### Key Resilience Features
 
@@ -330,16 +389,10 @@ result = await agent.run_with_retry(context)
 
 All exceptions include rich context for debugging and monitoring:
 
-```python
-try:
-    result = await agent.run_with_retry(context)
-except AgentExecutionError as e:
-    print(f"Agent: {e.agent_name}")
-    print(f"Step ID: {e.step_id}")
-    print(f"Retry Policy: {e.retry_policy}")
-    print(f"Context: {e.context}")
-    print(f"User Message: {e.get_user_message()}")
-```
+- **Agent Information**: Agent name, step ID, and execution context
+- **Retry Policy**: Configured retry behavior and failure strategy
+- **Trace Metadata**: Timestamp, execution path, and dependency information
+- **User-Friendly Messages**: Human-readable error descriptions with troubleshooting tips
 
 This error handling foundation prepares CogniVault for LangGraph migration by providing:
 - Agent-isolated boundaries (future LangGraph nodes)

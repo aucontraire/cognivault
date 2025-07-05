@@ -6,7 +6,35 @@ pipeline execution, and workflow management with LangGraph DAG compatibility.
 """
 
 from typing import Optional, Dict, Any, List
+from enum import Enum
 from . import CogniVaultError, ErrorSeverity, RetryPolicy
+
+
+class FailurePropagationStrategy(Enum):
+    """
+    Strategy for handling agent failures in pipeline execution.
+
+    Defines how failures should propagate through the agent graph,
+    designed for future LangGraph conditional edge mapping.
+    """
+
+    FAIL_FAST = "fail_fast"  # Stop immediately on any failure
+    WARN_CONTINUE = "warn_continue"  # Log warning but continue execution
+    CONDITIONAL_FALLBACK = "conditional_fallback"  # Try alternative path/agent
+    GRACEFUL_DEGRADATION = "graceful_degradation"  # Skip non-critical agents
+
+
+class ExecutionPath(Enum):
+    """
+    Execution path types for conditional workflow routing.
+
+    Designed to map to LangGraph DAG conditional edges.
+    """
+
+    NORMAL = "normal"  # Standard execution path
+    FALLBACK = "fallback"  # Alternative path on failure
+    DEGRADED = "degraded"  # Reduced functionality path
+    RECOVERY = "recovery"  # Recovery after partial failure
 
 
 class OrchestrationError(CogniVaultError):
@@ -386,4 +414,142 @@ class CircuitBreakerError(OrchestrationError):
             f"({self.failure_count} consecutive failures)\n"
             f"💡 Tip: Service temporarily unavailable. "
             f"Will retry automatically in {self.circuit_open_duration}s."
+        )
+
+
+class ConditionalExecutionError(OrchestrationError):
+    """
+    Exception raised when conditional execution logic fails.
+
+    Represents failures in agent dependency validation,
+    conditional path routing, or execution guard logic.
+    """
+
+    def __init__(
+        self,
+        condition_type: str,
+        failed_condition: str,
+        execution_path: ExecutionPath,
+        affected_agents: List[str],
+        message: Optional[str] = None,
+        step_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        cause: Optional[Exception] = None,
+    ):
+        message = message or (
+            f"Conditional execution failed: {condition_type} "
+            f"({failed_condition}) on path '{execution_path.value}'"
+        )
+
+        context = context or {}
+        context.update(
+            {
+                "condition_type": condition_type,
+                "failed_condition": failed_condition,
+                "execution_path": execution_path.value,
+                "affected_agents": affected_agents,
+                "conditional_execution": True,
+                "path_routing_failed": True,
+            }
+        )
+
+        super().__init__(
+            message=message,
+            pipeline_stage="conditional_execution",
+            error_code="conditional_execution_failed",
+            severity=ErrorSeverity.MEDIUM,
+            retry_policy=RetryPolicy.NEVER,  # Conditional logic needs fixing
+            context=context,
+            step_id=step_id,
+            agent_id="orchestrator",
+            cause=cause,
+        )
+        self.condition_type = condition_type
+        self.failed_condition = failed_condition
+        self.execution_path = execution_path
+        self.affected_agents = affected_agents
+
+    def get_user_message(self) -> str:
+        """Get user-friendly error message with conditional execution guidance."""
+        agents_str = ", ".join(self.affected_agents[:3])
+        if len(self.affected_agents) > 3:
+            agents_str += f" (and {len(self.affected_agents) - 3} more)"
+
+        return (
+            f"❌ Conditional execution failed: {self.condition_type}\n"
+            f"Failed condition: {self.failed_condition}\n"
+            f"Execution path: {self.execution_path.value}\n"
+            f"Affected agents: {agents_str}\n"
+            f"💡 Tip: Check agent dependencies and execution conditions."
+        )
+
+
+class GracefulDegradationWarning(OrchestrationError):
+    """
+    Warning exception for graceful degradation scenarios.
+
+    Represents non-critical agent failures where the pipeline
+    can continue with reduced functionality.
+    """
+
+    def __init__(
+        self,
+        degraded_functionality: str,
+        skipped_agents: List[str],
+        continuing_agents: List[str],
+        degradation_reason: str,
+        message: Optional[str] = None,
+        step_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        cause: Optional[Exception] = None,
+    ):
+        message = message or (
+            f"Graceful degradation: {degraded_functionality} "
+            f"(skipped {len(skipped_agents)} agents, continuing with {len(continuing_agents)})"
+        )
+
+        context = context or {}
+        context.update(
+            {
+                "degraded_functionality": degraded_functionality,
+                "skipped_agents": skipped_agents,
+                "continuing_agents": continuing_agents,
+                "degradation_reason": degradation_reason,
+                "graceful_degradation": True,
+                "partial_execution": True,
+            }
+        )
+
+        super().__init__(
+            message=message,
+            pipeline_stage="graceful_degradation",
+            error_code="graceful_degradation_warning",
+            severity=ErrorSeverity.LOW,  # Warning level
+            retry_policy=RetryPolicy.NEVER,  # Degradation is intentional
+            context=context,
+            step_id=step_id,
+            agent_id="orchestrator",
+            cause=cause,
+        )
+        self.degraded_functionality = degraded_functionality
+        self.skipped_agents = skipped_agents
+        self.continuing_agents = continuing_agents
+        self.degradation_reason = degradation_reason
+
+    def get_user_message(self) -> str:
+        """Get user-friendly warning message for graceful degradation."""
+        skipped_str = ", ".join(self.skipped_agents[:3])
+        if len(self.skipped_agents) > 3:
+            skipped_str += f" (and {len(self.skipped_agents) - 3} more)"
+
+        continuing_str = ", ".join(self.continuing_agents[:3])
+        if len(self.continuing_agents) > 3:
+            continuing_str += f" (and {len(self.continuing_agents) - 3} more)"
+
+        return (
+            f"⚠️ Graceful degradation: {self.degraded_functionality}\n"
+            f"Reason: {self.degradation_reason}\n"
+            f"⏭️ Skipped: {skipped_str}\n"
+            f"✅ Continuing: {continuing_str}\n"
+            f"💡 Tip: Some functionality may be reduced, but core features remain available."
         )
