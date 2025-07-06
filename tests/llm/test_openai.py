@@ -383,6 +383,46 @@ def test_context_limit_error_without_token_parsing(mock_openai_chat_completion):
     assert exc_info.value.max_tokens == 0
 
 
+def test_context_limit_error_with_regex_but_int_parsing_failure():
+    """Test context limit error when regex succeeds but int() conversion fails.
+
+    This tests the ValueError exception handler on lines 353-354 in openai.py.
+    We directly test the _handle_openai_error method to trigger this edge case.
+    """
+    from openai import APIError
+    from httpx import Request
+    from cognivault.exceptions.llm_errors import LLMContextLimitError
+    from unittest.mock import patch, MagicMock
+
+    # Create an LLM instance
+    llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
+
+    # Create a mock API error that would match context limit conditions
+    dummy_request = Request("POST", "https://api.openai.com/v1/chat/completions")
+    context_error = APIError(
+        "Request exceeds token limit",
+        request=dummy_request,
+        body="{}",
+    )
+
+    # Patch the regex search to return a match that will cause int() to fail
+    with patch("re.search") as mock_search:
+        # Create a mock match object where group() returns values that int() can't parse
+        mock_match = MagicMock()
+        # Make group(1) return an empty string (which int() can't parse)
+        mock_match.group.side_effect = lambda x: "" if x == 1 else "4096"
+        mock_search.return_value = mock_match
+
+        with pytest.raises(LLMContextLimitError) as exc_info:
+            llm._handle_openai_error(context_error)
+
+    # When int() parsing fails, should default to 0
+    assert exc_info.value.token_count == 0
+    assert exc_info.value.max_tokens == 0
+    assert exc_info.value.llm_provider == "openai"
+    assert exc_info.value.model_name == "gpt-4"
+
+
 def test_model_not_found_error_handling(mock_openai_chat_completion):
     """Test handling of model not found errors."""
     from openai import APIError

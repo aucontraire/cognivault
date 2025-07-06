@@ -375,6 +375,29 @@ class TestLLMModelNotFoundError:
         assert "non-existent-model" in user_msg
         assert "gpt-4" in user_msg
 
+    def test_model_not_found_user_message_with_many_models(self):
+        """Test user message with more than 3 available models (triggers '...' suffix)."""
+        # Test with more than 3 models to trigger the "..." suffix on line 379
+        available_models = [
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-16k",
+            "text-davinci-003",
+            "text-curie-001",
+        ]
+
+        error = LLMModelNotFoundError(
+            llm_provider="openai",
+            model_name="invalid-model",
+            available_models=available_models,
+        )
+
+        user_msg = error.get_user_message()
+        assert (
+            "Available models: gpt-4, gpt-3.5-turbo, gpt-3.5-turbo-16k..." in user_msg
+        )
+        assert "invalid-model" in user_msg
+
 
 class TestLLMServerError:
     """Test LLMServerError functionality."""

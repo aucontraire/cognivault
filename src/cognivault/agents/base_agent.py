@@ -157,7 +157,9 @@ class BaseAgent(ABC):
             time_remaining = self.circuit_breaker.recovery_timeout
             if failure_time:
                 elapsed = (datetime.now(timezone.utc) - failure_time).total_seconds()
-                time_remaining = max(0, self.circuit_breaker.recovery_timeout - elapsed)
+                time_remaining = max(
+                    0.0, self.circuit_breaker.recovery_timeout - elapsed
+                )
 
             raise AgentExecutionError(
                 message=f"Circuit breaker open for agent '{self.name}'",

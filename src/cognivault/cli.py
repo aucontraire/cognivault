@@ -8,8 +8,14 @@ from typing import Optional
 from cognivault.config.logging_config import setup_logging
 from cognivault.orchestrator import AgentOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
+from cognivault.diagnostics.cli import app as diagnostics_app
 
 app = typer.Typer()
+
+# Add diagnostics subcommands
+app.add_typer(
+    diagnostics_app, name="diagnostics", help="System diagnostics and monitoring"
+)
 
 
 async def run(
