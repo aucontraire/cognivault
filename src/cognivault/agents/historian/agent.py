@@ -1,7 +1,13 @@
 import logging
 import asyncio
+from typing import Dict, Any, List
 
-from cognivault.agents.base_agent import BaseAgent
+from cognivault.agents.base_agent import (
+    BaseAgent,
+    NodeType,
+    NodeInputSchema,
+    NodeOutputSchema,
+)
 from cognivault.context import AgentContext
 from cognivault.config.app_config import get_config
 
@@ -55,3 +61,34 @@ class HistorianAgent(BaseAgent):
         context.log_trace(self.name, input_data=query, output_data=retrieved_text)
 
         return context
+
+    def define_node_metadata(self) -> Dict[str, Any]:
+        """
+        Define LangGraph-specific metadata for the Historian agent.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Node metadata including type, dependencies, schemas, and routing logic
+        """
+        return {
+            "node_type": NodeType.PROCESSOR,
+            "dependencies": [],  # Independent - can run in parallel with other entry agents
+            "description": "Retrieves historical context and relevant notes for the given query",
+            "inputs": [
+                NodeInputSchema(
+                    name="context",
+                    description="Agent context containing query for historical context retrieval",
+                    required=True,
+                    type_hint="AgentContext",
+                )
+            ],
+            "outputs": [
+                NodeOutputSchema(
+                    name="context",
+                    description="Updated context with historical notes and retrieved information",
+                    type_hint="AgentContext",
+                )
+            ],
+            "tags": ["historian", "agent", "processor", "independent", "parallel"],
+        }

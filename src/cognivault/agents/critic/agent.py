@@ -1,8 +1,14 @@
-from cognivault.agents.base_agent import BaseAgent
+from cognivault.agents.base_agent import (
+    BaseAgent,
+    NodeType,
+    NodeInputSchema,
+    NodeOutputSchema,
+)
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
 import logging
+from typing import Dict, Any, List
 
 
 class CriticAgent(BaseAgent):
@@ -77,3 +83,34 @@ class CriticAgent(BaseAgent):
             f"[{self.name}] Updated context with {self.name} output: {critique}"
         )
         return context
+
+    def define_node_metadata(self) -> Dict[str, Any]:
+        """
+        Define LangGraph-specific metadata for the Critic agent.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Node metadata including type, dependencies, schemas, and routing logic
+        """
+        return {
+            "node_type": NodeType.PROCESSOR,
+            "dependencies": ["refiner"],  # Depends on Refiner output
+            "description": "Evaluates and critiques refined queries for quality and clarity",
+            "inputs": [
+                NodeInputSchema(
+                    name="context",
+                    description="Agent context containing refined query to critique",
+                    required=True,
+                    type_hint="AgentContext",
+                )
+            ],
+            "outputs": [
+                NodeOutputSchema(
+                    name="context",
+                    description="Updated context with critique feedback added",
+                    type_hint="AgentContext",
+                )
+            ],
+            "tags": ["critic", "agent", "processor", "evaluator"],
+        }

@@ -1,6 +1,12 @@
 import logging
+from typing import Dict, Any, List
 
-from cognivault.agents.base_agent import BaseAgent
+from cognivault.agents.base_agent import (
+    BaseAgent,
+    NodeType,
+    NodeInputSchema,
+    NodeOutputSchema,
+)
 from cognivault.context import AgentContext
 
 logger = logging.getLogger(__name__)
@@ -48,3 +54,34 @@ class SynthesisAgent(BaseAgent):
         context.add_agent_output(self.name, synthesized_note)
         context.log_trace(self.name, input_data=outputs, output_data=synthesized_note)
         return context
+
+    def define_node_metadata(self) -> Dict[str, Any]:
+        """
+        Define LangGraph-specific metadata for the Synthesis agent.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Node metadata including type, dependencies, schemas, and routing logic
+        """
+        return {
+            "node_type": NodeType.AGGREGATOR,
+            "dependencies": ["refiner", "critic", "historian"],  # Waits for all agents
+            "description": "Synthesizes outputs from all agents into a comprehensive summary",
+            "inputs": [
+                NodeInputSchema(
+                    name="context",
+                    description="Agent context containing all agent outputs to synthesize",
+                    required=True,
+                    type_hint="AgentContext",
+                )
+            ],
+            "outputs": [
+                NodeOutputSchema(
+                    name="context",
+                    description="Final context with synthesized summary of all agent outputs",
+                    type_hint="AgentContext",
+                )
+            ],
+            "tags": ["synthesis", "agent", "aggregator", "terminator", "final"],
+        }

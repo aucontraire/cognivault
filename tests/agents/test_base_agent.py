@@ -1,7 +1,15 @@
 import pytest
 import asyncio
 from unittest.mock import patch
-from cognivault.agents.base_agent import BaseAgent, RetryConfig, CircuitBreakerState
+from cognivault.agents.base_agent import (
+    BaseAgent,
+    RetryConfig,
+    CircuitBreakerState,
+    NodeType,
+    NodeInputSchema,
+    NodeOutputSchema,
+    LangGraphNodeDefinition,
+)
 from cognivault.context import AgentContext
 from cognivault.exceptions import (
     AgentExecutionError,
@@ -72,6 +80,52 @@ class FlakyAgent(BaseAgent):
             raise Exception(f"Attempt {self.attempts} failed")
         context.agent_outputs[self.name] = f"Success after {self.attempts} attempts"
         return context
+
+
+class CustomNodeAgent(BaseAgent):
+    """Agent with custom node metadata for testing."""
+
+    def __init__(self, name: str = "CustomNodeAgent", **kwargs):
+        super().__init__(name, **kwargs)
+
+    async def run(self, context: AgentContext) -> AgentContext:
+        context.agent_outputs[self.name] = "custom node output"
+        return context
+
+    def define_node_metadata(self) -> dict:
+        """Override to provide custom node metadata."""
+        return {
+            "node_type": NodeType.DECISION,
+            "description": "Custom decision-making agent for testing",
+            "inputs": [
+                NodeInputSchema(
+                    name="context",
+                    description="Input context with decision criteria",
+                    required=True,
+                    type_hint="AgentContext",
+                ),
+                NodeInputSchema(
+                    name="threshold",
+                    description="Decision threshold parameter",
+                    required=False,
+                    type_hint="float",
+                ),
+            ],
+            "outputs": [
+                NodeOutputSchema(
+                    name="context",
+                    description="Updated context with decision result",
+                    type_hint="AgentContext",
+                ),
+                NodeOutputSchema(
+                    name="decision",
+                    description="The decision made by the agent",
+                    type_hint="bool",
+                ),
+            ],
+            "dependencies": ["refiner", "historian"],
+            "tags": ["decision", "custom", "test"],
+        }
 
 
 # Basic functionality tests
@@ -607,3 +661,410 @@ async def test_run_with_retry_unreachable_fallback(anyio_backend):
         await agent.run_with_retry(context)
 
     assert "Agent execution failed after" in str(exc_info.value)
+
+
+# LangGraph invoke() method tests
+@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
+@pytest.mark.anyio
+async def test_invoke_method_basic(anyio_backend):
+    """Test basic invoke() method functionality."""
+    if anyio_backend == "trio":
+        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+
+    agent = ConcreteAgent("TestAgent")
+    context = AgentContext(query="test invoke")
+
+    result = await agent.invoke(context)
+
+    assert isinstance(result, AgentContext)
+    assert result.agent_outputs["TestAgent"] == "test output"
+    assert agent.run_called
+    assert agent.execution_count == 1
+    assert agent.success_count == 1
+
+
+@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
+@pytest.mark.anyio
+async def test_invoke_method_with_config(anyio_backend):
+    """Test invoke() method with configuration parameters."""
+    if anyio_backend == "trio":
+        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+
+    agent = ConcreteAgent("TestAgent")
+    context = AgentContext(query="test invoke with config")
+    config = {"step_id": "custom_invoke_step_123", "timeout_seconds": 45.0}
+
+    result = await agent.invoke(context, config=config)
+
+    assert isinstance(result, AgentContext)
+    assert agent.run_called
+
+    # Check that step metadata was added with custom step_id
+    metadata_key = f"{agent.name}_step_metadata"
+    assert metadata_key in context.execution_state
+    assert context.execution_state[metadata_key]["step_id"] == "custom_invoke_step_123"
+
+    # Verify timeout was restored
+    assert agent.timeout_seconds == 30.0  # Should be back to default
+
+
+@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
+@pytest.mark.anyio
+async def test_invoke_method_timeout_override(anyio_backend):
+    """Test that invoke() method can override timeout and restores it properly."""
+    if anyio_backend == "trio":
+        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+
+    agent = ConcreteAgent("TestAgent", timeout_seconds=30.0)
+    context = AgentContext(query="test timeout override")
+    config = {"timeout_seconds": 60.0}
+
+    # Capture the timeout during execution
+    original_timeout = agent.timeout_seconds
+
+    await agent.invoke(context, config=config)
+
+    # Verify timeout was restored to original value
+    assert agent.timeout_seconds == original_timeout
+
+
+@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
+@pytest.mark.anyio
+async def test_invoke_method_no_config(anyio_backend):
+    """Test invoke() method without config parameter."""
+    if anyio_backend == "trio":
+        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+
+    agent = ConcreteAgent("TestAgent")
+    context = AgentContext(query="test invoke no config")
+
+    result = await agent.invoke(context, config=None)
+
+    assert isinstance(result, AgentContext)
+    assert agent.run_called
+    assert agent.execution_count == 1
+
+
+@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
+@pytest.mark.anyio
+async def test_invoke_method_error_propagation(anyio_backend):
+    """Test that invoke() method properly propagates errors."""
+    if anyio_backend == "trio":
+        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+
+    agent = FailingAgent("FailingAgent")
+    agent.retry_config = RetryConfig(max_retries=1, base_delay=0.01)
+    context = AgentContext(query="test error propagation")
+
+    with pytest.raises(AgentExecutionError):
+        await agent.invoke(context)
+
+    assert agent.execution_count == 1
+    assert agent.failure_count == 1
+
+
+@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
+@pytest.mark.anyio
+async def test_invoke_method_timeout_override_with_exception(anyio_backend):
+    """Test that timeout is restored even when an exception occurs."""
+    if anyio_backend == "trio":
+        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+
+    agent = FailingAgent("FailingAgent", timeout_seconds=30.0)
+    agent.retry_config = RetryConfig(max_retries=0, base_delay=0.01)  # Fail immediately
+    context = AgentContext(query="test timeout restore on exception")
+    config = {"timeout_seconds": 60.0}
+
+    original_timeout = agent.timeout_seconds
+
+    with pytest.raises(AgentExecutionError):
+        await agent.invoke(context, config=config)
+
+    # Verify timeout was restored even after exception
+    assert agent.timeout_seconds == original_timeout
+
+
+@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
+@pytest.mark.anyio
+async def test_invoke_method_preserves_all_functionality(anyio_backend):
+    """Test that invoke() preserves all BaseAgent functionality like retry, circuit breaker, etc."""
+    if anyio_backend == "trio":
+        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+
+    # Use FlakyAgent to test retry behavior through invoke()
+    agent = FlakyAgent("FlakyAgent", failures_before_success=1)
+    agent.retry_config = RetryConfig(max_retries=2, base_delay=0.01)
+    context = AgentContext(query="test invoke preserves functionality")
+
+    result = await agent.invoke(context)
+
+    assert agent.attempts == 2  # Failed once, succeeded on second
+    assert agent.execution_count == 1
+    assert agent.success_count == 1
+    assert result.agent_outputs["FlakyAgent"] == "Success after 2 attempts"
+
+
+# LangGraph Node Metadata Tests
+def test_node_type_enum():
+    """Test NodeType enum values."""
+    assert NodeType.PROCESSOR.value == "processor"
+    assert NodeType.DECISION.value == "decision"
+    assert NodeType.TERMINATOR.value == "terminator"
+    assert NodeType.AGGREGATOR.value == "aggregator"
+
+
+def test_node_input_schema():
+    """Test NodeInputSchema creation and defaults."""
+    # Required input
+    input_schema = NodeInputSchema(
+        name="test_input", description="Test input description"
+    )
+    assert input_schema.name == "test_input"
+    assert input_schema.description == "Test input description"
+    assert input_schema.required is True  # Default
+    assert input_schema.type_hint == "Any"  # Default
+
+    # Optional input with custom type
+    optional_input = NodeInputSchema(
+        name="optional_input",
+        description="Optional input",
+        required=False,
+        type_hint="str",
+    )
+    assert optional_input.required is False
+    assert optional_input.type_hint == "str"
+
+
+def test_node_output_schema():
+    """Test NodeOutputSchema creation."""
+    output_schema = NodeOutputSchema(
+        name="test_output",
+        description="Test output description",
+        type_hint="AgentContext",
+    )
+    assert output_schema.name == "test_output"
+    assert output_schema.description == "Test output description"
+    assert output_schema.type_hint == "AgentContext"
+
+
+def test_langraph_node_definition():
+    """Test LangGraphNodeDefinition creation and to_dict method."""
+    inputs = [NodeInputSchema("context", "Input context", True, "AgentContext")]
+    outputs = [NodeOutputSchema("context", "Output context", "AgentContext")]
+
+    node_def = LangGraphNodeDefinition(
+        node_id="test_node",
+        node_type=NodeType.PROCESSOR,
+        description="Test node description",
+        inputs=inputs,
+        outputs=outputs,
+        dependencies=["node1", "node2"],
+        tags=["test", "processor"],
+    )
+
+    assert node_def.node_id == "test_node"
+    assert node_def.node_type == NodeType.PROCESSOR
+    assert node_def.description == "Test node description"
+    assert len(node_def.inputs) == 1
+    assert len(node_def.outputs) == 1
+    assert node_def.dependencies == ["node1", "node2"]
+    assert node_def.tags == ["test", "processor"]
+
+    # Test to_dict conversion
+    node_dict = node_def.to_dict()
+    assert node_dict["node_id"] == "test_node"
+    assert node_dict["node_type"] == "processor"
+    assert node_dict["description"] == "Test node description"
+    assert len(node_dict["inputs"]) == 1
+    assert node_dict["inputs"][0]["name"] == "context"
+    assert node_dict["inputs"][0]["required"] is True
+    assert len(node_dict["outputs"]) == 1
+    assert node_dict["outputs"][0]["name"] == "context"
+    assert node_dict["dependencies"] == ["node1", "node2"]
+    assert node_dict["tags"] == ["test", "processor"]
+
+
+def test_base_agent_default_node_definition():
+    """Test default node definition generation."""
+    agent = ConcreteAgent("TestAgent")
+
+    node_def = agent.get_node_definition()
+
+    assert isinstance(node_def, LangGraphNodeDefinition)
+    assert node_def.node_id == "testagent"  # lowercase name
+    assert node_def.node_type == NodeType.PROCESSOR  # default
+    assert "TestAgent agent for processing context" in node_def.description
+
+    # Check default input
+    assert len(node_def.inputs) == 1
+    input_schema = node_def.inputs[0]
+    assert input_schema.name == "context"
+    assert input_schema.required is True
+    assert input_schema.type_hint == "AgentContext"
+
+    # Check default output
+    assert len(node_def.outputs) == 1
+    output_schema = node_def.outputs[0]
+    assert output_schema.name == "context"
+    assert output_schema.type_hint == "AgentContext"
+
+    # Check defaults
+    assert node_def.dependencies == []
+    assert "testagent" in node_def.tags
+    assert "agent" in node_def.tags
+
+
+def test_base_agent_node_definition_caching():
+    """Test that node definition is cached after first creation."""
+    agent = ConcreteAgent("TestAgent")
+
+    # First call creates and caches
+    node_def1 = agent.get_node_definition()
+
+    # Second call returns same object
+    node_def2 = agent.get_node_definition()
+
+    assert node_def1 is node_def2  # Same object reference
+
+
+def test_custom_node_agent_metadata():
+    """Test custom node metadata override."""
+    agent = CustomNodeAgent("CustomAgent")
+
+    node_def = agent.get_node_definition()
+
+    assert node_def.node_type == NodeType.DECISION
+    assert node_def.description == "Custom decision-making agent for testing"
+
+    # Check custom inputs
+    assert len(node_def.inputs) == 2
+    context_input = next(inp for inp in node_def.inputs if inp.name == "context")
+    assert context_input.description == "Input context with decision criteria"
+
+    threshold_input = next(inp for inp in node_def.inputs if inp.name == "threshold")
+    assert threshold_input.required is False
+    assert threshold_input.type_hint == "float"
+
+    # Check custom outputs
+    assert len(node_def.outputs) == 2
+    decision_output = next(out for out in node_def.outputs if out.name == "decision")
+    assert decision_output.type_hint == "bool"
+
+    # Check custom dependencies and tags
+    assert node_def.dependencies == ["refiner", "historian"]
+    assert "decision" in node_def.tags
+    assert "custom" in node_def.tags
+
+
+def test_set_node_definition():
+    """Test setting a custom node definition."""
+    agent = ConcreteAgent("TestAgent")
+
+    # Create custom definition
+    custom_def = LangGraphNodeDefinition(
+        node_id="custom_test",
+        node_type=NodeType.TERMINATOR,
+        description="Custom terminator node",
+        inputs=[],
+        outputs=[],
+        dependencies=[],
+        tags=["custom"],
+    )
+
+    agent.set_node_definition(custom_def)
+
+    retrieved_def = agent.get_node_definition()
+    assert retrieved_def is custom_def
+    assert retrieved_def.node_type == NodeType.TERMINATOR
+    assert retrieved_def.description == "Custom terminator node"
+
+
+def test_validate_node_compatibility():
+    """Test node compatibility validation."""
+    agent = ConcreteAgent("TestAgent")
+
+    # Valid context should pass
+    valid_context = AgentContext(query="test")
+    assert agent.validate_node_compatibility(valid_context) is True
+
+    # Invalid input should fail
+    invalid_input = "not a context"
+    assert agent.validate_node_compatibility(invalid_input) is False
+
+
+def test_node_definition_to_dict_comprehensive():
+    """Test comprehensive node definition dictionary conversion."""
+    agent = CustomNodeAgent("CustomAgent")
+    node_def = agent.get_node_definition()
+
+    node_dict = node_def.to_dict()
+
+    # Verify structure
+    assert "node_id" in node_dict
+    assert "node_type" in node_dict
+    assert "description" in node_dict
+    assert "inputs" in node_dict
+    assert "outputs" in node_dict
+    assert "dependencies" in node_dict
+    assert "tags" in node_dict
+
+    # Verify input structure
+    for inp in node_dict["inputs"]:
+        assert "name" in inp
+        assert "description" in inp
+        assert "required" in inp
+        assert "type" in inp
+
+    # Verify output structure
+    for out in node_dict["outputs"]:
+        assert "name" in out
+        assert "description" in out
+        assert "type" in out
+
+
+def test_node_definition_with_empty_override():
+    """Test that empty define_node_metadata override uses defaults."""
+
+    class EmptyMetadataAgent(BaseAgent):
+        async def run(self, context):
+            return context
+
+        def define_node_metadata(self):
+            return {}  # Empty override
+
+    agent = EmptyMetadataAgent("EmptyAgent")
+    node_def = agent.get_node_definition()
+
+    # Should use defaults
+    assert node_def.node_type == NodeType.PROCESSOR
+    assert len(node_def.inputs) == 1
+    assert len(node_def.outputs) == 1
+    assert node_def.dependencies == []
+
+
+def test_node_definition_partial_override():
+    """Test partial override of node metadata."""
+
+    class PartialMetadataAgent(BaseAgent):
+        async def run(self, context):
+            return context
+
+        def define_node_metadata(self):
+            return {
+                "node_type": NodeType.AGGREGATOR,
+                "tags": ["partial", "test"],
+                # Missing other fields - should use defaults
+            }
+
+    agent = PartialMetadataAgent("PartialAgent")
+    node_def = agent.get_node_definition()
+
+    # Should use overridden values
+    assert node_def.node_type == NodeType.AGGREGATOR
+    assert "partial" in node_def.tags
+    assert "test" in node_def.tags
+
+    # Should use defaults for missing fields
+    assert len(node_def.inputs) == 1  # Default input
+    assert len(node_def.outputs) == 1  # Default output
+    assert node_def.dependencies == []  # Default empty
