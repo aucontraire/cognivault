@@ -858,12 +858,22 @@ class TestIOErrorUserMessages:
 
     def test_permission_error_file_mode_exception_handling(self):
         """Test PermissionError handles file stat exceptions gracefully."""
-        # Test with non-existent file (should not raise exception)
-        error = PermissionError(
-            operation="read",
-            file_path="/nonexistent/file.txt",
-            permission_type="read denied",
-        )
+        from unittest.mock import patch, MagicMock
 
-        # Should not crash and file_mode should be None
-        assert error.context["file_mode"] is None
+        # Test with mock that raises exception during stat() call
+        with patch("cognivault.exceptions.io_errors.Path") as mock_path:
+            mock_path_obj = MagicMock()
+            mock_path.return_value = mock_path_obj
+            mock_path_obj.exists.return_value = True  # File exists
+            mock_path_obj.stat.side_effect = OSError(
+                "Permission denied on stat"
+            )  # But stat() fails
+
+            error = PermissionError(
+                operation="read",
+                file_path="/protected/file.txt",
+                permission_type="read denied",
+            )
+
+            # Should not crash and file_mode should be None (exception was caught)
+            assert error.context["file_mode"] is None

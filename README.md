@@ -1,7 +1,7 @@
 # 🧠 CogniVault
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
-![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
@@ -37,7 +37,15 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 - Execution path tracing with edge metadata for future LangGraph DAG migration
 - Conditional routing decision recording and alternative path tracking
 
-**Test Coverage Achievement**: Improved from 86% → 98% (+12 percentage points) with **514 tests passing** and all critical modules at 98-100% coverage.
+**Test Coverage Achievement**: Improved from 86% → 89% (+3 percentage points) with **670 tests passing** and all critical modules at 98-100% coverage.
+
+✅ **Issue 5: CLI Observability & Diagnostics** - 100% Complete  
+- Enterprise-grade structured logging with automatic correlation ID tracking
+- Real-time performance metrics collection and aggregation system
+- Comprehensive health checking for all system components
+- Rich CLI diagnostics interface with beautiful console output and multiple export formats
+- Machine-readable output integration (JSON, CSV, Prometheus, InfluxDB) for monitoring ecosystems
+- Thread-safe observability context and metrics collection for production reliability
 
 ---
 
@@ -72,6 +80,10 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 📊 **Execution Tracing**: Structured metadata and trace logging for debugging and observability
 - 🔀 **Failure Propagation**: LangGraph-compatible conditional execution with graceful degradation strategies
 - 🏥 **Health Checks**: Agent validation system with dependency resolution and circular dependency detection
+- 📊 **CLI Observability**: Rich diagnostics interface with `cognivault diagnostics` subcommands for health, metrics, and system status
+- 🔍 **Structured Logging**: Enterprise-grade logging with automatic correlation ID tracking and context propagation
+- 📈 **Performance Metrics**: Real-time collection of execution statistics, token usage, and success rates
+- 🖥️ **Machine-Readable Output**: Multiple export formats (JSON, CSV, Prometheus, InfluxDB) for monitoring integration
 
 ---
 
@@ -95,18 +107,32 @@ src/
 │   │   │   ├── agent.py
 │   │   │   ├── main.py
 │   │   │   └── prompts.py
-│   │   └── synthesis/
-│   │       ├── __init__.py
-│   │       ├── agent.py
-│   │       └── main.py
-│   ├── base_agent.py
-│   ├── registry.py
+│   │   ├── synthesis/
+│   │   │   ├── __init__.py
+│   │   │   ├── agent.py
+│   │   │   └── main.py
+│   │   ├── base_agent.py
+│   │   └── registry.py
 │   ├── cli.py
 │   ├── config/
 │   │   ├── __init__.py
 │   │   ├── app_config.py
-│   │   └── logging_config.py
+│   │   ├── logging_config.py
+│   │   └── openai_config.py
 │   ├── context.py
+│   ├── diagnostics/
+│   │   ├── __init__.py
+│   │   ├── cli.py
+│   │   ├── diagnostics.py
+│   │   ├── formatters.py
+│   │   ├── health.py
+│   │   └── metrics.py
+│   ├── docs/
+│   │   ├── ARCHITECTURE.md
+│   │   ├── FEEDBACK.md
+│   │   ├── LANDSCAPE.md
+│   │   ├── OBSERVABILITY.md
+│   │   └── RESEARCH.md
 │   ├── exceptions/
 │   │   ├── __init__.py
 │   │   ├── agent_errors.py
@@ -114,13 +140,12 @@ src/
 │   │   ├── io_errors.py
 │   │   ├── llm_errors.py
 │   │   └── orchestration_errors.py
-│   ├── docs/
-│   │   ├── LANDSCAPE.md
-│   │   └── RESEARCH.md
 │   ├── llm/
 │   │   ├── __init__.py
+│   │   ├── factory.py
 │   │   ├── llm_interface.py
 │   │   ├── openai.py
+│   │   ├── provider_enum.py
 │   │   └── stub.py
 │   ├── logs/
 │   │   └── interaction_00001.json
@@ -129,15 +154,23 @@ src/
 │   │   ├── 2025-06-26T06-47-28_what-is-cognition.md
 │   │   ├── 2025-06-26T10-04-47_what-is-cognition.md
 │   │   └── sample_note.md
+│   ├── observability/
+│   │   ├── __init__.py
+│   │   ├── context.py
+│   │   ├── formatters.py
+│   │   └── logger.py
 │   ├── orchestrator.py
 │   ├── retrieval/
 │   │   ├── __init__.py
 │   │   ├── embedding.py
 │   │   └── vector_store.py
-│   └── store/
+│   ├── store/
+│   │   ├── __init__.py
+│   │   ├── utils.py
+│   │   └── wiki_adapter.py
+│   └── utils/
 │       ├── __init__.py
-│       ├── utils.py
-│       └── wiki_adapter.py
+│       └── versioning.py
 tests/
 ├── agents/
 │   ├── critic/
@@ -157,12 +190,19 @@ tests/
 │   │   ├── __init__.py
 │   │   ├── test_agent.py
 │   │   └── test_main.py
+│   ├── test_base_agent.py
 │   └── test_registry.py
-├── test_base_agent.py
 ├── config/
 │   ├── __init__.py
 │   ├── test_app_config.py
 │   └── test_openai_config.py
+├── diagnostics/
+│   ├── __init__.py
+│   ├── test_cli.py
+│   ├── test_diagnostics.py
+│   ├── test_formatters.py
+│   ├── test_health.py
+│   └── test_metrics.py
 ├── exceptions/
 │   ├── __init__.py
 │   ├── test_agent_errors.py
@@ -170,16 +210,27 @@ tests/
 │   ├── test_config_errors.py
 │   ├── test_io_errors.py
 │   ├── test_llm_errors.py
-│   └── test_orchestration_errors.py
+│   ├── test_llm_errors_fixed.py
+│   ├── test_orchestration_errors.py
+│   └── test_orchestration_errors_fixed.py
 ├── llm/
 │   ├── __init__.py
+│   ├── test_factory.py
 │   ├── test_llm_interface.py
 │   ├── test_openai.py
 │   └── test_stub.py
+├── observability/
+│   ├── __init__.py
+│   ├── test_context.py
+│   ├── test_formatters.py
+│   └── test_logger.py
 ├── store/
 │   ├── __init__.py
 │   ├── test_utils.py
 │   └── test_wiki_adapter.py
+├── utils/
+│   ├── __init__.py
+│   └── test_versioning.py
 ├── test_cli.py
 ├── test_context.py
 ├── test_context_enhanced.py
@@ -672,6 +723,109 @@ uuid: 8fab709a-8fc4-464a-b16b-b7a55c84aedf
 
 ---
 
+## 📊 CLI Diagnostics & Observability
+
+CogniVault includes comprehensive diagnostics capabilities accessible via the `cognivault diagnostics` command suite:
+
+### Health Checks
+
+Check system health with detailed component analysis:
+
+```bash
+# Quick health overview
+cognivault diagnostics health
+
+# JSON output for automation
+cognivault diagnostics health --format json
+
+# Quiet mode (exit codes only)
+cognivault diagnostics health --quiet
+```
+
+### Performance Metrics
+
+Monitor system performance and statistics:
+
+```bash
+# Performance overview
+cognivault diagnostics metrics
+
+# Export to Prometheus format
+cognivault diagnostics metrics --format prometheus
+
+# Agent-specific metrics only
+cognivault diagnostics metrics --agents
+
+# Time-windowed metrics (last N minutes)
+cognivault diagnostics metrics --window 30
+```
+
+### System Status
+
+Get comprehensive system information:
+
+```bash
+# Detailed system status
+cognivault diagnostics status
+
+# JSON output with custom time window
+cognivault diagnostics status --json --window 60
+```
+
+### Agent Diagnostics
+
+Monitor individual agent performance:
+
+```bash
+# All agents status
+cognivault diagnostics agents
+
+# Specific agent details
+cognivault diagnostics agents --agent refiner --json
+```
+
+### Configuration Validation
+
+Validate system configuration:
+
+```bash
+# Configuration overview
+cognivault diagnostics config
+
+# Validation only
+cognivault diagnostics config --validate
+
+# JSON output
+cognivault diagnostics config --json
+```
+
+### Complete Diagnostics
+
+Run full system diagnostics with export options:
+
+```bash
+# Complete system report
+cognivault diagnostics full
+
+# Export to file in different formats
+cognivault diagnostics full --format json --output system-report.json
+cognivault diagnostics full --format csv --output metrics.csv
+cognivault diagnostics full --format prometheus --output metrics.prom
+```
+
+### Monitoring Integration
+
+The CLI supports multiple output formats for seamless monitoring integration:
+
+- **JSON**: API consumption and dashboard integration
+- **CSV**: Spreadsheet analysis and reporting
+- **Prometheus**: Metrics collection and alerting
+- **InfluxDB**: Time-series data storage
+
+All commands include rich console output with colors, tables, and progress indicators for an excellent developer experience.
+
+---
+
 ## 🧠 Example Output
 
 ```markdown
@@ -703,7 +857,8 @@ Covers:
 - Comprehensive exception hierarchy with error handling scenarios
 - Agent-level resilience with circuit breakers and retry logic
 - OpenAI LLM integration with extensive error mapping
-- 98% test coverage across all modules with critical paths at 100%
+- Comprehensive observability and diagnostics testing
+- 89% test coverage across all modules with critical paths at 100%
 - Both Refiner and Critic agents include comprehensive system prompt tests to ensure prompt correctness and robustness
 
 Use the batch test tools for agent evaluation:  

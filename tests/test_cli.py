@@ -104,6 +104,7 @@ def test_cli_main_entrypoint_runs():
         result = runner.invoke(
             app,
             [
+                "main",
                 "What is cognitive dissonance?",
                 "--agents=refiner",
                 "--log-level=INFO",

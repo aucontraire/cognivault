@@ -1,4 +1,5 @@
-import logging
+import time
+import uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
@@ -16,9 +17,14 @@ from cognivault.exceptions import (
     GracefulDegradationWarning,
     PipelineExecutionError,
 )
+from cognivault.observability import (
+    get_logger,
+    observability_context,
+)
+from cognivault.diagnostics.metrics import get_metrics_collector
 
 setup_logging()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AgentOrchestrator:
@@ -177,8 +183,28 @@ class AgentOrchestrator:
         AgentContext
             The updated agent context after all agents have completed execution.
         """
-        logger.info(f"[AgentOrchestrator] Running orchestrator with query: {query}")
-        context = AgentContext(query=query)
+        # Generate pipeline ID and set up observability context
+        pipeline_id = str(uuid.uuid4())
+        pipeline_start_time = time.time()
+
+        # Initialize metrics collector
+        metrics = get_metrics_collector()
+
+        with observability_context(
+            pipeline_id=pipeline_id, execution_phase="pipeline_start"
+        ):
+            logger.log_pipeline_start(
+                pipeline_id=pipeline_id,
+                agents=[agent.name for agent in self.agents],
+                query_length=len(query),
+                agent_count=len(self.agents),
+            )
+
+            logger.info(f"[AgentOrchestrator] Running orchestrator with query: {query}")
+            context = AgentContext(query=query)
+
+            # Store pipeline ID in context for tracking
+            context.set_path_metadata("pipeline_id", pipeline_id)
 
         # Reset execution state
         self.execution_state = {
@@ -266,40 +292,89 @@ class AgentOrchestrator:
             context.start_agent_execution(agent_name)
 
             # Run agent with conditional execution
-            try:
-                logger.info(f"[AgentOrchestrator] Running agent: {agent_name}")
-                await agent.run_with_retry(context)
+            agent_start_time = time.time()
 
-                # Agent succeeded
-                completed_agents = self.execution_state["completed_agents"]
-                assert isinstance(completed_agents, list)
-                completed_agents.append(agent_name)
-                context.complete_agent_execution(agent_name, success=True)
-                logger.info(f"[AgentOrchestrator] Completed agent: {agent_name}")
+            with observability_context(
+                pipeline_id=pipeline_id,
+                agent_name=agent_name,
+                execution_phase="agent_execution",
+            ):
+                try:
+                    logger.log_agent_start(
+                        agent_name, step_id=f"exec_{len(context.agent_outputs)}"
+                    )
+                    logger.info(f"[AgentOrchestrator] Running agent: {agent_name}")
 
-                # Handle synthesis agent special case
-                if agent_name == "Synthesis":
-                    logger.debug(f"Setting final_synthesis from {agent_name}")
-                    output = context.get_output(agent_name)
-                    if isinstance(output, str):
-                        context.set_final_synthesis(output)
+                    await agent.run_with_retry(context)
 
-                previous_agent = agent_name
+                    # Calculate execution time
+                    agent_duration_ms = (time.time() - agent_start_time) * 1000
 
-            except Exception as e:
-                logger.error(f"[AgentOrchestrator] Agent {agent_name} failed: {e}")
-                context.complete_agent_execution(agent_name, success=False)
+                    # Record successful agent execution metrics
+                    metrics.record_agent_execution(
+                        agent_name=agent_name,
+                        success=True,
+                        duration_ms=agent_duration_ms,
+                        tokens_used=0,  # Will be updated by LLM calls
+                    )
 
-                # Record failure routing decision
-                context.record_conditional_routing(
-                    decision_point=f"agent_failure_{agent_name}",
-                    condition="agent_execution_failed",
-                    chosen_path="handle_failure",
-                    alternative_paths=["continue_execution", "fallback_agent"],
-                    metadata={"error": str(e), "failure_type": "execution_error"},
-                )
+                    # Agent succeeded
+                    completed_agents = self.execution_state["completed_agents"]
+                    assert isinstance(completed_agents, list)
+                    completed_agents.append(agent_name)
+                    context.complete_agent_execution(agent_name, success=True)
 
-                await self._handle_agent_failure(agent_name, str(e), context, cause=e)
+                    logger.log_agent_end(
+                        agent_name,
+                        success=True,
+                        duration_ms=agent_duration_ms,
+                        output_length=len(context.get_output(agent_name) or ""),
+                    )
+                    logger.info(f"[AgentOrchestrator] Completed agent: {agent_name}")
+
+                    # Handle synthesis agent special case
+                    if agent_name == "Synthesis":
+                        logger.debug(f"Setting final_synthesis from {agent_name}")
+                        output = context.get_output(agent_name)
+                        if isinstance(output, str):
+                            context.set_final_synthesis(output)
+
+                    previous_agent = agent_name
+
+                except Exception as e:
+                    # Calculate execution time for failed attempt
+                    agent_duration_ms = (time.time() - agent_start_time) * 1000
+
+                    # Record failed agent execution metrics
+                    metrics.record_agent_execution(
+                        agent_name=agent_name,
+                        success=False,
+                        duration_ms=agent_duration_ms,
+                        error_type=type(e).__name__,
+                    )
+
+                    logger.log_agent_end(
+                        agent_name,
+                        success=False,
+                        duration_ms=agent_duration_ms,
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                    )
+                    logger.error(f"[AgentOrchestrator] Agent {agent_name} failed: {e}")
+                    context.complete_agent_execution(agent_name, success=False)
+
+                    # Record failure routing decision
+                    context.record_conditional_routing(
+                        decision_point=f"agent_failure_{agent_name}",
+                        condition="agent_execution_failed",
+                        chosen_path="handle_failure",
+                        alternative_paths=["continue_execution", "fallback_agent"],
+                        metadata={"error": str(e), "failure_type": "execution_error"},
+                    )
+
+                    await self._handle_agent_failure(
+                        agent_name, str(e), context, cause=e
+                    )
 
         # Set final execution path metadata
         context.set_path_metadata(
@@ -347,6 +422,34 @@ class AgentOrchestrator:
                 ),
             }
         )
+
+        # Calculate total pipeline execution time and record metrics
+        pipeline_duration_ms = (time.time() - pipeline_start_time) * 1000
+        pipeline_success = len(failed_agents) == 0 or len(completed_agents) > 0
+
+        # Record pipeline metrics
+        with observability_context(
+            pipeline_id=pipeline_id, execution_phase="pipeline_end"
+        ):
+            metrics.record_pipeline_execution(
+                pipeline_id=pipeline_id,
+                success=pipeline_success,
+                duration_ms=pipeline_duration_ms,
+                agents_executed=completed_agents,
+                total_tokens=0,  # Will be aggregated from agent metrics
+            )
+
+            logger.log_pipeline_end(
+                pipeline_id=pipeline_id,
+                success=pipeline_success,
+                duration_ms=pipeline_duration_ms,
+                completed_agents=len(completed_agents),
+                failed_agents=len(failed_agents),
+                skipped_agents=len(skipped_agents),
+                success_rate=(
+                    len(completed_agents) / len(self.agents) if self.agents else 0
+                ),
+            )
 
         logger.info(
             f"[AgentOrchestrator] Pipeline completed: "

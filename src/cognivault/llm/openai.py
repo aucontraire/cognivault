@@ -1,4 +1,5 @@
 import openai
+import time
 from typing import Any, Iterator, Optional, Callable, Union, cast, List
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from .llm_interface import LLMInterface, LLMResponse
@@ -12,6 +13,8 @@ from cognivault.exceptions import (
     LLMServerError,
     LLMError,
 )
+from cognivault.observability import get_logger, get_observability_context
+from cognivault.diagnostics.metrics import get_metrics_collector
 
 
 class OpenAIChatLLM(LLMInterface):
@@ -68,6 +71,14 @@ class OpenAIChatLLM(LLMInterface):
         LLMResponse or Iterator[str]
             The structured response or a stream of tokens.
         """
+        # Initialize observability
+        logger = get_logger("llm.openai")
+        metrics = get_metrics_collector()
+        llm_start_time = time.time()
+
+        # Get observability context for correlation
+        obs_context = get_observability_context()
+
         if on_log:
             on_log(f"[OpenAIChatLLM] Prompt: {prompt}")
             if system_prompt:
@@ -81,6 +92,15 @@ class OpenAIChatLLM(LLMInterface):
         messages.append({"role": "user", "content": prompt})
 
         try:
+            logger.debug(
+                f"Making LLM call to {self.model}",
+                model=self.model,
+                prompt_length=len(prompt),
+                system_prompt_length=len(system_prompt) if system_prompt else 0,
+                stream=stream,
+                agent_name=obs_context.agent_name if obs_context else None,
+            )
+
             assert isinstance(self.model, str), "model must be a string"
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -89,12 +109,60 @@ class OpenAIChatLLM(LLMInterface):
                 **kwargs,
             )
         except openai.APIError as e:
+            # Record failed LLM call metrics
+            llm_duration_ms = (time.time() - llm_start_time) * 1000
+
+            logger.error(
+                f"LLM API call failed: {str(e)}",
+                model=self.model,
+                duration_ms=llm_duration_ms,
+                error_type=type(e).__name__,
+                agent_name=obs_context.agent_name if obs_context else None,
+            )
+
+            metrics.increment_counter(
+                "llm_api_calls_failed",
+                labels={
+                    "model": self.model or "unknown",
+                    "agent": (
+                        obs_context.agent_name
+                        if obs_context and obs_context.agent_name
+                        else "unknown"
+                    ),
+                    "error_type": type(e).__name__,
+                },
+            )
+
             if on_log:
                 on_log(f"[OpenAIChatLLM][error] {str(e)}")
 
             # Convert OpenAI API errors to our structured exception hierarchy
             self._handle_openai_error(e)
         except Exception as e:
+            # Record unexpected error metrics
+            llm_duration_ms = (time.time() - llm_start_time) * 1000
+
+            logger.error(
+                f"Unexpected LLM error: {str(e)}",
+                model=self.model,
+                duration_ms=llm_duration_ms,
+                error_type=type(e).__name__,
+                agent_name=obs_context.agent_name if obs_context else None,
+            )
+
+            metrics.increment_counter(
+                "llm_api_calls_failed",
+                labels={
+                    "model": self.model or "unknown",
+                    "agent": (
+                        obs_context.agent_name
+                        if obs_context and obs_context.agent_name
+                        else "unknown"
+                    ),
+                    "error_type": "unexpected_error",
+                },
+            )
+
             if on_log:
                 on_log(f"[OpenAIChatLLM][unexpected_error] {str(e)}")
 
@@ -138,6 +206,59 @@ class OpenAIChatLLM(LLMInterface):
             text = choice.message.content or ""
             tokens_used = response.usage.total_tokens if response.usage else None
             finish_reason = choice.finish_reason
+
+            # Calculate LLM call duration and record metrics
+            llm_duration_ms = (time.time() - llm_start_time) * 1000
+
+            # Record LLM call metrics
+            logger.log_llm_call(
+                model=self.model or "unknown",
+                tokens_used=tokens_used or 0,
+                duration_ms=llm_duration_ms,
+                prompt_length=len(prompt),
+                response_length=len(text),
+                finish_reason=finish_reason,
+                agent_name=obs_context.agent_name if obs_context else None,
+            )
+
+            metrics.record_timing(
+                "llm_call_duration",
+                llm_duration_ms,
+                labels={
+                    "model": self.model or "unknown",
+                    "agent": (
+                        obs_context.agent_name
+                        if obs_context and obs_context.agent_name
+                        else "unknown"
+                    ),
+                },
+            )
+
+            if tokens_used:
+                metrics.increment_counter(
+                    "llm_tokens_consumed",
+                    tokens_used,
+                    labels={
+                        "model": self.model or "unknown",
+                        "agent": (
+                            obs_context.agent_name
+                            if obs_context and obs_context.agent_name
+                            else "unknown"
+                        ),
+                    },
+                )
+
+            metrics.increment_counter(
+                "llm_api_calls_successful",
+                labels={
+                    "model": self.model or "unknown",
+                    "agent": (
+                        obs_context.agent_name
+                        if obs_context and obs_context.agent_name
+                        else "unknown"
+                    ),
+                },
+            )
 
             return LLMResponse(
                 text=text,

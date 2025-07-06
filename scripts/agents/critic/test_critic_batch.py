@@ -113,7 +113,7 @@ async def run_test_without_refiner():
     updated_context = await agent.run(context)
     output = updated_context.agent_outputs.get("Critic", "").strip()
 
-    print(f"Query without Refiner output: Test query without refinement")
+    print("Query without Refiner output: Test query without refinement")
     print(f"   → Critique: {output}\n")
 
 

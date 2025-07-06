@@ -37,6 +37,8 @@ loguru
 watchdog
 rich                # Pretty logging/output
 python-dotenv       # For loading environment variables from .env
+psutil              # System resource monitoring
+types-psutil
 
 # ===========================
 # Development Tools
