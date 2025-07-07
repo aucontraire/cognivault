@@ -169,7 +169,11 @@ def test_orchestrator_with_only_historian():
 
     assert list(context.agent_outputs.keys()) == ["Historian"]
     assert "Historian" in context.agent_outputs
-    assert "Note from" in context.agent_outputs["Historian"]
+    # Enhanced historian agent returns proper message when no notes found
+    assert (
+        "Note from" in context.agent_outputs["Historian"]
+        or "No relevant historical context found" in context.agent_outputs["Historian"]
+    )
     # Check agent_trace for Historian
     assert "Historian" in context.agent_trace
     assert isinstance(context.agent_trace["Historian"], list)
@@ -186,7 +190,13 @@ def test_orchestrator_with_only_synthesis():
 
     assert list(context.agent_outputs.keys()) == ["Synthesis"]
     assert "Synthesis" in context.agent_outputs
-    assert context.agent_outputs["Synthesis"].strip() == ""
+    # Enhanced synthesis agent produces comprehensive analysis even with no inputs
+    synthesis_output = context.agent_outputs["Synthesis"].strip()
+    assert len(synthesis_output) > 0
+    assert (
+        "Comprehensive Analysis" in synthesis_output
+        or "Emergency Synthesis" in synthesis_output
+    )
     # Check agent_trace for Synthesis
     assert "Synthesis" in context.agent_trace
     assert isinstance(context.agent_trace["Synthesis"], list)
@@ -194,7 +204,10 @@ def test_orchestrator_with_only_synthesis():
     assert "timestamp" in context.agent_trace["Synthesis"][0]
     assert "input" in context.agent_trace["Synthesis"][0]
     assert "output" in context.agent_trace["Synthesis"][0]
-    assert context.final_synthesis == ""
+    # Enhanced synthesis agent now sets final_synthesis
+    assert context.final_synthesis is not None
+    assert len(context.final_synthesis) > 0
+    assert context.final_synthesis == context.agent_outputs["Synthesis"]
 
 
 def test_orchestrator_with_invalid_only_name():

@@ -56,6 +56,14 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 - Dictionary serialization for seamless integration with LangGraph graph builders
 - Full backward compatibility with existing agent architecture and CLI workflows
 
+✅ **Issue 6.5: Enhanced Historian & Synthesis Agents** - 100% Complete
+- **Multi-Strategy Search System**: Tag-based, keyword (TF-IDF), and hybrid search for historical notes
+- **LLM-Powered Historian**: Intelligent relevance analysis and historical context synthesis
+- **Advanced Synthesis Agent**: Thematic analysis, conflict resolution, and meta-insights generation
+- **Enhanced Frontmatter Schema**: Rich metadata with agent status, confidence, topics, and domains
+- **Wiki-Ready Output**: Professional markdown formatting with structured headers and metadata
+- **177 Comprehensive Tests**: Complete test coverage for all enhanced functionality with mock LLM integration
+
 ---
 
 ## ⚡ Quickstart

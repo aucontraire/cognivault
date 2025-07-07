@@ -8,6 +8,7 @@ from typing import Optional
 from cognivault.config.logging_config import setup_logging
 from cognivault.orchestrator import AgentOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
+from cognivault.store.topic_manager import TopicManager
 from cognivault.diagnostics.cli import app as diagnostics_app
 
 app = typer.Typer()
@@ -58,9 +59,44 @@ async def run(
         print(f"\n{emoji} {agent_name}:\n{output.strip()}\n")
 
     if export_md:
+        # Initialize topic manager for auto-tagging
+        topic_manager = TopicManager()
+
+        # Analyze and suggest topics
+        try:
+            logger.info(f"[{cli_name}] Analyzing topics for auto-tagging...")
+            topic_analysis = await topic_manager.analyze_and_suggest_topics(
+                query=query, agent_outputs=context.agent_outputs
+            )
+
+            # Extract suggested topics and domain
+            suggested_topics = [s.topic for s in topic_analysis.suggested_topics]
+            suggested_domain = topic_analysis.suggested_domain
+
+            logger.info(f"[{cli_name}] Suggested topics: {suggested_topics}")
+            if suggested_domain:
+                logger.info(f"[{cli_name}] Suggested domain: {suggested_domain}")
+
+        except Exception as e:
+            logger.warning(f"[{cli_name}] Topic analysis failed: {e}")
+            suggested_topics = []
+            suggested_domain = None
+
+        # Export with enhanced metadata
         exporter = MarkdownExporter()
-        md_path = exporter.export(context.agent_outputs, query)
+        md_path = exporter.export(
+            agent_outputs=context.agent_outputs,
+            question=query,
+            topics=suggested_topics,
+            domain=suggested_domain,
+        )
         print(f"📄 Markdown exported to: {md_path}")
+
+        # Display topic suggestions to user
+        if suggested_topics:
+            print(f"🏷️  Suggested topics: {', '.join(suggested_topics[:5])}")
+        if suggested_domain:
+            print(f"🎯 Suggested domain: {suggested_domain}")
 
 
 @app.command()

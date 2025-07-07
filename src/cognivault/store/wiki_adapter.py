@@ -2,8 +2,16 @@ import os
 from datetime import datetime
 import uuid
 import hashlib
-from typing import KeysView, Optional
+from typing import KeysView, Optional, Dict, Any, List
 from .utils import slugify_title
+from .frontmatter import (
+    EnhancedFrontmatter,
+    AgentExecutionResult,
+    AgentStatus,
+    create_basic_frontmatter,
+    frontmatter_to_yaml_dict,
+    TopicTaxonomy,
+)
 from cognivault.config.app_config import get_config
 
 
@@ -25,7 +33,15 @@ class MarkdownExporter:
         )
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def export(self, agent_outputs: dict, question: str) -> str:
+    def export(
+        self,
+        agent_outputs: dict,
+        question: str,
+        agent_results: Optional[Dict[str, AgentExecutionResult]] = None,
+        topics: Optional[List[str]] = None,
+        domain: Optional[str] = None,
+        related_queries: Optional[List[str]] = None,
+    ) -> str:
         """
         Export a structured agent interaction to a Markdown file.
 
@@ -35,6 +51,14 @@ class MarkdownExporter:
             Mapping of agent names to their responses.
         question : str
             Original user question or task.
+        agent_results : Dict[str, AgentExecutionResult], optional
+            Detailed execution results for each agent.
+        topics : List[str], optional
+            Topics associated with this query.
+        domain : str, optional
+            Primary domain classification.
+        related_queries : List[str], optional
+            Related queries for cross-referencing.
 
         Returns
         -------
@@ -58,10 +82,29 @@ class MarkdownExporter:
         )
         filepath = os.path.join(self.output_dir, filename)
 
-        metadata = self._build_metadata(question, agent_outputs, timestamp, filename)
-        frontmatter = self._render_frontmatter(metadata)
+        # Create enhanced frontmatter
+        frontmatter = self._build_enhanced_frontmatter(
+            question,
+            agent_outputs,
+            timestamp,
+            filename,
+            agent_results,
+            topics,
+            domain,
+            related_queries,
+        )
 
-        lines = frontmatter + [f"# Question\n\n{question}\n", "## Agent Responses\n"]
+        # Calculate content metrics
+        content_text = question + " " + " ".join(agent_outputs.values())
+        frontmatter.calculate_reading_time(content_text)
+
+        # Render to YAML
+        frontmatter_lines = self._render_enhanced_frontmatter(frontmatter)
+
+        lines = frontmatter_lines + [
+            f"# Question\n\n{question}\n",
+            "## Agent Responses\n",
+        ]
 
         for agent_name, response in agent_outputs.items():
             lines.append(f"### {agent_name}\n\n{response}\n")
@@ -70,6 +113,81 @@ class MarkdownExporter:
             f.writelines(line if line.endswith("\n") else line + "\n" for line in lines)
 
         return filepath
+
+    def _build_enhanced_frontmatter(
+        self,
+        question: str,
+        agent_outputs: dict,
+        timestamp: str,
+        filename: str,
+        agent_results: Optional[Dict[str, AgentExecutionResult]] = None,
+        topics: Optional[List[str]] = None,
+        domain: Optional[str] = None,
+        related_queries: Optional[List[str]] = None,
+    ) -> EnhancedFrontmatter:
+        """Build enhanced frontmatter with comprehensive metadata."""
+
+        # Create base frontmatter
+        frontmatter = EnhancedFrontmatter(
+            title=question, date=timestamp, filename=filename, source="cli"
+        )
+
+        # Add agent results or create defaults
+        if agent_results:
+            for agent_name, result in agent_results.items():
+                frontmatter.add_agent_result(agent_name, result)
+        else:
+            # Create default results for backward compatibility
+            for agent_name in agent_outputs.keys():
+                result = AgentExecutionResult(
+                    status=AgentStatus.INTEGRATED, confidence=0.8, changes_made=True
+                )
+                frontmatter.add_agent_result(agent_name, result)
+
+        # Add topics and domain
+        if topics:
+            frontmatter.topics.extend(topics)
+        if domain:
+            frontmatter.domain = domain
+        elif topics:
+            # Auto-suggest domain from topics
+            suggested_domain = TopicTaxonomy.suggest_domain(topics)
+            if suggested_domain:
+                frontmatter.domain = suggested_domain
+
+        # Add related queries
+        if related_queries:
+            frontmatter.related_queries.extend(related_queries)
+
+        return frontmatter
+
+    @staticmethod
+    def _render_enhanced_frontmatter(frontmatter: EnhancedFrontmatter) -> List[str]:
+        """Render enhanced frontmatter to YAML lines."""
+        yaml_dict = frontmatter_to_yaml_dict(frontmatter)
+
+        lines = ["---\n"]
+        for key in sorted(yaml_dict.keys()):
+            value = yaml_dict[key]
+            if isinstance(value, list):
+                if value:  # Only add non-empty lists
+                    lines.append(f"{key}:\n")
+                    for item in value:
+                        lines.append(f"  - {item}\n")
+            elif isinstance(value, dict):
+                if value:  # Only add non-empty dicts
+                    lines.append(f"{key}:\n")
+                    for subkey, subvalue in value.items():
+                        if isinstance(subvalue, dict):
+                            lines.append(f"  {subkey}:\n")
+                            for subsubkey, subsubvalue in subvalue.items():
+                                lines.append(f"    {subsubkey}: {subsubvalue}\n")
+                        else:
+                            lines.append(f"  {subkey}: {subvalue}\n")
+            else:
+                lines.append(f"{key}: {value}\n")
+        lines.append("---\n\n")
+        return lines
 
     @staticmethod
     def _build_metadata(
