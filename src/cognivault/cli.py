@@ -5,7 +5,7 @@ import typer
 import asyncio
 import json
 import time
-from typing import Optional
+from typing import Optional, Union
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -14,6 +14,7 @@ from rich.text import Text
 
 from cognivault.config.logging_config import setup_logging
 from cognivault.orchestrator import AgentOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.topic_manager import TopicManager
 from cognivault.diagnostics.cli import app as diagnostics_app
@@ -35,6 +36,7 @@ async def run(
     health_check: bool = False,
     dry_run: bool = False,
     export_trace: Optional[str] = None,
+    execution_mode: str = "legacy",
 ):
     cli_name = "CLI"
     # Configure logging based on CLI-provided level
@@ -57,7 +59,22 @@ async def run(
         agents_to_run if agents_to_run else "All agents",
     )
 
-    orchestrator = AgentOrchestrator(agents_to_run=agents_to_run)
+    # Validate execution mode
+    if execution_mode not in ["legacy", "langgraph"]:
+        raise ValueError(
+            f"Invalid execution mode: {execution_mode}. Must be 'legacy' or 'langgraph'"
+        )
+
+    logger.info(f"[{cli_name}] Execution mode: {execution_mode}")
+
+    # Create orchestrator based on execution mode
+    orchestrator: Union[AgentOrchestrator, LangGraphOrchestrator]
+    if execution_mode == "legacy":
+        orchestrator = AgentOrchestrator(agents_to_run=agents_to_run)
+    elif execution_mode == "langgraph":
+        orchestrator = LangGraphOrchestrator(agents_to_run=agents_to_run)
+    else:
+        raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
     # Health check mode - validate agents without execution
     if health_check:
@@ -72,7 +89,7 @@ async def run(
     # Execute the pipeline
     if trace:
         console.print(
-            "🔍 [bold]Starting pipeline execution with detailed tracing...[/bold]"
+            f"🔍 [bold]Starting pipeline execution with detailed tracing ({execution_mode} mode)...[/bold]"
         )
 
     context = await orchestrator.run(query)
@@ -156,6 +173,11 @@ def main(
     export_trace: str = typer.Option(
         None, "--export-trace", help="Export detailed execution trace to JSON file"
     ),
+    execution_mode: str = typer.Option(
+        "legacy",
+        "--execution-mode",
+        help="Execution mode: 'legacy' for current orchestrator, 'langgraph' for DAG execution",
+    ),
 ):
     """
     Run Cognivault agents based on the provided query and options.
@@ -182,6 +204,7 @@ def main(
             health_check,
             dry_run,
             export_trace,
+            execution_mode,
         )
     )
 

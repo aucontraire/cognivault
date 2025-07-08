@@ -493,3 +493,512 @@ async def test_cli_health_check_specific_agents(capsys):
         assert "Critic" in captured.out
         assert "✓ Healthy" in captured.out
         assert "✗ Unhealthy" in captured.out
+
+
+# Tests for execution mode functionality
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_legacy(capsys):
+    """Test CLI with legacy execution mode."""
+    fake_context = AgentContext(query="test legacy execution")
+    fake_context.agent_outputs = {"Refiner": "Legacy execution output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+    ) as mock_orchestrator:
+        await cli_main(
+            "test query", agents="refiner", execution_mode="legacy", log_level="INFO"
+        )
+
+        # Verify legacy orchestrator was called
+        mock_orchestrator.assert_called_once_with("test query")
+
+        captured = capsys.readouterr()
+        assert "🧠 Refiner:" in captured.out
+        assert "Legacy execution output" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_langgraph(capsys):
+    """Test CLI with LangGraph execution mode."""
+    fake_context = AgentContext(query="test langgraph execution")
+    fake_context.agent_outputs = {"Refiner": "LangGraph execution output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+        return_value=fake_context,
+    ) as mock_langgraph_orchestrator:
+        await cli_main(
+            "test query", agents="refiner", execution_mode="langgraph", log_level="INFO"
+        )
+
+        # Verify LangGraph orchestrator was called
+        mock_langgraph_orchestrator.assert_called_once_with("test query")
+
+        captured = capsys.readouterr()
+        assert "🧠 Refiner:" in captured.out
+        assert "LangGraph execution output" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_invalid():
+    """Test CLI with invalid execution mode."""
+    with pytest.raises(ValueError, match="Invalid execution mode: invalid"):
+        await cli_main(
+            "test query", agents="refiner", execution_mode="invalid", log_level="INFO"
+        )
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_default_legacy(capsys):
+    """Test CLI defaults to legacy execution mode when not specified."""
+    fake_context = AgentContext(query="test default execution")
+    fake_context.agent_outputs = {"Refiner": "Default legacy execution"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+    ) as mock_orchestrator:
+        await cli_main(
+            "test query",
+            agents="refiner",
+            # execution_mode not specified, should default to legacy
+            log_level="INFO",
+        )
+
+        # Verify legacy orchestrator was called (default behavior)
+        mock_orchestrator.assert_called_once_with("test query")
+
+        captured = capsys.readouterr()
+        assert "🧠 Refiner:" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_trace_legacy(capsys):
+    """Test legacy execution mode with trace enabled."""
+    fake_context = AgentContext(query="test legacy trace")
+    fake_context.agent_outputs = {"Refiner": "Legacy trace output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+    fake_context.context_id = "legacy_trace_123"
+    fake_context.current_size = 1024
+    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.execution_edges = []
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="legacy",
+            trace=True,
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🔍" in captured.out
+        assert (
+            "Starting pipeline execution with detailed tracing (legacy mode)"
+            in captured.out
+        )
+        assert "Execution Trace Summary" in captured.out
+        assert "legacy_trace_123" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_trace_langgraph(capsys):
+    """Test LangGraph execution mode with trace enabled."""
+    fake_context = AgentContext(query="test langgraph trace")
+    fake_context.agent_outputs = {"Refiner": "LangGraph trace output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+    fake_context.context_id = "langgraph_trace_123"
+    fake_context.current_size = 2048
+    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.execution_edges = []
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="langgraph",
+            trace=True,
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🔍" in captured.out
+        assert (
+            "Starting pipeline execution with detailed tracing (langgraph mode)"
+            in captured.out
+        )
+        assert "Execution Trace Summary" in captured.out
+        assert "langgraph_trace_123" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_health_check_legacy(capsys):
+    """Test legacy execution mode with health check."""
+    fake_orchestrator = Mock()
+    fake_registry = Mock()
+    fake_registry.check_health.return_value = True
+    fake_orchestrator.registry = fake_registry
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator", return_value=fake_orchestrator
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="legacy",
+            health_check=True,
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🩺" in captured.out
+        assert "Agent Health Checks" in captured.out
+        assert "✅ All agents are healthy" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_health_check_langgraph(capsys):
+    """Test LangGraph execution mode with health check."""
+    fake_orchestrator = Mock()
+    fake_registry = Mock()
+    fake_registry.check_health.return_value = True
+    fake_orchestrator.registry = fake_registry
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator",
+        return_value=fake_orchestrator,
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="langgraph",
+            health_check=True,
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🩺" in captured.out
+        assert "Agent Health Checks" in captured.out
+        assert "✅ All agents are healthy" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_dry_run_legacy(capsys):
+    """Test legacy execution mode with dry run."""
+    fake_orchestrator = Mock()
+    fake_agents = [Mock(name="Refiner")]
+    fake_orchestrator.agents = fake_agents
+    fake_registry = Mock()
+    fake_registry.check_health.return_value = True
+    fake_orchestrator.registry = fake_registry
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator", return_value=fake_orchestrator
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="legacy",
+            dry_run=True,
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🧪" in captured.out
+        assert "Dry Run - Pipeline Validation" in captured.out
+        assert "✅ Pipeline validation complete" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_dry_run_langgraph(capsys):
+    """Test LangGraph execution mode with dry run."""
+    fake_orchestrator = Mock()
+    fake_agents = [Mock(name="Refiner")]
+    fake_orchestrator.agents = fake_agents
+    fake_registry = Mock()
+    fake_registry.check_health.return_value = True
+    fake_orchestrator.registry = fake_registry
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator",
+        return_value=fake_orchestrator,
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="langgraph",
+            dry_run=True,
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🧪" in captured.out
+        assert "Dry Run - Pipeline Validation" in captured.out
+        assert "✅ Pipeline validation complete" in captured.out
+
+
+def test_cli_execution_mode_legacy_typer_interface():
+    """Test legacy execution mode through typer CLI interface."""
+    fake_context = AgentContext(query="test legacy typer")
+    fake_context.agent_outputs = {"Refiner": "Legacy typer output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "main",
+                "test query",
+                "--agents=refiner",
+                "--execution-mode=legacy",
+                "--log-level=INFO",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "🧠 Refiner:" in result.output
+        assert "Legacy typer output" in result.output
+
+
+def test_cli_execution_mode_langgraph_typer_interface():
+    """Test LangGraph execution mode through typer CLI interface."""
+    fake_context = AgentContext(query="test langgraph typer")
+    fake_context.agent_outputs = {"Refiner": "LangGraph typer output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "main",
+                "test query",
+                "--agents=refiner",
+                "--execution-mode=langgraph",
+                "--log-level=INFO",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "🧠 Refiner:" in result.output
+        assert "LangGraph typer output" in result.output
+
+
+def test_cli_execution_mode_invalid_typer_interface():
+    """Test invalid execution mode through typer CLI interface."""
+    result = runner.invoke(
+        app,
+        [
+            "main",
+            "test query",
+            "--agents=refiner",
+            "--execution-mode=invalid",
+            "--log-level=INFO",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Invalid execution mode: invalid" in str(result.exception)
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_multiple_agents_legacy(capsys):
+    """Test legacy execution mode with multiple agents."""
+    fake_context = AgentContext(query="test legacy multiple")
+    fake_context.agent_outputs = {
+        "Refiner": "Legacy refiner output",
+        "Critic": "Legacy critic output",
+    }
+    fake_context.successful_agents = {"Refiner", "Critic"}
+    fake_context.failed_agents = set()
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner,critic",
+            execution_mode="legacy",
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🧠 Refiner:" in captured.out
+        assert "🤔 Critic:" in captured.out
+        assert "Legacy refiner output" in captured.out
+        assert "Legacy critic output" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_multiple_agents_langgraph(capsys):
+    """Test LangGraph execution mode with multiple agents."""
+    fake_context = AgentContext(query="test langgraph multiple")
+    fake_context.agent_outputs = {
+        "Refiner": "LangGraph refiner output",
+        "Critic": "LangGraph critic output",
+    }
+    fake_context.successful_agents = {"Refiner", "Critic"}
+    fake_context.failed_agents = set()
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner,critic",
+            execution_mode="langgraph",
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "🧠 Refiner:" in captured.out
+        assert "🤔 Critic:" in captured.out
+        assert "LangGraph refiner output" in captured.out
+        assert "LangGraph critic output" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_error_handling_legacy(capsys):
+    """Test legacy execution mode with error handling."""
+    fake_context = AgentContext(query="test legacy error")
+    fake_context.agent_outputs = {"Refiner": "Partial output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = {"Critic"}
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner,critic",
+            execution_mode="legacy",
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "✅" in captured.out  # Success for completed agents
+        assert "1 agents completed successfully" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_error_handling_langgraph(capsys):
+    """Test LangGraph execution mode with error handling."""
+    fake_context = AgentContext(query="test langgraph error")
+    fake_context.agent_outputs = {"Refiner": "Partial output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = {"Critic"}
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner,critic",
+            execution_mode="langgraph",
+            log_level="INFO",
+        )
+
+        captured = capsys.readouterr()
+        assert "✅" in captured.out  # Success for completed agents
+        assert "1 agents completed successfully" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_export_trace_legacy(tmp_path):
+    """Test legacy execution mode with export trace."""
+    fake_context = AgentContext(query="test query")
+    fake_context.agent_outputs = {"Refiner": "Legacy export output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+    fake_context.context_id = "legacy_export_123"
+    fake_context.current_size = 512
+    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.execution_edges = []
+    fake_context.conditional_routing = {}
+    fake_context.path_metadata = {}
+    fake_context.agent_trace = {}
+    fake_context.execution_state = {}
+
+    export_file = tmp_path / "legacy_trace.json"
+
+    with patch(
+        "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="legacy",
+            export_trace=str(export_file),
+            log_level="INFO",
+        )
+
+        # Verify trace file was created
+        assert export_file.exists()
+
+        # Verify content
+        with open(export_file, "r") as f:
+            trace_data = json.load(f)
+
+        assert trace_data["pipeline_id"] == "legacy_export_123"
+        assert trace_data["query"] == "test query"  # The query comes from the CLI call
+
+
+@pytest.mark.asyncio
+async def test_cli_execution_mode_with_export_trace_langgraph(tmp_path):
+    """Test LangGraph execution mode with export trace."""
+    fake_context = AgentContext(query="test query")
+    fake_context.agent_outputs = {"Refiner": "LangGraph export output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+    fake_context.context_id = "langgraph_export_123"
+    fake_context.current_size = 1024
+    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.execution_edges = []
+    fake_context.conditional_routing = {}
+    fake_context.path_metadata = {}
+    fake_context.agent_trace = {}
+    fake_context.execution_state = {}
+
+    export_file = tmp_path / "langgraph_trace.json"
+
+    with patch(
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        await cli_main(
+            "test query",
+            agents="refiner",
+            execution_mode="langgraph",
+            export_trace=str(export_file),
+            log_level="INFO",
+        )
+
+        # Verify trace file was created
+        assert export_file.exists()
+
+        # Verify content
+        with open(export_file, "r") as f:
+            trace_data = json.load(f)
+
+        assert trace_data["pipeline_id"] == "langgraph_export_123"
+        assert trace_data["query"] == "test query"  # The query comes from the CLI call

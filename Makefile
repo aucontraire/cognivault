@@ -14,7 +14,8 @@ run:
 	$(if $(TRACE),--trace,) \
 	$(if $(HEALTH_CHECK),--health-check,) \
 	$(if $(DRY_RUN),--dry-run,) \
-	$(if $(EXPORT_TRACE),--export-trace=$(EXPORT_TRACE),)
+	$(if $(EXPORT_TRACE),--export-trace=$(EXPORT_TRACE),) \
+	$(if $(EXECUTION_MODE),--execution-mode=$(EXECUTION_MODE),)
 
 lint:
 	ruff check src/ tests/
