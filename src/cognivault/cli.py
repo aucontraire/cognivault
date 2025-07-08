@@ -5,12 +5,20 @@ import typer
 import asyncio
 import json
 import time
-from typing import Optional, Union
+import statistics
+from typing import Optional, Union, Dict, List, Any
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.tree import Tree
 from rich.text import Text
+
+try:
+    import psutil
+
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 from cognivault.config.logging_config import setup_logging
 from cognivault.orchestrator import AgentOrchestrator
@@ -37,6 +45,8 @@ async def run(
     dry_run: bool = False,
     export_trace: Optional[str] = None,
     execution_mode: str = "legacy",
+    compare_modes: bool = False,
+    benchmark_runs: int = 1,
 ):
     cli_name = "CLI"
     # Configure logging based on CLI-provided level
@@ -65,12 +75,26 @@ async def run(
             f"Invalid execution mode: {execution_mode}. Must be 'legacy' or 'langgraph'"
         )
 
+    # Handle comparison mode
+    if compare_modes:
+        await _run_comparison_mode(
+            query,
+            agents_to_run,
+            console,
+            trace,
+            export_md,
+            export_trace,
+            benchmark_runs,
+        )
+        return
+
     logger.info(f"[{cli_name}] Execution mode: {execution_mode}")
 
     # Create orchestrator based on execution mode
-    orchestrator: Union[AgentOrchestrator, LangGraphOrchestrator]
     if execution_mode == "legacy":
-        orchestrator = AgentOrchestrator(agents_to_run=agents_to_run)
+        orchestrator: Union[AgentOrchestrator, LangGraphOrchestrator] = (
+            AgentOrchestrator(agents_to_run=agents_to_run)
+        )
     elif execution_mode == "langgraph":
         orchestrator = LangGraphOrchestrator(agents_to_run=agents_to_run)
     else:
@@ -178,6 +202,16 @@ def main(
         "--execution-mode",
         help="Execution mode: 'legacy' for current orchestrator, 'langgraph' for DAG execution",
     ),
+    compare_modes: bool = typer.Option(
+        False,
+        "--compare-modes",
+        help="Run both legacy and langgraph modes side-by-side for performance comparison",
+    ),
+    benchmark_runs: int = typer.Option(
+        1,
+        "--benchmark-runs",
+        help="Number of runs for benchmarking (used with --compare-modes for statistical accuracy)",
+    ),
 ):
     """
     Run Cognivault agents based on the provided query and options.
@@ -205,6 +239,8 @@ def main(
             dry_run,
             export_trace,
             execution_mode,
+            compare_modes,
+            benchmark_runs,
         )
     )
 
@@ -410,6 +446,380 @@ def _export_trace_data(context, export_path, execution_time):
 
     with open(export_path, "w") as f:
         json.dump(trace_data, f, indent=2, default=str)
+
+
+async def _run_comparison_mode(
+    query: str,
+    agents_to_run: Optional[list[str]],
+    console: Console,
+    trace: bool,
+    export_md: bool,
+    export_trace: Optional[str],
+    benchmark_runs: int = 1,
+):
+    """Run both legacy and langgraph modes side-by-side for comparison."""
+    if benchmark_runs > 1:
+        console.print(
+            f"🔄 [bold magenta]Running Performance Benchmark ({benchmark_runs} runs per mode)[/bold magenta]\n"
+        )
+    else:
+        console.print(
+            "🔄 [bold magenta]Running Side-by-Side Execution Mode Comparison[/bold magenta]\n"
+        )
+
+    results: Dict[str, Any] = {}
+
+    # Run both execution modes with benchmarking
+    for mode in ["legacy", "langgraph"]:
+        console.print(f"⚡ [bold]Running {mode.title()} Mode...[/bold]")
+
+        mode_results: Dict[str, Any] = {
+            "execution_times": [],
+            "memory_usage": [],
+            "context_sizes": [],
+            "agent_counts": [],
+            "success_count": 0,
+            "error_count": 0,
+            "last_context": None,
+            "errors": [],
+        }
+
+        # Run multiple iterations for benchmarking
+        for run_num in range(benchmark_runs):
+            if benchmark_runs > 1:
+                console.print(f"  📊 Run {run_num + 1}/{benchmark_runs}")
+
+            # Create orchestrator for this mode
+            if mode == "legacy":
+                mode_orchestrator: Union[AgentOrchestrator, LangGraphOrchestrator] = (
+                    AgentOrchestrator(agents_to_run=agents_to_run)
+                )
+            else:
+                mode_orchestrator = LangGraphOrchestrator(agents_to_run=agents_to_run)
+
+            # Measure memory before execution (if available)
+            memory_before = 0.0
+            process = None
+            if PSUTIL_AVAILABLE:
+                try:
+                    process = psutil.Process()
+                    memory_before = process.memory_info().rss / 1024 / 1024  # MB
+                except (ImportError, OSError, AttributeError):
+                    memory_before = 0.0
+                    process = None
+
+            # Execute with timing
+            start_time = time.time()
+            try:
+                context = await mode_orchestrator.run(query)
+                execution_time = time.time() - start_time
+
+                # Measure memory after execution (if available)
+                memory_used = 0.0
+                if PSUTIL_AVAILABLE and process is not None and memory_before > 0:
+                    try:
+                        memory_after = process.memory_info().rss / 1024 / 1024  # MB
+                        memory_used = memory_after - memory_before
+                    except (OSError, AttributeError):
+                        memory_used = 0.0
+
+                # Record metrics
+                mode_results["execution_times"].append(execution_time)
+                mode_results["memory_usage"].append(memory_used)
+                mode_results["context_sizes"].append(context.current_size)
+                mode_results["agent_counts"].append(len(context.agent_outputs))
+                mode_results["success_count"] += 1
+                mode_results["last_context"] = context
+
+                if benchmark_runs > 1:
+                    console.print(f"    ✅ Completed in {execution_time:.3f}s")
+
+            except Exception as e:
+                execution_time = time.time() - start_time
+                mode_results["execution_times"].append(execution_time)
+                mode_results["error_count"] += 1
+                mode_results["errors"].append(str(e))
+
+                if benchmark_runs > 1:
+                    console.print(f"    ❌ Failed after {execution_time:.3f}s: {e}")
+
+        results[mode] = mode_results
+
+        # Display summary for this mode
+        if mode_results["success_count"] > 0:
+            avg_time = statistics.mean(mode_results["execution_times"])
+            console.print(
+                f"📈 {mode.title()} summary: {mode_results['success_count']}/{benchmark_runs} successful, "
+                f"avg time: {avg_time:.3f}s\n"
+            )
+        else:
+            console.print(f"❌ {mode.title()} mode: All runs failed\n")
+
+    # Display comparison results
+    _display_comparison_results(results, console, query)
+
+    # Handle export options if both modes succeeded
+    if export_md and all(result["success_count"] > 0 for result in results.values()):
+        _export_comparison_results(results, export_md, query)
+
+    if export_trace:
+        _export_comparison_trace(results, export_trace)
+
+
+def _display_comparison_results(results: dict, console: Console, query: str):
+    """Display side-by-side comparison of execution results with enhanced benchmarking data."""
+    console.print("📊 [bold blue]Performance Benchmark Results[/bold blue]\n")
+
+    # Performance comparison table
+    perf_table = Table(title="Performance Comparison")
+    perf_table.add_column("Metric", style="bold")
+    perf_table.add_column("Legacy Mode", justify="right")
+    perf_table.add_column("LangGraph Mode", justify="right")
+    perf_table.add_column("Difference", justify="right")
+
+    legacy_results = results["legacy"]
+    langgraph_results = results["langgraph"]
+
+    # Calculate statistics for execution times
+    if legacy_results["execution_times"] and langgraph_results["execution_times"]:
+        legacy_avg = statistics.mean(legacy_results["execution_times"])
+        langgraph_avg = statistics.mean(langgraph_results["execution_times"])
+        time_diff = legacy_avg - langgraph_avg
+        time_diff_pct = (time_diff / legacy_avg) * 100 if legacy_avg > 0 else 0
+
+        # Execution time (with std dev if multiple runs)
+        if len(legacy_results["execution_times"]) > 1:
+            legacy_std = statistics.stdev(legacy_results["execution_times"])
+            legacy_time_str = f"{legacy_avg:.3f}s ±{legacy_std:.3f}"
+        else:
+            legacy_time_str = f"{legacy_avg:.3f}s"
+
+        if len(langgraph_results["execution_times"]) > 1:
+            langgraph_std = statistics.stdev(langgraph_results["execution_times"])
+            langgraph_time_str = f"{langgraph_avg:.3f}s ±{langgraph_std:.3f}"
+        else:
+            langgraph_time_str = f"{langgraph_avg:.3f}s"
+
+        perf_table.add_row(
+            "Avg Execution Time",
+            legacy_time_str,
+            langgraph_time_str,
+            f"{time_diff:+.3f}s ({time_diff_pct:+.1f}%)",
+        )
+
+        # Min/Max times if multiple runs
+        if len(legacy_results["execution_times"]) > 1:
+            legacy_min = min(legacy_results["execution_times"])
+            legacy_max = max(legacy_results["execution_times"])
+            langgraph_min = min(langgraph_results["execution_times"])
+            langgraph_max = max(langgraph_results["execution_times"])
+
+            perf_table.add_row(
+                "Min Time",
+                f"{legacy_min:.3f}s",
+                f"{langgraph_min:.3f}s",
+                f"{legacy_min - langgraph_min:+.3f}s",
+            )
+            perf_table.add_row(
+                "Max Time",
+                f"{legacy_max:.3f}s",
+                f"{langgraph_max:.3f}s",
+                f"{legacy_max - langgraph_max:+.3f}s",
+            )
+
+    # Success rate
+    legacy_success_rate = (
+        legacy_results["success_count"] / len(legacy_results["execution_times"])
+        if legacy_results["execution_times"]
+        else 0
+    )
+    langgraph_success_rate = (
+        langgraph_results["success_count"] / len(langgraph_results["execution_times"])
+        if langgraph_results["execution_times"]
+        else 0
+    )
+
+    perf_table.add_row(
+        "Success Rate",
+        f"{legacy_success_rate:.1%}",
+        f"{langgraph_success_rate:.1%}",
+        f"{legacy_success_rate - langgraph_success_rate:+.1%}",
+    )
+
+    # Memory usage
+    if legacy_results["memory_usage"] and langgraph_results["memory_usage"]:
+        legacy_mem_avg = statistics.mean(legacy_results["memory_usage"])
+        langgraph_mem_avg = statistics.mean(langgraph_results["memory_usage"])
+        mem_diff = legacy_mem_avg - langgraph_mem_avg
+
+        perf_table.add_row(
+            "Avg Memory Usage",
+            f"{legacy_mem_avg:.1f} MB",
+            f"{langgraph_mem_avg:.1f} MB",
+            f"{mem_diff:+.1f} MB",
+        )
+
+    # Context size
+    if legacy_results["context_sizes"] and langgraph_results["context_sizes"]:
+        legacy_size_avg = statistics.mean(legacy_results["context_sizes"])
+        langgraph_size_avg = statistics.mean(langgraph_results["context_sizes"])
+        size_diff = legacy_size_avg - langgraph_size_avg
+
+        perf_table.add_row(
+            "Avg Context Size",
+            f"{legacy_size_avg:,.0f} bytes",
+            f"{langgraph_size_avg:,.0f} bytes",
+            f"{size_diff:+,.0f} bytes",
+        )
+
+    console.print(perf_table)
+    console.print()
+
+    # Display detailed results if both modes have successful runs
+    if legacy_results["success_count"] > 0 and langgraph_results["success_count"] > 0:
+        _display_output_comparison(results, console)
+    else:
+        # Show error details
+        console.print("❌ [bold red]Execution Errors:[/bold red]")
+        for mode, mode_results in results.items():
+            if mode_results["errors"]:
+                console.print(f"  {mode.title()} mode errors:")
+                for error in mode_results["errors"]:
+                    console.print(f"    • {error}")
+        console.print()
+
+
+def _display_output_comparison(results: dict, console: Console):
+    """Display comparison of agent outputs between modes."""
+    legacy_context = results["legacy"]["last_context"]
+    langgraph_context = results["langgraph"]["last_context"]
+
+    if not legacy_context or not langgraph_context:
+        console.print(
+            "⚠️  [yellow]Cannot compare outputs - missing context data[/yellow]"
+        )
+        return
+
+    legacy_outputs = legacy_context.agent_outputs
+    langgraph_outputs = langgraph_context.agent_outputs
+
+    # Find all agents that ran in either mode
+    all_agents = set(legacy_outputs.keys()) | set(langgraph_outputs.keys())
+
+    for agent in all_agents:
+        legacy_output = legacy_outputs.get(agent, "[Not executed]")
+        langgraph_output = langgraph_outputs.get(agent, "[Not executed]")
+
+        # Check if outputs are identical
+        outputs_match = legacy_output == langgraph_output
+        match_indicator = "✅ Identical" if outputs_match else "🔄 Different"
+
+        console.print(f"🤖 [bold]{agent} Agent - {match_indicator}[/bold]")
+
+        if not outputs_match:
+            # Show truncated outputs for comparison
+            legacy_preview = (
+                (legacy_output[:100] + "...")
+                if len(legacy_output) > 100
+                else legacy_output
+            )
+            langgraph_preview = (
+                (langgraph_output[:100] + "...")
+                if len(langgraph_output) > 100
+                else langgraph_output
+            )
+
+            comparison_table = Table(show_header=True)
+            comparison_table.add_column("Legacy Mode", style="cyan", width=40)
+            comparison_table.add_column("LangGraph Mode", style="green", width=40)
+            comparison_table.add_row(legacy_preview, langgraph_preview)
+
+            console.print(comparison_table)
+
+        console.print()
+
+
+def _export_comparison_results(results: dict, export_md: bool, query: str):
+    """Export comparison results to markdown."""
+    # For now, export the legacy mode results as primary
+    # TODO: Enhance to create a comprehensive comparison export
+    if results["legacy"]["success_count"] > 0 and results["legacy"]["last_context"]:
+        context = results["legacy"]["last_context"]
+
+        # Export with enhanced metadata
+        exporter = MarkdownExporter()
+        md_path = exporter.export(
+            agent_outputs=context.agent_outputs,
+            question=query,
+            topics=[],  # Could enhance to extract topics
+            domain=None,
+        )
+        print(f"📄 Comparison results exported to: {md_path}")
+
+
+def _export_comparison_trace(results: dict, export_trace: str):
+    """Export comparison trace data to JSON."""
+    comparison_data: Dict[str, Any] = {
+        "comparison_timestamp": time.time(),
+        "query": "",
+        "benchmark_summary": {},
+        "modes": {},
+    }
+
+    # Get query from successful context
+    for mode, result in results.items():
+        if result["success_count"] > 0 and result["last_context"]:
+            comparison_data["query"] = result["last_context"].query
+            break
+
+    # Add benchmark summary
+    for mode, result in results.items():
+        if result["execution_times"]:
+            summary = {
+                "total_runs": len(result["execution_times"]),
+                "successful_runs": result["success_count"],
+                "error_count": result["error_count"],
+                "avg_execution_time": statistics.mean(result["execution_times"]),
+                "execution_times": result["execution_times"],
+            }
+
+            if len(result["execution_times"]) > 1:
+                summary["std_dev_time"] = statistics.stdev(result["execution_times"])
+                summary["min_time"] = min(result["execution_times"])
+                summary["max_time"] = max(result["execution_times"])
+
+            if result["memory_usage"]:
+                summary["avg_memory_usage_mb"] = statistics.mean(result["memory_usage"])
+                summary["memory_usage"] = result["memory_usage"]
+
+            if result["context_sizes"]:
+                summary["avg_context_size"] = statistics.mean(result["context_sizes"])
+                summary["context_sizes"] = result["context_sizes"]
+
+            comparison_data["benchmark_summary"][mode] = summary
+
+        # Detailed mode data
+        if result["success_count"] > 0 and result["last_context"]:
+            context = result["last_context"]
+            comparison_data["modes"][mode] = {
+                "success": True,
+                "agent_outputs": context.agent_outputs,
+                "agent_trace": context.agent_trace,
+                "context_size_bytes": context.current_size,
+                "successful_agents": list(context.successful_agents),
+                "failed_agents": list(context.failed_agents),
+                "errors": result["errors"],
+            }
+        else:
+            comparison_data["modes"][mode] = {
+                "success": False,
+                "errors": result["errors"],
+            }
+
+    with open(export_trace, "w") as f:
+        json.dump(comparison_data, f, indent=2, default=str)
+
+    print(f"🔍 Comparison trace exported to: {export_trace}")
 
 
 if __name__ == "__main__":  # pragma: no cover
