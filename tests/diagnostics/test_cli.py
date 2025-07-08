@@ -28,9 +28,23 @@ class TestDiagnosticsCLI:
     def test_health_command_basic(self):
         """Test basic health command."""
 
-        with patch.object(
-            diagnostics_cli.diagnostics, "quick_health_check"
-        ) as mock_health_check:
+        # Mock the diagnostics instance and resource scheduler to prevent async task creation
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch.object(
+                diagnostics_cli.diagnostics,
+                "quick_health_check",
+                new_callable=AsyncMock,
+            ) as mock_health_check,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
             # quick_health_check returns a dict with status, timestamp, components, uptime_seconds
             mock_health_check.return_value = {
                 "status": "healthy",
@@ -74,9 +88,22 @@ class TestDiagnosticsCLI:
 
         from cognivault.diagnostics.cli import diagnostics_cli
 
-        with patch.object(
-            diagnostics_cli.diagnostics, "quick_health_check", new_callable=AsyncMock
-        ) as mock_quick_check:
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch.object(
+                diagnostics_cli.diagnostics,
+                "quick_health_check",
+                new_callable=AsyncMock,
+            ) as mock_quick_check,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
             # quick_health_check returns a dict with status, timestamp, components, uptime_seconds
             mock_quick_check.return_value = {
                 "status": "unhealthy",
@@ -98,9 +125,23 @@ class TestDiagnosticsCLI:
 
     def test_health_command_json_format(self):
         """Test health command with JSON output format."""
-        with patch.object(
-            diagnostics_cli.diagnostics, "quick_health_check"
-        ) as mock_health_check:
+        # Mock the diagnostics instance and resource scheduler to prevent async task creation
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch.object(
+                diagnostics_cli.diagnostics,
+                "quick_health_check",
+                new_callable=AsyncMock,
+            ) as mock_health_check,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
             # quick_health_check returns a dict with status, timestamp, components, uptime_seconds
             mock_health_check_result = {
                 "status": "healthy",
@@ -161,9 +202,21 @@ class TestDiagnosticsCLI:
             environment_info={},
         )
 
-        with patch(
-            "cognivault.diagnostics.cli.DiagnosticsManager"
-        ) as mock_manager_class:
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch(
+                "cognivault.diagnostics.cli.DiagnosticsManager"
+            ) as mock_manager_class,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
+
             mock_manager = AsyncMock()
             # status command calls run_full_diagnostics
             mock_manager.run_full_diagnostics.return_value = mock_diagnostics
@@ -265,9 +318,20 @@ class TestDiagnosticsCLI:
 
     def test_agents_command(self):
         """Test agents command."""
-        with patch(
-            "cognivault.diagnostics.cli.DiagnosticsManager"
-        ) as mock_manager_class:
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch(
+                "cognivault.diagnostics.cli.DiagnosticsManager"
+            ) as mock_manager_class,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
             mock_manager = AsyncMock()
             mock_agent_status = {
                 "timestamp": datetime.now().isoformat(),
@@ -425,9 +489,21 @@ class TestDiagnosticsCLI:
             environment_info={},
         )
 
-        with patch(
-            "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.run_full_diagnostics"
-        ) as mock_run_full:
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch(
+                "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.run_full_diagnostics"
+            ) as mock_run_full,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
+
             mock_run_full.return_value = mock_diagnostics
 
             result = self.runner.invoke(app, ["full"])
@@ -462,9 +538,21 @@ class TestDiagnosticsCLI:
             environment_info={},
         )
 
-        with patch(
-            "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.run_full_diagnostics"
-        ) as mock_run_full:
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch(
+                "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.run_full_diagnostics"
+            ) as mock_run_full,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
+
             mock_run_full.return_value = mock_diagnostics
 
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
@@ -567,9 +655,23 @@ class TestDiagnosticsCLI:
 
     def test_error_handling(self):
         """Test CLI error handling."""
-        with patch.object(
-            diagnostics_cli.diagnostics, "quick_health_check"
-        ) as mock_health_check:
+        # Mock the diagnostics instance and resource scheduler to prevent async task creation
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch.object(
+                diagnostics_cli.diagnostics,
+                "quick_health_check",
+                new_callable=AsyncMock,
+            ) as mock_health_check,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
             mock_health_check.side_effect = Exception("Test error")
 
             result = self.runner.invoke(app, ["health"])
@@ -588,9 +690,23 @@ class TestDiagnosticsCLI:
 
     def test_health_output_format(self):
         """Test health command output format."""
-        with patch.object(
-            diagnostics_cli.diagnostics, "quick_health_check"
-        ) as mock_health_check:
+        # Mock the diagnostics instance and resource scheduler to prevent async task creation
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch.object(
+                diagnostics_cli.diagnostics,
+                "quick_health_check",
+                new_callable=AsyncMock,
+            ) as mock_health_check,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
             # quick_health_check returns a dict with status, timestamp, components, uptime_seconds
             mock_health_check.return_value = {
                 "status": "healthy",
