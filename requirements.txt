@@ -39,6 +39,7 @@ rich                # Pretty logging/output
 python-dotenv       # For loading environment variables from .env
 psutil              # System resource monitoring
 types-psutil
+types-PyYAML        # Type hints for PyYAML
 
 # ===========================
 # Development Tools

@@ -3,7 +3,9 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
+from dataclasses import dataclass
+from enum import Enum
 from cognivault.context import AgentContext
 from cognivault.exceptions import (
     AgentExecutionError,
@@ -72,6 +74,74 @@ class CircuitBreakerState:
         return False
 
 
+class NodeType(Enum):
+    """Types of nodes in a LangGraph DAG."""
+
+    PROCESSOR = "processor"  # Standard processing node
+    DECISION = "decision"  # Decision/routing node
+    TERMINATOR = "terminator"  # End/output node
+    AGGREGATOR = "aggregator"  # Combines multiple inputs
+
+
+@dataclass
+class NodeInputSchema:
+    """Schema definition for node inputs."""
+
+    name: str
+    description: str
+    required: bool = True
+    type_hint: str = "Any"
+
+
+@dataclass
+class NodeOutputSchema:
+    """Schema definition for node outputs."""
+
+    name: str
+    description: str
+    type_hint: str = "Any"
+
+
+@dataclass
+class LangGraphNodeDefinition:
+    """Complete LangGraph node definition for an agent."""
+
+    node_id: str
+    node_type: NodeType
+    description: str
+    inputs: List[NodeInputSchema]
+    outputs: List[NodeOutputSchema]
+    dependencies: List[str]
+    tags: List[str]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "node_id": self.node_id,
+            "node_type": self.node_type.value,
+            "description": self.description,
+            "inputs": [
+                {
+                    "name": inp.name,
+                    "description": inp.description,
+                    "required": inp.required,
+                    "type": inp.type_hint,
+                }
+                for inp in self.inputs
+            ],
+            "outputs": [
+                {
+                    "name": out.name,
+                    "description": out.description,
+                    "type": out.type_hint,
+                }
+                for out in self.outputs
+            ],
+            "dependencies": self.dependencies,
+            "tags": self.tags,
+        }
+
+
 class BaseAgent(ABC):
     """
     Abstract base class for all agents in the Cognivault system.
@@ -115,6 +185,9 @@ class BaseAgent(ABC):
         self.execution_count = 0
         self.success_count = 0
         self.failure_count = 0
+
+        # LangGraph node metadata
+        self._node_definition: Optional[LangGraphNodeDefinition] = None
 
     def generate_step_id(self) -> str:
         """Generate a unique step ID for this execution."""
@@ -448,6 +521,164 @@ class BaseAgent(ABC):
             }
 
         return stats
+
+    def get_node_definition(self) -> LangGraphNodeDefinition:
+        """
+        Get the LangGraph node definition for this agent.
+
+        This method creates or returns the cached node definition that describes
+        this agent as a node in a LangGraph DAG. Subclasses can override
+        define_node_metadata() to customize the definition.
+
+        Returns
+        -------
+        LangGraphNodeDefinition
+            Complete node definition including inputs, outputs, and metadata
+        """
+        if self._node_definition is None:
+            self._node_definition = self._create_default_node_definition()
+        return self._node_definition
+
+    def _create_default_node_definition(self) -> LangGraphNodeDefinition:
+        """Create default node definition for this agent."""
+        # Default input/output schemas
+        inputs = [
+            NodeInputSchema(
+                name="context",
+                description=f"Agent context containing query and state for {self.name}",
+                required=True,
+                type_hint="AgentContext",
+            )
+        ]
+
+        outputs = [
+            NodeOutputSchema(
+                name="context",
+                description=f"Updated context after {self.name} processing",
+                type_hint="AgentContext",
+            )
+        ]
+
+        # Allow subclasses to customize
+        node_metadata = self.define_node_metadata()
+
+        return LangGraphNodeDefinition(
+            node_id=self.name.lower(),
+            node_type=node_metadata.get("node_type", NodeType.PROCESSOR),
+            description=node_metadata.get(
+                "description", f"{self.name} agent for processing context"
+            ),
+            inputs=node_metadata.get("inputs", inputs),
+            outputs=node_metadata.get("outputs", outputs),
+            dependencies=node_metadata.get("dependencies", []),
+            tags=node_metadata.get("tags", [self.name.lower(), "agent"]),
+        )
+
+    def define_node_metadata(self) -> Dict[str, Any]:
+        """
+        Define LangGraph node metadata for this agent.
+
+        Subclasses should override this method to provide specific metadata
+        for their node type, inputs, outputs, and dependencies.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing node metadata with keys:
+            - node_type: NodeType enum value
+            - description: Human-readable description
+            - inputs: List of NodeInputSchema objects
+            - outputs: List of NodeOutputSchema objects
+            - dependencies: List of agent names this depends on
+            - tags: List of string tags for categorization
+        """
+        # Default implementation - subclasses can override
+        return {}
+
+    def set_node_definition(self, node_definition: LangGraphNodeDefinition) -> None:
+        """
+        Set a custom node definition for this agent.
+
+        This allows external configuration of the node definition,
+        useful for dynamic graph construction.
+
+        Parameters
+        ----------
+        node_definition : LangGraphNodeDefinition
+            Complete node definition to use for this agent
+        """
+        self._node_definition = node_definition
+
+    def validate_node_compatibility(self, input_context: AgentContext) -> bool:
+        """
+        Validate that the input context is compatible with this node's requirements.
+
+        This method checks the input context against the node's input schema
+        to ensure compatibility before execution.
+
+        Parameters
+        ----------
+        input_context : AgentContext
+            The context to validate
+
+        Returns
+        -------
+        bool
+            True if the context is compatible, False otherwise
+        """
+        node_def = self.get_node_definition()
+
+        # Basic validation - check that required inputs are present
+        for input_schema in node_def.inputs:
+            if input_schema.required and input_schema.name == "context":
+                # For now, just check that we have a valid AgentContext
+                if not isinstance(input_context, AgentContext):
+                    return False
+
+        return True
+
+    async def invoke(
+        self, state: AgentContext, config: Optional[Dict[str, Any]] = None
+    ) -> AgentContext:
+        """
+        LangGraph-compatible node interface for agent execution.
+
+        This method provides the standard LangGraph node signature while maintaining
+        compatibility with our existing agent architecture. It delegates to the
+        run_with_retry method to preserve all existing error handling and retry logic.
+
+        Parameters
+        ----------
+        state : AgentContext
+            The current state/context for the graph execution.
+        config : Dict[str, Any], optional
+            Optional configuration parameters for this invocation.
+            Can include step_id, timeout overrides, or other execution parameters.
+
+        Returns
+        -------
+        AgentContext
+            The updated state/context after agent processing.
+        """
+        # Extract configuration parameters if provided
+        step_id = None
+        if config:
+            step_id = config.get("step_id")
+
+            # Allow config to override timeout for this specific invocation
+            original_timeout = self.timeout_seconds
+            if "timeout_seconds" in config:
+                self.timeout_seconds = config["timeout_seconds"]
+
+            try:
+                result = await self.run_with_retry(state, step_id=step_id)
+                return result
+            finally:
+                # Restore original timeout
+                self.timeout_seconds = original_timeout
+        else:
+            # Standard execution without config overrides
+            return await self.run_with_retry(state, step_id=step_id)
 
     @abstractmethod
     async def run(self, context: AgentContext) -> AgentContext:

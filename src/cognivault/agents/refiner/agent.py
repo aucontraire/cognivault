@@ -1,4 +1,9 @@
-from cognivault.agents.base_agent import BaseAgent
+from cognivault.agents.base_agent import (
+    BaseAgent,
+    NodeType,
+    NodeInputSchema,
+    NodeOutputSchema,
+)
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.config.app_config import get_config
@@ -6,6 +11,7 @@ from .prompts import REFINER_SYSTEM_PROMPT
 
 import logging
 import asyncio
+from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +73,34 @@ class RefinerAgent(BaseAgent):
         context.add_agent_output(self.name, refined_output)
         context.log_trace(self.name, input_data=query, output_data=refined_output)
         return context
+
+    def define_node_metadata(self) -> Dict[str, Any]:
+        """
+        Define LangGraph-specific metadata for the Refiner agent.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Node metadata including type, dependencies, schemas, and routing logic
+        """
+        return {
+            "node_type": NodeType.PROCESSOR,
+            "dependencies": [],  # Entry point - no dependencies
+            "description": "Transforms raw user queries into structured, clarified prompts",
+            "inputs": [
+                NodeInputSchema(
+                    name="context",
+                    description="Agent context containing raw user query to refine",
+                    required=True,
+                    type_hint="AgentContext",
+                )
+            ],
+            "outputs": [
+                NodeOutputSchema(
+                    name="context",
+                    description="Updated context with refined query added",
+                    type_hint="AgentContext",
+                )
+            ],
+            "tags": ["refiner", "agent", "processor", "entry_point"],
+        }

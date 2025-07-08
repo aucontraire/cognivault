@@ -47,6 +47,23 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 - Machine-readable output integration (JSON, CSV, Prometheus, InfluxDB) for monitoring ecosystems
 - Thread-safe observability context and metrics collection for production reliability
 
+✅ **Issue 6: LangGraph Compatibility Layer** - 100% Complete  
+- LangGraph-compatible `invoke()` method interface for all agents with proper type signatures
+- Complete node metadata system with input/output schemas and dependency declarations
+- Node type classification (PROCESSOR, DECISION, TERMINATOR, AGGREGATOR) for graph construction
+- Graph builder infrastructure with DAG validation, cycle detection, and edge routing
+- Graph executor with proper dependency resolution and execution ordering
+- Dictionary serialization for seamless integration with LangGraph graph builders
+- Full backward compatibility with existing agent architecture and CLI workflows
+
+✅ **Issue 6.5: Enhanced Historian & Synthesis Agents** - 100% Complete
+- **Multi-Strategy Search System**: Tag-based, keyword (TF-IDF), and hybrid search for historical notes
+- **LLM-Powered Historian**: Intelligent relevance analysis and historical context synthesis
+- **Advanced Synthesis Agent**: Thematic analysis, conflict resolution, and meta-insights generation
+- **Enhanced Frontmatter Schema**: Rich metadata with agent status, confidence, topics, and domains
+- **Wiki-Ready Output**: Professional markdown formatting with structured headers and metadata
+- **177 Comprehensive Tests**: Complete test coverage for all enhanced functionality with mock LLM integration
+
 ---
 
 ## ⚡ Quickstart
@@ -84,6 +101,9 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔍 **Structured Logging**: Enterprise-grade logging with automatic correlation ID tracking and context propagation
 - 📈 **Performance Metrics**: Real-time collection of execution statistics, token usage, and success rates
 - 🖥️ **Machine-Readable Output**: Multiple export formats (JSON, CSV, Prometheus, InfluxDB) for monitoring integration
+- 🔗 **LangGraph Compatibility**: Complete DAG-ready architecture with node interfaces, graph builders, and execution engines
+- 🧩 **Node Metadata System**: Comprehensive agent metadata with input/output schemas and dependency declarations
+- 📊 **Graph Infrastructure**: DAG validation, cycle detection, edge routing, and execution ordering for LangGraph integration
 
 ---
 
@@ -133,6 +153,10 @@ src/
 │   │   ├── LANDSCAPE.md
 │   │   ├── OBSERVABILITY.md
 │   │   └── RESEARCH.md
+│   ├── langraph/
+│   │   ├── __init__.py
+│   │   ├── graph_builder.py
+│   │   └── routing.py
 │   ├── exceptions/
 │   │   ├── __init__.py
 │   │   ├── agent_errors.py
@@ -213,6 +237,10 @@ tests/
 │   ├── test_llm_errors_fixed.py
 │   ├── test_orchestration_errors.py
 │   └── test_orchestration_errors_fixed.py
+├── langraph/
+│   ├── __init__.py
+│   ├── test_graph_builder.py
+│   └── test_routing.py
 ├── llm/
 │   ├── __init__.py
 │   ├── test_factory.py
@@ -343,6 +371,85 @@ The context management system automatically:
 - Provides detailed memory usage statistics
 
 This ensures CogniVault can handle long-running conversations and complex multi-agent workflows without memory issues, making it suitable for production deployments and extended research sessions.
+
+### 🔗 LangGraph Compatibility Layer
+
+CogniVault features a complete LangGraph compatibility layer that provides DAG-ready architecture while maintaining full backward compatibility with existing workflows. This foundation enables seamless future migration to LangGraph-based orchestration.
+
+#### LangGraph Node Interface
+
+All agents implement the standard LangGraph node interface:
+
+```python
+from cognivault.agents.refiner.agent import RefinerAgent
+from cognivault.context import AgentContext
+
+agent = RefinerAgent(llm)
+context = AgentContext(query="Your question")
+
+# LangGraph-compatible interface
+result = await agent.invoke(context, config={"step_id": "custom_id"})
+
+# Traditional interface still works
+result = await agent.run_with_retry(context)
+```
+
+#### Node Metadata System
+
+Each agent provides comprehensive metadata for graph construction:
+
+```python
+# Get complete node definition
+node_def = agent.get_node_definition()
+
+print(f"Node ID: {node_def.node_id}")
+print(f"Type: {node_def.node_type}")  # PROCESSOR, AGGREGATOR, etc.
+print(f"Dependencies: {node_def.dependencies}")
+print(f"Inputs: {[inp.name for inp in node_def.inputs]}")
+print(f"Outputs: {[out.name for out in node_def.outputs]}")
+
+# Convert to dictionary for graph builders
+graph_config = node_def.to_dict()
+```
+
+#### Graph Builder Infrastructure
+
+Build and execute DAGs with automatic dependency resolution:
+
+```python
+from cognivault.langraph.graph_builder import GraphBuilder, GraphExecutor
+
+# Build graph from agents
+builder = GraphBuilder()
+builder.add_agents([refiner, critic, historian, synthesis])
+
+# Create validated DAG
+graph_def = builder.build()
+
+# Execute graph
+executor = GraphExecutor(graph_def, agents_dict)
+result = await executor.execute(initial_context)
+```
+
+#### Key LangGraph Features
+
+- **Node Type Classification**: PROCESSOR, DECISION, TERMINATOR, AGGREGATOR
+- **Dependency Resolution**: Automatic topological sorting and cycle detection  
+- **Input/Output Schemas**: Type-safe node interfaces with validation
+- **Graph Validation**: Comprehensive DAG structure validation
+- **Edge Routing**: Sequential, conditional, parallel, and aggregation edges
+- **Execution Ordering**: Proper dependency-aware execution flow
+- **Configuration Support**: Per-node configuration and timeout overrides
+- **Backward Compatibility**: Existing CLI and orchestrator workflows unchanged
+
+#### Future LangGraph Migration
+
+The compatibility layer provides:
+
+- **Seamless Transition**: Drop-in replacement for current orchestration
+- **Incremental Migration**: Can run hybrid legacy + LangGraph workflows  
+- **Production Ready**: Full error handling, retry logic, and observability
+- **Performance Optimized**: Efficient graph construction and execution
 
 ### 🔀 Failure Propagation & Conditional Execution
 
