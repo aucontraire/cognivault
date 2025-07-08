@@ -28,10 +28,21 @@ async def test_cli_runs_with_export_md(tmp_path, capsys):
     query = "What is the role of memory in cognition?"
     export_path = tmp_path / "dummy_export.md"
 
-    # Patch the MarkdownExporter to write to a known location
+    # Create fake context with agent output
+    fake_context = AgentContext(query=query)
+    fake_context.agent_outputs = {
+        "Refiner": "[Refined Note] Memory plays a crucial role..."
+    }
+
+    # Patch both the orchestrator and the MarkdownExporter
     from unittest.mock import patch
 
-    with patch("cognivault.store.wiki_adapter.MarkdownExporter.export") as mock_export:
+    with (
+        patch("cognivault.store.wiki_adapter.MarkdownExporter.export") as mock_export,
+        patch(
+            "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+        ),
+    ):
         mock_export.return_value = str(export_path)
         await cli_main(query, agents="refiner", log_level="INFO", export_md=True)
         mock_export.assert_called_once()

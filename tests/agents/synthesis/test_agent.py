@@ -73,10 +73,11 @@ class TestSynthesisAgentInitialization:
 
     def test_default_initialization(self):
         """Test default agent initialization."""
-        agent = SynthesisAgent()
+        # Use llm=None to prevent real API calls during testing
+        agent = SynthesisAgent(llm=None)
 
         assert agent.name == "Synthesis"
-        # LLM might be None if OpenAI config fails, or an actual LLM instance
+        assert agent.llm is None
 
     def test_initialization_with_custom_llm(self):
         """Test initialization with custom LLM."""
