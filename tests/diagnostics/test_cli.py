@@ -8,8 +8,9 @@ health checks, metrics, and various output formats.
 import json
 import tempfile
 from datetime import datetime
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from typer.testing import CliRunner
+import typer
 
 from cognivault.diagnostics.cli import app, diagnostics_cli
 from cognivault.diagnostics.health import HealthStatus, ComponentHealth
@@ -26,25 +27,9 @@ class TestDiagnosticsCLI:
 
     def test_health_command_basic(self):
         """Test basic health command."""
-        mock_health_results = {
-            "agent_registry": ComponentHealth(
-                name="agent_registry",
-                status=HealthStatus.HEALTHY,
-                message="Registry is healthy",
-                details={"agent_count": 4},
-                check_time=datetime.now(),
-            ),
-            "llm_connectivity": ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.HEALTHY,
-                message="LLM connectivity is healthy",
-                details={"provider": "openai"},
-                check_time=datetime.now(),
-            ),
-        }
 
-        with patch(
-            "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.quick_health_check"
+        with patch.object(
+            diagnostics_cli.diagnostics, "quick_health_check"
         ) as mock_health_check:
             # quick_health_check returns a dict with status, timestamp, components, uptime_seconds
             mock_health_check.return_value = {
@@ -60,7 +45,8 @@ class TestDiagnosticsCLI:
                 "uptime_seconds": 0.0,
             }
 
-            result = self.runner.invoke(app, ["health"])
+            # Use standalone_mode=False to prevent typer from handling exits
+            result = self.runner.invoke(app, ["health"], standalone_mode=False)
 
             assert result.exit_code == 0
             assert "CogniVault Health Check" in result.stdout
@@ -112,8 +98,8 @@ class TestDiagnosticsCLI:
 
     def test_health_command_json_format(self):
         """Test health command with JSON output format."""
-        with patch(
-            "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.quick_health_check"
+        with patch.object(
+            diagnostics_cli.diagnostics, "quick_health_check"
         ) as mock_health_check:
             # quick_health_check returns a dict with status, timestamp, components, uptime_seconds
             mock_health_check_result = {
@@ -581,8 +567,8 @@ class TestDiagnosticsCLI:
 
     def test_error_handling(self):
         """Test CLI error handling."""
-        with patch(
-            "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.quick_health_check"
+        with patch.object(
+            diagnostics_cli.diagnostics, "quick_health_check"
         ) as mock_health_check:
             mock_health_check.side_effect = Exception("Test error")
 
@@ -602,8 +588,8 @@ class TestDiagnosticsCLI:
 
     def test_health_output_format(self):
         """Test health command output format."""
-        with patch(
-            "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.quick_health_check"
+        with patch.object(
+            diagnostics_cli.diagnostics, "quick_health_check"
         ) as mock_health_check:
             # quick_health_check returns a dict with status, timestamp, components, uptime_seconds
             mock_health_check.return_value = {

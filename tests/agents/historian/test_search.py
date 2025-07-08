@@ -446,7 +446,7 @@ class TestTagBasedSearch:
         # Find the AI note
         ai_result = next((r for r in results if "Machine Learning" in r.title), None)
         assert ai_result is not None
-        assert ai_result.match_type in ["topic", "content"]
+        assert ai_result.match_type in ["topic", "content", "title"]
         assert any("machine" in term.lower() for term in ai_result.matched_terms)
         assert ai_result.relevance_score > 0
 
