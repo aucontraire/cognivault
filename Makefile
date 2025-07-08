@@ -10,7 +10,11 @@ run:
 	PYTHONPATH=src python -m cognivault.cli main "$(QUESTION)" \
 	$(if $(AGENTS),--agents=$(AGENTS),) \
 	$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) \
-	$(if $(EXPORT_MD),--export-md,)
+	$(if $(EXPORT_MD),--export-md,) \
+	$(if $(TRACE),--trace,) \
+	$(if $(HEALTH_CHECK),--health-check,) \
+	$(if $(DRY_RUN),--dry-run,) \
+	$(if $(EXPORT_TRACE),--export-trace=$(EXPORT_TRACE),)
 
 lint:
 	ruff check src/ tests/

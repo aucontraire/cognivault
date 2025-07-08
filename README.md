@@ -37,7 +37,7 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 - Execution path tracing with edge metadata for future LangGraph DAG migration
 - Conditional routing decision recording and alternative path tracking
 
-**Test Coverage Achievement**: Improved from 86% → 89% (+3 percentage points) with **670 tests passing** and all critical modules at 98-100% coverage.
+**Test Coverage Achievement**: Improved from 86% → 89% (+3 percentage points) with **1,239 tests passing** and all critical modules at 98-100% coverage.
 
 ✅ **Issue 5: CLI Observability & Diagnostics** - 100% Complete  
 - Enterprise-grade structured logging with automatic correlation ID tracking
@@ -46,6 +46,7 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 - Rich CLI diagnostics interface with beautiful console output and multiple export formats
 - Machine-readable output integration (JSON, CSV, Prometheus, InfluxDB) for monitoring ecosystems
 - Thread-safe observability context and metrics collection for production reliability
+- **Enhanced CLI Flags**: `--trace`, `--health-check`, `--dry-run`, and `--export-trace` for comprehensive pipeline observability
 
 ✅ **Issue 6: LangGraph Compatibility Layer** - 100% Complete  
 - LangGraph-compatible `invoke()` method interface for all agents with proper type signatures
@@ -98,6 +99,10 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔀 **Failure Propagation**: LangGraph-compatible conditional execution with graceful degradation strategies
 - 🏥 **Health Checks**: Agent validation system with dependency resolution and circular dependency detection
 - 📊 **CLI Observability**: Rich diagnostics interface with `cognivault diagnostics` subcommands for health, metrics, and system status
+- 🔍 **Execution Tracing**: Real-time pipeline execution traces with `--trace` flag, showing timing, dependencies, and routing decisions
+- 🩺 **Health Checks**: Pre-execution validation with `--health-check` flag for agent readiness and configuration verification
+- 🧪 **Dry Run Mode**: Pipeline validation without execution using `--dry-run` flag for configuration testing
+- 📤 **Trace Export**: JSON export of detailed execution metadata with `--export-trace` for monitoring and analysis
 - 🔍 **Structured Logging**: Enterprise-grade logging with automatic correlation ID tracking and context propagation
 - 📈 **Performance Metrics**: Real-time collection of execution statistics, token usage, and success rates
 - 🖥️ **Machine-Readable Output**: Multiple export formats (JSON, CSV, Prometheus, InfluxDB) for monitoring integration
@@ -770,7 +775,7 @@ make run QUESTION="Is democracy becoming more robust globally?"
 This executes:
 
 ```bash
-PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(AGENTS),--agents=$(AGENTS),) $(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) $(if $(EXPORT_MD),--export-md,)
+PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(AGENTS),--agents=$(AGENTS),) $(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) $(if $(EXPORT_MD),--export-md,) $(if $(TRACE),--trace,) $(if $(HEALTH_CHECK),--health-check,) $(if $(DRY_RUN),--dry-run,) $(if $(EXPORT_TRACE),--export-trace=$(EXPORT_TRACE),)
 ```
 
 ⚠️ Note: `$(QUESTION)` is a Makefile variable — this syntax only works with `make run`. If you're calling the Python CLI directly, use standard shell quotes:
@@ -826,6 +831,102 @@ summary: Draft response from agents about the definition and scope of the questi
 title: What is cognition?
 uuid: 8fab709a-8fc4-464a-b16b-b7a55c84aedf
 ---
+```
+
+### 🔍 Enhanced CLI Observability Features
+
+CogniVault includes enterprise-grade CLI observability features for debugging, monitoring, and production deployment:
+
+#### Execution Tracing
+
+Get detailed execution traces with timing, metadata, and pipeline flow:
+
+```bash
+# Enable detailed tracing
+make run QUESTION="Your question" TRACE=1
+
+# Trace with specific agents
+make run QUESTION="Your question" AGENTS=refiner,critic TRACE=1
+```
+
+The trace output includes:
+- **Pipeline Summary**: Execution time, context size, agent status
+- **Agent Execution Status**: Detailed timing and success/failure information  
+- **Execution Flow**: Visual representation of agent dependencies and routing
+- **Conditional Routing**: Decision points and alternative paths taken
+- **Rich Console Output**: Colored panels, tables, and structured information
+
+#### 🩺 Health Checks
+
+Validate system health without executing the pipeline:
+
+```bash
+# Run health checks for all agents
+make run QUESTION="Any question" HEALTH_CHECK=1
+
+# Check specific agents  
+make run QUESTION="Any question" AGENTS=refiner,critic HEALTH_CHECK=1
+```
+
+Health checks validate:
+- **Agent Readiness**: LLM connectivity, configuration validation
+- **Dependency Resolution**: Agent dependency satisfaction
+- **Resource Availability**: Memory, disk space, API quotas
+- **Configuration Validation**: Environment variables, API keys
+
+#### 🧪 Dry Run Validation
+
+Validate pipeline configuration without execution:
+
+```bash
+# Validate full pipeline
+make run QUESTION="Your question" DRY_RUN=1
+
+# Validate specific agent subset
+make run QUESTION="Your question" AGENTS=refiner,historian DRY_RUN=1
+```
+
+Dry run provides:
+- **Pipeline Configuration**: Agent list, execution order, dependencies
+- **Dependency Validation**: Visual dependency tree and execution flow
+- **Health Check Integration**: Combined validation and health checking
+- **Configuration Summary**: Complete pipeline setup overview
+
+#### 📊 Trace Export
+
+Export detailed execution traces for analysis and monitoring:
+
+```bash
+# Export trace to JSON file
+make run QUESTION="Your question" EXPORT_TRACE=/tmp/trace.json
+
+# Combined tracing and export
+make run QUESTION="Your question" TRACE=1 EXPORT_TRACE=/tmp/detailed_trace.json
+```
+
+Exported traces include:
+- **Complete Execution Metadata**: Pipeline ID, timing, context size
+- **Agent Performance Data**: Execution times, success rates, outputs
+- **Execution Flow**: Dependencies, routing decisions, edge metadata
+- **Context State**: Full context snapshots and state transitions
+- **Structured JSON Format**: Machine-readable for automation and analysis
+
+#### Combined Usage Examples
+
+The CLI flags can be combined for powerful debugging and monitoring workflows:
+
+```bash
+# Full observability pipeline
+make run QUESTION="Complex research question" TRACE=1 EXPORT_TRACE=/tmp/research_trace.json EXPORT_MD=1
+
+# Development debugging workflow  
+make run QUESTION="Test query" AGENTS=refiner DRY_RUN=1 LOG_LEVEL=DEBUG
+
+# Production health monitoring
+make run QUESTION="Health check query" HEALTH_CHECK=1 LOG_LEVEL=INFO
+
+# Performance analysis pipeline
+make run QUESTION="Performance test" TRACE=1 EXPORT_TRACE=/tmp/perf_$(date +%s).json LOG_LEVEL=INFO
 ```
 
 ---
