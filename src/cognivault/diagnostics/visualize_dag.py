@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 class DAGVisualizationConfig:
     """Configuration for DAG visualization."""
 
-    version: str = "Phase 2.0"
+    version: str = "Phase 2.1"
     """Version annotation for the DAG."""
 
     show_state_flow: bool = True

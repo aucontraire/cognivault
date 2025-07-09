@@ -3,6 +3,7 @@
 import pytest
 import asyncio
 import time
+from typing import Dict, Any
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
 
@@ -11,6 +12,7 @@ from cognivault.agents.base_agent import BaseAgent
 from cognivault.langraph.node_wrappers import (
     refiner_node,
     critic_node,
+    historian_node,
     synthesis_node,
     NodeExecutionError,
     circuit_breaker,
@@ -25,8 +27,32 @@ from cognivault.langraph.state_schemas import (
     create_initial_state,
     RefinerOutput,
     CriticOutput,
+    HistorianOutput,
     SynthesisOutput,
+    CogniVaultState,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_circuit_breaker():
+    """Reset circuit breaker state before each test."""
+    # Reset circuit breaker state for all node functions
+    for node_func in [refiner_node, critic_node, historian_node, synthesis_node]:
+        if hasattr(node_func, "_failure_count"):
+            node_func._failure_count = 0
+        if hasattr(node_func, "_last_failure_time"):
+            node_func._last_failure_time = None
+        if hasattr(node_func, "_circuit_open"):
+            node_func._circuit_open = False
+    yield
+    # Reset again after test
+    for node_func in [refiner_node, critic_node, historian_node, synthesis_node]:
+        if hasattr(node_func, "_failure_count"):
+            node_func._failure_count = 0
+        if hasattr(node_func, "_last_failure_time"):
+            node_func._last_failure_time = None
+        if hasattr(node_func, "_circuit_open"):
+            node_func._circuit_open = False
 
 
 class MockAgent(BaseAgent):
@@ -563,6 +589,20 @@ class TestSynthesisNode:
         }
         state["critic"] = critic_output
 
+        historian_output: HistorianOutput = {
+            "historical_summary": "Historical context for test",
+            "retrieved_notes": ["/notes/test.md"],
+            "search_results_count": 5,
+            "filtered_results_count": 3,
+            "search_strategy": "keyword",
+            "topics_found": ["test"],
+            "confidence": 0.8,
+            "llm_analysis_used": True,
+            "metadata": {},
+            "timestamp": "2023-01-01T00:00:00Z",
+        }
+        state["historian"] = historian_output
+
         mock_agent = MockAgent("Synthesis", "Final synthesis")
 
         with patch(
@@ -574,7 +614,11 @@ class TestSynthesisNode:
             assert result_state["synthesis"] is not None
             assert result_state["synthesis"]["final_analysis"] == "Final synthesis"
             assert result_state["synthesis"]["key_insights"] == ["test_insight"]
-            assert result_state["synthesis"]["sources_used"] == ["refiner", "critic"]
+            assert result_state["synthesis"]["sources_used"] == [
+                "refiner",
+                "critic",
+                "historian",
+            ]
             assert result_state["synthesis"]["themes_identified"] == ["test_theme"]
             assert result_state["synthesis"]["conflicts_resolved"] == 1
             assert "synthesis" in result_state["successful_agents"]
@@ -610,6 +654,37 @@ class TestSynthesisNode:
             await synthesis_node(state)
 
     @pytest.mark.asyncio
+    async def test_synthesis_node_missing_historian_dependency(self) -> None:
+        """Test synthesis node fails without historian output."""
+        state = create_initial_state("Test query", "exec-synthesis-missing")
+
+        # Add refiner and critic but not historian
+        refiner_output: RefinerOutput = {
+            "refined_question": "Refined query",
+            "topics": ["test"],
+            "confidence": 0.9,
+            "processing_notes": None,
+            "timestamp": "2023-01-01T00:00:00",
+        }
+        state["refiner"] = refiner_output
+
+        critic_output: CriticOutput = {
+            "critique": "Good analysis",
+            "suggestions": ["improve"],
+            "severity": "low",
+            "strengths": ["clear"],
+            "weaknesses": ["brief"],
+            "confidence": 0.8,
+            "timestamp": "2023-01-01T00:00:00",
+        }
+        state["critic"] = critic_output
+
+        with pytest.raises(
+            NodeExecutionError, match="Synthesis node requires historian output"
+        ):
+            await synthesis_node(state)
+
+    @pytest.mark.asyncio
     async def test_synthesis_node_failure(self) -> None:
         """Test synthesis node handling failure."""
         state = create_initial_state("Test query", "exec-synthesis-fail")
@@ -634,6 +709,20 @@ class TestSynthesisNode:
             "timestamp": "2023-01-01T00:00:00",
         }
         state["critic"] = critic_output
+
+        historian_output: HistorianOutput = {
+            "historical_summary": "Historical context for test",
+            "retrieved_notes": ["/notes/test.md"],
+            "search_results_count": 5,
+            "filtered_results_count": 3,
+            "search_strategy": "keyword",
+            "topics_found": ["test"],
+            "confidence": 0.8,
+            "llm_analysis_used": True,
+            "metadata": {},
+            "timestamp": "2023-01-01T00:00:00Z",
+        }
+        state["historian"] = historian_output
 
         mock_agent = MockAgent("Synthesis", should_fail=True)
 
@@ -681,7 +770,8 @@ class TestGetNodeDependencies:
         assert isinstance(deps, dict)
         assert deps["refiner"] == []
         assert deps["critic"] == ["refiner"]
-        assert deps["synthesis"] == ["refiner", "critic"]
+        assert deps["historian"] == ["refiner"]
+        assert deps["synthesis"] == ["critic", "historian"]
 
 
 class TestValidateNodeInput:
@@ -746,6 +836,20 @@ class TestValidateNodeInput:
         }
         state["critic"] = critic_output
 
+        historian_output: HistorianOutput = {
+            "historical_summary": "Historical context for test",
+            "retrieved_notes": ["/notes/test.md"],
+            "search_results_count": 5,
+            "filtered_results_count": 3,
+            "search_strategy": "keyword",
+            "topics_found": ["test"],
+            "confidence": 0.8,
+            "llm_analysis_used": True,
+            "metadata": {},
+            "timestamp": "2023-01-01T00:00:00Z",
+        }
+        state["historian"] = historian_output
+
         assert validate_node_input(state, "synthesis") is True
 
     def test_validate_node_input_synthesis_invalid(self):
@@ -759,8 +863,8 @@ class TestValidateNodeInput:
             # Should log warnings for both missing dependencies
             warning_calls = mock_logger.warning.call_args_list
             assert len(warning_calls) == 2
-            assert "refiner" in str(warning_calls[0])
-            assert "critic" in str(warning_calls[1])
+            assert "critic" in str(warning_calls[0])
+            assert "historian" in str(warning_calls[1])
 
     def test_validate_node_input_unknown_node(self):
         """Test validating unknown node."""
@@ -773,21 +877,37 @@ class TestValidateNodeInput:
 class TestIntegration:
     """Integration tests for node wrappers."""
 
+    def _merge_state_updates(
+        self, base_state: CogniVaultState, updates: Dict[str, Any]
+    ) -> CogniVaultState:
+        """Helper to merge partial state updates into full state (simulates LangGraph behavior)."""
+        merged_state = dict(base_state)  # Use dict() to avoid TypedDict restrictions
+
+        # Merge basic fields
+        for key, value in updates.items():
+            if key in ["successful_agents", "failed_agents", "errors"]:
+                # For list fields, extend the existing list
+                if isinstance(value, list):
+                    existing_list = merged_state.get(key, [])
+                    if isinstance(existing_list, list):
+                        merged_state[key] = existing_list + value
+                    else:
+                        merged_state[key] = value
+            else:
+                # For other fields, replace
+                merged_state[key] = value
+
+        return merged_state  # type: ignore
+
     @pytest.mark.asyncio
     async def test_full_node_pipeline(self):
         """Test complete node execution pipeline."""
-        # Reset circuit breaker state for all nodes
-        for node_func in [refiner_node, critic_node, synthesis_node]:
-            if hasattr(node_func, "_circuit_open"):
-                node_func._circuit_open = False
-                node_func._failure_count = 0
-                node_func._last_failure_time = None
-
         state = create_initial_state("What is machine learning?", "exec-pipeline")
 
         # Create mock agents
         refiner_agent = MockAgent("Refiner", "Machine learning is a subset of AI")
         critic_agent = MockAgent("Critic", "Good definition, could be expanded")
+        historian_agent = MockAgent("Historian", "Historical context for ML")
         synthesis_agent = MockAgent("Synthesis", "ML is a key AI technology")
 
         # Mock agent creation
@@ -796,6 +916,8 @@ class TestIntegration:
                 return refiner_agent
             elif name == "critic":
                 return critic_agent
+            elif name == "historian":
+                return historian_agent
             elif name == "synthesis":
                 return synthesis_agent
             else:
@@ -806,22 +928,31 @@ class TestIntegration:
             side_effect=create_mock_agent,
         ):
             # Execute refiner
-            state = await refiner_node(state)
+            refiner_updates = await refiner_node(state)
+            state = self._merge_state_updates(state, refiner_updates)
             assert state["refiner"] is not None
             assert "refiner" in state["successful_agents"]
 
             # Execute critic
-            state = await critic_node(state)
+            critic_updates = await critic_node(state)
+            state = self._merge_state_updates(state, critic_updates)
             assert state["critic"] is not None
             assert "critic" in state["successful_agents"]
 
+            # Execute historian
+            historian_updates = await historian_node(state)
+            state = self._merge_state_updates(state, historian_updates)
+            assert state["historian"] is not None
+            assert "historian" in state["successful_agents"]
+
             # Execute synthesis
-            state = await synthesis_node(state)
+            synthesis_updates = await synthesis_node(state)
+            state = self._merge_state_updates(state, synthesis_updates)
             assert state["synthesis"] is not None
             assert "synthesis" in state["successful_agents"]
 
             # Verify final state
-            assert len(state["successful_agents"]) == 3
+            assert len(state["successful_agents"]) == 4
             assert len(state["failed_agents"]) == 0
             assert len(state["errors"]) == 0
 

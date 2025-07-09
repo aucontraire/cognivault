@@ -24,7 +24,12 @@ class TestRealLangGraphOrchestrator:
         """Test orchestrator initialization with default parameters."""
         orchestrator = RealLangGraphOrchestrator()
 
-        assert orchestrator.agents_to_run == ["refiner", "critic", "synthesis"]
+        assert orchestrator.agents_to_run == [
+            "refiner",
+            "critic",
+            "historian",
+            "synthesis",
+        ]
         assert orchestrator.enable_checkpoints is False
         assert orchestrator.total_executions == 0
         assert orchestrator.successful_executions == 0
@@ -47,7 +52,12 @@ class TestRealLangGraphOrchestrator:
         orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
 
         assert orchestrator.enable_checkpoints is True
-        assert orchestrator.agents_to_run == ["refiner", "critic", "synthesis"]
+        assert orchestrator.agents_to_run == [
+            "refiner",
+            "critic",
+            "historian",
+            "synthesis",
+        ]
 
     def test_initialization_logging(self):
         """Test that initialization logs appropriate messages."""
@@ -97,10 +107,23 @@ class TestRealLangGraphOrchestratorRun:
             "timestamp": "2023-01-01T00:00:00",
         }
 
+        final_state["historian"] = {
+            "historical_summary": "AI has evolved from early computer science",
+            "retrieved_notes": ["/notes/ai_history.md"],
+            "search_results_count": 10,
+            "filtered_results_count": 5,
+            "search_strategy": "hybrid",
+            "topics_found": ["artificial_intelligence", "history"],
+            "confidence": 0.8,
+            "llm_analysis_used": True,
+            "metadata": {},
+            "timestamp": "2023-01-01T00:00:00Z",
+        }
+
         final_state["synthesis"] = {
             "final_analysis": "AI is a field of computer science",
             "key_insights": ["AI is growing rapidly"],
-            "sources_used": ["refiner", "critic"],
+            "sources_used": ["refiner", "critic", "historian"],
             "themes_identified": ["technology"],
             "conflicts_resolved": 0,
             "confidence": 0.85,
@@ -108,7 +131,12 @@ class TestRealLangGraphOrchestratorRun:
             "timestamp": "2023-01-01T00:00:00",
         }
 
-        final_state["successful_agents"] = ["refiner", "critic", "synthesis"]
+        final_state["successful_agents"] = [
+            "refiner",
+            "critic",
+            "historian",
+            "synthesis",
+        ]
 
         mock_compiled_graph.ainvoke.return_value = final_state
 
@@ -121,9 +149,10 @@ class TestRealLangGraphOrchestratorRun:
             assert result.query == "What is AI?"
             assert "refiner" in result.agent_outputs
             assert "critic" in result.agent_outputs
+            assert "historian" in result.agent_outputs
             assert "synthesis" in result.agent_outputs
             assert result.execution_state["orchestrator_type"] == "langgraph-real"
-            assert result.execution_state["phase"] == "phase2_0"
+            assert result.execution_state["phase"] == "phase2_1"
             assert result.execution_state["langgraph_execution"] is True
             assert orchestrator.successful_executions == 1
             assert orchestrator.total_executions == 1
@@ -316,12 +345,17 @@ class TestGetCompiledGraph:
                 "critic", mock_graph.add_node.call_args_list[1][0][1]
             )
             mock_graph.add_node.assert_any_call(
-                "synthesis", mock_graph.add_node.call_args_list[2][0][1]
+                "historian", mock_graph.add_node.call_args_list[2][0][1]
+            )
+            mock_graph.add_node.assert_any_call(
+                "synthesis", mock_graph.add_node.call_args_list[3][0][1]
             )
 
             mock_graph.set_entry_point.assert_called_once_with("refiner")
             mock_graph.add_edge.assert_any_call("refiner", "critic")
+            mock_graph.add_edge.assert_any_call("refiner", "historian")
             mock_graph.add_edge.assert_any_call("critic", "synthesis")
+            mock_graph.add_edge.assert_any_call("historian", "synthesis")
 
     @pytest.mark.asyncio
     async def test_get_compiled_graph_with_checkpoints(self):
@@ -528,15 +562,15 @@ class TestGetExecutionStatistics:
         stats = orchestrator.get_execution_statistics()
 
         assert stats["orchestrator_type"] == "langgraph-real"
-        assert stats["implementation_status"] == "phase2_0_production"
+        assert stats["implementation_status"] == "phase2_1_production"
         assert stats["total_executions"] == 0
         assert stats["successful_executions"] == 0
         assert stats["failed_executions"] == 0
         assert stats["success_rate"] == 0
-        assert stats["agents_to_run"] == ["refiner", "critic", "synthesis"]
+        assert stats["agents_to_run"] == ["refiner", "critic", "historian", "synthesis"]
         assert stats["state_bridge_available"] is True
         assert stats["checkpoints_enabled"] is False
-        assert stats["dag_structure"] == "refiner → critic → synthesis"
+        assert stats["dag_structure"] == "refiner → [critic, historian] → synthesis"
 
     def test_get_execution_statistics_with_executions(self):
         """Test statistics with executions."""
@@ -577,19 +611,26 @@ class TestGetDagStructure:
             mock_deps.return_value = {
                 "refiner": [],
                 "critic": ["refiner"],
-                "synthesis": ["refiner", "critic"],
+                "historian": ["refiner"],
+                "synthesis": ["critic", "historian"],
             }
 
             structure = orchestrator.get_dag_structure()
 
-            assert structure["nodes"] == ["refiner", "critic", "synthesis"]
+            assert structure["nodes"] == ["refiner", "critic", "historian", "synthesis"]
             assert structure["dependencies"] == {
                 "refiner": [],
                 "critic": ["refiner"],
-                "synthesis": ["refiner", "critic"],
+                "historian": ["refiner"],
+                "synthesis": ["critic", "historian"],
             }
-            assert structure["execution_order"] == ["refiner", "critic", "synthesis"]
-            assert structure["parallel_capable"] == ["critic"]
+            assert structure["execution_order"] == [
+                "refiner",
+                "critic",
+                "historian",
+                "synthesis",
+            ]
+            assert structure["parallel_capable"] == ["critic", "historian"]
             assert structure["entry_point"] == "refiner"
             assert structure["terminal_nodes"] == ["synthesis"]
 
@@ -644,17 +685,34 @@ class TestIntegration:
                 "confidence": 0.8,
                 "timestamp": "2023-01-01T00:00:00",
             }
+            final_state["historian"] = {
+                "historical_summary": "AI has evolved from early computer science",
+                "retrieved_notes": ["/notes/ai_history.md"],
+                "search_results_count": 10,
+                "filtered_results_count": 5,
+                "search_strategy": "hybrid",
+                "topics_found": ["artificial_intelligence", "history"],
+                "confidence": 0.8,
+                "llm_analysis_used": True,
+                "metadata": {},
+                "timestamp": "2023-01-01T00:00:00Z",
+            }
             final_state["synthesis"] = {
                 "final_analysis": "AI is a comprehensive field",
                 "key_insights": ["AI encompasses many subfields"],
-                "sources_used": ["refiner", "critic"],
+                "sources_used": ["refiner", "critic", "historian"],
                 "themes_identified": ["technology", "intelligence"],
                 "conflicts_resolved": 0,
                 "confidence": 0.85,
                 "metadata": {"complexity": "moderate"},
                 "timestamp": "2023-01-01T00:00:00",
             }
-            final_state["successful_agents"] = ["refiner", "critic", "synthesis"]
+            final_state["successful_agents"] = [
+                "refiner",
+                "critic",
+                "historian",
+                "synthesis",
+            ]
 
             mock_compiled = Mock()
             mock_compiled.ainvoke = AsyncMock(return_value=final_state)
@@ -666,13 +724,14 @@ class TestIntegration:
             # Verify results
             assert isinstance(result, AgentContext)
             assert result.query == "What is AI?"
-            assert len(result.agent_outputs) == 3
+            assert len(result.agent_outputs) == 4
             assert "refiner" in result.agent_outputs
             assert "critic" in result.agent_outputs
+            assert "historian" in result.agent_outputs
             assert "synthesis" in result.agent_outputs
             assert result.execution_state["orchestrator_type"] == "langgraph-real"
-            assert result.execution_state["phase"] == "phase2_0"
-            assert result.execution_state["successful_agents_count"] == 3
+            assert result.execution_state["phase"] == "phase2_1"
+            assert result.execution_state["successful_agents_count"] == 4
             assert result.execution_state["failed_agents_count"] == 0
 
             # Verify statistics

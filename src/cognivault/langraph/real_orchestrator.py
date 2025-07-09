@@ -29,6 +29,7 @@ from cognivault.langraph.state_schemas import (
     CogniVaultState,
     RefinerOutput,
     CriticOutput,
+    HistorianOutput,
     SynthesisOutput,
     create_initial_state,
     validate_state_integrity,
@@ -36,6 +37,7 @@ from cognivault.langraph.state_schemas import (
 from cognivault.langraph.node_wrappers import (
     refiner_node,
     critic_node,
+    historian_node,
     synthesis_node,
     NodeExecutionError,
     get_node_dependencies,
@@ -54,7 +56,7 @@ class RealLangGraphOrchestrator:
 
     Features:
     - StateGraph-based DAG execution with proper dependencies
-    - Parallel execution of independent agents (Refiner → Critic in parallel)
+    - Parallel execution of independent agents (Refiner → [Critic, Historian] → Synthesis)
     - Type-safe state management with comprehensive validation
     - Circuit breaker patterns for robust error handling
     - Optional memory checkpointing for stateful conversations
@@ -72,15 +74,15 @@ class RealLangGraphOrchestrator:
         Parameters
         ----------
         agents_to_run : List[str], optional
-            List of agent names to run. For Phase 2.0, defaults to refiner, critic, synthesis.
-            Historian will be added in Phase 2.1.
+            List of agent names to run. For Phase 2.1, defaults to refiner, critic, historian, synthesis.
         enable_checkpoints : bool, optional
             Whether to enable memory checkpointing for stateful conversations.
         """
-        # For Phase 2.0, we start with simplified pipeline (no historian)
+        # For Phase 2.1, we include all four agents with historian
         self.agents_to_run = agents_to_run or [
             "refiner",
             "critic",
+            "historian",
             "synthesis",
         ]
         self.enable_checkpoints = enable_checkpoints
@@ -115,8 +117,8 @@ class RealLangGraphOrchestrator:
         Execute agents using real LangGraph StateGraph orchestration.
 
         This method implements true DAG-based execution with:
-        - Refiner → Critic → Synthesis pipeline
-        - Parallel execution where dependencies allow
+        - Refiner → [Critic, Historian] → Synthesis pipeline
+        - Parallel execution of Critic and Historian after Refiner
         - Type-safe state management
         - Comprehensive error handling and recovery
 
@@ -187,7 +189,7 @@ class RealLangGraphOrchestrator:
             context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
-                    "phase": "phase2_0",
+                    "phase": "phase2_1",
                     "execution_id": execution_id,
                     "agents_requested": self.agents_to_run,
                     "config": config,
@@ -229,7 +231,7 @@ class RealLangGraphOrchestrator:
             context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
-                    "phase": "phase2_0",
+                    "phase": "phase2_1",
                     "execution_id": execution_id,
                     "agents_requested": self.agents_to_run,
                     "config": config,
@@ -266,15 +268,18 @@ class RealLangGraphOrchestrator:
             # Create StateGraph with CogniVaultState schema
             graph = StateGraph(CogniVaultState)
 
-            # Add nodes for Phase 2.0 pipeline
+            # Add nodes for Phase 2.1 pipeline
             graph.add_node("refiner", refiner_node)
             graph.add_node("critic", critic_node)
+            graph.add_node("historian", historian_node)
             graph.add_node("synthesis", synthesis_node)
 
-            # Define the DAG structure: START → refiner → critic → synthesis → END
+            # Define the DAG structure: START → refiner → [critic, historian] → synthesis → END
             graph.set_entry_point("refiner")
             graph.add_edge("refiner", "critic")
+            graph.add_edge("refiner", "historian")
             graph.add_edge("critic", "synthesis")
+            graph.add_edge("historian", "synthesis")
             graph.add_edge("synthesis", END)
 
             # Set up checkpointer if enabled
@@ -330,6 +335,25 @@ class RealLangGraphOrchestrator:
                 ]
                 context.execution_state["critic_severity"] = critic_output["severity"]
 
+        if final_state.get("historian"):
+            historian_output: Optional[HistorianOutput] = final_state["historian"]
+            if historian_output is not None:
+                context.add_agent_output(
+                    "historian", historian_output["historical_summary"]
+                )
+                context.execution_state["historian_retrieved_notes"] = historian_output[
+                    "retrieved_notes"
+                ]
+                context.execution_state["historian_search_strategy"] = historian_output[
+                    "search_strategy"
+                ]
+                context.execution_state["historian_topics_found"] = historian_output[
+                    "topics_found"
+                ]
+                context.execution_state["historian_confidence"] = historian_output[
+                    "confidence"
+                ]
+
         if final_state.get("synthesis"):
             synthesis_output: Optional[SynthesisOutput] = final_state["synthesis"]
             if synthesis_output is not None:
@@ -370,7 +394,7 @@ class RealLangGraphOrchestrator:
 
         return {
             "orchestrator_type": "langgraph-real",
-            "implementation_status": "phase2_0_production",
+            "implementation_status": "phase2_1_production",
             "total_executions": self.total_executions,
             "successful_executions": self.successful_executions,
             "failed_executions": self.failed_executions,
@@ -378,7 +402,7 @@ class RealLangGraphOrchestrator:
             "agents_to_run": self.agents_to_run,
             "state_bridge_available": True,
             "checkpoints_enabled": self.enable_checkpoints,
-            "dag_structure": "refiner → critic → synthesis",
+            "dag_structure": "refiner → [critic, historian] → synthesis",
         }
 
     def get_dag_structure(self) -> Dict[str, Any]:
@@ -395,8 +419,11 @@ class RealLangGraphOrchestrator:
         return {
             "nodes": self.agents_to_run,
             "dependencies": dependencies,
-            "execution_order": ["refiner", "critic", "synthesis"],
-            "parallel_capable": ["critic"],  # Can run in parallel after refiner
+            "execution_order": ["refiner", "critic", "historian", "synthesis"],
+            "parallel_capable": [
+                "critic",
+                "historian",
+            ],  # Can run in parallel after refiner
             "entry_point": "refiner",
             "terminal_nodes": ["synthesis"],
         }

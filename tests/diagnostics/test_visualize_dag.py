@@ -33,7 +33,7 @@ class TestDAGVisualizationConfig:
         """Test config has correct default values."""
         config = DAGVisualizationConfig()
 
-        assert config.version == "Phase 2.0"
+        assert config.version == "Phase 2.1"
         assert config.show_state_flow is True
         assert config.show_node_details is True
         assert config.include_metadata is True
@@ -69,7 +69,7 @@ class TestDAGVisualizer:
         """Test visualizer initialization with default config."""
         visualizer = DAGVisualizer()
 
-        assert visualizer.config.version == "Phase 2.0"
+        assert visualizer.config.version == "Phase 2.1"
         assert visualizer.config.show_state_flow is True
         assert visualizer.config.show_node_details is True
         assert visualizer.config.include_metadata is True

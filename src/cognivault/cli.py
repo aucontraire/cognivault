@@ -134,10 +134,10 @@ async def run(
         # Use specified agents or default for visualization
         dag_agents = agents_to_run if agents_to_run else None
 
-        # For Phase 2.0, filter out unsupported agents like historian
+        # For Phase 2.1, include historian support
         if dag_agents:
-            # Filter to supported agents for Phase 2.0
-            supported_agents = {"refiner", "critic", "synthesis"}
+            # Filter to supported agents for Phase 2.1
+            supported_agents = {"refiner", "critic", "historian", "synthesis"}
             dag_agents = [
                 agent for agent in dag_agents if agent.lower() in supported_agents
             ]
@@ -146,7 +146,7 @@ async def run(
             cli_visualize_dag(
                 agents=dag_agents,
                 output=visualize_dag,
-                version="Phase 2.0",
+                version="Phase 2.1",
                 show_state_flow=True,
                 show_details=True,
             )
@@ -297,7 +297,8 @@ async def run(
 def main(
     query: str,
     agents: str = typer.Option(
-        None, help="Comma-separated list of agents to run (e.g., 'refiner,critic')"
+        None,
+        help="Comma-separated list of agents to run (e.g., 'refiner,critic,historian,synthesis')",
     ),
     log_level: str = typer.Option(
         "INFO", help="Logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)"
@@ -348,7 +349,7 @@ def main(
     query : str
         The query string to be processed by the agents.
     agents : str, optional
-        Comma-separated list of agents to run (e.g., 'refiner,critic'). If None, all agents are run.
+        Comma-separated list of agents to run (e.g., 'refiner,critic,historian,synthesis'). If None, all agents are run.
     log_level : str, optional
         Logging level to use (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL). Default is 'INFO'.
     export_md : bool, optional

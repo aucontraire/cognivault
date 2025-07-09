@@ -12,8 +12,9 @@ Design Principles:
 - Comprehensive documentation for maintainability
 """
 
-from typing import TypedDict, List, Dict, Any, Optional, Union
-from datetime import datetime
+from typing import TypedDict, List, Dict, Any, Optional, Union, Annotated
+from datetime import datetime, timezone
+import operator
 
 
 class RefinerOutput(TypedDict):
@@ -68,6 +69,45 @@ class CriticOutput(TypedDict):
 
     timestamp: str
     """ISO timestamp when critique was completed."""
+
+
+class HistorianOutput(TypedDict):
+    """
+    Output schema for the HistorianAgent.
+
+    The HistorianAgent retrieves and analyzes historical context
+    using intelligent search and LLM-powered relevance analysis.
+    """
+
+    historical_summary: str
+    """Synthesized historical context relevant to the current query."""
+
+    retrieved_notes: List[str]
+    """List of filepaths for notes that were retrieved and used."""
+
+    search_results_count: int
+    """Number of search results found before filtering."""
+
+    filtered_results_count: int
+    """Number of results after relevance filtering."""
+
+    search_strategy: str
+    """Type of search strategy used (e.g., 'hybrid', 'tag-based', 'keyword')."""
+
+    topics_found: List[str]
+    """List of topics identified in the retrieved historical content."""
+
+    confidence: float
+    """Confidence score (0.0-1.0) in the historical context relevance."""
+
+    llm_analysis_used: bool
+    """Whether LLM was used for relevance analysis and synthesis."""
+
+    metadata: Dict[str, Any]
+    """Additional metadata about the historical search process."""
+
+    timestamp: str
+    """ISO timestamp when historical analysis was completed."""
 
 
 class SynthesisOutput(TypedDict):
@@ -138,9 +178,11 @@ class CogniVaultState(TypedDict):
     State Flow:
     1. Initial state created with query and metadata
     2. Refiner adds RefinerOutput to state["refiner"]
-    3. Critic adds CriticOutput to state["critic"]
-    4. Synthesis adds SynthesisOutput to state["synthesis"]
-    5. Final state contains all agent outputs
+    3. Critic and Historian run in parallel after refiner
+    4. Critic adds CriticOutput to state["critic"]
+    5. Historian adds HistorianOutput to state["historian"]
+    6. Synthesis adds SynthesisOutput to state["synthesis"]
+    7. Final state contains all agent outputs
     """
 
     # Core input
@@ -154,6 +196,9 @@ class CogniVaultState(TypedDict):
     critic: Optional[CriticOutput]
     """Output from the CriticAgent (populated after critic node)."""
 
+    historian: Optional[HistorianOutput]
+    """Output from the HistorianAgent (populated after historian node)."""
+
     synthesis: Optional[SynthesisOutput]
     """Output from the SynthesisAgent (populated after synthesis node)."""
 
@@ -162,14 +207,14 @@ class CogniVaultState(TypedDict):
     """Metadata about the current execution."""
 
     # Error handling
-    errors: List[Dict[str, Any]]
+    errors: Annotated[List[Dict[str, Any]], operator.add]
     """List of errors encountered during execution."""
 
     # Success tracking
-    successful_agents: List[str]
+    successful_agents: Annotated[List[str], operator.add]
     """List of agents that completed successfully."""
 
-    failed_agents: List[str]
+    failed_agents: Annotated[List[str], operator.add]
     """List of agents that failed during execution."""
 
 
@@ -177,7 +222,7 @@ class CogniVaultState(TypedDict):
 LangGraphState = CogniVaultState
 """Alias for CogniVaultState to improve code readability."""
 
-AgentOutput = Union[RefinerOutput, CriticOutput, SynthesisOutput]
+AgentOutput = Union[RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutput]
 """Union type for any agent output schema."""
 
 
@@ -197,20 +242,21 @@ def create_initial_state(query: str, execution_id: str) -> CogniVaultState:
     CogniVaultState
         Initial state ready for LangGraph execution
     """
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
 
     return CogniVaultState(
         query=query,
         refiner=None,
         critic=None,
+        historian=None,
         synthesis=None,
         execution_metadata=ExecutionMetadata(
             execution_id=execution_id,
             start_time=now,
             orchestrator_type="langgraph-real",
-            agents_requested=["refiner", "critic", "synthesis"],
+            agents_requested=["refiner", "critic", "historian", "synthesis"],
             execution_mode="langgraph-real",
-            phase="phase2_0",
+            phase="phase2_1",
         ),
         errors=[],
         successful_agents=[],
@@ -268,6 +314,15 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
             ):
                 return False
 
+        if state.get("historian"):
+            historian: Optional[HistorianOutput] = state["historian"]
+            if (
+                historian is None
+                or not historian.get("historical_summary")
+                or not historian.get("timestamp")
+            ):
+                return False
+
         if state.get("synthesis"):
             synthesis: Optional[SynthesisOutput] = state["synthesis"]
             if (
@@ -292,7 +347,7 @@ def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentO
     state : CogniVaultState
         Current state
     agent_name : str
-        Name of agent ('refiner', 'critic', 'synthesis')
+        Name of agent ('refiner', 'critic', 'historian', 'synthesis')
 
     Returns
     -------
@@ -305,6 +360,8 @@ def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentO
         return state.get("refiner")
     elif agent_name == "critic":
         return state.get("critic")
+    elif agent_name == "historian":
+        return state.get("historian")
     elif agent_name == "synthesis":
         return state.get("synthesis")
     else:
@@ -322,7 +379,7 @@ def set_agent_output(
     state : CogniVaultState
         Current state
     agent_name : str
-        Name of agent ('refiner', 'critic', 'synthesis')
+        Name of agent ('refiner', 'critic', 'historian', 'synthesis')
     output : AgentOutput
         Typed agent output to set
 
@@ -344,10 +401,12 @@ def set_agent_output(
         new_state["refiner"] = output  # type: ignore
     elif agent_name == "critic" and isinstance(output, dict):
         new_state["critic"] = output  # type: ignore
+    elif agent_name == "historian" and isinstance(output, dict):
+        new_state["historian"] = output  # type: ignore
     elif agent_name == "synthesis" and isinstance(output, dict):
         new_state["synthesis"] = output  # type: ignore
 
-    # Track successful completion
+    # Track successful completion - append single item for LangGraph reducer
     if agent_name not in new_state["successful_agents"]:
         new_state["successful_agents"].append(agent_name)
 
@@ -360,10 +419,12 @@ def record_agent_error(
     """
     Record agent execution error in state.
 
+    Handles both complete and partial state objects gracefully.
+
     Parameters
     ----------
     state : CogniVaultState
-        Current state
+        Current state (may be partial)
     agent_name : str
         Name of failed agent
     error : Exception
@@ -375,16 +436,26 @@ def record_agent_error(
         Updated state with error recorded
     """
     new_state = state.copy()
-    # Deep copy mutable lists
-    new_state["successful_agents"] = state["successful_agents"].copy()
-    new_state["failed_agents"] = state["failed_agents"].copy()
-    new_state["errors"] = state["errors"].copy()
+    # Deep copy mutable lists - handle partial state
+    new_state["successful_agents"] = (
+        state.get("successful_agents", []).copy()
+        if isinstance(state.get("successful_agents"), list)
+        else []
+    )
+    new_state["failed_agents"] = (
+        state.get("failed_agents", []).copy()
+        if isinstance(state.get("failed_agents"), list)
+        else []
+    )
+    new_state["errors"] = (
+        state.get("errors", []).copy() if isinstance(state.get("errors"), list) else []
+    )
 
     error_record = {
         "agent": agent_name,
         "error_type": type(error).__name__,
         "error_message": str(error),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     new_state["errors"].append(error_record)
@@ -401,6 +472,7 @@ __all__ = [
     "LangGraphState",
     "RefinerOutput",
     "CriticOutput",
+    "HistorianOutput",
     "SynthesisOutput",
     "AgentOutput",
     "ExecutionMetadata",
