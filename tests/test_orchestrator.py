@@ -35,14 +35,37 @@ class SilentAgent(BaseAgent):
 
 
 @patch("cognivault.agents.refiner.agent.RefinerAgent.run", new_callable=AsyncMock)
-def test_orchestrator_with_critic_enabled(mock_refiner_run):
-    # Simulate Refiner adding output to context
-    async def mock_run(context):
+@patch("cognivault.agents.historian.agent.HistorianAgent.run", new_callable=AsyncMock)
+@patch("cognivault.agents.critic.agent.CriticAgent.run", new_callable=AsyncMock)
+@patch("cognivault.agents.synthesis.agent.SynthesisAgent.run", new_callable=AsyncMock)
+def test_orchestrator_with_critic_enabled(
+    mock_synthesis_run, mock_critic_run, mock_historian_run, mock_refiner_run
+):
+    # Mock each agent to add appropriate output to context
+    async def mock_refiner_run_fn(context):
         context.add_agent_output(
             "Refiner", "Refined insight: Democracy is gradually improving in Mexico."
         )
 
-    mock_refiner_run.side_effect = mock_run
+    async def mock_historian_run_fn(context):
+        context.add_agent_output(
+            "Historian", "Historical context for democracy in Mexico."
+        )
+
+    async def mock_critic_run_fn(context):
+        context.add_agent_output(
+            "Critic", "Critical analysis of democratic improvement."
+        )
+
+    async def mock_synthesis_run_fn(context):
+        context.add_agent_output(
+            "Synthesis", "Synthesized analysis of Mexico's democracy."
+        )
+
+    mock_refiner_run.side_effect = mock_refiner_run_fn
+    mock_historian_run.side_effect = mock_historian_run_fn
+    mock_critic_run.side_effect = mock_critic_run_fn
+    mock_synthesis_run.side_effect = mock_synthesis_run_fn
 
     orchestrator = AgentOrchestrator(critic_enabled=True)
     context = asyncio.run(orchestrator.run("Is democracy in Mexico improving?"))
@@ -163,7 +186,21 @@ def test_orchestrator_with_only_critic():
     assert context.final_synthesis is None
 
 
-def test_orchestrator_with_only_historian():
+@patch("cognivault.agents.historian.agent.HistorianAgent.run", new_callable=AsyncMock)
+def test_orchestrator_with_only_historian(mock_historian_run):
+    # Mock historian to add appropriate output to context
+    async def mock_historian_run_fn(context):
+        context.add_agent_output(
+            "Historian", "Note from historical analysis: Test content."
+        )
+        context.log_trace(
+            "Historian",
+            "Historian agent executed successfully",
+            {"step": "historian_test"},
+        )
+
+    mock_historian_run.side_effect = mock_historian_run_fn
+
     orchestrator = AgentOrchestrator(agents_to_run=["historian"])
     context = asyncio.run(orchestrator.run("Test historian agent in isolation"))
 

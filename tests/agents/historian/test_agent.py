@@ -60,12 +60,13 @@ class TestHistorianAgentInitialization:
 
     def test_default_initialization(self):
         """Test default agent initialization."""
-        agent = HistorianAgent()
+        # Use llm=None to prevent real API calls during testing
+        agent = HistorianAgent(llm=None)
 
         assert agent.name == "Historian"
         assert agent.search_type == "hybrid"
         assert agent.search_engine is not None
-        # LLM might be None if OpenAI config fails
+        assert agent.llm is None
 
     def test_initialization_with_custom_llm(self):
         """Test initialization with custom LLM."""

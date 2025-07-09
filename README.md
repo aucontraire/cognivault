@@ -1,7 +1,7 @@
 # 🧠 CogniVault
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
-![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
@@ -64,6 +64,14 @@ CogniVault is a modular, CLI-based multi-agent assistant designed to help you re
 - **Enhanced Frontmatter Schema**: Rich metadata with agent status, confidence, topics, and domains
 - **Wiki-Ready Output**: Professional markdown formatting with structured headers and metadata
 - **177 Comprehensive Tests**: Complete test coverage for all enhanced functionality with mock LLM integration
+
+✅ **Issue 7: Dual Execution Orchestrators & Performance Benchmarking** - 100% Complete
+- **LangGraph Execution Mode**: Full `LangGraphOrchestrator` implementation with DAG-based execution
+- **Hybrid CLI Interface**: `--execution-mode` flag supporting both legacy and langgraph modes
+- **Side-by-Side Comparison**: `--compare-modes` flag for performance validation and testing
+- **Statistical Benchmarking**: `--benchmark-runs` with timing analysis, memory tracking, and success rate metrics
+- **Comprehensive Testing**: Complete test coverage for both orchestrators and comparison functionality
+- **Production-Ready**: Memory usage monitoring, error handling, and export capabilities
 
 ---
 
@@ -927,6 +935,59 @@ make run QUESTION="Health check query" HEALTH_CHECK=1 LOG_LEVEL=INFO
 
 # Performance analysis pipeline
 make run QUESTION="Performance test" TRACE=1 EXPORT_TRACE=/tmp/perf_$(date +%s).json LOG_LEVEL=INFO
+```
+
+### 🚀 Execution Modes & Performance Comparison
+
+CogniVault supports two execution modes with comprehensive performance comparison capabilities:
+
+#### Execution Modes
+
+**Legacy Mode (default)**: Uses the original `AgentOrchestrator` with sequential/parallel execution
+```bash
+make run QUESTION="Your question" EXECUTION_MODE=legacy
+```
+
+**LangGraph Mode**: Uses `LangGraphOrchestrator` with DAG-based execution and advanced state management
+```bash
+make run QUESTION="Your question" EXECUTION_MODE=langgraph
+```
+
+#### Performance Comparison
+
+Compare both execution modes side-by-side to validate performance and output consistency:
+```bash
+# Basic comparison - single run
+make run QUESTION="Your question" COMPARE_MODES=1
+
+# Statistical benchmarking - multiple runs with timing analysis
+make run QUESTION="Your question" COMPARE_MODES=1 BENCHMARK_RUNS=5
+
+# Comprehensive comparison with trace export
+make run QUESTION="Your question" COMPARE_MODES=1 BENCHMARK_RUNS=3 EXPORT_TRACE=/tmp/comparison.json
+```
+
+The comparison provides:
+- **Statistical Analysis**: Execution time averages, standard deviation, min/max
+- **Memory Usage**: Memory consumption differences between modes  
+- **Success Rate**: Reliability comparison across multiple runs
+- **Context Size**: Data flow efficiency analysis
+- **Output Comparison**: Side-by-side agent output validation
+- **Performance Metrics**: Detailed timing and resource usage stats
+
+Example output:
+```
+📊 Performance Benchmark Results
+
+                         Performance Comparison                         
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ Metric             ┃ Legacy Mode ┃ LangGraph Mode ┃       Difference ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ Avg Execution Time │      2.379s │         1.424s │ +0.954s (+40.1%) │
+│ Success Rate       │      100.0% │         100.0% │            +0.0% │
+│ Avg Memory Usage   │      8.5 MB │         1.0 MB │          +7.5 MB │
+│ Avg Context Size   │   622 bytes │      460 bytes │       +162 bytes │
+└────────────────────┴─────────────┴────────────────┴──────────────────┘
 ```
 
 ---

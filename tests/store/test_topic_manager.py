@@ -1,12 +1,14 @@
 """Tests for the topic management and auto-tagging system."""
 
 import pytest
+from unittest.mock import Mock, patch
 from cognivault.store.topic_manager import (
     KeywordExtractor,
     TopicMapper,
     TopicManager,
     TopicSuggestion,
     TopicAnalysis,
+    LLMTopicAnalyzer,
 )
 
 
@@ -248,3 +250,258 @@ class TestTopicAnalysis:
         assert "artificial" in analysis.key_terms
         assert "technology" in analysis.themes
         assert "technical" in analysis.complexity_indicators
+
+
+# Tests for new LLM integration and enhanced functionality
+
+
+class TestTopicManagerLLMIntegration:
+    """Test TopicManager with LLM integration."""
+
+    def test_topic_manager_with_llm_initialization(self):
+        """Test TopicManager initialization with LLM instance."""
+        mock_llm = Mock()
+        manager = TopicManager(llm=mock_llm)
+
+        # Verify LLM is passed to LLMTopicAnalyzer
+        assert manager.llm_analyzer.llm == mock_llm
+
+    def test_topic_manager_without_llm_initialization(self):
+        """Test TopicManager initialization without LLM instance."""
+        manager = TopicManager()
+
+        # Verify no LLM is passed to LLMTopicAnalyzer
+        assert manager.llm_analyzer.llm is None
+
+    @pytest.mark.asyncio
+    async def test_topic_manager_with_llm_analysis(self):
+        """Test TopicManager uses LLM for analysis when available."""
+        mock_llm = Mock()
+        manager = TopicManager(llm=mock_llm)
+
+        # Mock LLM response
+        mock_llm_suggestions = [
+            TopicSuggestion(
+                "democracy",
+                0.9,
+                "llm_analysis",
+                "Democracy topic",
+                ["politics", "voting"],
+            )
+        ]
+
+        with patch.object(
+            manager.llm_analyzer, "analyze_topics", return_value=mock_llm_suggestions
+        ):
+            result = await manager.analyze_and_suggest_topics(
+                query="Democracy in the US",
+                agent_outputs={"Refiner": "Democracy is important"},
+            )
+
+            # Should include LLM suggestions
+            assert len(result.suggested_topics) > 0
+            # Should find a topic from LLM analysis
+            llm_topics = [
+                s for s in result.suggested_topics if s.source == "llm_analysis"
+            ]
+            assert len(llm_topics) > 0
+
+    @pytest.mark.asyncio
+    async def test_topic_manager_fallback_without_llm(self):
+        """Test TopicManager fallback behavior when LLM not available."""
+        manager = TopicManager()  # No LLM
+
+        result = await manager.analyze_and_suggest_topics(
+            query="Democracy in the US",
+            agent_outputs={"Refiner": "Democracy is important for politics"},
+        )
+
+        # Should still work with keyword extraction
+        assert len(result.suggested_topics) > 0
+        # Should not have LLM analysis source
+        llm_topics = [s for s in result.suggested_topics if s.source == "llm_analysis"]
+        assert len(llm_topics) == 0
+        # Should have keyword extraction
+        keyword_topics = [
+            s for s in result.suggested_topics if s.source == "keyword_extraction"
+        ]
+        assert len(keyword_topics) > 0
+
+
+class TestTopicMapperEnhancements:
+    """Test enhanced TopicMapper functionality."""
+
+    def test_topic_mapper_with_society_domain(self):
+        """Test TopicMapper recognizes society domain keywords."""
+        mapper = TopicMapper()
+
+        # Test with democracy-related terms
+        terms = [("democracy", 5), ("politics", 3), ("voting", 2)]
+        suggestions = mapper.map_terms_to_topics(terms)
+
+        # Should create suggestions for democracy terms
+        assert len(suggestions) > 0
+
+        # Should include society domain suggestion
+        domain_suggestions = [s for s in suggestions if s.source == "domain_mapping"]
+        assert len(domain_suggestions) > 0
+        assert any(s.topic == "society" for s in domain_suggestions)
+
+    def test_topic_mapper_fallback_behavior(self):
+        """Test TopicMapper fallback behavior when no domain match."""
+        mapper = TopicMapper()
+
+        # Test with terms that don't match any domain
+        terms = [("unusual", 10), ("random", 8), ("words", 5)]
+        suggestions = mapper.map_terms_to_topics(terms)
+
+        # Should still provide fallback suggestions
+        assert len(suggestions) > 0
+
+        # Should have fallback topic suggestions
+        fallback_topics = [s for s in suggestions if s.source == "keyword_extraction"]
+        assert len(fallback_topics) > 0
+
+    def test_topic_mapper_enhanced_domain_keywords(self):
+        """Test enhanced domain keywords include politics/democracy terms."""
+        mapper = TopicMapper()
+
+        # Check that society domain includes democracy-related terms
+        society_keywords = mapper.domain_keywords.get("society", set())
+        assert "democracy" in society_keywords
+        assert "politics" in society_keywords
+        assert "government" in society_keywords
+        assert "elections" in society_keywords
+        assert "voting" in society_keywords
+
+
+class TestEnhancedDomainMapping:
+    """Test enhanced domain mapping logic."""
+
+    def test_suggest_domain_with_keyword_extraction(self):
+        """Test domain suggestion from keyword extraction."""
+        manager = TopicManager()
+
+        # Create suggestions with keyword extraction source
+        suggestions = [
+            TopicSuggestion(
+                "democracy", 0.8, "keyword_extraction", "Political term", []
+            ),
+            TopicSuggestion(
+                "politics", 0.7, "keyword_extraction", "Political term", []
+            ),
+        ]
+
+        domain = manager._suggest_domain(suggestions, ["democracy", "politics"])
+
+        # Should suggest society domain
+        assert domain == "society"
+
+    def test_suggest_domain_fallback_to_key_terms(self):
+        """Test domain suggestion fallback to key terms."""
+        manager = TopicManager()
+
+        # No domain mapping suggestions
+        suggestions = [
+            TopicSuggestion("random", 0.5, "keyword_extraction", "Random term", []),
+        ]
+
+        # Key terms include democracy-related terms
+        key_terms = ["democracy", "voting", "elections"]
+        domain = manager._suggest_domain(suggestions, key_terms)
+
+        # Should suggest society domain based on key terms
+        assert domain == "society"
+
+    def test_suggest_domain_no_match(self):
+        """Test domain suggestion when no match found."""
+        manager = TopicManager()
+
+        # No domain mapping suggestions
+        suggestions = [
+            TopicSuggestion("random", 0.5, "keyword_extraction", "Random term", []),
+        ]
+
+        # Key terms don't match any domain
+        key_terms = ["random", "unusual", "words"]
+        domain = manager._suggest_domain(suggestions, key_terms)
+
+        # Should return None
+        assert domain is None
+
+
+class TestLLMTopicAnalyzer:
+    """Test LLMTopicAnalyzer functionality."""
+
+    def test_llm_topic_analyzer_initialization(self):
+        """Test LLMTopicAnalyzer initialization."""
+        mock_llm = Mock()
+        analyzer = LLMTopicAnalyzer(llm=mock_llm)
+
+        assert analyzer.llm == mock_llm
+
+    def test_llm_topic_analyzer_without_llm(self):
+        """Test LLMTopicAnalyzer without LLM."""
+        analyzer = LLMTopicAnalyzer()
+
+        assert analyzer.llm is None
+
+    @pytest.mark.asyncio
+    async def test_llm_topic_analyzer_analyze_topics_without_llm(self):
+        """Test LLMTopicAnalyzer returns None when no LLM available."""
+        analyzer = LLMTopicAnalyzer()
+
+        result = await analyzer.analyze_topics(
+            query="Test query", agent_outputs={"Refiner": "Test output"}
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_llm_topic_analyzer_analyze_topics_with_llm(self):
+        """Test LLMTopicAnalyzer analyzes topics when LLM available."""
+        mock_llm = Mock()
+        analyzer = LLMTopicAnalyzer(llm=mock_llm)
+
+        # Mock LLM response
+        mock_response = Mock()
+        mock_response.text = """TOPIC: democracy
+CONFIDENCE: 0.9
+REASONING: Content discusses democratic processes
+RELATED: politics, voting, elections
+
+TOPIC: politics
+CONFIDENCE: 0.8
+REASONING: Political analysis present
+RELATED: government, policy, law"""
+
+        mock_llm.generate.return_value = mock_response
+
+        result = await analyzer.analyze_topics(
+            query="Democracy in the US",
+            agent_outputs={"Refiner": "Democracy is important"},
+        )
+
+        # Should return parsed suggestions
+        assert result is not None
+        assert len(result) == 2
+        assert result[0].topic == "democracy"
+        assert result[0].confidence == 0.9
+        assert result[0].source == "llm_analysis"
+        assert "politics" in result[0].related_terms
+
+    @pytest.mark.asyncio
+    async def test_llm_topic_analyzer_error_handling(self):
+        """Test LLMTopicAnalyzer handles errors gracefully."""
+        mock_llm = Mock()
+        analyzer = LLMTopicAnalyzer(llm=mock_llm)
+
+        # Mock LLM throws exception
+        mock_llm.generate.side_effect = Exception("LLM error")
+
+        result = await analyzer.analyze_topics(
+            query="Test query", agent_outputs={"Refiner": "Test output"}
+        )
+
+        # Should return None on error
+        assert result is None
