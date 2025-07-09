@@ -21,10 +21,13 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 from cognivault.config.logging_config import setup_logging
+from cognivault.config.openai_config import OpenAIConfig
 from cognivault.orchestrator import AgentOrchestrator
 from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.topic_manager import TopicManager
+from cognivault.llm.openai import OpenAIChatLLM
+from cognivault.llm.llm_interface import LLMInterface
 from cognivault.diagnostics.cli import app as diagnostics_app
 
 app = typer.Typer()
@@ -33,6 +36,16 @@ app = typer.Typer()
 app.add_typer(
     diagnostics_app, name="diagnostics", help="System diagnostics and monitoring"
 )
+
+
+def create_llm_instance() -> LLMInterface:
+    """Create and configure an LLM instance for use by agents and topic manager."""
+    llm_config = OpenAIConfig.load()
+    return OpenAIChatLLM(
+        api_key=llm_config.api_key,
+        model=llm_config.model,
+        base_url=llm_config.base_url,
+    )
 
 
 async def run(
@@ -77,6 +90,8 @@ async def run(
 
     # Handle comparison mode
     if compare_modes:
+        # Create shared LLM instance for comparison mode
+        llm = create_llm_instance()
         await _run_comparison_mode(
             query,
             agents_to_run,
@@ -85,10 +100,14 @@ async def run(
             export_md,
             export_trace,
             benchmark_runs,
+            llm,
         )
         return
 
     logger.info(f"[{cli_name}] Execution mode: {execution_mode}")
+
+    # Create shared LLM instance for agents and topic manager
+    llm = create_llm_instance()
 
     # Create orchestrator based on execution mode
     if execution_mode == "legacy":
@@ -131,8 +150,8 @@ async def run(
         console.print(f"📊 [bold]Execution trace exported to: {export_trace}[/bold]")
 
     if export_md:
-        # Initialize topic manager for auto-tagging
-        topic_manager = TopicManager()
+        # Initialize topic manager for auto-tagging with shared LLM
+        topic_manager = TopicManager(llm=llm)
 
         # Analyze and suggest topics
         try:
@@ -456,6 +475,7 @@ async def _run_comparison_mode(
     export_md: bool,
     export_trace: Optional[str],
     benchmark_runs: int = 1,
+    llm: Optional[LLMInterface] = None,
 ):
     """Run both legacy and langgraph modes side-by-side for comparison."""
     if benchmark_runs > 1:
@@ -560,7 +580,7 @@ async def _run_comparison_mode(
 
     # Handle export options if both modes succeeded
     if export_md and all(result["success_count"] > 0 for result in results.values()):
-        _export_comparison_results(results, export_md, query)
+        await _export_comparison_results(results, export_md, query, llm)
 
     if export_trace:
         _export_comparison_trace(results, export_trace)
@@ -739,20 +759,39 @@ def _display_output_comparison(results: dict, console: Console):
         console.print()
 
 
-def _export_comparison_results(results: dict, export_md: bool, query: str):
+async def _export_comparison_results(
+    results: dict, export_md: bool, query: str, llm: Optional[LLMInterface] = None
+):
     """Export comparison results to markdown."""
     # For now, export the legacy mode results as primary
     # TODO: Enhance to create a comprehensive comparison export
     if results["legacy"]["success_count"] > 0 and results["legacy"]["last_context"]:
         context = results["legacy"]["last_context"]
 
+        # Initialize topic manager for auto-tagging with shared LLM
+        topic_manager = TopicManager(llm=llm)
+
+        # Analyze and suggest topics
+        suggested_topics = []
+        suggested_domain = None
+        try:
+            topic_analysis = await topic_manager.analyze_and_suggest_topics(
+                query=query, agent_outputs=context.agent_outputs
+            )
+            suggested_topics = [s.topic for s in topic_analysis.suggested_topics]
+            suggested_domain = topic_analysis.suggested_domain
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                f"Topic analysis failed in comparison mode: {e}"
+            )
+
         # Export with enhanced metadata
         exporter = MarkdownExporter()
         md_path = exporter.export(
             agent_outputs=context.agent_outputs,
             question=query,
-            topics=[],  # Could enhance to extract topics
-            domain=None,
+            topics=suggested_topics,
+            domain=suggested_domain,
         )
         print(f"📄 Comparison results exported to: {md_path}")
 

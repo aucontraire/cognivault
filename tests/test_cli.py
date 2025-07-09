@@ -4,7 +4,7 @@ import pytest
 import json
 import tempfile
 import os
-from cognivault.cli import run as cli_main
+from cognivault.cli import run as cli_main, create_llm_instance
 from typer.testing import CliRunner
 from cognivault.cli import app
 
@@ -1013,3 +1013,258 @@ async def test_cli_execution_mode_with_export_trace_langgraph(tmp_path):
 
         assert trace_data["pipeline_id"] == "langgraph_export_123"
         assert trace_data["query"] == "test query"  # The query comes from the CLI call
+
+
+# Tests for new LLM instance creation and topic analysis functionality
+
+
+@patch("cognivault.cli.OpenAIConfig.load")
+@patch("cognivault.cli.OpenAIChatLLM")
+def test_create_llm_instance(mock_llm_class, mock_config_load):
+    """Test create_llm_instance function creates LLM with proper configuration."""
+    # Mock configuration
+    mock_config = Mock()
+    mock_config.api_key = "test-key"
+    mock_config.model = "gpt-4"
+    mock_config.base_url = "https://api.openai.com/v1"
+    mock_config_load.return_value = mock_config
+
+    # Mock LLM instance
+    mock_llm = Mock()
+    mock_llm_class.return_value = mock_llm
+
+    # Test function
+    result = create_llm_instance()
+
+    # Verify config was loaded
+    mock_config_load.assert_called_once()
+
+    # Verify LLM was created with correct parameters
+    mock_llm_class.assert_called_once_with(
+        api_key="test-key", model="gpt-4", base_url="https://api.openai.com/v1"
+    )
+
+    # Verify returned instance
+    assert result == mock_llm
+
+
+@pytest.mark.asyncio
+async def test_cli_topic_analysis_with_llm(capsys):
+    """Test that CLI passes LLM instance to TopicManager for topic analysis."""
+    fake_context = AgentContext(query="Democracy in Mexico and US")
+    fake_context.agent_outputs = {"Refiner": "Democracy analysis output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    # Mock LLM instance
+    mock_llm = Mock()
+
+    # Mock topic analysis result
+    mock_topic_analysis = Mock()
+    mock_topic_analysis.suggested_topics = [
+        Mock(topic="democracy"),
+        Mock(topic="politics"),
+        Mock(topic="government"),
+    ]
+    mock_topic_analysis.suggested_domain = "society"
+
+    # Mock TopicManager
+    mock_topic_manager = Mock()
+
+    # Create an async mock for analyze_and_suggest_topics
+    async def mock_analyze_topics(query, agent_outputs):
+        return mock_topic_analysis
+
+    mock_topic_manager.analyze_and_suggest_topics = mock_analyze_topics
+
+    with (
+        patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
+        patch(
+            "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+        ),
+        patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
+        patch(
+            "cognivault.store.wiki_adapter.MarkdownExporter.export",
+            return_value="test.md",
+        ),
+    ):
+        await cli_main(
+            "Democracy in Mexico and US",
+            agents="refiner",
+            log_level="INFO",
+            export_md=True,
+        )
+
+        # Verify TopicManager was initialized with LLM
+        from cognivault.cli import TopicManager
+
+        TopicManager.assert_called_once_with(llm=mock_llm)
+
+        captured = capsys.readouterr()
+        assert "🎯 Suggested domain: society" in captured.out
+        assert "🏷️  Suggested topics:" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_topic_analysis_error_handling(capsys):
+    """Test that CLI handles topic analysis errors gracefully."""
+    fake_context = AgentContext(query="Test query")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    # Mock LLM instance
+    mock_llm = Mock()
+
+    # Mock TopicManager that throws exception
+    mock_topic_manager = Mock()
+
+    # Create an async mock that throws exception
+    async def mock_analyze_topics_error(query, agent_outputs):
+        raise Exception("Topic analysis failed")
+
+    mock_topic_manager.analyze_and_suggest_topics = mock_analyze_topics_error
+
+    with (
+        patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
+        patch(
+            "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+        ),
+        patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
+        patch(
+            "cognivault.store.wiki_adapter.MarkdownExporter.export",
+            return_value="test.md",
+        ),
+    ):
+        await cli_main("Test query", agents="refiner", log_level="INFO", export_md=True)
+
+        # Should still export markdown even if topic analysis fails
+        captured = capsys.readouterr()
+        assert "📄 Markdown exported to:" in captured.out
+        # Should not crash, should handle gracefully
+
+
+@pytest.mark.asyncio
+async def test_cli_comparison_mode_with_llm_topic_analysis(capsys):
+    """Test that comparison mode uses LLM for topic analysis."""
+    fake_context = AgentContext(query="Test comparison query")
+    fake_context.agent_outputs = {"Refiner": "Comparison output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    # Mock LLM instance
+    mock_llm = Mock()
+
+    # Mock topic analysis result
+    mock_topic_analysis = Mock()
+    mock_topic_analysis.suggested_topics = [Mock(topic="test")]
+    mock_topic_analysis.suggested_domain = "technology"
+
+    # Mock TopicManager
+    mock_topic_manager = Mock()
+
+    # Create an async mock for analyze_and_suggest_topics
+    async def mock_analyze_topics(query, agent_outputs):
+        return mock_topic_analysis
+
+    mock_topic_manager.analyze_and_suggest_topics = mock_analyze_topics
+
+    # Mock comparison results
+    mock_results = {
+        "legacy": {
+            "success_count": 1,
+            "last_context": fake_context,
+            "execution_times": [1.0],
+            "memory_usage": [100.0],
+            "context_sizes": [1024],
+            "agent_counts": [1],
+            "error_count": 0,
+            "errors": [],
+        },
+        "langgraph": {
+            "success_count": 1,
+            "last_context": fake_context,
+            "execution_times": [1.2],
+            "memory_usage": [120.0],
+            "context_sizes": [1024],
+            "agent_counts": [1],
+            "error_count": 0,
+            "errors": [],
+        },
+    }
+
+    with (
+        patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
+        patch("cognivault.orchestrator.AgentOrchestrator", return_value=Mock()),
+        patch(
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator",
+            return_value=Mock(),
+        ),
+        patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
+        patch(
+            "cognivault.store.wiki_adapter.MarkdownExporter.export",
+            return_value="test.md",
+        ),
+    ):
+        # Mock the actual orchestrator runs
+        with (
+            patch(
+                "cognivault.orchestrator.AgentOrchestrator.run",
+                return_value=fake_context,
+            ),
+            patch(
+                "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+                return_value=fake_context,
+            ),
+        ):
+            await cli_main(
+                "Test comparison query",
+                agents="refiner",
+                log_level="INFO",
+                export_md=True,
+                compare_modes=True,
+            )
+
+            # Should call TopicManager with LLM in comparison mode
+            # (This is called in _export_comparison_results)
+            captured = capsys.readouterr()
+            assert "🔄" in captured.out  # Comparison mode indicator
+            assert "Performance Benchmark Results" in captured.out
+
+
+@pytest.mark.asyncio
+async def test_cli_topic_analysis_without_export_md(capsys):
+    """Test that topic analysis is only run when export_md is True."""
+    fake_context = AgentContext(query="Test query")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.successful_agents = {"Refiner"}
+    fake_context.failed_agents = set()
+
+    # Mock LLM instance
+    mock_llm = Mock()
+
+    # Mock TopicManager - should not be called
+    mock_topic_manager = Mock()
+
+    with (
+        patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
+        patch(
+            "cognivault.orchestrator.AgentOrchestrator.run", return_value=fake_context
+        ),
+        patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
+    ):
+        await cli_main(
+            "Test query",
+            agents="refiner",
+            log_level="INFO",
+            export_md=False,  # Topic analysis should not run
+        )
+
+        # TopicManager should not be instantiated
+        from cognivault.cli import TopicManager
+
+        TopicManager.assert_not_called()
+
+        captured = capsys.readouterr()
+        assert "🧠 Refiner:" in captured.out
+        assert "📄 Markdown exported to:" not in captured.out  # No export

@@ -747,6 +747,64 @@ class TestTopicTaxonomy:
         # Should not overlap between domains
         assert not set(tech_related).intersection(set(psych_related))
 
+    def test_society_domain_exists(self):
+        """Test that society domain exists in TopicTaxonomy."""
+        assert "society" in TopicTaxonomy.DOMAINS
+        assert len(TopicTaxonomy.DOMAINS["society"]) > 0
+
+    def test_society_domain_democracy_terms(self):
+        """Test that society domain includes democracy-related terms."""
+        society_topics = TopicTaxonomy.DOMAINS["society"]
+
+        # Check for democracy-related terms
+        assert "democracy" in society_topics
+        assert "politics" in society_topics
+        assert "government" in society_topics
+        assert "elections" in society_topics
+        assert "voting" in society_topics
+        assert "citizenship" in society_topics
+        assert "political" in society_topics
+
+    def test_society_domain_suggestion_with_democracy(self):
+        """Test that democracy topics suggest society domain."""
+        democracy_topics = ["democracy", "politics", "voting"]
+        suggested = TopicTaxonomy.suggest_domain(democracy_topics)
+
+        assert suggested == "society"
+
+    def test_society_domain_suggestion_mixed_topics(self):
+        """Test domain suggestion with mixed society and other topics."""
+        mixed_topics = ["democracy", "ai", "politics"]
+        suggested = TopicTaxonomy.suggest_domain(mixed_topics)
+
+        # Should return whichever domain has more matches
+        # Both society and technology have 1 match each, so it depends on implementation
+        assert suggested in ["society", "technology"]
+
+    def test_society_domain_related_topics(self):
+        """Test getting related topics for society domain terms."""
+        politics_related = TopicTaxonomy.get_related_topics("politics")
+
+        # Should include other society domain topics
+        assert "democracy" in politics_related
+        assert "government" in politics_related
+        assert "elections" in politics_related
+
+        # Should not include the original topic
+        assert "politics" not in politics_related
+
+    def test_society_domain_case_insensitive(self):
+        """Test that society domain matching is case insensitive."""
+        topics_lower = ["democracy", "politics"]
+        topics_upper = ["DEMOCRACY", "POLITICS"]
+        topics_mixed = ["Democracy", "Politics"]
+
+        suggested_lower = TopicTaxonomy.suggest_domain(topics_lower)
+        suggested_upper = TopicTaxonomy.suggest_domain(topics_upper)
+        suggested_mixed = TopicTaxonomy.suggest_domain(topics_mixed)
+
+        assert suggested_lower == suggested_upper == suggested_mixed == "society"
+
 
 class TestFrontmatterIntegration:
     """Test integration scenarios with frontmatter components."""

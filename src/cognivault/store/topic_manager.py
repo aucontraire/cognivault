@@ -384,6 +384,36 @@ class TopicMapper:
                 "genre",
                 "interpretation",
             },
+            "society": {
+                "politics",
+                "economics",
+                "culture",
+                "education",
+                "democracy",
+                "government",
+                "elections",
+                "policy",
+                "voting",
+                "citizenship",
+                "political",
+                "social",
+                "community",
+                "public",
+                "national",
+                "international",
+                "global",
+                "reform",
+                "institution",
+                "system",
+                "governance",
+                "administration",
+                "legislation",
+                "constitution",
+                "freedom",
+                "rights",
+                "law",
+                "justice",
+            },
         }
 
     def map_terms_to_topics(
@@ -410,7 +440,7 @@ class TopicMapper:
                     )
                     suggestions.append(suggestion)
 
-        # Add domain-based suggestions
+        # Add domain-based suggestions - ensure we always have at least one
         if domain_scores:
             top_domain = domain_scores.most_common(1)[0][0]
             domain_suggestion = TopicSuggestion(
@@ -421,6 +451,20 @@ class TopicMapper:
                 related_terms=list(self.domain_keywords[top_domain])[:5],
             )
             suggestions.append(domain_suggestion)
+        else:
+            # Fallback: add generic topic suggestions based on high-frequency terms
+            for term, frequency in terms[:5]:  # Top 5 terms
+                if len(term) > 3:  # Skip very short terms
+                    suggestion = TopicSuggestion(
+                        topic=term,
+                        confidence=min(
+                            0.6, frequency / 15.0
+                        ),  # Lower confidence for fallback
+                        source="keyword_extraction",
+                        reasoning=f"High-frequency term ({frequency} occurrences) - fallback topic",
+                        related_terms=[],
+                    )
+                    suggestions.append(suggestion)
 
         return suggestions
 
@@ -638,11 +682,19 @@ class TopicManager:
         """Suggest primary domain based on topic analysis."""
         domain_scores: Dict[str, float] = {}
 
+        # Score domains based on all suggestions, not just domain_mapping
         for suggestion in suggestions:
             if suggestion.source == "domain_mapping":
                 domain_scores[suggestion.topic] = (
                     domain_scores.get(suggestion.topic, 0.0) + suggestion.confidence * 2
                 )
+            elif suggestion.source == "keyword_extraction":
+                # Check if this topic matches any domain keywords
+                for domain, keywords in self.topic_mapper.domain_keywords.items():
+                    if any(keyword in suggestion.topic.lower() for keyword in keywords):
+                        domain_scores[domain] = (
+                            domain_scores.get(domain, 0.0) + suggestion.confidence * 0.5
+                        )
 
         # Also use TopicTaxonomy
         topic_list = [s.topic for s in suggestions]
@@ -651,6 +703,13 @@ class TopicManager:
             domain_scores[taxonomy_domain] = (
                 domain_scores.get(taxonomy_domain, 0.0) + 1.0
             )
+
+        # If no domains found, try to infer from key terms directly
+        if not domain_scores:
+            for term in key_terms[:10]:  # Check top 10 terms
+                for domain, keywords in self.topic_mapper.domain_keywords.items():
+                    if any(keyword in term.lower() for keyword in keywords):
+                        domain_scores[domain] = domain_scores.get(domain, 0.0) + 0.3
 
         return (
             max(domain_scores, key=lambda x: domain_scores[x])
