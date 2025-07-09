@@ -412,6 +412,9 @@ class TestDiagnosticsManager:
             ),
         }
 
+        # Reset metrics collector to ensure clean state
+        self.manager.metrics_collector.reset_metrics()
+
         # Add some realistic metrics data
         self.manager.metrics_collector.record_agent_execution(
             "refiner", True, 120.0, tokens_used=100
