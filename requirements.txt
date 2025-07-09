@@ -7,6 +7,11 @@ typer[all]
 pydantic>=2.0
 
 # ===========================
+# LangGraph Integration
+# ===========================
+langgraph==0.5.1           # Pinned for Phase 1 stability - real LangGraph DAG execution
+
+# ===========================
 # Async Backends
 # ===========================
 trio>=0.24.0
