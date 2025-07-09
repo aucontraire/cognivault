@@ -30,6 +30,7 @@ from cognivault.store.topic_manager import TopicManager
 from cognivault.llm.openai import OpenAIChatLLM
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.diagnostics.cli import app as diagnostics_app
+from cognivault.diagnostics.visualize_dag import cli_visualize_dag
 
 app = typer.Typer()
 
@@ -105,6 +106,7 @@ async def run(
     execution_mode: str = "legacy",
     compare_modes: bool = False,
     benchmark_runs: int = 1,
+    visualize_dag: Optional[str] = None,
 ):
     cli_name = "CLI"
     # Configure logging based on CLI-provided level
@@ -126,6 +128,38 @@ async def run(
         f"[{cli_name}] Agents to run: %s",
         agents_to_run if agents_to_run else "All agents",
     )
+
+    # Handle DAG visualization (can be used with any execution mode)
+    if visualize_dag:
+        # Use specified agents or default for visualization
+        dag_agents = agents_to_run if agents_to_run else None
+
+        # For Phase 2.0, filter out unsupported agents like historian
+        if dag_agents:
+            # Filter to supported agents for Phase 2.0
+            supported_agents = {"refiner", "critic", "synthesis"}
+            dag_agents = [
+                agent for agent in dag_agents if agent.lower() in supported_agents
+            ]
+
+        try:
+            cli_visualize_dag(
+                agents=dag_agents,
+                output=visualize_dag,
+                version="Phase 2.0",
+                show_state_flow=True,
+                show_details=True,
+            )
+            console.print(
+                f"[green]✅ DAG visualization output to: {visualize_dag}[/green]"
+            )
+        except Exception as e:
+            console.print(f"[red]❌ DAG visualization failed: {e}[/red]")
+            logger.error(f"DAG visualization error: {e}")
+
+        # If only visualization was requested (no query execution), exit
+        if not query or query.strip() == "":
+            return
 
     # Validate execution mode
     if execution_mode not in ["legacy", "langgraph", "langgraph-real"]:
@@ -300,6 +334,11 @@ def main(
         "--benchmark-runs",
         help="Number of runs for benchmarking (used with --compare-modes for statistical accuracy)",
     ),
+    visualize_dag: str = typer.Option(
+        None,
+        "--visualize-dag",
+        help="Visualize the DAG structure: 'stdout' for console output, or filepath (e.g., 'dag.md') for file output",
+    ),
 ):
     """
     Run Cognivault agents based on the provided query and options.
@@ -329,6 +368,7 @@ def main(
             execution_mode,
             compare_modes,
             benchmark_runs,
+            visualize_dag,
         )
     )
 

@@ -8,72 +8,6 @@
 
 CogniVault is a modular, CLI-based multi-agent assistant designed to help you reflect, refine, and organize your thoughts through structured dialogue and cumulative insight. It simulates a memory-augmented thinking partner, enabling long-term knowledge building across multiple agent perspectives.
 
-## 🎯 Recent Achievements
-
-**LangGraph-Ready Foundation Complete** - CogniVault now features enterprise-grade error handling and state management designed for seamless future migration to LangGraph DAG-based orchestration:
-
-✅ **Issue 1: Exception Package & Trace-Ready Hierarchy** - 100% Complete  
-- Comprehensive `src/cognivault/exceptions/` package with organized modules
-- Structured exception hierarchy with LangGraph-compatible error routing  
-- Trace-compatible metadata (step_id, agent_id, timestamp) for all operations
-- Agent boundary isolation and error severity classification
-
-✅ **Issue 2: Agent-Level Error Handling & Node-Ready Design** - 100% Complete  
-- Agent-isolated error boundaries with retry logic moved into individual agents
-- Configurable retry policies and circuit breakers per agent type
-- OpenAI-specific error mapping with comprehensive LLM exception handling
-- Agent execution tracing with structured metadata for DAG compatibility
-
-✅ **Issue 3: Context State Management & Reversible Transitions** - 100% Complete  
-- Enhanced context system with reversible state transitions via snapshots
-- Agent-isolated context mutations preventing shared global state issues
-- Structured trace schema as sidecar context field
-- Execution flow tracking with node_id and edge metadata
-
-✅ **Issue 4: Failure Propagation & Conditional Execution Semantics** - 100% Complete  
-- LangGraph-compatible failure propagation strategies (FAIL_FAST, WARN_CONTINUE, CONDITIONAL_FALLBACK, GRACEFUL_DEGRADATION)
-- Agent dependency resolution with topological sorting and circular dependency detection
-- Health check validation system with graceful degradation for non-critical agents
-- Execution path tracing with edge metadata for future LangGraph DAG migration
-- Conditional routing decision recording and alternative path tracking
-
-**Test Coverage Achievement**: Improved from 86% → 89% (+3 percentage points) with **1,239 tests passing** and all critical modules at 98-100% coverage.
-
-✅ **Issue 5: CLI Observability & Diagnostics** - 100% Complete  
-- Enterprise-grade structured logging with automatic correlation ID tracking
-- Real-time performance metrics collection and aggregation system
-- Comprehensive health checking for all system components
-- Rich CLI diagnostics interface with beautiful console output and multiple export formats
-- Machine-readable output integration (JSON, CSV, Prometheus, InfluxDB) for monitoring ecosystems
-- Thread-safe observability context and metrics collection for production reliability
-- **Enhanced CLI Flags**: `--trace`, `--health-check`, `--dry-run`, and `--export-trace` for comprehensive pipeline observability
-
-✅ **Issue 6: LangGraph Compatibility Layer** - 100% Complete  
-- LangGraph-compatible `invoke()` method interface for all agents with proper type signatures
-- Complete node metadata system with input/output schemas and dependency declarations
-- Node type classification (PROCESSOR, DECISION, TERMINATOR, AGGREGATOR) for graph construction
-- Graph builder infrastructure with DAG validation, cycle detection, and edge routing
-- Graph executor with proper dependency resolution and execution ordering
-- Dictionary serialization for seamless integration with LangGraph graph builders
-- Full backward compatibility with existing agent architecture and CLI workflows
-
-✅ **Issue 6.5: Enhanced Historian & Synthesis Agents** - 100% Complete
-- **Multi-Strategy Search System**: Tag-based, keyword (TF-IDF), and hybrid search for historical notes
-- **LLM-Powered Historian**: Intelligent relevance analysis and historical context synthesis
-- **Advanced Synthesis Agent**: Thematic analysis, conflict resolution, and meta-insights generation
-- **Enhanced Frontmatter Schema**: Rich metadata with agent status, confidence, topics, and domains
-- **Wiki-Ready Output**: Professional markdown formatting with structured headers and metadata
-- **177 Comprehensive Tests**: Complete test coverage for all enhanced functionality with mock LLM integration
-
-✅ **Issue 7: Dual Execution Orchestrators & Performance Benchmarking** - 100% Complete
-- **LangGraph Execution Mode**: Full `LangGraphOrchestrator` implementation with DAG-based execution
-- **Hybrid CLI Interface**: `--execution-mode` flag supporting both legacy and langgraph modes
-- **Side-by-Side Comparison**: `--compare-modes` flag for performance validation and testing
-- **Statistical Benchmarking**: `--benchmark-runs` with timing analysis, memory tracking, and success rate metrics
-- **Comprehensive Testing**: Complete test coverage for both orchestrators and comparison functionality
-- **Production-Ready**: Memory usage monitoring, error handling, and export capabilities
-
----
 
 ## ⚡ Quickstart
 
@@ -94,9 +28,9 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 
 - ✅ **Fully working CLI** using [Typer](https://typer.tiangolo.com/)
 - 🧠 **Multi-agent orchestration**: Refiner, Historian, Critic, Synthesis
-- 🔁 **Orchestrator pipeline** supports dynamic agent control
+- 🔁 **Dual execution orchestrators**: Legacy sequential and LangGraph DAG-based execution modes
 - 📄 **Markdown-ready output** for integration with personal wikis
-- 🧪 **Full test suite** with `pytest` for all core components (98% coverage)
+- 🧪 **Full test suite** with `pytest` for all core components (89% coverage with 1,517 tests)
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
 - 📋 **Agent Registry**: Dynamic agent registration system for extensible architecture
 - ⚙️ **Configuration Management**: Centralized configuration system with environment variables and JSON file support
@@ -117,6 +51,11 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔗 **LangGraph Compatibility**: Complete DAG-ready architecture with node interfaces, graph builders, and execution engines
 - 🧩 **Node Metadata System**: Comprehensive agent metadata with input/output schemas and dependency declarations
 - 📊 **Graph Infrastructure**: DAG validation, cycle detection, edge routing, and execution ordering for LangGraph integration
+- 🎯 **Production LangGraph Integration**: Real StateGraph orchestration with `--execution-mode=langgraph-real`
+- 🌊 **TypedDict State Management**: Type-safe state schemas for all agent outputs with mypy compliance
+- 🔧 **Circuit Breaker Node Patterns**: Robust node execution with configurable failure thresholds
+- 📊 **DAG Visualization**: Mermaid diagram generation with `--visualize-dag` for pipeline analysis
+- 🔀 **Performance Comparison**: Statistical benchmarking between execution modes with `--compare-modes`
 
 ---
 
@@ -159,7 +98,8 @@ src/
 │   │   ├── diagnostics.py
 │   │   ├── formatters.py
 │   │   ├── health.py
-│   │   └── metrics.py
+│   │   ├── metrics.py
+│   │   └── visualize_dag.py
 │   ├── docs/
 │   │   ├── ARCHITECTURE.md
 │   │   ├── FEEDBACK.md
@@ -168,8 +108,16 @@ src/
 │   │   └── RESEARCH.md
 │   ├── langraph/
 │   │   ├── __init__.py
+│   │   ├── adapter.py
 │   │   ├── graph_builder.py
-│   │   └── routing.py
+│   │   ├── langgraph_install.py
+│   │   ├── node_wrappers.py
+│   │   ├── orchestrator.py
+│   │   ├── prototype_dag.py
+│   │   ├── real_orchestrator.py
+│   │   ├── routing.py
+│   │   ├── state_bridge.py
+│   │   └── state_schemas.py
 │   ├── exceptions/
 │   │   ├── __init__.py
 │   │   ├── agent_errors.py
@@ -239,7 +187,8 @@ tests/
 │   ├── test_diagnostics.py
 │   ├── test_formatters.py
 │   ├── test_health.py
-│   └── test_metrics.py
+│   ├── test_metrics.py
+│   └── test_visualize_dag.py
 ├── exceptions/
 │   ├── __init__.py
 │   ├── test_agent_errors.py
@@ -252,8 +201,16 @@ tests/
 │   └── test_orchestration_errors_fixed.py
 ├── langraph/
 │   ├── __init__.py
+│   ├── test_adapter.py
 │   ├── test_graph_builder.py
-│   └── test_routing.py
+│   ├── test_langgraph_install.py
+│   ├── test_node_wrappers.py
+│   ├── test_orchestrator.py
+│   ├── test_prototype_dag.py
+│   ├── test_real_orchestrator.py
+│   ├── test_routing.py
+│   ├── test_state_bridge.py
+│   └── test_state_schemas.py
 ├── llm/
 │   ├── __init__.py
 │   ├── test_factory.py
@@ -272,6 +229,10 @@ tests/
 ├── utils/
 │   ├── __init__.py
 │   └── test_versioning.py
+├── cli/
+│   ├── __init__.py
+│   ├── test_cli_langgraph_integration.py
+│   └── test_cli_langgraph_real.py
 ├── test_cli.py
 ├── test_context.py
 ├── test_context_enhanced.py
@@ -939,7 +900,7 @@ make run QUESTION="Performance test" TRACE=1 EXPORT_TRACE=/tmp/perf_$(date +%s).
 
 ### 🚀 Execution Modes & Performance Comparison
 
-CogniVault supports two execution modes with comprehensive performance comparison capabilities:
+CogniVault supports multiple execution modes with comprehensive performance comparison capabilities:
 
 #### Execution Modes
 
@@ -951,6 +912,11 @@ make run QUESTION="Your question" EXECUTION_MODE=legacy
 **LangGraph Mode**: Uses `LangGraphOrchestrator` with DAG-based execution and advanced state management
 ```bash
 make run QUESTION="Your question" EXECUTION_MODE=langgraph
+```
+
+**LangGraph Real Mode**: Uses production `RealLangGraphOrchestrator` with real LangGraph 0.5.1 StateGraph integration
+```bash
+make run QUESTION="Your question" EXECUTION_MODE=langgraph-real
 ```
 
 #### Performance Comparison
@@ -989,6 +955,38 @@ Example output:
 │ Avg Context Size   │   622 bytes │      460 bytes │       +162 bytes │
 └────────────────────┴─────────────┴────────────────┴──────────────────┘
 ```
+
+### 📊 DAG Visualization
+
+CogniVault provides advanced DAG visualization capabilities using Mermaid diagrams:
+
+#### Basic DAG Visualization
+```bash
+# Output to stdout
+make run QUESTION="Your question" VISUALIZE_DAG=stdout
+
+# Output to file
+make run QUESTION="Your question" VISUALIZE_DAG=dag.md
+
+# Visualization only (no execution)
+make run QUESTION="" VISUALIZE_DAG=stdout
+```
+
+#### Combined with Execution Modes
+```bash
+# Visualize LangGraph real mode execution
+make run QUESTION="Your question" EXECUTION_MODE=langgraph-real VISUALIZE_DAG=stdout
+
+# Visualize specific agents
+make run QUESTION="Your question" AGENTS=refiner,critic VISUALIZE_DAG=stdout
+```
+
+The visualization generates professional Mermaid diagrams showing:
+- **Agent Dependencies**: Visual representation of agent execution order
+- **State Flow**: How data flows between agents via TypedDict states
+- **Node Metadata**: Agent types, confidence levels, and execution status
+- **Execution Path**: Visual trace of actual execution flow
+- **Phase Compatibility**: Automatic filtering for supported agents
 
 ---
 
@@ -1127,7 +1125,9 @@ Covers:
 - Agent-level resilience with circuit breakers and retry logic
 - OpenAI LLM integration with extensive error mapping
 - Comprehensive observability and diagnostics testing
-- 89% test coverage across all modules with critical paths at 100%
+- **LangGraph Phase 2.0 Integration**: Real StateGraph orchestration, TypedDict state management, and DAG visualization
+- **356 new Phase 2.0 tests** covering state schemas, node wrappers, real orchestrator, and CLI integration
+- 89% test coverage across all modules with critical paths at 100% (1,517 total tests)
 - Both Refiner and Critic agents include comprehensive system prompt tests to ensure prompt correctness and robustness
 
 Use the batch test tools for agent evaluation:  
@@ -1214,7 +1214,13 @@ It’s designed as a memory-enhanced thinking partner that integrates cleanly wi
 
 - [x] Agent toggles via CLI (`--agents=name1,name2`)
 - [x] Asynchronous agent execution
-- [ ] Markdown exporter for wiki integration
+- [x] **LangGraph Phase 2.0**: Real StateGraph integration with production orchestration
+- [x] **DAG Visualization**: Mermaid diagram generation for pipeline analysis
+- [x] **Performance Comparison**: Statistical benchmarking between execution modes
+- [x] **TypedDict State Management**: Type-safe state schemas with mypy compliance
+- [x] **Circuit Breaker Patterns**: Robust error handling and resilience
+- [x] Markdown exporter for wiki integration
+- [ ] **LangGraph Phase 3.0**: Historian integration and conditional routing
 - [ ] Optional file/vector store persistence
 - [ ] API or microservice agent wrappers (e.g. FastAPI)
 - [ ] Streamlit UI or Jupyter notebook support
