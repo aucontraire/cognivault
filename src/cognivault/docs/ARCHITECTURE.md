@@ -18,23 +18,47 @@ CogniVault is a modular, agent-driven platform designed to process, refine, crit
 
 ## 🧩 Key Components
 
-### 1. **AgentOrchestrator**
-Coordinates execution of all registered agents (e.g. Refiner, Critic, Historian, Synthesis). Handles retry logic, timeouts, and tracing.
+### 1. **Dual Execution Orchestrators**
+CogniVault provides two orchestration modes for maximum flexibility:
 
-### 2. **Agents**
-Encapsulated logic units that operate on `AgentContext`. Each agent implements a `run()` method and writes its output to the shared context.
+**AgentOrchestrator (Legacy)**
+- Sequential/parallel execution with dependency management
+- Retry logic, timeouts, and comprehensive tracing
+- Backward compatibility with existing workflows
 
-- `RefinerAgent`: Transforms a query into a structured note using an LLM
-- `CriticAgent`: Provides critique on existing agent output
-- `HistorianAgent`: Pulls contextually related knowledge (stubbed)
-- `SynthesisAgent`: Generates final synthesis from multiple outputs
+**RealLangGraphOrchestrator (Phase 2.1)**
+- DAG-based execution with true parallel processing
+- Concurrent state updates using Annotated types with operator.add reducers
+- Advanced error recovery and circuit breaker patterns
+- Parallel execution flow: Refiner → [Critic, Historian] → Synthesis
 
-### 3. **AgentContext**
-A Pydantic-based container that stores:
-- The user query
-- Agent outputs
-- Config state
-- Trace logs
+### 2. **Enhanced Agent System**
+Four-agent pipeline with sophisticated LLM-powered capabilities:
+
+- `RefinerAgent`: Query refinement and structured analysis using LLM
+- `CriticAgent`: Critical evaluation and improvement suggestions
+- `HistorianAgent`: **[Phase 2.1]** Intelligent historical context retrieval with multi-strategy search
+- `SynthesisAgent`: Advanced thematic analysis and conflict resolution for wiki-ready output
+
+**Key Phase 2.1 Enhancements:**
+- Parallel execution of Critic and Historian agents for improved performance
+- LangGraph-compatible concurrent state updates with partial state returns
+- Circuit breaker patterns for enhanced resilience
+- Comprehensive metadata tracking for all agent outputs
+
+### 3. **Enhanced Context Management**
+**AgentContext** - A Pydantic-based container with advanced state management:
+- The user query and execution metadata
+- Agent outputs with both legacy and LangGraph-compatible formats
+- Config state and comprehensive tracing
+- Size monitoring and compression for large contexts
+- Snapshot/rollback capabilities for complex workflows
+
+**CogniVaultState** - **[Phase 2.1]** TypedDict for LangGraph integration:
+- Type-safe state schemas with mypy compliance
+- Concurrent state updates using Annotated types with operator.add reducers
+- Partial state returns for optimized LangGraph execution
+- Comprehensive agent output schemas (RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutput)
 
 ### 4. **LLM Interface**
 A strategy abstraction defined by `LLMInterface`, implemented by:
@@ -49,14 +73,28 @@ A strategy abstraction defined by `LLMInterface`, implemented by:
 The entrypoint for executing agent workflows via the command line.
 Supports flags for agent selection, log level, and Markdown export.
 
-### 7. **LangGraph Compatibility Layer**
-A complete DAG-ready architecture that provides LangGraph compatibility while maintaining backward compatibility:
+### 7. **Production LangGraph Integration**
+**[Phase 2.1]** Complete LangGraph 0.5.1 integration with real StateGraph orchestration:
 
-- `BaseAgent.invoke()`: LangGraph-compatible node interface
-- `LangGraphNodeDefinition`: Comprehensive node metadata with input/output schemas
-- `GraphBuilder`: DAG construction with dependency resolution and validation
-- `GraphExecutor`: Execution engine with proper ordering and error handling
-- Node type classification: PROCESSOR, DECISION, TERMINATOR, AGGREGATOR
+**Core LangGraph Components:**
+- `RealLangGraphOrchestrator`: Production StateGraph execution with memory checkpointing
+- `CogniVaultState`: Type-safe TypedDict schemas with comprehensive agent output definitions
+- `AgentContextStateBridge`: Seamless conversion between AgentContext and LangGraph state
+- Node wrapper functions with circuit breaker patterns and comprehensive metrics
+
+**Advanced Features:**
+- **Concurrent State Updates**: Solved LangGraph INVALID_CONCURRENT_GRAPH_UPDATE using Annotated types with operator.add reducers
+- **Partial State Returns**: Optimized node execution with partial state updates for parallel processing
+- **DAG Visualization**: Mermaid diagram generation showing parallel execution structure
+- **Performance Comparison**: Statistical benchmarking between legacy and LangGraph execution modes
+
+**Phase 2.1 Execution Flow:**
+```
+START → Refiner → [Critic, Historian] → Synthesis → END
+```
+- Refiner processes the initial query
+- Critic and Historian execute in parallel with concurrent state updates
+- Synthesis integrates all outputs for final analysis
 
 ---
 
@@ -139,7 +177,10 @@ LangGraph 0.5.1 was chosen for Phase 1 development because:
 - ✅ Advanced context management with snapshots and compression
 - ✅ Comprehensive observability and diagnostics system
 - ✅ **LangGraph Compatibility Layer** - Complete DAG-ready architecture
-- 🔜 Historian and Synthesis agent implementation as LangGraph nodes
+- ✅ **[Phase 2.1]** Production LangGraph Integration with StateGraph orchestration
+- ✅ **[Phase 2.1]** Historian agent implementation with parallel execution
+- ✅ **[Phase 2.1]** Concurrent state updates with Annotated types and operator.add reducers
+- ✅ **[Phase 2.1]** Comprehensive test coverage (>90%) for all LangGraph components
 - 🔜 Web frontend and storage persistence layer
 
 ---

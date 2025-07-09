@@ -1,8 +1,8 @@
 """Tests for LangGraph state schemas."""
 
 import pytest
-from datetime import datetime
-from typing import Dict, Any
+from datetime import datetime, timezone
+from typing import Dict, Any, cast
 
 from cognivault.langraph.state_schemas import (
     CogniVaultState,
@@ -99,17 +99,22 @@ class TestTypeDefinitions:
             "execution_id": "exec-123",
             "start_time": "2023-01-01T00:00:00",
             "orchestrator_type": "langgraph-real",
-            "agents_requested": ["refiner", "critic", "synthesis"],
+            "agents_requested": ["refiner", "critic", "historian", "synthesis"],
             "execution_mode": "langgraph-real",
-            "phase": "phase2_0",
+            "phase": "phase2_1",
         }
 
         assert metadata["execution_id"] == "exec-123"
         assert metadata["start_time"] == "2023-01-01T00:00:00"
         assert metadata["orchestrator_type"] == "langgraph-real"
-        assert metadata["agents_requested"] == ["refiner", "critic", "synthesis"]
+        assert metadata["agents_requested"] == [
+            "refiner",
+            "critic",
+            "historian",
+            "synthesis",
+        ]
         assert metadata["execution_mode"] == "langgraph-real"
-        assert metadata["phase"] == "phase2_0"
+        assert metadata["phase"] == "phase2_1"
 
     def test_cognivault_state_schema(self) -> None:
         """Test CogniVaultState schema structure."""
@@ -117,6 +122,7 @@ class TestTypeDefinitions:
             "query": "What is AI?",
             "refiner": None,
             "critic": None,
+            "historian": None,
             "synthesis": None,
             "execution_metadata": {
                 "execution_id": "exec-123",
@@ -134,6 +140,7 @@ class TestTypeDefinitions:
         assert state["query"] == "What is AI?"
         assert state["refiner"] is None
         assert state["critic"] is None
+        assert state["historian"] is None
         assert state["synthesis"] is None
         assert state["execution_metadata"]["execution_id"] == "exec-123"
         assert state["errors"] == []
@@ -158,16 +165,18 @@ class TestCreateInitialState:
         assert state["query"] == query
         assert state["refiner"] is None
         assert state["critic"] is None
+        assert state["historian"] is None
         assert state["synthesis"] is None
         assert state["execution_metadata"]["execution_id"] == execution_id
         assert state["execution_metadata"]["orchestrator_type"] == "langgraph-real"
         assert state["execution_metadata"]["agents_requested"] == [
             "refiner",
             "critic",
+            "historian",
             "synthesis",
         ]
         assert state["execution_metadata"]["execution_mode"] == "langgraph-real"
-        assert state["execution_metadata"]["phase"] == "phase2_0"
+        assert state["execution_metadata"]["phase"] == "phase2_1"
         assert state["errors"] == []
         assert state["successful_agents"] == []
         assert state["failed_agents"] == []
@@ -181,7 +190,7 @@ class TestCreateInitialState:
 
         # Check that timestamp is recent (within last minute)
         start_time = datetime.fromisoformat(state["execution_metadata"]["start_time"])
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         time_diff = (now - start_time).total_seconds()
         assert time_diff < 60  # Within last minute
 
@@ -642,7 +651,7 @@ class TestIntegration:
             "topics": ["AI", "technology"],
             "confidence": 0.9,
             "processing_notes": "Expanded abbreviation",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         state = set_agent_output(state, "refiner", refiner_output)
 
@@ -658,7 +667,7 @@ class TestIntegration:
             "strengths": ["Clear terminology"],
             "weaknesses": ["Could be more specific"],
             "confidence": 0.8,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         state = set_agent_output(state, "critic", critic_output)
 
@@ -675,7 +684,7 @@ class TestIntegration:
             "conflicts_resolved": 0,
             "confidence": 0.85,
             "metadata": {"complexity": "moderate"},
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         state = set_agent_output(state, "synthesis", synthesis_output)
 
@@ -700,7 +709,7 @@ class TestIntegration:
             "topics": ["complex"],
             "confidence": 0.7,
             "processing_notes": None,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         state = set_agent_output(state, "refiner", refiner_output)
 
@@ -717,7 +726,7 @@ class TestIntegration:
             "conflicts_resolved": 0,
             "confidence": 0.6,
             "metadata": {"critic_failed": True},
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         state = set_agent_output(state, "synthesis", synthesis_output)
 
@@ -740,7 +749,7 @@ class TestIntegration:
             "topics": ["types"],
             "confidence": 0.9,
             "processing_notes": None,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         state = set_agent_output(state, "refiner", refiner_output)
@@ -749,8 +758,6 @@ class TestIntegration:
         # Verify type consistency
         assert isinstance(retrieved_output, dict)
         assert retrieved_output is not None
-        # Type cast for mypy to understand this is a RefinerOutput
-        from typing import cast
 
         refiner_result = cast(RefinerOutput, retrieved_output)
         assert refiner_result["refined_question"] == "Type test refined"

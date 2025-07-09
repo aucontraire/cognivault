@@ -19,7 +19,7 @@ Design Principles:
 import asyncio
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from functools import wraps
 
@@ -31,6 +31,7 @@ from cognivault.langraph.state_schemas import (
     CogniVaultState,
     RefinerOutput,
     CriticOutput,
+    HistorianOutput,
     SynthesisOutput,
     set_agent_output,
     record_agent_error,
@@ -199,10 +200,12 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
     """
     Convert LangGraph state to AgentContext for agent execution.
 
+    Handles both complete and partial state objects gracefully.
+
     Parameters
     ----------
     state : CogniVaultState
-        Current LangGraph state
+        Current LangGraph state (may be partial)
 
     Returns
     -------
@@ -211,8 +214,12 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
     """
     bridge = AgentContextStateBridge()
 
-    # Create AgentContext from query
-    context = AgentContext(query=state["query"])
+    # Create AgentContext from query - handle partial state
+    query = state.get("query", "")
+    if "query" not in state:
+        raise ValueError("State must contain a query field")
+
+    context = AgentContext(query=query)
 
     # Add any existing agent outputs to context with proper keys
     if state.get("refiner"):
@@ -255,22 +262,60 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
             else:
                 logger.warning("Critic output found in state but critique is empty")
 
-    # Add execution metadata
-    context.execution_state.update(
-        {
-            "execution_id": state["execution_metadata"]["execution_id"],
-            "orchestrator_type": "langgraph-real",
-            "successful_agents": state["successful_agents"].copy(),
-            "failed_agents": state["failed_agents"].copy(),
-        }
-    )
+    if state.get("historian"):
+        historian_output: Optional[HistorianOutput] = state["historian"]
+        if historian_output is not None:
+            historical_summary = historian_output.get("historical_summary", "")
+            # Add with both 'historian' and 'Historian' keys for compatibility
+            if historical_summary:
+                context.add_agent_output("historian", historical_summary)
+                context.add_agent_output("Historian", historical_summary)
+                context.execution_state["historian_retrieved_notes"] = (
+                    historian_output.get("retrieved_notes", [])
+                )
+                context.execution_state["historian_search_strategy"] = (
+                    historian_output.get("search_strategy", "hybrid")
+                )
+                context.execution_state["historian_topics_found"] = (
+                    historian_output.get("topics_found", [])
+                )
+                context.execution_state["historian_confidence"] = historian_output.get(
+                    "confidence", 0.8
+                )
+                logger.info(
+                    f"Added historian output to context: {historical_summary[:100]}..."
+                )
+            else:
+                logger.warning(
+                    "Historian output found in state but historical_summary is empty"
+                )
+
+    # Add execution metadata - handle partial state
+    execution_metadata = state.get("execution_metadata", {})
+    if execution_metadata:
+        context.execution_state.update(
+            {
+                "execution_id": execution_metadata.get("execution_id", ""),
+                "orchestrator_type": "langgraph-real",
+                "successful_agents": (
+                    state.get("successful_agents", []).copy()
+                    if isinstance(state.get("successful_agents"), list)
+                    else []
+                ),
+                "failed_agents": (
+                    state.get("failed_agents", []).copy()
+                    if isinstance(state.get("failed_agents"), list)
+                    else []
+                ),
+            }
+        )
 
     return context
 
 
 @circuit_breaker(max_failures=3, reset_timeout=300.0)
 @node_metrics
-async def refiner_node(state: CogniVaultState) -> CogniVaultState:
+async def refiner_node(state: CogniVaultState) -> Dict[str, Any]:
     """
     LangGraph node wrapper for RefinerAgent.
 
@@ -308,14 +353,15 @@ async def refiner_node(state: CogniVaultState) -> CogniVaultState:
             topics=result_context.execution_state.get("topics", []),
             confidence=result_context.execution_state.get("confidence", 0.8),
             processing_notes=result_context.execution_state.get("processing_notes"),
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Update state with typed output
-        new_state = set_agent_output(state, "refiner", refiner_output)
-
+        # Return state update with agent output and success tracking
         logger.info("Refiner node completed successfully")
-        return new_state
+        return {
+            "refiner": refiner_output,
+            "successful_agents": ["refiner"],
+        }
 
     except Exception as e:
         logger.error(f"Refiner node failed: {e}")
@@ -325,7 +371,7 @@ async def refiner_node(state: CogniVaultState) -> CogniVaultState:
 
 @circuit_breaker(max_failures=3, reset_timeout=300.0)
 @node_metrics
-async def critic_node(state: CogniVaultState) -> CogniVaultState:
+async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
     """
     LangGraph node wrapper for CriticAgent.
 
@@ -369,14 +415,15 @@ async def critic_node(state: CogniVaultState) -> CogniVaultState:
             strengths=result_context.execution_state.get("strengths", []),
             weaknesses=result_context.execution_state.get("weaknesses", []),
             confidence=result_context.execution_state.get("confidence", 0.7),
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Update state with typed output
-        new_state = set_agent_output(state, "critic", critic_output)
-
+        # Return state update with agent output and success tracking
         logger.info("Critic node completed successfully")
-        return new_state
+        return {
+            "critic": critic_output,
+            "successful_agents": ["critic"],
+        }
 
     except Exception as e:
         logger.error(f"Critic node failed: {e}")
@@ -386,7 +433,88 @@ async def critic_node(state: CogniVaultState) -> CogniVaultState:
 
 @circuit_breaker(max_failures=3, reset_timeout=300.0)
 @node_metrics
-async def synthesis_node(state: CogniVaultState) -> CogniVaultState:
+async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
+    """
+    LangGraph node wrapper for HistorianAgent.
+
+    Retrieves and analyzes historical context using intelligent search
+    and LLM-powered relevance analysis.
+
+    Parameters
+    ----------
+    state : CogniVaultState
+        Current LangGraph state (must contain refiner output)
+
+    Returns
+    -------
+    CogniVaultState
+        Updated state with HistorianOutput
+    """
+    logger.info("Executing historian node")
+
+    try:
+        # Validate dependencies
+        if not state.get("refiner"):
+            raise NodeExecutionError("Historian node requires refiner output")
+
+        # Create agent
+        agent = await create_agent_with_llm("historian")
+
+        # Convert state to context
+        context = await convert_state_to_context(state)
+
+        # Execute agent
+        result_context = await agent.run(context)
+
+        # Extract historian output (using "Historian" key, not "historian")
+        historian_raw_output = result_context.agent_outputs.get("Historian", "")
+
+        # Extract retrieved notes from context
+        retrieved_notes = getattr(result_context, "retrieved_notes", [])
+
+        # Determine topics found from retrieved notes context
+        topics_found = []
+        if hasattr(result_context, "execution_state"):
+            topics_found = result_context.execution_state.get("topics_found", [])
+
+        # Create typed output
+        historian_output = HistorianOutput(
+            historical_summary=historian_raw_output,
+            retrieved_notes=retrieved_notes,
+            search_results_count=result_context.execution_state.get(
+                "search_results_count", 0
+            ),
+            filtered_results_count=result_context.execution_state.get(
+                "filtered_results_count", 0
+            ),
+            search_strategy=result_context.execution_state.get(
+                "search_strategy", "hybrid"
+            ),
+            topics_found=topics_found,
+            confidence=result_context.execution_state.get("confidence", 0.8),
+            llm_analysis_used=result_context.execution_state.get(
+                "llm_analysis_used", True
+            ),
+            metadata=result_context.execution_state.get("historian_metadata", {}),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+        # Return state update with agent output and success tracking
+        logger.info("Historian node completed successfully")
+        return {
+            "historian": historian_output,
+            "successful_agents": ["historian"],
+        }
+
+    except Exception as e:
+        logger.error(f"Historian node failed: {e}")
+        error_state = record_agent_error(state, "historian", e)
+        raise NodeExecutionError(f"Historian execution failed: {e}") from e
+
+
+@circuit_breaker(max_failures=3, reset_timeout=300.0)
+@node_metrics
+async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
     """
     LangGraph node wrapper for SynthesisAgent.
 
@@ -396,7 +524,7 @@ async def synthesis_node(state: CogniVaultState) -> CogniVaultState:
     Parameters
     ----------
     state : CogniVaultState
-        Current LangGraph state (must contain refiner and critic outputs)
+        Current LangGraph state (must contain refiner, critic, and historian outputs)
 
     Returns
     -------
@@ -411,6 +539,8 @@ async def synthesis_node(state: CogniVaultState) -> CogniVaultState:
             raise NodeExecutionError("Synthesis node requires refiner output")
         if not state.get("critic"):
             raise NodeExecutionError("Synthesis node requires critic output")
+        if not state.get("historian"):
+            raise NodeExecutionError("Synthesis node requires historian output")
 
         # Create agent
         agent = await create_agent_with_llm("synthesis")
@@ -430,6 +560,8 @@ async def synthesis_node(state: CogniVaultState) -> CogniVaultState:
             sources_used.append("refiner")
         if state.get("critic"):
             sources_used.append("critic")
+        if state.get("historian"):
+            sources_used.append("historian")
 
         # Create typed output
         synthesis_output = SynthesisOutput(
@@ -442,14 +574,15 @@ async def synthesis_node(state: CogniVaultState) -> CogniVaultState:
             ),
             confidence=result_context.execution_state.get("confidence", 0.8),
             metadata=result_context.execution_state.get("synthesis_metadata", {}),
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Update state with typed output
-        new_state = set_agent_output(state, "synthesis", synthesis_output)
-
+        # Return state update with agent output and success tracking
         logger.info("Synthesis node completed successfully")
-        return new_state
+        return {
+            "synthesis": synthesis_output,
+            "successful_agents": ["synthesis"],
+        }
 
     except Exception as e:
         logger.error(f"Synthesis node failed: {e}")
@@ -496,7 +629,8 @@ def get_node_dependencies() -> Dict[str, List[str]]:
     return {
         "refiner": [],  # No dependencies
         "critic": ["refiner"],  # Requires refiner output
-        "synthesis": ["refiner", "critic"],  # Requires both refiner and critic
+        "historian": ["refiner"],  # Requires refiner output
+        "synthesis": ["critic", "historian"],  # Requires critic and historian outputs
     }
 
 
@@ -532,6 +666,7 @@ def validate_node_input(state: CogniVaultState, node_name: str) -> bool:
 __all__ = [
     "refiner_node",
     "critic_node",
+    "historian_node",
     "synthesis_node",
     "NodeExecutionError",
     "circuit_breaker",

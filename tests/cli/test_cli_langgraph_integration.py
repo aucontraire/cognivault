@@ -50,7 +50,7 @@ class TestCLILangGraphVisualization:
         mock_visualize_dag.assert_called_once_with(
             agents=None,
             output="stdout",
-            version="Phase 2.0",
+            version="Phase 2.1",
             show_state_flow=True,
             show_details=True,
         )
@@ -69,7 +69,7 @@ class TestCLILangGraphVisualization:
         mock_visualize_dag.assert_called_once_with(
             agents=None,
             output="dag.md",
-            version="Phase 2.0",
+            version="Phase 2.1",
             show_state_flow=True,
             show_details=True,
         )
@@ -98,14 +98,14 @@ class TestCLILangGraphVisualization:
         mock_visualize_dag.assert_called_once_with(
             agents=["refiner", "critic"],
             output="stdout",
-            version="Phase 2.0",
+            version="Phase 2.1",
             show_state_flow=True,
             show_details=True,
         )
 
     @patch("cognivault.cli.cli_visualize_dag")
-    def test_visualize_dag_filters_unsupported_agents(self, mock_visualize_dag):
-        """Test DAG visualization filters out unsupported agents."""
+    def test_visualize_dag_includes_supported_agents(self, mock_visualize_dag):
+        """Test DAG visualization includes all supported agents including historian."""
         # Arrange
         runner = CliRunner()
         mock_visualize_dag.return_value = None
@@ -124,11 +124,41 @@ class TestCLILangGraphVisualization:
         )
 
         # Assert
-        # historian should be filtered out for Phase 2.0
+        # historian is now supported in Phase 2.1
         mock_visualize_dag.assert_called_once_with(
-            agents=["refiner", "critic"],
+            agents=["refiner", "historian", "critic"],
             output="stdout",
-            version="Phase 2.0",
+            version="Phase 2.1",
+            show_state_flow=True,
+            show_details=True,
+        )
+
+    @patch("cognivault.cli.cli_visualize_dag")
+    def test_visualize_dag_filters_unsupported_agents(self, mock_visualize_dag):
+        """Test DAG visualization filters out truly unsupported agents."""
+        # Arrange
+        runner = CliRunner()
+        mock_visualize_dag.return_value = None
+
+        # Act
+        result = runner.invoke(
+            app,
+            [
+                "main",
+                "test query",
+                "--agents",
+                "refiner,historian,critic,unsupported_agent",
+                "--visualize-dag",
+                "stdout",
+            ],
+        )
+
+        # Assert
+        # unsupported_agent should be filtered out
+        mock_visualize_dag.assert_called_once_with(
+            agents=["refiner", "historian", "critic"],
+            output="stdout",
+            version="Phase 2.1",
             show_state_flow=True,
             show_details=True,
         )
@@ -487,7 +517,7 @@ class TestCLIIntegrationScenarios:
         mock_visualize_dag.assert_called_once_with(
             agents=["refiner", "critic"],
             output="stdout",
-            version="Phase 2.0",
+            version="Phase 2.1",
             show_state_flow=True,
             show_details=True,
         )

@@ -1,7 +1,7 @@
 # 🧠 CogniVault
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
-![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
@@ -30,7 +30,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🧠 **Multi-agent orchestration**: Refiner, Historian, Critic, Synthesis
 - 🔁 **Dual execution orchestrators**: Legacy sequential and LangGraph DAG-based execution modes
 - 📄 **Markdown-ready output** for integration with personal wikis
-- 🧪 **Full test suite** with `pytest` for all core components (89% coverage with 1,517 tests)
+- 🧪 **Full test suite** with `pytest` for all core components (89% coverage with 1,600+ tests)
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
 - 📋 **Agent Registry**: Dynamic agent registration system for extensible architecture
 - ⚙️ **Configuration Management**: Centralized configuration system with environment variables and JSON file support
@@ -56,6 +56,8 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔧 **Circuit Breaker Node Patterns**: Robust node execution with configurable failure thresholds
 - 📊 **DAG Visualization**: Mermaid diagram generation with `--visualize-dag` for pipeline analysis
 - 🔀 **Performance Comparison**: Statistical benchmarking between execution modes with `--compare-modes`
+- 🧾 **Historian Integration**: Parallel execution with intelligent historical context retrieval
+- 🌊 **Concurrent State Updates**: LangGraph-compatible partial state updates with operator.add reducers
 
 ---
 
