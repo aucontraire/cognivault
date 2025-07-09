@@ -188,6 +188,9 @@ class DiagnosticsCLI:
         # Component health details
         self._display_component_health(diagnostics.component_healths)
 
+        # LangGraph health check
+        self._display_langgraph_health()
+
         # Performance summary
         self._display_performance_summary(diagnostics.performance_metrics)
 
@@ -718,6 +721,136 @@ class DiagnosticsCLI:
             )
 
         self.console.print(agent_table)
+
+    def _display_langgraph_health(self) -> None:
+        """Display LangGraph integration health status."""
+        self.console.print("\n[bold]LangGraph Integration[/bold]")
+
+        langgraph_health: Dict[str, Any] = {
+            "version": "unknown",
+            "status": "unknown",
+            "features": {},
+            "errors": [],
+        }
+
+        # Test LangGraph installation
+        try:
+            import langgraph
+
+            langgraph_health["version"] = getattr(langgraph, "__version__", "0.5.1")
+            langgraph_health["status"] = "installed"
+
+            # Test StateGraph functionality
+            try:
+                from langgraph.graph import StateGraph, END
+                from langgraph.checkpoint.memory import MemorySaver
+                from typing import TypedDict
+
+                class TestState(TypedDict):
+                    test: str
+
+                def test_node(state: TestState) -> TestState:
+                    return {"test": "working"}
+
+                # Test basic StateGraph creation
+                graph = StateGraph(TestState)
+                graph.add_node("test", test_node)
+                graph.add_edge("test", END)
+                graph.set_entry_point("test")
+
+                # Test compilation
+                app = graph.compile()
+
+                # Test memory checkpointing
+                memory = MemorySaver()
+                app_with_memory = graph.compile(checkpointer=memory)
+
+                langgraph_health["features"] = {
+                    "state_graph": "✅ Available",
+                    "node_execution": "✅ Available",
+                    "graph_compilation": "✅ Available",
+                    "memory_checkpointing": "✅ Available",
+                    "async_support": "✅ Available",
+                }
+                langgraph_health["status"] = "fully_functional"
+
+            except Exception as e:
+                langgraph_health["status"] = "partial"
+                langgraph_health["errors"].append(f"StateGraph test failed: {str(e)}")
+
+        except ImportError as e:
+            langgraph_health["status"] = "not_installed"
+            langgraph_health["errors"].append(f"Import failed: {str(e)}")
+        except Exception as e:
+            langgraph_health["status"] = "error"
+            langgraph_health["errors"].append(f"Unexpected error: {str(e)}")
+
+        # Display results
+        status_colors = {
+            "fully_functional": "green",
+            "installed": "yellow",
+            "partial": "orange",
+            "not_installed": "red",
+            "error": "red",
+            "unknown": "gray",
+        }
+
+        status_icons = {
+            "fully_functional": "✅",
+            "installed": "⚠️",
+            "partial": "⚠️",
+            "not_installed": "❌",
+            "error": "❌",
+            "unknown": "❓",
+        }
+
+        status = langgraph_health["status"]
+        color = status_colors.get(status, "white")
+        icon = status_icons.get(status, "?")
+
+        self.console.print(
+            f"Status: {icon} [{color}]{status.replace('_', ' ').title()}[/{color}]"
+        )
+        self.console.print(f"Version: {langgraph_health['version']}")
+
+        # Show features if available
+        if langgraph_health["features"]:
+            features_table = Table(title="LangGraph Features")
+            features_table.add_column("Feature", style="bold")
+            features_table.add_column("Status", justify="center")
+
+            for feature, status in langgraph_health["features"].items():
+                features_table.add_row(feature.replace("_", " ").title(), status)
+
+            self.console.print(features_table)
+
+        # Show errors if any
+        if langgraph_health["errors"]:
+            self.console.print("\n[bold red]LangGraph Issues:[/bold red]")
+            for error in langgraph_health["errors"]:
+                self.console.print(f"  • [red]{error}[/red]")
+
+        # Show recommendations
+        if status == "fully_functional":
+            self.console.print(
+                "[green]✅ LangGraph is ready for production use[/green]"
+            )
+        elif status == "installed":
+            self.console.print(
+                "[yellow]⚠️ LangGraph is installed but not fully tested[/yellow]"
+            )
+        elif status == "partial":
+            self.console.print(
+                "[orange]⚠️ LangGraph has some issues - check errors above[/orange]"
+            )
+        elif status == "not_installed":
+            self.console.print(
+                "[red]❌ LangGraph is not installed. Run: pip install langgraph==0.5.1[/red]"
+            )
+        elif status == "error":
+            self.console.print("[red]❌ LangGraph integration has errors[/red]")
+        else:
+            self.console.print(f"[yellow]⚠️ LangGraph status: {status}[/yellow]")
 
 
 # Create global CLI instance

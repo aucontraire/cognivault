@@ -24,6 +24,7 @@ from cognivault.config.logging_config import setup_logging
 from cognivault.config.openai_config import OpenAIConfig
 from cognivault.orchestrator import AgentOrchestrator
 from cognivault.langraph.orchestrator import LangGraphOrchestrator
+from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.topic_manager import TopicManager
 from cognivault.llm.openai import OpenAIChatLLM
@@ -46,6 +47,50 @@ def create_llm_instance() -> LLMInterface:
         model=llm_config.model,
         base_url=llm_config.base_url,
     )
+
+
+def _validate_langgraph_runtime() -> None:
+    """Validate LangGraph runtime compatibility and show helpful warnings."""
+    try:
+        import langgraph
+
+        version = getattr(langgraph, "__version__", None)
+
+        # Check version compatibility
+        if version and not version.startswith("0.5"):
+            raise RuntimeError(
+                f"LangGraph version {version} may not be compatible. "
+                f"Expected version 0.5.x. Consider: pip install langgraph==0.5.1"
+            )
+
+        # Test essential imports
+        from langgraph.graph import StateGraph, END
+        from langgraph.checkpoint.memory import MemorySaver
+
+        # Test basic StateGraph creation (lightweight validation)
+        from typing import TypedDict
+
+        class TestState(TypedDict):
+            test: str
+
+        def test_node(state: TestState) -> TestState:
+            return {"test": "working"}
+
+        # Quick validation - create but don't execute
+        graph = StateGraph(TestState)
+        graph.add_node("test", test_node)
+        graph.add_edge("test", END)
+        graph.set_entry_point("test")
+
+        # Test compilation
+        app = graph.compile()
+
+        # If we get here, LangGraph is functional
+
+    except ImportError as e:
+        raise ImportError(f"LangGraph import failed: {e}")
+    except Exception as e:
+        raise RuntimeError(f"LangGraph runtime validation failed: {e}")
 
 
 async def run(
@@ -83,13 +128,20 @@ async def run(
     )
 
     # Validate execution mode
-    if execution_mode not in ["legacy", "langgraph"]:
+    if execution_mode not in ["legacy", "langgraph", "langgraph-real"]:
         raise ValueError(
-            f"Invalid execution mode: {execution_mode}. Must be 'legacy' or 'langgraph'"
+            f"Invalid execution mode: {execution_mode}. Must be 'legacy', 'langgraph', or 'langgraph-real'"
         )
 
     # Handle comparison mode
     if compare_modes:
+        # Check if langgraph-real is requested in comparison mode
+        if execution_mode == "langgraph-real":
+            raise ValueError(
+                "Comparison mode with langgraph-real is not yet supported. "
+                "Please use --execution-mode=langgraph-real without --compare-modes for now."
+            )
+
         # Create shared LLM instance for comparison mode
         llm = create_llm_instance()
         await _run_comparison_mode(
@@ -111,11 +163,28 @@ async def run(
 
     # Create orchestrator based on execution mode
     if execution_mode == "legacy":
-        orchestrator: Union[AgentOrchestrator, LangGraphOrchestrator] = (
-            AgentOrchestrator(agents_to_run=agents_to_run)
-        )
+        orchestrator: Union[
+            AgentOrchestrator, LangGraphOrchestrator, RealLangGraphOrchestrator
+        ] = AgentOrchestrator(agents_to_run=agents_to_run)
     elif execution_mode == "langgraph":
         orchestrator = LangGraphOrchestrator(agents_to_run=agents_to_run)
+    elif execution_mode == "langgraph-real":
+        # Add LangGraph runtime validation
+        try:
+            _validate_langgraph_runtime()
+            orchestrator = RealLangGraphOrchestrator(agents_to_run=agents_to_run)
+        except ImportError as e:
+            console.print(
+                f"[red]❌ LangGraph is not installed or incompatible: {e}[/red]"
+            )
+            console.print("[yellow]💡 Try: pip install langgraph==0.5.1[/yellow]")
+            raise typer.Exit(1)
+        except Exception as e:
+            console.print(f"[red]❌ LangGraph runtime error: {e}[/red]")
+            console.print(
+                "[yellow]💡 Check LangGraph installation with: cognivault diagnostics health[/yellow]"
+            )
+            raise typer.Exit(1)
     else:
         raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
@@ -219,12 +288,12 @@ def main(
     execution_mode: str = typer.Option(
         "legacy",
         "--execution-mode",
-        help="Execution mode: 'legacy' for current orchestrator, 'langgraph' for DAG execution",
+        help="Execution mode: 'legacy' for current orchestrator, 'langgraph' for DAG execution, 'langgraph-real' for real LangGraph integration",
     ),
     compare_modes: bool = typer.Option(
         False,
         "--compare-modes",
-        help="Run both legacy and langgraph modes side-by-side for performance comparison",
+        help="Run both legacy and langgraph modes side-by-side for performance comparison (not compatible with langgraph-real mode)",
     ),
     benchmark_runs: int = typer.Option(
         1,
