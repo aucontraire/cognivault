@@ -546,8 +546,8 @@ async def test_cli_health_check_specific_agents(capsys):
 
     # Mock the get_agent_registry function that RealLangGraphOrchestrator uses
     with patch(
-        "cognivault.langraph.real_orchestrator.get_agent_registry", 
-        return_value=fake_registry
+        "cognivault.langraph.real_orchestrator.get_agent_registry",
+        return_value=fake_registry,
     ):
         await cli_main(
             "test query", agents="refiner,critic", health_check=True, log_level="INFO"
@@ -627,7 +627,8 @@ async def test_cli_execution_mode_default_legacy(capsys):
     fake_context.failed_agents = set()
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run", return_value=fake_context
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        return_value=fake_context,
     ) as mock_orchestrator:
         await cli_main(
             "test query",
