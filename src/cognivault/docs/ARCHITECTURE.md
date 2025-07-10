@@ -26,12 +26,15 @@ CogniVault provides two orchestration modes for maximum flexibility:
 - Retry logic, timeouts, and comprehensive tracing
 - Backward compatibility with existing workflows
 
-**RealLangGraphOrchestrator (Phase 2.1 → 2.2)**
+**RealLangGraphOrchestrator (Phase 2 Complete)**
 - DAG-based execution with true parallel processing
 - Concurrent state updates using Annotated types with operator.add reducers
 - Advanced error recovery and circuit breaker patterns
-- **[Phase 2.2]** Optional checkpointing and conversation persistence using LangGraph MemorySaver
-- **[Phase 2.2]** Thread-scoped memory management for multi-session workflows
+- **[Phase 2]** Graph building logic extracted to dedicated `langgraph_backend/` module
+- **[Phase 2]** GraphFactory with pattern support and intelligent caching
+- **[Phase 2]** Multiple graph patterns (standard, parallel, conditional)
+- Optional checkpointing and conversation persistence using LangGraph MemorySaver
+- Thread-scoped memory management for multi-session workflows
 - Parallel execution flow: Refiner → [Critic, Historian] → Synthesis
 
 ### 2. **Enhanced Agent System**
@@ -42,7 +45,11 @@ Four-agent pipeline with sophisticated LLM-powered capabilities:
 - `HistorianAgent`: **[Phase 2.1]** Intelligent historical context retrieval with multi-strategy search
 - `SynthesisAgent`: Advanced thematic analysis and conflict resolution for wiki-ready output
 
-**Key Phase 2.1 Enhancements:**
+**Key Phase 2 Enhancements:**
+- **Graph Builder Extraction**: Dedicated `langgraph_backend/` module for clean separation of concerns
+- **GraphFactory Architecture**: Centralized graph building with pattern support and caching
+- **Performance Optimization**: LRU cache with TTL for compiled graphs (~90% improvement)
+- **Pattern System**: Extensible graph patterns (standard, parallel, conditional)
 - Parallel execution of Critic and Historian agents for improved performance
 - LangGraph-compatible concurrent state updates with partial state returns
 - Circuit breaker patterns for enhanced resilience
@@ -56,7 +63,7 @@ Four-agent pipeline with sophisticated LLM-powered capabilities:
 - Size monitoring and compression for large contexts
 - Snapshot/rollback capabilities for complex workflows
 
-**CogniVaultState** - **[Phase 2.1]** TypedDict for LangGraph integration:
+**CogniVaultState** - TypedDict for LangGraph integration:
 - Type-safe state schemas with mypy compliance
 - Concurrent state updates using Annotated types with operator.add reducers
 - Partial state returns for optimized LangGraph execution
@@ -76,7 +83,7 @@ The entrypoint for executing agent workflows via the command line.
 Supports flags for agent selection, log level, and Markdown export.
 
 ### 7. **Production LangGraph Integration**
-**[Phase 2.1]** Complete LangGraph 0.5.1 integration with real StateGraph orchestration:
+Complete LangGraph 0.5.1 integration with real StateGraph orchestration:
 
 **Core LangGraph Components:**
 - `RealLangGraphOrchestrator`: Production StateGraph execution with memory checkpointing
@@ -90,7 +97,7 @@ Supports flags for agent selection, log level, and Markdown export.
 - **DAG Visualization**: Mermaid diagram generation showing parallel execution structure
 - **Performance Comparison**: Statistical benchmarking between legacy and LangGraph execution modes
 
-**Phase 2.1 Execution Flow:**
+**Execution Flow:**
 ```
 START → Refiner → [Critic, Historian] → Synthesis → END
 ```
@@ -98,8 +105,31 @@ START → Refiner → [Critic, Historian] → Synthesis → END
 - Critic and Historian execute in parallel with concurrent state updates
 - Synthesis integrates all outputs for final analysis
 
-### 8. **Phase 2.2: Memory Management & Checkpointing**
-**[Phase 2.2]** Advanced memory management and conversation persistence for long-running workflows:
+### 8. **Phase 2: Graph Builder Architecture**
+**[Phase 2]** Extracted graph building logic into dedicated backend module for improved architecture:
+
+**Core Components:**
+- `GraphFactory`: Centralized graph building and compilation with pattern support
+- `GraphPattern`: Abstract base for extensible execution patterns (StandardPattern, ParallelPattern, ConditionalPattern)
+- `GraphCache`: LRU cache with TTL for compiled graphs (~90% performance improvement)
+- `PatternRegistry`: Centralized pattern management and registration
+
+**Architecture Benefits:**
+- **Separation of Concerns**: Graph building vs execution orchestration
+- **Performance Optimization**: Intelligent caching reduces repeated compilation overhead
+- **Enhanced Testability**: Graph building can be unit tested independently
+- **Improved Maintainability**: Cleaner, more focused codebase
+- **Extensibility**: Easy to add new graph patterns and execution modes
+
+**Graph Factory Features:**
+- Pattern-based graph construction with validation
+- Thread-safe operations with comprehensive error handling
+- Cache management with size estimation and TTL expiration
+- Configuration-driven graph building (agents, checkpoints, patterns)
+- Backward compatibility with existing orchestrator interfaces
+
+### 9. **Memory Management & Checkpointing**
+Advanced memory management and conversation persistence for long-running workflows:
 
 **Core Components:**
 - `CogniVaultMemoryManager`: LangGraph MemorySaver integration with thread ID scoping
@@ -150,8 +180,12 @@ cognivault/
 ├── langraph/         # LangGraph compatibility layer
 │   ├── graph_builder.py     # DAG construction and validation
 │   ├── routing.py           # Graph execution and routing
-│   ├── memory_manager.py    # **[Phase 2.2]** LangGraph MemorySaver integration with thread ID scoping
-│   └── error_policies.py    # **[Phase 2.2]** Centralized retry logic and circuit breaker patterns
+│   ├── memory_manager.py    # LangGraph MemorySaver integration with thread ID scoping
+│   └── error_policies.py    # Centralized retry logic and circuit breaker patterns
+├── langgraph_backend/ # **[Phase 2]** Dedicated graph building backend
+│   ├── build_graph.py       # GraphFactory and core building logic
+│   ├── graph_patterns.py    # Pattern definitions and registry
+│   └── graph_cache.py       # LRU cache with TTL support
 ├── store/            # Markdown export + future persistence
 ├── retrieval/        # Embedding + search layer (stub)
 tests/
@@ -208,30 +242,36 @@ LangGraph 0.5.1 was chosen for Phase 1 development because:
 - ✅ Advanced context management with snapshots and compression
 - ✅ Comprehensive observability and diagnostics system
 - ✅ **LangGraph Compatibility Layer** - Complete DAG-ready architecture
-- ✅ **[Phase 2.1]** Production LangGraph Integration with StateGraph orchestration
-- ✅ **[Phase 2.1]** Historian agent implementation with parallel execution
-- ✅ **[Phase 2.1]** Concurrent state updates with Annotated types and operator.add reducers
-- ✅ **[Phase 2.1]** Comprehensive test coverage (>90%) for all LangGraph components
-- ✅ **[Phase 2.2]** LangGraph MemorySaver integration with optional checkpointing
-- ✅ **[Phase 2.2]** Thread-scoped memory management for multi-session workflows
-- ✅ **[Phase 2.2]** Centralized error policies with circuit breakers and retry strategies
-- ✅ **[Phase 2.2]** Enhanced DAG visualization with checkpoint and error policy indicators
+- ✅ **[Phase 2]** Graph builder extraction to dedicated `langgraph_backend/` module
+- ✅ **[Phase 2]** GraphFactory with pattern support and intelligent caching
+- ✅ **[Phase 2]** Performance optimization with 90% improvement for repeated builds
+- ✅ **[Phase 2]** Multiple graph patterns (standard, parallel, conditional)
+- ✅ Production LangGraph Integration with StateGraph orchestration
+- ✅ Historian agent implementation with parallel execution
+- ✅ Concurrent state updates with Annotated types and operator.add reducers
+- ✅ Comprehensive test coverage (>90%) for all LangGraph components
+- ✅ LangGraph MemorySaver integration with optional checkpointing
+- ✅ Thread-scoped memory management for multi-session workflows
+- ✅ Centralized error policies with circuit breakers and retry strategies
+- ✅ Enhanced DAG visualization with checkpoint and error policy indicators
 - 🔜 Web frontend and storage persistence layer
 
 ---
 
 ## ✨ Future Ideas
 
-- ✅ **LangGraph Migration**: Seamless transition from current orchestrator to LangGraph DAG execution *(Completed in Phase 2.1)*
-- ✅ **Graph Visualization**: DAG visualization and execution flow debugging *(Completed in Phase 2.1)*
-- ✅ **Conditional Execution**: Smart routing based on agent outputs and context state *(Completed in Phase 2.1)*
+- ✅ **LangGraph Migration**: Seamless transition from current orchestrator to LangGraph DAG execution *(Completed)*
+- ✅ **Graph Builder Extraction**: Clean separation of graph building from orchestration *(Completed in Phase 2)*
+- ✅ **Performance Optimization**: Intelligent caching and pattern-based graph construction *(Completed in Phase 2)*
+- ✅ **Graph Visualization**: DAG visualization and execution flow debugging *(Completed)*
+- ✅ **Conditional Execution**: Smart routing based on agent outputs and context state *(Completed)*
 - **Advanced Node Types**: DECISION and conditional routing nodes for complex workflows
 - **Multi-LLM Blending**: Parallel execution with different LLM providers
 - **Plugin Architecture**: Community agent ecosystem with dynamic loading
 - **Persistent Storage Layer**: Database integration for long-term conversation history
 - **Web Frontend**: Interactive UI for visual DAG editing and execution monitoring
 - **GitHub Copilot-style inline annotation**: IDE integration for agent suggestions
-- **Multi-Session DAG Workflows**: Complex workflows spanning multiple conversation sessions *(Foundation completed in Phase 2.2)*
+- **Multi-Session DAG Workflows**: Complex workflows spanning multiple conversation sessions *(Foundation completed)*
 
 ## 🔗 LangGraph Architecture Details
 

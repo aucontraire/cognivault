@@ -319,47 +319,37 @@ class TestGetCompiledGraph:
 
     @pytest.mark.asyncio
     async def test_get_compiled_graph_basic(self):
-        """Test getting compiled graph without checkpoints."""
+        """Test getting compiled graph without checkpoints using GraphFactory."""
         orchestrator = RealLangGraphOrchestrator()
 
-        with patch(
-            "cognivault.langraph.real_orchestrator.StateGraph"
-        ) as mock_state_graph:
-            mock_graph = Mock()
-            mock_state_graph.return_value = mock_graph
-
+        # Mock the GraphFactory.create_graph method instead of StateGraph directly
+        with patch.object(
+            orchestrator.graph_factory, "create_graph"
+        ) as mock_create_graph:
             mock_compiled = Mock()
-            mock_graph.compile.return_value = mock_compiled
+            mock_create_graph.return_value = mock_compiled
 
             result = await orchestrator._get_compiled_graph()
 
             assert result == mock_compiled
             assert orchestrator._compiled_graph == mock_compiled
-            assert orchestrator._graph == mock_graph
 
-            # Verify graph construction
-            mock_graph.add_node.assert_any_call(
-                "refiner", mock_graph.add_node.call_args_list[0][0][1]
-            )
-            mock_graph.add_node.assert_any_call(
-                "critic", mock_graph.add_node.call_args_list[1][0][1]
-            )
-            mock_graph.add_node.assert_any_call(
-                "historian", mock_graph.add_node.call_args_list[2][0][1]
-            )
-            mock_graph.add_node.assert_any_call(
-                "synthesis", mock_graph.add_node.call_args_list[3][0][1]
-            )
-
-            mock_graph.set_entry_point.assert_called_once_with("refiner")
-            mock_graph.add_edge.assert_any_call("refiner", "critic")
-            mock_graph.add_edge.assert_any_call("refiner", "historian")
-            mock_graph.add_edge.assert_any_call("critic", "synthesis")
-            mock_graph.add_edge.assert_any_call("historian", "synthesis")
+            # Verify GraphFactory.create_graph was called with correct config
+            mock_create_graph.assert_called_once()
+            call_args = mock_create_graph.call_args[0][0]  # First argument (config)
+            assert call_args.agents_to_run == [
+                "refiner",
+                "critic",
+                "historian",
+                "synthesis",
+            ]
+            assert call_args.enable_checkpoints == False
+            assert call_args.pattern_name == "standard"
+            assert call_args.cache_enabled == True
 
     @pytest.mark.asyncio
     async def test_get_compiled_graph_with_checkpoints(self):
-        """Test getting compiled graph with checkpoints."""
+        """Test getting compiled graph with checkpoints using GraphFactory."""
         with patch(
             "cognivault.langraph.memory_manager.MemorySaver"
         ) as mock_memory_saver:
@@ -369,14 +359,12 @@ class TestGetCompiledGraph:
             # Create orchestrator after patching MemorySaver
             orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
 
-            with patch(
-                "cognivault.langraph.real_orchestrator.StateGraph"
-            ) as mock_state_graph:
-                mock_graph = Mock()
-                mock_state_graph.return_value = mock_graph
-
+            # Mock the GraphFactory.create_graph method
+            with patch.object(
+                orchestrator.graph_factory, "create_graph"
+            ) as mock_create_graph:
                 mock_compiled = Mock()
-                mock_graph.compile.return_value = mock_compiled
+                mock_create_graph.return_value = mock_compiled
 
                 result = await orchestrator._get_compiled_graph()
 
@@ -384,37 +372,35 @@ class TestGetCompiledGraph:
                 # Verify memory manager is using the mocked checkpointer
                 assert orchestrator.memory_manager.memory_saver == mock_checkpointer
 
-                # Verify checkpointer was passed to compile
-                mock_graph.compile.assert_called_once_with(
-                    checkpointer=mock_checkpointer
-                )
+                # Verify GraphFactory.create_graph was called with checkpoints enabled
+                mock_create_graph.assert_called_once()
+                call_args = mock_create_graph.call_args[0][0]  # First argument (config)
+                assert call_args.enable_checkpoints == True
+                assert call_args.memory_manager == orchestrator.memory_manager
 
     @pytest.mark.asyncio
     async def test_get_compiled_graph_caching(self):
-        """Test that compiled graph is cached."""
+        """Test that compiled graph is cached by the orchestrator."""
         orchestrator = RealLangGraphOrchestrator()
 
-        with patch(
-            "cognivault.langraph.real_orchestrator.StateGraph"
-        ) as mock_state_graph:
-            mock_graph = Mock()
-            mock_state_graph.return_value = mock_graph
-
+        # Mock the GraphFactory.create_graph method
+        with patch.object(
+            orchestrator.graph_factory, "create_graph"
+        ) as mock_create_graph:
             mock_compiled = Mock()
-            mock_graph.compile.return_value = mock_compiled
+            mock_create_graph.return_value = mock_compiled
 
             # First call
             result1 = await orchestrator._get_compiled_graph()
 
-            # Second call should return cached version
+            # Second call should return cached version from orchestrator
             result2 = await orchestrator._get_compiled_graph()
 
             assert result1 == result2
             assert result1 == mock_compiled
 
-            # StateGraph should only be called once
-            mock_state_graph.assert_called_once()
-            mock_graph.compile.assert_called_once()
+            # GraphFactory.create_graph should only be called once due to orchestrator caching
+            mock_create_graph.assert_called_once()
 
 
 class TestConvertStateToContext:
@@ -564,7 +550,7 @@ class TestGetExecutionStatistics:
         stats = orchestrator.get_execution_statistics()
 
         assert stats["orchestrator_type"] == "langgraph-real"
-        assert stats["implementation_status"] == "phase2_1_production"
+        assert stats["implementation_status"] == "phase2_production_with_graph_factory"
         assert stats["total_executions"] == 0
         assert stats["successful_executions"] == 0
         assert stats["failed_executions"] == 0
@@ -659,66 +645,64 @@ class TestIntegration:
 
     @pytest.mark.asyncio
     async def test_full_orchestration_workflow(self):
-        """Test complete orchestration workflow."""
+        """Test complete orchestration workflow using GraphFactory."""
         orchestrator = RealLangGraphOrchestrator()
 
-        # Mock LangGraph components
-        with patch(
-            "cognivault.langraph.real_orchestrator.StateGraph"
-        ) as mock_state_graph:
-            mock_graph = Mock()
-            mock_state_graph.return_value = mock_graph
+        # Create realistic final state
+        final_state = create_initial_state("What is AI?", "test-exec-id")
+        final_state["refiner"] = {
+            "refined_question": "What is artificial intelligence?",
+            "topics": ["AI", "technology"],
+            "confidence": 0.9,
+            "processing_notes": None,
+            "timestamp": "2023-01-01T00:00:00",
+        }
+        final_state["critic"] = {
+            "critique": "Good question expansion",
+            "suggestions": ["Add context about machine learning"],
+            "severity": "low",
+            "strengths": ["Clear terminology"],
+            "weaknesses": ["Could be more specific"],
+            "confidence": 0.8,
+            "timestamp": "2023-01-01T00:00:00",
+        }
+        final_state["historian"] = {
+            "historical_summary": "AI has evolved from early computer science",
+            "retrieved_notes": ["/notes/ai_history.md"],
+            "search_results_count": 10,
+            "filtered_results_count": 5,
+            "search_strategy": "hybrid",
+            "topics_found": ["artificial_intelligence", "history"],
+            "confidence": 0.8,
+            "llm_analysis_used": True,
+            "metadata": {},
+            "timestamp": "2023-01-01T00:00:00Z",
+        }
+        final_state["synthesis"] = {
+            "final_analysis": "AI is a comprehensive field",
+            "key_insights": ["AI encompasses many subfields"],
+            "sources_used": ["refiner", "critic", "historian"],
+            "themes_identified": ["technology", "intelligence"],
+            "conflicts_resolved": 0,
+            "confidence": 0.85,
+            "metadata": {"complexity": "moderate"},
+            "timestamp": "2023-01-01T00:00:00",
+        }
+        final_state["successful_agents"] = [
+            "refiner",
+            "critic",
+            "historian",
+            "synthesis",
+        ]
 
-            # Create realistic final state
-            final_state = create_initial_state("What is AI?", "test-exec-id")
-            final_state["refiner"] = {
-                "refined_question": "What is artificial intelligence?",
-                "topics": ["AI", "technology"],
-                "confidence": 0.9,
-                "processing_notes": None,
-                "timestamp": "2023-01-01T00:00:00",
-            }
-            final_state["critic"] = {
-                "critique": "Good question expansion",
-                "suggestions": ["Add context about machine learning"],
-                "severity": "low",
-                "strengths": ["Clear terminology"],
-                "weaknesses": ["Could be more specific"],
-                "confidence": 0.8,
-                "timestamp": "2023-01-01T00:00:00",
-            }
-            final_state["historian"] = {
-                "historical_summary": "AI has evolved from early computer science",
-                "retrieved_notes": ["/notes/ai_history.md"],
-                "search_results_count": 10,
-                "filtered_results_count": 5,
-                "search_strategy": "hybrid",
-                "topics_found": ["artificial_intelligence", "history"],
-                "confidence": 0.8,
-                "llm_analysis_used": True,
-                "metadata": {},
-                "timestamp": "2023-01-01T00:00:00Z",
-            }
-            final_state["synthesis"] = {
-                "final_analysis": "AI is a comprehensive field",
-                "key_insights": ["AI encompasses many subfields"],
-                "sources_used": ["refiner", "critic", "historian"],
-                "themes_identified": ["technology", "intelligence"],
-                "conflicts_resolved": 0,
-                "confidence": 0.85,
-                "metadata": {"complexity": "moderate"},
-                "timestamp": "2023-01-01T00:00:00",
-            }
-            final_state["successful_agents"] = [
-                "refiner",
-                "critic",
-                "historian",
-                "synthesis",
-            ]
+        # Mock the compiled graph through GraphFactory
+        mock_compiled = Mock()
+        mock_compiled.ainvoke = AsyncMock(return_value=final_state)
 
-            mock_compiled = Mock()
-            mock_compiled.ainvoke = AsyncMock(return_value=final_state)
-            mock_graph.compile.return_value = mock_compiled
+        with patch.object(
+            orchestrator.graph_factory, "create_graph"
+        ) as mock_create_graph:
+            mock_create_graph.return_value = mock_compiled
 
             # Run orchestration
             result = await orchestrator.run("What is AI?")
