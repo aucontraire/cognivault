@@ -62,24 +62,29 @@ class TestCLILangGraphRealIntegration:
         # Just check that it failed with invalid mode - error handling is working
 
     def test_cli_rejects_compare_modes_with_langgraph_real(self):
-        """Test that CLI rejects compare-modes with langgraph-real."""
+        """Test that CLI allows compare-modes with langgraph-real and switches to legacy vs langgraph comparison."""
         # Arrange
         runner = CliRunner()
 
-        # Act
-        result = runner.invoke(
-            app,
-            [
-                "main",
-                "test query",
-                "--execution-mode",
-                "langgraph-real",
-                "--compare-modes",
-            ],
-        )
+        # Mock the comparison mode execution
+        with patch("cognivault.cli._run_comparison_mode") as mock_comparison:
+            mock_comparison.return_value = None
 
-        # Assert
-        assert result.exit_code != 0
+            # Act
+            result = runner.invoke(
+                app,
+                [
+                    "main",
+                    "test query",
+                    "--execution-mode",
+                    "langgraph-real",
+                    "--compare-modes",
+                ],
+            )
+
+            # Assert
+            assert result.exit_code == 0
+            mock_comparison.assert_called_once()
         # Just check that it failed with invalid combination - error handling is working
 
     @pytest.mark.asyncio
@@ -171,7 +176,7 @@ class TestCLILangGraphRealIntegration:
         assert "LangGraph" in help_text
 
     def test_cli_compare_modes_help_text_updated(self):
-        """Test that compare modes help text mentions incompatibility."""
+        """Test that compare modes help text shows current behavior."""
         # Arrange
         runner = CliRunner()
 
@@ -182,8 +187,9 @@ class TestCLILangGraphRealIntegration:
         assert result.exit_code == 0
         help_text = result.output
 
-        # Check that incompatibility is mentioned (text may be wrapped)
-        assert "compatible with langgraph-real" in help_text
+        # Check that compare modes help text mentions comparison functionality
+        assert "--compare-modes" in help_text
+        assert "performance comparison" in help_text
 
     @pytest.mark.asyncio
     async def test_cli_integration_with_existing_flags(self):

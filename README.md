@@ -28,7 +28,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 
 - ✅ **Fully working CLI** using [Typer](https://typer.tiangolo.com/)
 - 🧠 **Multi-agent orchestration**: Refiner, Historian, Critic, Synthesis
-- 🔁 **Dual execution orchestrators**: Legacy sequential and LangGraph DAG-based execution modes
+- 🔁 **LangGraph-powered orchestration**: Production DAG-based execution with legacy mode support (deprecated)
 - 💾 **Checkpointing & Persistence**: LangGraph MemorySaver integration with conversation rollback
 - 🔄 **Thread-Scoped Memory**: Multi-session conversation management with unique thread IDs
 - 🛡️ **Centralized Error Policies**: Circuit breakers, retry logic, and fallback strategies per agent
@@ -911,19 +911,23 @@ CogniVault supports multiple execution modes with comprehensive performance comp
 
 #### Execution Modes
 
-**Legacy Mode (default)**: Uses the original `AgentOrchestrator` with sequential/parallel execution
+**LangGraph Mode (default)**: Uses production `RealLangGraphOrchestrator` with real LangGraph 0.5.1 StateGraph integration
+```bash
+# Default execution - no flag needed
+make run QUESTION="Your question"
+
+# Explicit LangGraph mode (same as default)
+make run QUESTION="Your question" EXECUTION_MODE=langgraph-real
+```
+
+**Legacy Mode (deprecated)**: Uses the original `AgentOrchestrator` with sequential/parallel execution
 ```bash
 make run QUESTION="Your question" EXECUTION_MODE=legacy
 ```
 
-**LangGraph Mode**: Uses `LangGraphOrchestrator` with DAG-based execution and advanced state management
+**LangGraph DAG Mode (deprecated)**: Uses intermediate `LangGraphOrchestrator` with DAG-based execution
 ```bash
 make run QUESTION="Your question" EXECUTION_MODE=langgraph
-```
-
-**LangGraph Real Mode**: Uses production `RealLangGraphOrchestrator` with real LangGraph 0.5.1 StateGraph integration
-```bash
-make run QUESTION="Your question" EXECUTION_MODE=langgraph-real
 ```
 
 #### Performance Comparison
@@ -981,8 +985,8 @@ make run QUESTION="" VISUALIZE_DAG=stdout
 
 #### Combined with Execution Modes
 ```bash
-# Visualize LangGraph real mode execution
-make run QUESTION="Your question" EXECUTION_MODE=langgraph-real VISUALIZE_DAG=stdout
+# Visualize DAG execution (default mode)
+make run QUESTION="Your question" VISUALIZE_DAG=stdout
 
 # Visualize specific agents
 make run QUESTION="Your question" AGENTS=refiner,critic VISUALIZE_DAG=stdout
@@ -1009,8 +1013,8 @@ make run QUESTION="Your question" ENABLE_CHECKPOINTS=1
 # Use custom thread ID for session scoping
 make run QUESTION="Your question" ENABLE_CHECKPOINTS=1 THREAD_ID=my-session
 
-# Combined with LangGraph execution mode
-make run QUESTION="Your question" EXECUTION_MODE=langgraph ENABLE_CHECKPOINTS=1
+# Default LangGraph mode with checkpointing
+make run QUESTION="Your question" ENABLE_CHECKPOINTS=1
 ```
 
 **Rollback Mechanisms**: Recover from failed executions using checkpoints

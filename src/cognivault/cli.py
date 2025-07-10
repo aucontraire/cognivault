@@ -103,7 +103,7 @@ async def run(
     health_check: bool = False,
     dry_run: bool = False,
     export_trace: Optional[str] = None,
-    execution_mode: str = "legacy",
+    execution_mode: str = "langgraph-real",
     compare_modes: bool = False,
     benchmark_runs: int = 1,
     visualize_dag: Optional[str] = None,
@@ -172,11 +172,11 @@ async def run(
 
     # Handle comparison mode
     if compare_modes:
-        # Check if langgraph-real is requested in comparison mode
+        # Comparison mode now compares legacy vs langgraph (intermediate) modes
+        # Since langgraph-real is the default, we override execution_mode for comparison
         if execution_mode == "langgraph-real":
-            raise ValueError(
-                "Comparison mode with langgraph-real is not yet supported. "
-                "Please use --execution-mode=langgraph-real without --compare-modes for now."
+            logger.info(
+                f"[{cli_name}] Comparison mode: using legacy vs langgraph for comparison (not langgraph-real)"
             )
 
         # Create shared LLM instance for comparison mode
@@ -200,10 +200,25 @@ async def run(
 
     # Create orchestrator based on execution mode
     if execution_mode == "legacy":
+        # Show deprecation warning for legacy mode
+        console.print(
+            "[yellow]⚠️  Legacy orchestrator is deprecated and will be removed in v1.1.0.[/yellow]"
+        )
+        console.print(
+            "[yellow]🔁 Please remove --execution-mode=legacy flag to use the default LangGraph mode.[/yellow]"
+        )
+        console.print("")  # Add spacing
+
         orchestrator: Union[
             AgentOrchestrator, LangGraphOrchestrator, RealLangGraphOrchestrator
         ] = AgentOrchestrator(agents_to_run=agents_to_run)
     elif execution_mode == "langgraph":
+        # Show deprecation warning for intermediate langgraph mode
+        console.print(
+            "[yellow]⚠️  'langgraph' mode is deprecated. Use 'langgraph-real' (default) for production LangGraph integration.[/yellow]"
+        )
+        console.print("")  # Add spacing
+
         orchestrator = LangGraphOrchestrator(agents_to_run=agents_to_run)
     elif execution_mode == "langgraph-real":
         # Add LangGraph runtime validation
@@ -342,14 +357,14 @@ def main(
         None, "--export-trace", help="Export detailed execution trace to JSON file"
     ),
     execution_mode: str = typer.Option(
-        "legacy",
+        "langgraph-real",
         "--execution-mode",
-        help="Execution mode: 'legacy' for current orchestrator, 'langgraph' for DAG execution, 'langgraph-real' for real LangGraph integration",
+        help="Execution mode: 'langgraph-real' for LangGraph integration (default), 'langgraph' for DAG execution, 'legacy' for legacy orchestrator (deprecated)",
     ),
     compare_modes: bool = typer.Option(
         False,
         "--compare-modes",
-        help="Run both legacy and langgraph modes side-by-side for performance comparison (not compatible with langgraph-real mode)",
+        help="Run both legacy and langgraph modes side-by-side for performance comparison (legacy mode deprecated)",
     ),
     benchmark_runs: int = typer.Option(
         1,
