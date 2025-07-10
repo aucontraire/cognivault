@@ -107,6 +107,9 @@ async def run(
     compare_modes: bool = False,
     benchmark_runs: int = 1,
     visualize_dag: Optional[str] = None,
+    enable_checkpoints: bool = False,
+    thread_id: Optional[str] = None,
+    rollback_last_checkpoint: bool = False,
 ):
     cli_name = "CLI"
     # Configure logging based on CLI-provided level
@@ -206,7 +209,20 @@ async def run(
         # Add LangGraph runtime validation
         try:
             _validate_langgraph_runtime()
-            orchestrator = RealLangGraphOrchestrator(agents_to_run=agents_to_run)
+
+            # Validate checkpoint flags
+            if rollback_last_checkpoint and not enable_checkpoints:
+                console.print(
+                    "[red]❌ --rollback-last-checkpoint requires --enable-checkpoints[/red]"
+                )
+                raise typer.Exit(1)
+
+            orchestrator = RealLangGraphOrchestrator(
+                agents_to_run=agents_to_run,
+                enable_checkpoints=enable_checkpoints,
+                thread_id=thread_id,
+            )
+
         except ImportError as e:
             console.print(
                 f"[red]❌ LangGraph is not installed or incompatible: {e}[/red]"
@@ -221,6 +237,11 @@ async def run(
             raise typer.Exit(1)
     else:
         raise ValueError(f"Unsupported execution mode: {execution_mode}")
+
+    # Handle rollback mode for langgraph-real
+    if rollback_last_checkpoint and execution_mode == "langgraph-real":
+        await _run_rollback_mode(orchestrator, console, thread_id)
+        return
 
     # Health check mode - validate agents without execution
     if health_check:
@@ -340,6 +361,21 @@ def main(
         "--visualize-dag",
         help="Visualize the DAG structure: 'stdout' for console output, or filepath (e.g., 'dag.md') for file output",
     ),
+    enable_checkpoints: bool = typer.Option(
+        False,
+        "--enable-checkpoints",
+        help="Enable LangGraph checkpointing for conversation persistence and rollback (default: off)",
+    ),
+    thread_id: str = typer.Option(
+        None,
+        "--thread-id",
+        help="Thread ID for conversation scoping (auto-generated if not provided)",
+    ),
+    rollback_last_checkpoint: bool = typer.Option(
+        False,
+        "--rollback-last-checkpoint",
+        help="Rollback to the latest checkpoint for the thread (requires --enable-checkpoints)",
+    ),
 ):
     """
     Run Cognivault agents based on the provided query and options.
@@ -370,6 +406,9 @@ def main(
             compare_modes,
             benchmark_runs,
             visualize_dag,
+            enable_checkpoints,
+            thread_id,
+            rollback_last_checkpoint,
         )
     )
 
@@ -969,6 +1008,83 @@ def _export_comparison_trace(results: dict, export_trace: str):
         json.dump(comparison_data, f, indent=2, default=str)
 
     print(f"🔍 Comparison trace exported to: {export_trace}")
+
+
+async def _run_rollback_mode(orchestrator, console, thread_id):
+    """Handle rollback to latest checkpoint."""
+    console.print("🔄 [bold]Rolling back to latest checkpoint[/bold]")
+
+    # Check if this is a RealLangGraphOrchestrator with rollback capability
+    if not hasattr(orchestrator, "rollback_to_checkpoint"):
+        console.print("[red]❌ Rollback not supported for this orchestrator[/red]")
+        return
+
+    try:
+        # Attempt rollback
+        restored_context = await orchestrator.rollback_to_checkpoint(
+            thread_id=thread_id
+        )
+
+        if restored_context:
+            console.print(
+                "[green]✅ Successfully rolled back to latest checkpoint[/green]"
+            )
+
+            # Display checkpoint information
+            if thread_id:
+                console.print(f"📋 Thread ID: {thread_id}")
+
+            # Show checkpoint history if available
+            if hasattr(orchestrator, "get_checkpoint_history"):
+                history = orchestrator.get_checkpoint_history(thread_id)
+                if history:
+                    console.print(
+                        f"📊 Checkpoint history: {len(history)} checkpoints found"
+                    )
+
+                    # Show latest checkpoint details
+                    latest = history[0]
+                    console.print(
+                        f"🕒 Latest checkpoint: {latest['agent_step']} "
+                        f"({latest['timestamp']}, {latest['state_size_bytes']} bytes)"
+                    )
+
+            # Display restored agent outputs
+            if restored_context.agent_outputs:
+                console.print("\n📝 [bold]Restored Agent Outputs[/bold]")
+                emoji_map = {
+                    "Refiner": "🧠",
+                    "refiner": "🧠",
+                    "Critic": "🤔",
+                    "critic": "🤔",
+                    "Historian": "🕵️",
+                    "historian": "🕵️",
+                    "Synthesis": "🔗",
+                    "synthesis": "🔗",
+                }
+
+                for agent_name, output in restored_context.agent_outputs.items():
+                    emoji = emoji_map.get(agent_name, "🧠")
+                    console.print(f"\n{emoji} [bold]{agent_name.title()}:[/bold]")
+                    console.print(
+                        output.strip()[:200] + "..."
+                        if len(output) > 200
+                        else output.strip()
+                    )
+            else:
+                console.print("📝 No agent outputs found in restored checkpoint")
+
+        else:
+            console.print("[yellow]⚠️ No checkpoint found to rollback to[/yellow]")
+            if thread_id:
+                console.print(f"Thread ID: {thread_id}")
+            else:
+                console.print(
+                    "No thread ID specified - use --thread-id to specify a conversation"
+                )
+
+    except Exception as e:
+        console.print(f"[red]❌ Rollback failed: {e}[/red]")
 
 
 if __name__ == "__main__":  # pragma: no cover

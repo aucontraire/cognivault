@@ -437,7 +437,9 @@ class TestCLIHealthAndDryRun:
                         pass  # We expect some errors due to mocking
 
                     # Assert
-                    mock_orchestrator_class.assert_called_once_with(agents_to_run=None)
+                    mock_orchestrator_class.assert_called_once_with(
+                        agents_to_run=None, enable_checkpoints=False, thread_id=None
+                    )
                     mock_health_check.assert_called_once()
 
 

@@ -15,7 +15,12 @@ run:
 	$(if $(HEALTH_CHECK),--health-check,) \
 	$(if $(DRY_RUN),--dry-run,) \
 	$(if $(EXPORT_TRACE),--export-trace=$(EXPORT_TRACE),) \
-	$(if $(EXECUTION_MODE),--execution-mode=$(EXECUTION_MODE),)
+	$(if $(EXECUTION_MODE),--execution-mode=$(EXECUTION_MODE),) \
+	$(if $(ENABLE_CHECKPOINTS),--enable-checkpoints,) \
+	$(if $(THREAD_ID),--thread-id=$(THREAD_ID),) \
+	$(if $(ROLLBACK_LAST_CHECKPOINT),--rollback-last-checkpoint,) \
+	$(if $(COMPARE_MODES),--compare-modes,) \
+	$(if $(BENCHMARK_RUNS),--benchmark-runs=$(BENCHMARK_RUNS),)
 
 lint:
 	ruff check src/ tests/

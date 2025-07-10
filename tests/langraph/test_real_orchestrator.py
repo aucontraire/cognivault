@@ -37,7 +37,7 @@ class TestRealLangGraphOrchestrator:
         assert orchestrator.agents == []
         assert orchestrator._graph is None
         assert orchestrator._compiled_graph is None
-        assert orchestrator._checkpointer is None
+        assert orchestrator.memory_manager is not None
 
     def test_initialization_custom_agents(self):
         """Test orchestrator initialization with custom agents."""
@@ -360,19 +360,20 @@ class TestGetCompiledGraph:
     @pytest.mark.asyncio
     async def test_get_compiled_graph_with_checkpoints(self):
         """Test getting compiled graph with checkpoints."""
-        orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
-
         with patch(
-            "cognivault.langraph.real_orchestrator.StateGraph"
-        ) as mock_state_graph:
+            "cognivault.langraph.memory_manager.MemorySaver"
+        ) as mock_memory_saver:
+            mock_checkpointer = Mock()
+            mock_memory_saver.return_value = mock_checkpointer
+
+            # Create orchestrator after patching MemorySaver
+            orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
+
             with patch(
-                "cognivault.langraph.real_orchestrator.MemorySaver"
-            ) as mock_memory_saver:
+                "cognivault.langraph.real_orchestrator.StateGraph"
+            ) as mock_state_graph:
                 mock_graph = Mock()
                 mock_state_graph.return_value = mock_graph
-
-                mock_checkpointer = Mock()
-                mock_memory_saver.return_value = mock_checkpointer
 
                 mock_compiled = Mock()
                 mock_graph.compile.return_value = mock_compiled
@@ -380,7 +381,8 @@ class TestGetCompiledGraph:
                 result = await orchestrator._get_compiled_graph()
 
                 assert result == mock_compiled
-                assert orchestrator._checkpointer == mock_checkpointer
+                # Verify memory manager is using the mocked checkpointer
+                assert orchestrator.memory_manager.memory_saver == mock_checkpointer
 
                 # Verify checkpointer was passed to compile
                 mock_graph.compile.assert_called_once_with(

@@ -603,8 +603,8 @@ class TestHistorianDAGVisualization:
         assert "📚 Historian" in diagram
         assert "Context Retrieval" in diagram
 
-        # Verify Phase 2.1 version
-        assert "DAG Version: Phase 2.1" in diagram
+        # Verify Phase 2.2 version
+        assert "DAG Version: Phase 2.2" in diagram
 
         # Verify correct flow
         assert "REFINER --> HISTORIAN" in diagram

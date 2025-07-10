@@ -108,7 +108,9 @@ class TestCLILangGraphRealIntegration:
                     pass  # We expect some errors due to mocking
 
                 # Assert
-                mock_orchestrator_class.assert_called_once_with(agents_to_run=None)
+                mock_orchestrator_class.assert_called_once_with(
+                    agents_to_run=None, enable_checkpoints=False, thread_id=None
+                )
 
     @pytest.mark.asyncio
     async def test_cli_passes_agents_to_real_orchestrator(self):
@@ -141,7 +143,9 @@ class TestCLILangGraphRealIntegration:
 
                 # Assert
                 mock_orchestrator_class.assert_called_once_with(
-                    agents_to_run=["refiner", "critic"]
+                    agents_to_run=["refiner", "critic"],
+                    enable_checkpoints=False,
+                    thread_id=None,
                 )
 
     def test_cli_execution_mode_help_text_updated(self):
@@ -178,8 +182,8 @@ class TestCLILangGraphRealIntegration:
         assert result.exit_code == 0
         help_text = result.output
 
-        # Check that incompatibility is mentioned
-        assert "not compatible with langgraph-real mode" in help_text
+        # Check that incompatibility is mentioned (text may be wrapped)
+        assert "compatible with langgraph-real" in help_text
 
     @pytest.mark.asyncio
     async def test_cli_integration_with_existing_flags(self):

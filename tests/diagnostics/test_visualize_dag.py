@@ -33,7 +33,7 @@ class TestDAGVisualizationConfig:
         """Test config has correct default values."""
         config = DAGVisualizationConfig()
 
-        assert config.version == "Phase 2.1"
+        assert config.version == "Phase 2.2"
         assert config.show_state_flow is True
         assert config.show_node_details is True
         assert config.include_metadata is True
@@ -69,7 +69,7 @@ class TestDAGVisualizer:
         """Test visualizer initialization with default config."""
         visualizer = DAGVisualizer()
 
-        assert visualizer.config.version == "Phase 2.1"
+        assert visualizer.config.version == "Phase 2.2"
         assert visualizer.config.show_state_flow is True
         assert visualizer.config.show_node_details is True
         assert visualizer.config.include_metadata is True
@@ -242,9 +242,9 @@ class TestDAGVisualizer:
 
         # Should contain mermaid header
         assert "graph TD" in diagram
-        # Should contain nodes
-        assert "REFINER[🔍 Refiner<br/>Query Refinement]" in diagram
-        assert "CRITIC[⚖️ Critic<br/>Critical Analysis]" in diagram
+        # Should contain nodes (enhanced with error policy indicators)
+        assert "REFINER[🔍 Refiner<br/>Query Refinement<br/>🔄]" in diagram
+        assert "CRITIC[⚖️ Critic<br/>Critical Analysis<br/>🛡️]" in diagram
         # Should contain START and END
         assert "START([🚀 START])" in diagram
         assert "END([🏁 END])" in diagram
@@ -280,7 +280,7 @@ class TestDAGVisualizer:
 
         diagram = visualizer.generate_mermaid_diagram(agents)
 
-        assert "%% State Flow Information:" in diagram
+        assert "%% Enhanced State Flow Information (Phase 2.2):" in diagram
         assert '%% - Refiner adds RefinerOutput to state["refiner"]' in diagram
 
     def test_generate_mermaid_diagram_without_state_flow(self):
@@ -433,7 +433,7 @@ class TestUtilityFunctions:
         """Test getting default agent list."""
         agents = get_default_agents()
 
-        assert agents == ["refiner", "critic", "synthesis"]
+        assert agents == ["refiner", "critic", "historian", "synthesis"]
 
     def test_validate_agents_all_supported(self):
         """Test agent validation with all supported agents."""
@@ -494,7 +494,12 @@ class TestUtilityFunctions:
 
             mock_create.assert_called_once()
             args, kwargs = mock_create.call_args
-            assert args[0] == ["refiner", "critic", "synthesis"]  # Default agents
+            assert args[0] == [
+                "refiner",
+                "critic",
+                "historian",
+                "synthesis",
+            ]  # Default agents
 
     def test_cli_visualize_dag_custom_agents(self):
         """Test CLI visualization with custom agents."""
@@ -552,9 +557,9 @@ class TestIntegration:
 
             # Verify diagram content
             assert "graph TD" in diagram
-            assert "REFINER[🔍 Refiner<br/>Query Refinement]" in diagram
-            assert "CRITIC[⚖️ Critic<br/>Critical Analysis]" in diagram
-            assert "SYNTHESIS[🔗 Synthesis<br/>Final Integration]" in diagram
+            assert "REFINER[🔍 Refiner<br/>Query Refinement<br/>🔄]" in diagram
+            assert "CRITIC[⚖️ Critic<br/>Critical Analysis<br/>🛡️]" in diagram
+            assert "SYNTHESIS[🔗 Synthesis<br/>Final Integration<br/>🔄]" in diagram
 
     def test_complete_workflow_file(self):
         """Test complete workflow outputting to file."""
@@ -573,8 +578,8 @@ class TestIntegration:
                 content = f.read()
 
             assert "graph TD" in content
-            assert "REFINER[🔍 Refiner<br/>Query Refinement]" in content
-            assert "CRITIC[⚖️ Critic<br/>Critical Analysis]" in content
+            assert "REFINER[🔍 Refiner<br/>Query Refinement<br/>🔄]" in content
+            assert "CRITIC[⚖️ Critic<br/>Critical Analysis<br/>🛡️]" in content
 
     def test_complete_workflow_with_dependencies(self):
         """Test complete workflow with complex dependencies."""
@@ -586,10 +591,10 @@ class TestIntegration:
             diagram = mock_print.call_args[0][0]
 
             # Should contain all agents
-            assert "REFINER[🔍 Refiner<br/>Query Refinement]" in diagram
-            assert "HISTORIAN[📚 Historian<br/>Context Retrieval]" in diagram
-            assert "CRITIC[⚖️ Critic<br/>Critical Analysis]" in diagram
-            assert "SYNTHESIS[🔗 Synthesis<br/>Final Integration]" in diagram
+            assert "REFINER[🔍 Refiner<br/>Query Refinement<br/>🔄]" in diagram
+            assert "HISTORIAN[📚 Historian<br/>Context Retrieval<br/>🔌]" in diagram
+            assert "CRITIC[⚖️ Critic<br/>Critical Analysis<br/>🛡️]" in diagram
+            assert "SYNTHESIS[🔗 Synthesis<br/>Final Integration<br/>🔄]" in diagram
 
     def test_minimal_configuration(self):
         """Test with minimal configuration."""
@@ -604,7 +609,7 @@ class TestIntegration:
 
             # Should contain basic structure
             assert "graph TD" in diagram
-            assert "REFINER[🔍 Refiner<br/>Query Refinement]" in diagram
+            assert "REFINER[🔍 Refiner<br/>Query Refinement<br/>🔄]" in diagram
 
             # Should not contain optional elements
             assert "%% State Flow Information:" not in diagram

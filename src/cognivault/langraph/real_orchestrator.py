@@ -42,6 +42,11 @@ from cognivault.langraph.node_wrappers import (
     NodeExecutionError,
     get_node_dependencies,
 )
+from cognivault.langraph.memory_manager import (
+    CogniVaultMemoryManager,
+    CheckpointConfig,
+    create_memory_manager,
+)
 
 logger = get_logger(__name__)
 
@@ -67,6 +72,8 @@ class RealLangGraphOrchestrator:
         self,
         agents_to_run: Optional[List[str]] = None,
         enable_checkpoints: bool = False,
+        thread_id: Optional[str] = None,
+        memory_manager: Optional[CogniVaultMemoryManager] = None,
     ):
         """
         Initialize the real LangGraph orchestrator.
@@ -77,6 +84,10 @@ class RealLangGraphOrchestrator:
             List of agent names to run. For Phase 2.1, defaults to refiner, critic, historian, synthesis.
         enable_checkpoints : bool, optional
             Whether to enable memory checkpointing for stateful conversations.
+        thread_id : str, optional
+            Thread ID for conversation scoping (auto-generated if not provided).
+        memory_manager : CogniVaultMemoryManager, optional
+            Custom memory manager instance. If None, one will be created.
         """
         # For Phase 2.1, we include all four agents with historian
         self.agents_to_run = agents_to_run or [
@@ -86,8 +97,18 @@ class RealLangGraphOrchestrator:
             "synthesis",
         ]
         self.enable_checkpoints = enable_checkpoints
+        self.thread_id = thread_id
         self.registry = get_agent_registry()
         self.logger = get_logger(f"{__name__}.RealLangGraphOrchestrator")
+
+        # Initialize memory manager
+        if memory_manager:
+            self.memory_manager = memory_manager
+        else:
+            self.memory_manager = create_memory_manager(
+                enable_checkpoints=enable_checkpoints,
+                thread_id=thread_id,
+            )
 
         # Add agents property for compatibility with health checks and dry runs
         self.agents: List[BaseAgent] = []  # Will be populated when agents are created
@@ -103,11 +124,10 @@ class RealLangGraphOrchestrator:
         # LangGraph components (initialized lazily)
         self._graph = None
         self._compiled_graph = None
-        self._checkpointer = None
 
         self.logger.info(
             f"Initialized RealLangGraphOrchestrator with agents: {self.agents_to_run}, "
-            f"checkpoints: {self.enable_checkpoints}"
+            f"checkpoints: {self.enable_checkpoints}, thread_id: {self.thread_id}"
         )
 
     async def run(
@@ -154,6 +174,9 @@ class RealLangGraphOrchestrator:
         self.total_executions += 1
 
         try:
+            # Get or generate thread ID for this execution
+            thread_id = self.memory_manager.get_thread_id(config.get("thread_id"))
+
             # Create initial LangGraph state
             initial_state = create_initial_state(query, execution_id)
 
@@ -161,16 +184,25 @@ class RealLangGraphOrchestrator:
             if not validate_state_integrity(initial_state):
                 raise NodeExecutionError("Initial state validation failed")
 
+            # Create initial checkpoint if enabled
+            if self.memory_manager.is_enabled():
+                self.memory_manager.create_checkpoint(
+                    thread_id=thread_id,
+                    state=initial_state,
+                    agent_step="initialization",
+                    metadata={"execution_id": execution_id, "query": query},
+                )
+
             # Build and compile StateGraph if not already done
             compiled_graph = await self._get_compiled_graph()
 
             # Execute the StateGraph
-            self.logger.info("Executing LangGraph StateGraph...")
+            self.logger.info(
+                f"Executing LangGraph StateGraph with thread_id: {thread_id}"
+            )
 
-            # Prepare invocation config
-            invocation_config = {"configurable": {"thread_id": execution_id}}
-            if self.enable_checkpoints and self._checkpointer:
-                invocation_config["checkpointer"] = self._checkpointer
+            # Prepare invocation config with thread ID
+            invocation_config = {"configurable": {"thread_id": thread_id}}
 
             # Run the StateGraph
             final_state = await compiled_graph.ainvoke(
@@ -180,6 +212,21 @@ class RealLangGraphOrchestrator:
             # Validate final state
             if not validate_state_integrity(final_state):
                 self.logger.warning("Final state validation failed, but proceeding")
+
+            # Create final checkpoint if enabled
+            if self.memory_manager.is_enabled():
+                self.memory_manager.create_checkpoint(
+                    thread_id=thread_id,
+                    state=final_state,
+                    agent_step="completion",
+                    metadata={
+                        "execution_id": execution_id,
+                        "query": query,
+                        "successful_agents": final_state["successful_agents"],
+                        "failed_agents": final_state["failed_agents"],
+                        "completion_status": "success",
+                    },
+                )
 
             # Convert LangGraph state back to AgentContext
             context = await self._convert_state_to_context(final_state)
@@ -191,10 +238,12 @@ class RealLangGraphOrchestrator:
                     "orchestrator_type": "langgraph-real",
                     "phase": "phase2_1",
                     "execution_id": execution_id,
+                    "thread_id": thread_id,
                     "agents_requested": self.agents_to_run,
                     "config": config,
                     "execution_time_ms": total_time_ms,
                     "langgraph_execution": True,
+                    "checkpoints_enabled": self.memory_manager.is_enabled(),
                     "successful_agents_count": len(final_state["successful_agents"]),
                     "failed_agents_count": len(final_state["failed_agents"]),
                     "errors_count": len(final_state["errors"]),
@@ -283,12 +332,18 @@ class RealLangGraphOrchestrator:
             graph.add_edge("synthesis", END)
 
             # Set up checkpointer if enabled
-            if self.enable_checkpoints:
-                self._checkpointer = MemorySaver()
-                self._compiled_graph = graph.compile(checkpointer=self._checkpointer)
-                self.logger.info(
-                    "StateGraph compiled with memory checkpointing enabled"
-                )
+            if self.memory_manager.is_enabled():
+                checkpointer = self.memory_manager.get_memory_saver()
+                if checkpointer:
+                    self._compiled_graph = graph.compile(checkpointer=checkpointer)
+                    self.logger.info(
+                        "StateGraph compiled with memory checkpointing enabled"
+                    )
+                else:
+                    self._compiled_graph = graph.compile()
+                    self.logger.warning(
+                        "Checkpointing enabled but no MemorySaver available, compiling without checkpointing"
+                    )
             else:
                 self._compiled_graph = graph.compile()
                 self.logger.info("StateGraph compiled without checkpointing")
@@ -427,6 +482,120 @@ class RealLangGraphOrchestrator:
             "entry_point": "refiner",
             "terminal_nodes": ["synthesis"],
         }
+
+    async def rollback_to_checkpoint(
+        self, thread_id: Optional[str] = None, checkpoint_id: Optional[str] = None
+    ) -> Optional[AgentContext]:
+        """
+        Rollback to a specific checkpoint and return the restored context.
+
+        Parameters
+        ----------
+        thread_id : str, optional
+            Thread ID for conversation. If None, uses current thread_id.
+        checkpoint_id : str, optional
+            Specific checkpoint ID. If None, uses latest checkpoint.
+
+        Returns
+        -------
+        AgentContext, optional
+            Restored context from checkpoint, or None if not found
+        """
+        if not self.memory_manager.is_enabled():
+            self.logger.warning("Rollback requested but checkpointing is disabled")
+            return None
+
+        target_thread_id = thread_id or self.thread_id
+        if not target_thread_id:
+            self.logger.error("No thread ID available for rollback")
+            return None
+
+        # Attempt rollback through memory manager
+        restored_state = self.memory_manager.rollback_to_checkpoint(
+            thread_id=target_thread_id, checkpoint_id=checkpoint_id
+        )
+
+        if restored_state:
+            # Convert restored state back to AgentContext
+            context = await self._convert_state_to_context(restored_state)
+            context.execution_state["rollback_performed"] = True
+            context.execution_state["rollback_thread_id"] = target_thread_id
+            context.execution_state["rollback_checkpoint_id"] = checkpoint_id
+
+            self.logger.info(
+                f"Successfully rolled back to checkpoint for thread {target_thread_id}"
+            )
+            return context
+        else:
+            self.logger.warning(
+                f"Rollback failed - no checkpoint found for thread {target_thread_id}"
+            )
+            return None
+
+    def get_checkpoint_history(
+        self, thread_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get checkpoint history for a thread.
+
+        Parameters
+        ----------
+        thread_id : str, optional
+            Thread ID to get history for. If None, uses current thread_id.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            List of checkpoint information dictionaries
+        """
+        target_thread_id = thread_id or self.thread_id
+        if not target_thread_id:
+            return []
+
+        checkpoints = self.memory_manager.get_checkpoint_history(target_thread_id)
+        return [
+            {
+                "checkpoint_id": checkpoint.checkpoint_id,
+                "timestamp": checkpoint.timestamp.isoformat(),
+                "agent_step": checkpoint.agent_step,
+                "state_size_bytes": checkpoint.state_size_bytes,
+                "success": checkpoint.success,
+                "metadata": checkpoint.metadata,
+            }
+            for checkpoint in checkpoints
+        ]
+
+    def get_memory_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive memory and checkpoint statistics.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Memory usage and checkpoint statistics
+        """
+        memory_stats = self.memory_manager.get_memory_stats()
+
+        # Add orchestrator-specific stats
+        orchestrator_stats = {
+            "orchestrator_type": "langgraph-real",
+            "checkpointing_enabled": self.memory_manager.is_enabled(),
+            "current_thread_id": self.thread_id,
+            "execution_statistics": self.get_execution_statistics(),
+        }
+
+        return {**memory_stats, **orchestrator_stats}
+
+    def cleanup_expired_checkpoints(self) -> int:
+        """
+        Clean up expired checkpoints.
+
+        Returns
+        -------
+        int
+            Number of checkpoints removed
+        """
+        return self.memory_manager.cleanup_expired_checkpoints()
 
     # Phase 2.0 Implementation Complete ✅
     # ✅ Add real LangGraph dependency to requirements.txt (done in Phase 1)
