@@ -26,6 +26,7 @@ from cognivault.observability import get_logger
 
 from .graph_patterns import GraphPattern, PatternRegistry
 from .graph_cache import GraphCache, CacheConfig
+from .semantic_validation import SemanticValidator, ValidationError, ValidationResult
 
 
 class GraphBuildError(Exception):
@@ -43,6 +44,9 @@ class GraphConfig:
     memory_manager: Optional[CogniVaultMemoryManager] = None
     pattern_name: str = "standard"
     cache_enabled: bool = True
+    enable_validation: bool = False
+    validator: Optional[SemanticValidator] = None
+    validation_strict_mode: bool = False
 
 
 class GraphFactory:
@@ -60,7 +64,11 @@ class GraphFactory:
     - Agent subset support for flexible execution
     """
 
-    def __init__(self, cache_config: Optional[CacheConfig] = None):
+    def __init__(
+        self,
+        cache_config: Optional[CacheConfig] = None,
+        default_validator: Optional[SemanticValidator] = None,
+    ):
         """
         Initialize the GraphFactory.
 
@@ -68,10 +76,13 @@ class GraphFactory:
         ----------
         cache_config : CacheConfig, optional
             Configuration for graph caching. If None, default config is used.
+        default_validator : SemanticValidator, optional
+            Default semantic validator for workflows. If None, no validation by default.
         """
         self.logger = get_logger(f"{__name__}.GraphFactory")
         self.pattern_registry = PatternRegistry()
         self.cache = GraphCache(cache_config) if cache_config else GraphCache()
+        self.default_validator = default_validator
 
         # Available node functions mapped by agent name
         self.node_functions = {
@@ -81,7 +92,12 @@ class GraphFactory:
             "synthesis": synthesis_node,
         }
 
-        self.logger.info("GraphFactory initialized with cache and pattern registry")
+        validation_info = (
+            "with validation" if default_validator else "without validation"
+        )
+        self.logger.info(
+            f"GraphFactory initialized with cache, pattern registry, and {validation_info}"
+        )
 
     def create_graph(self, config: GraphConfig) -> Any:
         """
@@ -118,6 +134,10 @@ class GraphFactory:
                 if cached_graph:
                     self.logger.info("Using cached compiled graph")
                     return cached_graph
+
+            # Perform semantic validation if enabled
+            if config.enable_validation:
+                self._validate_workflow(config)
 
             # Get the pattern for graph structure
             pattern = self.pattern_registry.get_pattern(config.pattern_name)
@@ -384,3 +404,111 @@ class GraphFactory:
             return False
 
         return True
+
+    def _validate_workflow(self, config: GraphConfig) -> None:
+        """
+        Perform semantic validation on the workflow configuration.
+
+        Parameters
+        ----------
+        config : GraphConfig
+            Configuration to validate
+
+        Raises
+        ------
+        ValidationError
+            If validation fails with errors
+        GraphBuildError
+            If validation setup fails
+        """
+        # Determine which validator to use
+        validator = config.validator or self.default_validator
+
+        if not validator:
+            self.logger.warning("Validation enabled but no validator available")
+            return
+
+        try:
+            # Perform validation
+            result = validator.validate_workflow(
+                agents=config.agents_to_run,
+                pattern=config.pattern_name,
+                strict_mode=config.validation_strict_mode,
+            )
+
+            # Log validation results
+            if result.has_warnings:
+                for warning in result.warning_messages:
+                    self.logger.warning(f"Validation warning: {warning}")
+
+            if result.has_errors:
+                error_summary = "; ".join(result.error_messages)
+                self.logger.error(f"Validation failed: {error_summary}")
+                raise ValidationError(
+                    f"Workflow validation failed: {error_summary}", result
+                )
+
+            if result.is_valid:
+                self.logger.info("Workflow validation passed")
+
+        except ValidationError:
+            raise  # Re-raise validation errors
+        except Exception as e:
+            raise GraphBuildError(f"Validation setup failed: {e}") from e
+
+    def set_default_validator(self, validator: Optional[SemanticValidator]) -> None:
+        """
+        Set the default semantic validator for the factory.
+
+        Parameters
+        ----------
+        validator : SemanticValidator, optional
+            Validator to use by default. None to disable default validation.
+        """
+        self.default_validator = validator
+        validation_info = "enabled" if validator else "disabled"
+        self.logger.info(f"Default validation {validation_info}")
+
+    def validate_workflow(
+        self,
+        agents: List[str],
+        pattern: str,
+        validator: Optional[SemanticValidator] = None,
+        strict_mode: bool = False,
+    ) -> ValidationResult:
+        """
+        Validate a workflow configuration without building the graph.
+
+        Parameters
+        ----------
+        agents : List[str]
+            List of agent names
+        pattern : str
+            Pattern name to validate
+        validator : SemanticValidator, optional
+            Validator to use. Uses default if None.
+        strict_mode : bool
+            Whether to use strict validation mode
+
+        Returns
+        -------
+        ValidationResult
+            Detailed validation result
+
+        Raises
+        ------
+        GraphBuildError
+            If validation setup fails
+        """
+        # Determine which validator to use
+        use_validator = validator or self.default_validator
+
+        if not use_validator:
+            return ValidationResult(is_valid=True, issues=[])
+
+        try:
+            return use_validator.validate_workflow(
+                agents=agents, pattern=pattern, strict_mode=strict_mode
+            )
+        except Exception as e:
+            raise GraphBuildError(f"Validation failed: {e}") from e

@@ -37,8 +37,8 @@ async def test_cli_legacy_mode_deprecation_warning(capsys):
     ):
         await cli_main("Test legacy warning", execution_mode="legacy", log_level="INFO")
         captured = capsys.readouterr()
-        assert "Legacy orchestrator is deprecated" in captured.out
-        assert "will be removed in v1.1.0" in captured.out
+        assert "Legacy orchestrator is DEPRECATED" in captured.out
+        assert "will be REMOVED in 2-3 weeks" in captured.out
 
 
 @pytest.mark.asyncio
@@ -1234,7 +1234,7 @@ async def test_cli_comparison_mode_with_llm_topic_analysis(capsys):
 
     # Mock comparison results
     mock_results = {
-        "legacy": {
+        "langgraph": {
             "success_count": 1,
             "last_context": fake_context,
             "execution_times": [1.0],
@@ -1244,7 +1244,7 @@ async def test_cli_comparison_mode_with_llm_topic_analysis(capsys):
             "error_count": 0,
             "errors": [],
         },
-        "langgraph": {
+        "langgraph-real": {
             "success_count": 1,
             "last_context": fake_context,
             "execution_times": [1.2],
@@ -1258,9 +1258,12 @@ async def test_cli_comparison_mode_with_llm_topic_analysis(capsys):
 
     with (
         patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
-        patch("cognivault.orchestrator.AgentOrchestrator", return_value=Mock()),
         patch(
             "cognivault.langraph.orchestrator.LangGraphOrchestrator",
+            return_value=Mock(),
+        ),
+        patch(
+            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator",
             return_value=Mock(),
         ),
         patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
@@ -1272,11 +1275,11 @@ async def test_cli_comparison_mode_with_llm_topic_analysis(capsys):
         # Mock the actual orchestrator runs
         with (
             patch(
-                "cognivault.orchestrator.AgentOrchestrator.run",
+                "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
                 return_value=fake_context,
             ),
             patch(
-                "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
+                "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
                 return_value=fake_context,
             ),
         ):

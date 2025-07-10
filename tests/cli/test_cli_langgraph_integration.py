@@ -237,7 +237,8 @@ class TestCLILangGraphMode:
         # Assert
         assert result.exit_code == 0
         assert "langgraph" in result.output
-        assert "LangGraph integration" in result.output
+        # Check for the execution mode text - look for 'langgraph' mode specifically
+        assert "'langgraph' for intermediate" in result.output
 
     @pytest.mark.asyncio
     async def test_cli_creates_langgraph_orchestrator(self):
