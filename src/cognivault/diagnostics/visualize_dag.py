@@ -21,6 +21,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from cognivault.langraph.node_wrappers import get_node_dependencies
+from cognivault.langraph.error_policies import get_error_policy_manager, ErrorPolicyType
 from cognivault.observability import get_logger
 
 logger = get_logger(__name__)
@@ -30,7 +31,7 @@ logger = get_logger(__name__)
 class DAGVisualizationConfig:
     """Configuration for DAG visualization."""
 
-    version: str = "Phase 2.1"
+    version: str = "Phase 2.2"
     """Version annotation for the DAG."""
 
     show_state_flow: bool = True
@@ -41,6 +42,18 @@ class DAGVisualizationConfig:
 
     include_metadata: bool = True
     """Whether to include metadata in the diagram."""
+
+    show_checkpoints: bool = True
+    """Whether to show checkpoint information for nodes."""
+
+    show_error_policies: bool = True
+    """Whether to show error policy information."""
+
+    show_fallback_routes: bool = True
+    """Whether to show fallback routes and error handling."""
+
+    checkpoints_enabled: bool = False
+    """Whether checkpointing is enabled in the current session."""
 
 
 class DAGVisualizer:
@@ -90,6 +103,7 @@ class DAGVisualizer:
             lines.append(f"%% DAG Version: {self.config.version}")
             lines.append(f"%% Generated: {datetime.now().isoformat()}")
             lines.append(f"%% Agents: {', '.join(agents)}")
+            lines.append(f"%% Checkpoints Enabled: {self.config.checkpoints_enabled}")
             lines.append("")
 
         # Start the mermaid graph
@@ -100,16 +114,39 @@ class DAGVisualizer:
         lines.append("    START([🚀 START])")
         lines.append("")
 
+        # Add checkpoint node if enabled
+        if self.config.checkpoints_enabled and self.config.show_checkpoints:
+            lines.append("    INIT_CP{💾 Init<br/>Checkpoint}")
+            lines.append("    class INIT_CP checkpoint-node")
+            lines.append("")
+
         # Add agent nodes with styling
         for agent in agents:
             node_id = agent.upper()
-            node_label = self._get_node_label(agent)
-            node_style = self._get_node_style(agent)
+            node_label = self._get_enhanced_node_label(agent)
+            node_style = self._get_enhanced_node_style(agent)
             lines.append(f"    {node_id}[{node_label}]")
 
             # Add styling
             if node_style:
                 lines.append(f"    class {node_id} {node_style}")
+
+            # Add error handling nodes if enabled
+            if self.config.show_fallback_routes:
+                error_node_id = f"{node_id}_ERR"
+                fallback_node_id = f"{node_id}_FB"
+                lines.append(f"    {error_node_id}{{⚠️ {agent.title()}<br/>Error}}")
+                lines.append(f"    {fallback_node_id}[🔄 {agent.title()}<br/>Fallback]")
+                lines.append(f"    class {error_node_id} error-node")
+                lines.append(f"    class {fallback_node_id} fallback-node")
+
+            # Add checkpoint nodes if enabled
+            if self.config.checkpoints_enabled and self.config.show_checkpoints:
+                checkpoint_node_id = f"{node_id}_CP"
+                lines.append(
+                    f"    {checkpoint_node_id}{{💾 {agent.title()}<br/>Checkpoint}}"
+                )
+                lines.append(f"    class {checkpoint_node_id} checkpoint-node")
 
         lines.append("")
 
@@ -117,8 +154,14 @@ class DAGVisualizer:
         lines.append("    END([🏁 END])")
         lines.append("")
 
+        # Add completion checkpoint if enabled
+        if self.config.checkpoints_enabled and self.config.show_checkpoints:
+            lines.append("    FINAL_CP{💾 Final<br/>Checkpoint}")
+            lines.append("    class FINAL_CP checkpoint-node")
+            lines.append("")
+
         # Add edges based on dependencies
-        edges = self._generate_edges(agents, dependencies)
+        edges = self._generate_enhanced_edges(agents, dependencies)
         for edge in edges:
             lines.append(f"    {edge}")
 
@@ -126,11 +169,15 @@ class DAGVisualizer:
 
         # Add state flow annotations if enabled
         if self.config.show_state_flow:
-            lines.extend(self._generate_state_flow_annotations(agents))
+            lines.extend(self._generate_enhanced_state_flow_annotations(agents))
+
+        # Add error policy annotations if enabled
+        if self.config.show_error_policies:
+            lines.extend(self._generate_error_policy_annotations(agents))
 
         # Add styling classes
         if self.config.show_node_details:
-            lines.extend(self._generate_node_styling())
+            lines.extend(self._generate_enhanced_node_styling())
 
         return "\n".join(lines)
 
@@ -179,6 +226,78 @@ class DAGVisualizer:
         }
 
         return styles.get(agent.lower(), "default-node")
+
+    def _get_enhanced_node_label(self, agent: str) -> str:
+        """
+        Get enhanced display label for a node with checkpoint and error policy info.
+
+        Parameters
+        ----------
+        agent : str
+            Agent name
+
+        Returns
+        -------
+        str
+            Enhanced display label for the node
+        """
+        base_label = self._get_node_label(agent)
+
+        if not (self.config.show_checkpoints or self.config.show_error_policies):
+            return base_label
+
+        # Get error policy information
+        error_manager = get_error_policy_manager()
+        policy = error_manager.get_policy(agent)
+
+        # Add checkpoint indicator
+        checkpoint_indicator = ""
+        if self.config.checkpoints_enabled and self.config.show_checkpoints:
+            checkpoint_indicator = "<br/>💾"
+
+        # Add error policy indicator
+        policy_indicator = ""
+        if self.config.show_error_policies:
+            if policy.policy_type == ErrorPolicyType.CIRCUIT_BREAKER:
+                policy_indicator = "<br/>🔌"
+            elif policy.policy_type == ErrorPolicyType.RETRY_WITH_BACKOFF:
+                policy_indicator = "<br/>🔄"
+            elif policy.policy_type == ErrorPolicyType.GRACEFUL_DEGRADATION:
+                policy_indicator = "<br/>🛡️"
+            elif policy.policy_type == ErrorPolicyType.FAIL_FAST:
+                policy_indicator = "<br/>⚡"
+
+        return f"{base_label}{checkpoint_indicator}{policy_indicator}"
+
+    def _get_enhanced_node_style(self, agent: str) -> str:
+        """
+        Get enhanced CSS class for node styling with checkpoint and error policy info.
+
+        Parameters
+        ----------
+        agent : str
+            Agent name
+
+        Returns
+        -------
+        str
+            Enhanced CSS class name
+        """
+        base_style = self._get_node_style(agent)
+
+        # Get error policy information
+        error_manager = get_error_policy_manager()
+        policy = error_manager.get_policy(agent)
+
+        # Add policy-specific styling
+        if policy.policy_type == ErrorPolicyType.CIRCUIT_BREAKER:
+            return f"{base_style},circuit-breaker-node"
+        elif policy.policy_type == ErrorPolicyType.RETRY_WITH_BACKOFF:
+            return f"{base_style},retry-node"
+        elif policy.policy_type == ErrorPolicyType.GRACEFUL_DEGRADATION:
+            return f"{base_style},graceful-node"
+
+        return base_style
 
     def _generate_edges(
         self, agents: List[str], dependencies: Dict[str, List[str]]
@@ -231,6 +350,87 @@ class DAGVisualizer:
 
         return edges
 
+    def _generate_enhanced_edges(
+        self, agents: List[str], dependencies: Dict[str, List[str]]
+    ) -> List[str]:
+        """
+        Generate enhanced edges for the DAG with checkpoint and error handling routes.
+
+        Parameters
+        ----------
+        agents : List[str]
+            List of agents
+        dependencies : Dict[str, List[str]]
+            Dependency mapping
+
+        Returns
+        -------
+        List[str]
+            List of enhanced mermaid edge definitions
+        """
+        edges = []
+
+        # Start with basic edges
+        basic_edges = self._generate_edges(agents, dependencies)
+
+        # Modify basic edges to include checkpoints and error handling
+        for edge in basic_edges:
+            if self.config.checkpoints_enabled and self.config.show_checkpoints:
+                # Insert checkpoint nodes in the flow
+                if "START -->" in edge:
+                    # START -> INIT_CP -> agent
+                    if "INIT_CP" not in edge:
+                        agent = edge.split("-->")[1].strip()
+                        edges.append("START --> INIT_CP")
+                        edges.append(f"INIT_CP --> {agent}")
+                    else:
+                        edges.append(edge)
+                elif "--> END" in edge:
+                    # agent -> FINAL_CP -> END
+                    agent = edge.split("-->")[0].strip()
+                    edges.append(f"{agent} --> FINAL_CP")
+                    edges.append("FINAL_CP --> END")
+                elif "-->" in edge and not any(
+                    special in edge for special in ["CP", "ERR", "FB"]
+                ):
+                    # agent1 -> agent1_CP -> agent2
+                    parts = edge.split("-->")
+                    if len(parts) == 2:
+                        from_agent = parts[0].strip()
+                        to_agent = parts[1].strip()
+                        edges.append(f"{from_agent} --> {from_agent}_CP")
+                        edges.append(f"{from_agent}_CP --> {to_agent}")
+                    else:
+                        edges.append(edge)
+                else:
+                    edges.append(edge)
+            else:
+                edges.append(edge)
+
+        # Add error handling edges if enabled
+        if self.config.show_fallback_routes:
+            for agent in agents:
+                agent_upper = agent.upper()
+                error_node = f"{agent_upper}_ERR"
+                fallback_node = f"{agent_upper}_FB"
+
+                # Agent can fail -> Error node
+                edges.append(f"{agent_upper} -.->|failure| {error_node}")
+
+                # Error node -> Fallback
+                edges.append(f"{error_node} --> {fallback_node}")
+
+                # Fallback can continue to next agents or END
+                # Find what this agent connects to normally
+                for edge in basic_edges:
+                    if f"{agent_upper} -->" in edge and not any(
+                        special in edge for special in ["ERR", "FB", "CP"]
+                    ):
+                        target = edge.split("-->")[1].strip()
+                        edges.append(f"{fallback_node} -.->|recovery| {target}")
+
+        return edges
+
     def _generate_state_flow_annotations(self, agents: List[str]) -> List[str]:
         """
         Generate state flow annotations for the diagram.
@@ -262,6 +462,117 @@ class DAGVisualizer:
         annotations.append("")
         return annotations
 
+    def _generate_enhanced_state_flow_annotations(self, agents: List[str]) -> List[str]:
+        """
+        Generate enhanced state flow annotations with checkpoint information.
+
+        Parameters
+        ----------
+        agents : List[str]
+            List of agents
+
+        Returns
+        -------
+        List[str]
+            List of enhanced annotation lines
+        """
+        annotations = [
+            "%% Enhanced State Flow Information (Phase 2.2):",
+            "%% - Initial state contains query and metadata",
+            "%% - Each agent adds its typed output to the state",
+            "%% - Final state contains all agent outputs",
+        ]
+
+        if self.config.checkpoints_enabled:
+            annotations.extend(
+                [
+                    "%% - Checkpoints capture state at key points",
+                    "%% - State can be rolled back to any checkpoint",
+                    "%% - Thread ID scopes conversation persistence",
+                ]
+            )
+
+        annotations.append("")
+
+        for agent in agents:
+            output_type = f"{agent.title()}Output"
+            annotations.append(
+                f'%% - {agent.title()} adds {output_type} to state["{agent}"]'
+            )
+
+        if self.config.checkpoints_enabled:
+            annotations.append("")
+            annotations.append("%% Checkpoint Flow:")
+            annotations.append("%% 1. Initialization checkpoint before execution")
+            annotations.append("%% 2. Agent checkpoints after successful execution")
+            annotations.append("%% 3. Final checkpoint with complete state")
+
+        annotations.append("")
+        return annotations
+
+    def _generate_error_policy_annotations(self, agents: List[str]) -> List[str]:
+        """
+        Generate error policy annotations for the diagram.
+
+        Parameters
+        ----------
+        agents : List[str]
+            List of agents
+
+        Returns
+        -------
+        List[str]
+            List of error policy annotation lines
+        """
+        annotations = [
+            "%% Error Policy Information:",
+            "%% Legend: 🔌=Circuit Breaker, 🔄=Retry, 🛡️=Graceful, ⚡=Fail Fast",
+            "",
+        ]
+
+        error_manager = get_error_policy_manager()
+
+        for agent in agents:
+            policy = error_manager.get_policy(agent)
+            policy_name = policy.policy_type.value.replace("_", " ").title()
+
+            timeout_info = ""
+            if policy.timeout_seconds:
+                timeout_info = f" (timeout: {policy.timeout_seconds}s)"
+
+            retry_info = ""
+            if (
+                policy.retry_config
+                and policy.policy_type == ErrorPolicyType.RETRY_WITH_BACKOFF
+            ):
+                retry_info = f" (max attempts: {policy.retry_config.max_attempts})"
+
+            cb_info = ""
+            if (
+                policy.circuit_breaker_config
+                and policy.policy_type == ErrorPolicyType.CIRCUIT_BREAKER
+            ):
+                cb_info = f" (failure threshold: {policy.circuit_breaker_config.failure_threshold})"
+
+            annotations.append(
+                f"%% - {agent.title()}: {policy_name}{timeout_info}{retry_info}{cb_info}"
+            )
+
+        annotations.append("")
+
+        if self.config.show_fallback_routes:
+            annotations.extend(
+                [
+                    "%% Fallback Strategies:",
+                    "%% - Error nodes catch failures",
+                    "%% - Fallback nodes provide recovery paths",
+                    "%% - Dotted lines show error/recovery routes",
+                    "",
+                ]
+            )
+
+        return annotations
+
     def _generate_node_styling(self) -> List[str]:
         """
         Generate CSS styling for nodes.
@@ -280,6 +591,39 @@ class DAGVisualizer:
             "classDef default-node fill:#f5f5f5,stroke:#616161,stroke-width:2px",
             "",
         ]
+
+    def _generate_enhanced_node_styling(self) -> List[str]:
+        """
+        Generate enhanced CSS styling for nodes with checkpoint and error policy styles.
+
+        Returns
+        -------
+        List[str]
+            List of enhanced styling definitions
+        """
+        styles = [
+            "%% Enhanced Node Styling (Phase 2.2)",
+            "classDef refiner-node fill:#e1f5fe,stroke:#0277bd,stroke-width:2px",
+            "classDef critic-node fill:#fff3e0,stroke:#f57c00,stroke-width:2px",
+            "classDef synthesis-node fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px",
+            "classDef historian-node fill:#e8f5e8,stroke:#388e3c,stroke-width:2px",
+            "classDef default-node fill:#f5f5f5,stroke:#616161,stroke-width:2px",
+            "",
+            "%% Checkpoint and Memory Styling",
+            "classDef checkpoint-node fill:#e8eaf6,stroke:#3f51b5,stroke-width:3px,stroke-dasharray: 5 5",
+            "",
+            "%% Error Policy Styling",
+            "classDef circuit-breaker-node stroke:#d32f2f,stroke-width:3px",
+            "classDef retry-node stroke:#ff9800,stroke-width:3px",
+            "classDef graceful-node stroke:#4caf50,stroke-width:3px",
+            "",
+            "%% Error Handling Styling",
+            "classDef error-node fill:#ffebee,stroke:#f44336,stroke-width:2px",
+            "classDef fallback-node fill:#fff8e1,stroke:#ffc107,stroke-width:2px",
+            "",
+        ]
+
+        return styles
 
     def output_to_stdout(self, diagram: str) -> None:
         """
@@ -396,14 +740,14 @@ def create_dag_visualization(
 
 def get_default_agents() -> List[str]:
     """
-    Get the default agent list for Phase 2.0.
+    Get the default agent list for Phase 2.2.
 
     Returns
     -------
     List[str]
-        Default agent list
+        Default agent list including historian
     """
-    return ["refiner", "critic", "synthesis"]
+    return ["refiner", "critic", "historian", "synthesis"]
 
 
 def validate_agents(agents: List[str]) -> bool:
@@ -428,12 +772,16 @@ def validate_agents(agents: List[str]) -> bool:
 def cli_visualize_dag(
     agents: Optional[List[str]] = None,
     output: str = "stdout",
-    version: str = "Phase 2.0",
+    version: str = "Phase 2.2",
     show_state_flow: bool = True,
     show_details: bool = True,
+    show_checkpoints: bool = True,
+    show_error_policies: bool = True,
+    show_fallback_routes: bool = True,
+    checkpoints_enabled: bool = False,
 ) -> None:
     """
-    CLI interface for DAG visualization.
+    CLI interface for DAG visualization with Phase 2.2 features.
 
     Parameters
     ----------
@@ -447,6 +795,14 @@ def cli_visualize_dag(
         Whether to show state flow information
     show_details : bool, optional
         Whether to show detailed node information
+    show_checkpoints : bool, optional
+        Whether to show checkpoint information for nodes
+    show_error_policies : bool, optional
+        Whether to show error policy information
+    show_fallback_routes : bool, optional
+        Whether to show fallback routes and error handling
+    checkpoints_enabled : bool, optional
+        Whether checkpointing is enabled in the current session
     """
     # Use default agents if not specified
     if agents is None:
@@ -460,7 +816,13 @@ def cli_visualize_dag(
 
     # Create configuration
     config = DAGVisualizationConfig(
-        version=version, show_state_flow=show_state_flow, show_node_details=show_details
+        version=version,
+        show_state_flow=show_state_flow,
+        show_node_details=show_details,
+        show_checkpoints=show_checkpoints,
+        show_error_policies=show_error_policies,
+        show_fallback_routes=show_fallback_routes,
+        checkpoints_enabled=checkpoints_enabled,
     )
 
     # Create visualization

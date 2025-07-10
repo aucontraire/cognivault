@@ -1,7 +1,7 @@
 # 🧠 CogniVault
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
-![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
@@ -29,6 +29,9 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - ✅ **Fully working CLI** using [Typer](https://typer.tiangolo.com/)
 - 🧠 **Multi-agent orchestration**: Refiner, Historian, Critic, Synthesis
 - 🔁 **Dual execution orchestrators**: Legacy sequential and LangGraph DAG-based execution modes
+- 💾 **Checkpointing & Persistence**: LangGraph MemorySaver integration with conversation rollback
+- 🔄 **Thread-Scoped Memory**: Multi-session conversation management with unique thread IDs
+- 🛡️ **Centralized Error Policies**: Circuit breakers, retry logic, and fallback strategies per agent
 - 📄 **Markdown-ready output** for integration with personal wikis
 - 🧪 **Full test suite** with `pytest` for all core components (89% coverage with 1,600+ tests)
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
@@ -111,8 +114,10 @@ src/
 │   ├── langraph/
 │   │   ├── __init__.py
 │   │   ├── adapter.py
+│   │   ├── error_policies.py
 │   │   ├── graph_builder.py
 │   │   ├── langgraph_install.py
+│   │   ├── memory_manager.py
 │   │   ├── node_wrappers.py
 │   │   ├── orchestrator.py
 │   │   ├── prototype_dag.py
@@ -989,6 +994,73 @@ The visualization generates professional Mermaid diagrams showing:
 - **Node Metadata**: Agent types, confidence levels, and execution status
 - **Execution Path**: Visual trace of actual execution flow
 - **Phase Compatibility**: Automatic filtering for supported agents
+
+### 💾 **Phase 2.2: Checkpointing & Memory Management**
+
+CogniVault now supports **optional checkpointing and conversation persistence** using LangGraph's MemorySaver integration for long-running workflows and multi-session DAGs.
+
+#### Memory & Checkpointing Features
+
+**Enable Checkpointing**: Add conversation persistence and rollback capabilities
+```bash
+# Enable checkpointing with auto-generated thread ID
+make run QUESTION="Your question" ENABLE_CHECKPOINTS=1
+
+# Use custom thread ID for session scoping
+make run QUESTION="Your question" ENABLE_CHECKPOINTS=1 THREAD_ID=my-session
+
+# Combined with LangGraph execution mode
+make run QUESTION="Your question" EXECUTION_MODE=langgraph ENABLE_CHECKPOINTS=1
+```
+
+**Rollback Mechanisms**: Recover from failed executions using checkpoints
+```bash
+# Rollback to last checkpoint on failure
+make run QUESTION="Your question" ENABLE_CHECKPOINTS=1 ROLLBACK_LAST_CHECKPOINT=1
+
+# Resume specific thread session
+make run QUESTION="Continue previous analysis" ENABLE_CHECKPOINTS=1 THREAD_ID=research-session
+```
+
+**Performance Testing**: Ensure no regression when checkpointing is disabled
+```bash
+# Benchmark with and without checkpointing
+make run QUESTION="Your question" COMPARE_MODES=1 BENCHMARK_RUNS=5
+make run QUESTION="Your question" COMPARE_MODES=1 BENCHMARK_RUNS=5 ENABLE_CHECKPOINTS=1
+```
+
+#### Checkpointing Architecture
+
+The Phase 2.2 implementation provides:
+
+- **Optional Checkpointing**: Defaults to off for backward compatibility
+- **Thread ID Scoping**: Multi-session conversation isolation with auto-generation
+- **Memory Management**: TTL-based cleanup, checkpoint limits, and thread management  
+- **Error Resilience**: Circuit breakers, retry policies, and graceful degradation
+- **State Serialization**: Robust CogniVaultState persistence with comprehensive type handling
+- **Enhanced DAG Visualization**: Shows checkpoint nodes, error handling routes, and memory state
+
+#### Memory Manager Features
+
+- **LangGraph MemorySaver Integration**: Native checkpointing with LangGraph 0.5.1
+- **Thread-Scoped Memory**: Conversation isolation with unique thread IDs
+- **Checkpoint Lifecycle Management**: Creation, cleanup, and TTL-based expiration
+- **Rollback Mechanisms**: Failed execution recovery with state restoration
+- **Error Policy Integration**: Centralized retry logic and circuit breaker patterns
+
+Example checkpoint workflow:
+```bash
+# Start a research session with checkpointing
+make run QUESTION="What are the implications of AI governance?" ENABLE_CHECKPOINTS=1 THREAD_ID=ai-governance-research
+
+# Continue the conversation in the same session
+make run QUESTION="How do different countries approach AI regulation?" ENABLE_CHECKPOINTS=1 THREAD_ID=ai-governance-research  
+
+# If execution fails, rollback to last checkpoint
+make run QUESTION="What are the enforcement mechanisms?" ENABLE_CHECKPOINTS=1 THREAD_ID=ai-governance-research ROLLBACK_LAST_CHECKPOINT=1
+```
+
+The checkpointing system prepares CogniVault for **long-running workflows**, **multi-session DAGs**, and **conversation persistence** while maintaining full backward compatibility.
 
 ---
 

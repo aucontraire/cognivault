@@ -26,10 +26,12 @@ CogniVault provides two orchestration modes for maximum flexibility:
 - Retry logic, timeouts, and comprehensive tracing
 - Backward compatibility with existing workflows
 
-**RealLangGraphOrchestrator (Phase 2.1)**
+**RealLangGraphOrchestrator (Phase 2.1 → 2.2)**
 - DAG-based execution with true parallel processing
 - Concurrent state updates using Annotated types with operator.add reducers
 - Advanced error recovery and circuit breaker patterns
+- **[Phase 2.2]** Optional checkpointing and conversation persistence using LangGraph MemorySaver
+- **[Phase 2.2]** Thread-scoped memory management for multi-session workflows
 - Parallel execution flow: Refiner → [Critic, Historian] → Synthesis
 
 ### 2. **Enhanced Agent System**
@@ -96,6 +98,33 @@ START → Refiner → [Critic, Historian] → Synthesis → END
 - Critic and Historian execute in parallel with concurrent state updates
 - Synthesis integrates all outputs for final analysis
 
+### 8. **Phase 2.2: Memory Management & Checkpointing**
+**[Phase 2.2]** Advanced memory management and conversation persistence for long-running workflows:
+
+**Core Components:**
+- `CogniVaultMemoryManager`: LangGraph MemorySaver integration with thread ID scoping
+- `ErrorPolicyManager`: Centralized retry logic, circuit breaker patterns, and fallback strategies
+- `CheckpointConfig`: Configuration for optional checkpointing behavior with TTL management
+- Enhanced CLI integration with `--enable-checkpoints`, `--thread-id`, and `--rollback-last-checkpoint` flags
+
+**Memory Management Features:**
+- **Thread-Scoped Persistence**: Multi-session conversation isolation using unique thread IDs
+- **Optional Checkpointing**: Defaults to off for backward compatibility, can be enabled per execution
+- **State Serialization**: Robust CogniVaultState persistence with comprehensive type handling
+- **Rollback Mechanisms**: Failed execution recovery with checkpoint restoration
+- **Cleanup Management**: TTL-based checkpoint expiration and memory optimization
+
+**Error Policy Integration:**
+- **Circuit Breaker Patterns**: Configurable failure thresholds per agent with recovery timeouts
+- **Retry Strategies**: Exponential backoff, linear backoff, adaptive, and fixed interval delays
+- **Error Classification**: Timeout, LLM, validation, resource exhaustion, network, and configuration errors
+- **Centralized Configuration**: Agent-specific error policies with fallback chains
+
+**Enhanced DAG Visualization:**
+- Checkpoint-enabled nodes with 💾 indicators
+- Error handling routes with 🔌 circuit breaker symbols
+- Memory state visualization and thread ID tracking
+
 ---
 
 ## 🏗️ Planned Abstractions
@@ -119,8 +148,10 @@ cognivault/
 ├── orchestrator.py   # Orchestration engine
 ├── cli.py            # Command-line entrypoint
 ├── langraph/         # LangGraph compatibility layer
-│   ├── graph_builder.py  # DAG construction and validation
-│   └── routing.py        # Graph execution and routing
+│   ├── graph_builder.py     # DAG construction and validation
+│   ├── routing.py           # Graph execution and routing
+│   ├── memory_manager.py    # **[Phase 2.2]** LangGraph MemorySaver integration with thread ID scoping
+│   └── error_policies.py    # **[Phase 2.2]** Centralized retry logic and circuit breaker patterns
 ├── store/            # Markdown export + future persistence
 ├── retrieval/        # Embedding + search layer (stub)
 tests/
@@ -181,19 +212,26 @@ LangGraph 0.5.1 was chosen for Phase 1 development because:
 - ✅ **[Phase 2.1]** Historian agent implementation with parallel execution
 - ✅ **[Phase 2.1]** Concurrent state updates with Annotated types and operator.add reducers
 - ✅ **[Phase 2.1]** Comprehensive test coverage (>90%) for all LangGraph components
+- ✅ **[Phase 2.2]** LangGraph MemorySaver integration with optional checkpointing
+- ✅ **[Phase 2.2]** Thread-scoped memory management for multi-session workflows
+- ✅ **[Phase 2.2]** Centralized error policies with circuit breakers and retry strategies
+- ✅ **[Phase 2.2]** Enhanced DAG visualization with checkpoint and error policy indicators
 - 🔜 Web frontend and storage persistence layer
 
 ---
 
 ## ✨ Future Ideas
 
-- **LangGraph Migration**: Seamless transition from current orchestrator to LangGraph DAG execution
+- ✅ **LangGraph Migration**: Seamless transition from current orchestrator to LangGraph DAG execution *(Completed in Phase 2.1)*
+- ✅ **Graph Visualization**: DAG visualization and execution flow debugging *(Completed in Phase 2.1)*
+- ✅ **Conditional Execution**: Smart routing based on agent outputs and context state *(Completed in Phase 2.1)*
 - **Advanced Node Types**: DECISION and conditional routing nodes for complex workflows
 - **Multi-LLM Blending**: Parallel execution with different LLM providers
 - **Plugin Architecture**: Community agent ecosystem with dynamic loading
-- **Graph Visualization**: DAG visualization and execution flow debugging
-- **Conditional Execution**: Smart routing based on agent outputs and context state
+- **Persistent Storage Layer**: Database integration for long-term conversation history
+- **Web Frontend**: Interactive UI for visual DAG editing and execution monitoring
 - **GitHub Copilot-style inline annotation**: IDE integration for agent suggestions
+- **Multi-Session DAG Workflows**: Complex workflows spanning multiple conversation sessions *(Foundation completed in Phase 2.2)*
 
 ## 🔗 LangGraph Architecture Details
 
