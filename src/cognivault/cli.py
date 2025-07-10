@@ -172,12 +172,11 @@ async def run(
 
     # Handle comparison mode
     if compare_modes:
-        # Comparison mode now compares legacy vs langgraph (intermediate) modes
-        # Since langgraph-real is the default, we override execution_mode for comparison
-        if execution_mode == "langgraph-real":
-            logger.info(
-                f"[{cli_name}] Comparison mode: using legacy vs langgraph for comparison (not langgraph-real)"
-            )
+        # Comparison mode now compares langgraph vs langgraph-real modes
+        # This provides performance and behavior comparison between the two LangGraph implementations
+        logger.info(
+            f"[{cli_name}] Comparison mode: using langgraph vs langgraph-real for comparison"
+        )
 
         # Create shared LLM instance for comparison mode
         llm = create_llm_instance()
@@ -200,12 +199,23 @@ async def run(
 
     # Create orchestrator based on execution mode
     if execution_mode == "legacy":
-        # Show deprecation warning for legacy mode
+        # Show strong deprecation warning for legacy mode
+        console.print("")
+        console.print("[bold red]🚨 DEPRECATION WARNING 🚨[/bold red]")
         console.print(
-            "[yellow]⚠️  Legacy orchestrator is deprecated and will be removed in v1.1.0.[/yellow]"
+            "[red]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/red]"
         )
         console.print(
-            "[yellow]🔁 Please remove --execution-mode=legacy flag to use the default LangGraph mode.[/yellow]"
+            "[red]⚠️  Legacy orchestrator is DEPRECATED and will be REMOVED in 2-3 weeks.[/red]"
+        )
+        console.print(
+            "[red]🔁 Please remove --execution-mode=legacy flag to use the default LangGraph mode.[/red]"
+        )
+        console.print(
+            "[red]📖 Migration guide: Use default mode or --execution-mode=langgraph-real[/red]"
+        )
+        console.print(
+            "[red]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/red]"
         )
         console.print("")  # Add spacing
 
@@ -359,12 +369,12 @@ def main(
     execution_mode: str = typer.Option(
         "langgraph-real",
         "--execution-mode",
-        help="Execution mode: 'langgraph-real' for LangGraph integration (default), 'langgraph' for DAG execution, 'legacy' for legacy orchestrator (deprecated)",
+        help="Execution mode: 'langgraph-real' for production LangGraph integration (default), 'langgraph' for intermediate DAG execution, 'legacy' for legacy orchestrator (DEPRECATED - will be removed in 2-3 weeks)",
     ),
     compare_modes: bool = typer.Option(
         False,
         "--compare-modes",
-        help="Run both legacy and langgraph modes side-by-side for performance comparison (legacy mode deprecated)",
+        help="Run both langgraph and langgraph-real modes side-by-side for performance comparison and validation",
     ),
     benchmark_runs: int = typer.Option(
         1,
@@ -641,7 +651,7 @@ async def _run_comparison_mode(
     benchmark_runs: int = 1,
     llm: Optional[LLMInterface] = None,
 ):
-    """Run both legacy and langgraph modes side-by-side for comparison."""
+    """Run both langgraph and langgraph-real modes side-by-side for comparison."""
     if benchmark_runs > 1:
         console.print(
             f"🔄 [bold magenta]Running Performance Benchmark ({benchmark_runs} runs per mode)[/bold magenta]\n"
@@ -653,8 +663,8 @@ async def _run_comparison_mode(
 
     results: Dict[str, Any] = {}
 
-    # Run both execution modes with benchmarking
-    for mode in ["legacy", "langgraph"]:
+    # Run both LangGraph execution modes with benchmarking
+    for mode in ["langgraph", "langgraph-real"]:
         console.print(f"⚡ [bold]Running {mode.title()} Mode...[/bold]")
 
         mode_results: Dict[str, Any] = {
@@ -674,12 +684,27 @@ async def _run_comparison_mode(
                 console.print(f"  📊 Run {run_num + 1}/{benchmark_runs}")
 
             # Create orchestrator for this mode
-            if mode == "legacy":
-                mode_orchestrator: Union[AgentOrchestrator, LangGraphOrchestrator] = (
-                    AgentOrchestrator(agents_to_run=agents_to_run)
-                )
-            else:
-                mode_orchestrator = LangGraphOrchestrator(agents_to_run=agents_to_run)
+            if mode == "langgraph":
+                mode_orchestrator: Union[
+                    LangGraphOrchestrator, RealLangGraphOrchestrator
+                ] = LangGraphOrchestrator(agents_to_run=agents_to_run)
+            else:  # langgraph-real
+                # Validate LangGraph runtime for real mode
+                try:
+                    _validate_langgraph_runtime()
+                    mode_orchestrator = RealLangGraphOrchestrator(
+                        agents_to_run=agents_to_run,
+                        enable_checkpoints=False,  # Disable checkpoints in comparison mode for consistency
+                        thread_id=None,
+                    )
+                except (ImportError, RuntimeError) as e:
+                    console.print(
+                        f"[red]❌ LangGraph-real mode failed validation: {e}[/red]"
+                    )
+                    # Fall back to langgraph mode for comparison
+                    mode_orchestrator = LangGraphOrchestrator(
+                        agents_to_run=agents_to_run
+                    )
 
             # Measure memory before execution (if available)
             memory_before = 0.0
@@ -757,102 +782,112 @@ def _display_comparison_results(results: dict, console: Console, query: str):
     # Performance comparison table
     perf_table = Table(title="Performance Comparison")
     perf_table.add_column("Metric", style="bold")
-    perf_table.add_column("Legacy Mode", justify="right")
     perf_table.add_column("LangGraph Mode", justify="right")
+    perf_table.add_column("LangGraph-Real Mode", justify="right")
     perf_table.add_column("Difference", justify="right")
 
-    legacy_results = results["legacy"]
     langgraph_results = results["langgraph"]
+    langgraph_real_results = results["langgraph-real"]
 
     # Calculate statistics for execution times
-    if legacy_results["execution_times"] and langgraph_results["execution_times"]:
-        legacy_avg = statistics.mean(legacy_results["execution_times"])
+    if (
+        langgraph_results["execution_times"]
+        and langgraph_real_results["execution_times"]
+    ):
         langgraph_avg = statistics.mean(langgraph_results["execution_times"])
-        time_diff = legacy_avg - langgraph_avg
-        time_diff_pct = (time_diff / legacy_avg) * 100 if legacy_avg > 0 else 0
+        langgraph_real_avg = statistics.mean(langgraph_real_results["execution_times"])
+        time_diff = langgraph_avg - langgraph_real_avg
+        time_diff_pct = (time_diff / langgraph_avg) * 100 if langgraph_avg > 0 else 0
 
         # Execution time (with std dev if multiple runs)
-        if len(legacy_results["execution_times"]) > 1:
-            legacy_std = statistics.stdev(legacy_results["execution_times"])
-            legacy_time_str = f"{legacy_avg:.3f}s ±{legacy_std:.3f}"
-        else:
-            legacy_time_str = f"{legacy_avg:.3f}s"
-
         if len(langgraph_results["execution_times"]) > 1:
             langgraph_std = statistics.stdev(langgraph_results["execution_times"])
             langgraph_time_str = f"{langgraph_avg:.3f}s ±{langgraph_std:.3f}"
         else:
             langgraph_time_str = f"{langgraph_avg:.3f}s"
 
+        if len(langgraph_real_results["execution_times"]) > 1:
+            langgraph_real_std = statistics.stdev(
+                langgraph_real_results["execution_times"]
+            )
+            langgraph_real_time_str = (
+                f"{langgraph_real_avg:.3f}s ±{langgraph_real_std:.3f}"
+            )
+        else:
+            langgraph_real_time_str = f"{langgraph_real_avg:.3f}s"
+
         perf_table.add_row(
             "Avg Execution Time",
-            legacy_time_str,
             langgraph_time_str,
+            langgraph_real_time_str,
             f"{time_diff:+.3f}s ({time_diff_pct:+.1f}%)",
         )
 
         # Min/Max times if multiple runs
-        if len(legacy_results["execution_times"]) > 1:
-            legacy_min = min(legacy_results["execution_times"])
-            legacy_max = max(legacy_results["execution_times"])
+        if len(langgraph_results["execution_times"]) > 1:
             langgraph_min = min(langgraph_results["execution_times"])
             langgraph_max = max(langgraph_results["execution_times"])
+            langgraph_real_min = min(langgraph_real_results["execution_times"])
+            langgraph_real_max = max(langgraph_real_results["execution_times"])
 
             perf_table.add_row(
                 "Min Time",
-                f"{legacy_min:.3f}s",
                 f"{langgraph_min:.3f}s",
-                f"{legacy_min - langgraph_min:+.3f}s",
+                f"{langgraph_real_min:.3f}s",
+                f"{langgraph_min - langgraph_real_min:+.3f}s",
             )
             perf_table.add_row(
                 "Max Time",
-                f"{legacy_max:.3f}s",
                 f"{langgraph_max:.3f}s",
-                f"{legacy_max - langgraph_max:+.3f}s",
+                f"{langgraph_real_max:.3f}s",
+                f"{langgraph_max - langgraph_real_max:+.3f}s",
             )
 
     # Success rate
-    legacy_success_rate = (
-        legacy_results["success_count"] / len(legacy_results["execution_times"])
-        if legacy_results["execution_times"]
-        else 0
-    )
     langgraph_success_rate = (
         langgraph_results["success_count"] / len(langgraph_results["execution_times"])
         if langgraph_results["execution_times"]
         else 0
     )
+    langgraph_real_success_rate = (
+        langgraph_real_results["success_count"]
+        / len(langgraph_real_results["execution_times"])
+        if langgraph_real_results["execution_times"]
+        else 0
+    )
 
     perf_table.add_row(
         "Success Rate",
-        f"{legacy_success_rate:.1%}",
         f"{langgraph_success_rate:.1%}",
-        f"{legacy_success_rate - langgraph_success_rate:+.1%}",
+        f"{langgraph_real_success_rate:.1%}",
+        f"{langgraph_success_rate - langgraph_real_success_rate:+.1%}",
     )
 
     # Memory usage
-    if legacy_results["memory_usage"] and langgraph_results["memory_usage"]:
-        legacy_mem_avg = statistics.mean(legacy_results["memory_usage"])
+    if langgraph_results["memory_usage"] and langgraph_real_results["memory_usage"]:
         langgraph_mem_avg = statistics.mean(langgraph_results["memory_usage"])
-        mem_diff = legacy_mem_avg - langgraph_mem_avg
+        langgraph_real_mem_avg = statistics.mean(langgraph_real_results["memory_usage"])
+        mem_diff = langgraph_mem_avg - langgraph_real_mem_avg
 
         perf_table.add_row(
             "Avg Memory Usage",
-            f"{legacy_mem_avg:.1f} MB",
             f"{langgraph_mem_avg:.1f} MB",
+            f"{langgraph_real_mem_avg:.1f} MB",
             f"{mem_diff:+.1f} MB",
         )
 
     # Context size
-    if legacy_results["context_sizes"] and langgraph_results["context_sizes"]:
-        legacy_size_avg = statistics.mean(legacy_results["context_sizes"])
+    if langgraph_results["context_sizes"] and langgraph_real_results["context_sizes"]:
         langgraph_size_avg = statistics.mean(langgraph_results["context_sizes"])
-        size_diff = legacy_size_avg - langgraph_size_avg
+        langgraph_real_size_avg = statistics.mean(
+            langgraph_real_results["context_sizes"]
+        )
+        size_diff = langgraph_size_avg - langgraph_real_size_avg
 
         perf_table.add_row(
             "Avg Context Size",
-            f"{legacy_size_avg:,.0f} bytes",
             f"{langgraph_size_avg:,.0f} bytes",
+            f"{langgraph_real_size_avg:,.0f} bytes",
             f"{size_diff:+,.0f} bytes",
         )
 
@@ -860,7 +895,10 @@ def _display_comparison_results(results: dict, console: Console, query: str):
     console.print()
 
     # Display detailed results if both modes have successful runs
-    if legacy_results["success_count"] > 0 and langgraph_results["success_count"] > 0:
+    if (
+        langgraph_results["success_count"] > 0
+        and langgraph_real_results["success_count"] > 0
+    ):
         _display_output_comparison(results, console)
     else:
         # Show error details
@@ -875,48 +913,48 @@ def _display_comparison_results(results: dict, console: Console, query: str):
 
 def _display_output_comparison(results: dict, console: Console):
     """Display comparison of agent outputs between modes."""
-    legacy_context = results["legacy"]["last_context"]
     langgraph_context = results["langgraph"]["last_context"]
+    langgraph_real_context = results["langgraph-real"]["last_context"]
 
-    if not legacy_context or not langgraph_context:
+    if not langgraph_context or not langgraph_real_context:
         console.print(
             "⚠️  [yellow]Cannot compare outputs - missing context data[/yellow]"
         )
         return
 
-    legacy_outputs = legacy_context.agent_outputs
     langgraph_outputs = langgraph_context.agent_outputs
+    langgraph_real_outputs = langgraph_real_context.agent_outputs
 
     # Find all agents that ran in either mode
-    all_agents = set(legacy_outputs.keys()) | set(langgraph_outputs.keys())
+    all_agents = set(langgraph_outputs.keys()) | set(langgraph_real_outputs.keys())
 
     for agent in all_agents:
-        legacy_output = legacy_outputs.get(agent, "[Not executed]")
         langgraph_output = langgraph_outputs.get(agent, "[Not executed]")
+        langgraph_real_output = langgraph_real_outputs.get(agent, "[Not executed]")
 
         # Check if outputs are identical
-        outputs_match = legacy_output == langgraph_output
+        outputs_match = langgraph_output == langgraph_real_output
         match_indicator = "✅ Identical" if outputs_match else "🔄 Different"
 
         console.print(f"🤖 [bold]{agent} Agent - {match_indicator}[/bold]")
 
         if not outputs_match:
             # Show truncated outputs for comparison
-            legacy_preview = (
-                (legacy_output[:100] + "...")
-                if len(legacy_output) > 100
-                else legacy_output
-            )
             langgraph_preview = (
                 (langgraph_output[:100] + "...")
                 if len(langgraph_output) > 100
                 else langgraph_output
             )
+            langgraph_real_preview = (
+                (langgraph_real_output[:100] + "...")
+                if len(langgraph_real_output) > 100
+                else langgraph_real_output
+            )
 
             comparison_table = Table(show_header=True)
-            comparison_table.add_column("Legacy Mode", style="cyan", width=40)
-            comparison_table.add_column("LangGraph Mode", style="green", width=40)
-            comparison_table.add_row(legacy_preview, langgraph_preview)
+            comparison_table.add_column("LangGraph Mode", style="cyan", width=40)
+            comparison_table.add_column("LangGraph-Real Mode", style="green", width=40)
+            comparison_table.add_row(langgraph_preview, langgraph_real_preview)
 
             console.print(comparison_table)
 

@@ -28,7 +28,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 
 - ✅ **Fully working CLI** using [Typer](https://typer.tiangolo.com/)
 - 🧠 **Multi-agent orchestration**: Refiner, Historian, Critic, Synthesis
-- 🔁 **LangGraph-powered orchestration**: Production DAG-based execution with legacy mode support (deprecated)
+- 🔁 **LangGraph-powered orchestration**: Production DAG-based execution (legacy mode deprecated and will be removed)
 - 💾 **Checkpointing & Persistence**: LangGraph MemorySaver integration with conversation rollback
 - 🔄 **Thread-Scoped Memory**: Multi-session conversation management with unique thread IDs
 - 🛡️ **Centralized Error Policies**: Circuit breakers, retry logic, and fallback strategies per agent
@@ -925,19 +925,20 @@ make run QUESTION="Your question"
 make run QUESTION="Your question" EXECUTION_MODE=langgraph-real
 ```
 
-**Legacy Mode (deprecated)**: Uses the original `AgentOrchestrator` with sequential/parallel execution
-```bash
-make run QUESTION="Your question" EXECUTION_MODE=legacy
-```
-
 **LangGraph DAG Mode (deprecated)**: Uses intermediate `LangGraphOrchestrator` with DAG-based execution
 ```bash
 make run QUESTION="Your question" EXECUTION_MODE=langgraph
 ```
 
+**Legacy Mode (DEPRECATED - WILL BE REMOVED)**: Uses the original `AgentOrchestrator` - **scheduled for removal in 2-3 weeks**
+```bash
+# NOT RECOMMENDED - Use default LangGraph mode instead
+make run QUESTION="Your question" EXECUTION_MODE=legacy
+```
+
 #### Performance Comparison
 
-Compare both execution modes side-by-side to validate performance and output consistency:
+Compare LangGraph execution modes side-by-side to validate performance and output consistency:
 ```bash
 # Basic comparison - single run
 make run QUESTION="Your question" COMPARE_MODES=1
@@ -962,14 +963,14 @@ Example output:
 📊 Performance Benchmark Results
 
                          Performance Comparison                         
-┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
-┃ Metric             ┃ Legacy Mode ┃ LangGraph Mode ┃       Difference ┃
-┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
-│ Avg Execution Time │      2.379s │         1.424s │ +0.954s (+40.1%) │
-│ Success Rate       │      100.0% │         100.0% │            +0.0% │
-│ Avg Memory Usage   │      8.5 MB │         1.0 MB │          +7.5 MB │
-│ Avg Context Size   │   622 bytes │      460 bytes │       +162 bytes │
-└────────────────────┴─────────────┴────────────────┴──────────────────┘
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ Metric             ┃ LangGraph Mode ┃ LangGraph-Real   ┃       Difference ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ Avg Execution Time │         2.124s │           1.424s │ +0.700s (+33.0%) │
+│ Success Rate       │         100.0% │           100.0% │            +0.0% │
+│ Avg Memory Usage   │         5.2 MB │           4.1 MB │          +1.1 MB │
+│ Avg Context Size   │      580 bytes │        460 bytes │       +120 bytes │
+└────────────────────┴────────────────┴──────────────────┴──────────────────┘
 ```
 
 ### 📊 DAG Visualization

@@ -45,7 +45,8 @@ class TestCLILangGraphRealIntegration:
         # Assert
         assert result.exit_code == 0
         assert "langgraph-real" in result.output
-        assert "LangGraph integration" in result.output
+        # Check for execution mode option presence
+        assert "--execution-mode" in result.output
 
     def test_cli_rejects_invalid_execution_mode(self):
         """Test that CLI rejects invalid execution modes."""

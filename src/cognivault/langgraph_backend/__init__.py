@@ -20,6 +20,15 @@ from .graph_patterns import (
     PatternRegistry,
 )
 from .graph_cache import GraphCache, CacheConfig
+from .semantic_validation import (
+    SemanticValidator,
+    CogniVaultValidator,
+    ValidationResult,
+    ValidationIssue,
+    ValidationSeverity,
+    ValidationError,
+    create_default_validator,
+)
 
 __all__ = [
     # Core graph building
@@ -35,6 +44,14 @@ __all__ = [
     # Caching
     "GraphCache",
     "CacheConfig",
+    # Semantic validation
+    "SemanticValidator",
+    "CogniVaultValidator",
+    "ValidationResult",
+    "ValidationIssue",
+    "ValidationSeverity",
+    "ValidationError",
+    "create_default_validator",
 ]
 
 __version__ = "2.0.0"  # Phase 2 backend implementation
