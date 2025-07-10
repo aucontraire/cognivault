@@ -596,7 +596,10 @@ class TestEndToEndIntegration:
         assert updated_stats["total_executions"] == initial_total + 1
         assert updated_stats["successful_executions"] == initial_successful + 1
         assert updated_stats["orchestrator_type"] == "langgraph-real"
-        assert updated_stats["implementation_status"] == "phase2_1_production"
+        assert (
+            updated_stats["implementation_status"]
+            == "phase2_production_with_graph_factory"
+        )
 
     def test_memory_and_error_policy_interaction(self, full_orchestrator_setup):
         """Test interaction between memory management and error policies."""
