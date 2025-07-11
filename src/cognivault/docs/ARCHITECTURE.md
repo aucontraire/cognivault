@@ -68,7 +68,7 @@ Comprehensive diagnostic framework for enhanced development velocity and product
 - Multi-format output (console, JSON, markdown) for automation integration
 
 **CLI Integration & Observability**
-- Seamless integration via `cognivault diagnostics patterns`
+- Seamless integration via `./cognivault diagnostics patterns`
 - Rich console output with progress indicators and structured tables
 - Complete help system and parameter validation
 - Enterprise-grade diagnostic tools for production deployment
@@ -403,7 +403,7 @@ src/cognivault/diagnostics/
 ```
 
 **CLI Integration**
-- Seamless integration via `cognivault diagnostics patterns` subcommands
+- Seamless integration via `./cognivault diagnostics patterns` subcommands
 - Rich console output with progress indicators and structured visualization
 - Complete help system and parameter validation for all tools
 

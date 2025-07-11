@@ -18,6 +18,10 @@ git clone https://github.com/aucontraire/cognivault.git
 cd cognivault
 bash setup.sh
 make run QUESTION="What are the long-term effects of AI in education?"
+
+# Or use the convenient cognivault command
+./cognivault main "What are the long-term effects of AI in education?"
+./cognivault diagnostics health  # Check system health
 ```
 
 See [🖥️ Usage](#️usage) for running specific agents and debugging options.
@@ -43,7 +47,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 📊 **Execution Tracing**: Structured metadata and trace logging for debugging and observability
 - 🔀 **Failure Propagation**: LangGraph-compatible conditional execution with graceful degradation strategies
 - 🏥 **Health Checks**: Agent validation system with dependency resolution and circular dependency detection
-- 📊 **CLI Observability**: Rich diagnostics interface with `cognivault diagnostics` subcommands for health, metrics, and system status
+- 📊 **CLI Observability**: Rich diagnostics interface with `./cognivault diagnostics` subcommands for health, metrics, and system status
 - 🔍 **Execution Tracing**: Real-time pipeline execution traces with `--trace` flag, showing timing, dependencies, and routing decisions
 - 🩺 **Health Checks**: Pre-execution validation with `--health-check` flag for agent readiness and configuration verification
 - 🧪 **Dry Run Mode**: Pipeline validation without execution using `--dry-run` flag for configuration testing
@@ -1160,13 +1164,13 @@ Check system health with detailed component analysis:
 
 ```bash
 # Quick health overview
-cognivault diagnostics health
+./cognivault diagnostics health
 
 # JSON output for automation
-cognivault diagnostics health --format json
+./cognivault diagnostics health --format json
 
 # Quiet mode (exit codes only)
-cognivault diagnostics health --quiet
+./cognivault diagnostics health --quiet
 ```
 
 ### Performance Metrics
@@ -1175,16 +1179,16 @@ Monitor system performance and statistics:
 
 ```bash
 # Performance overview
-cognivault diagnostics metrics
+./cognivault diagnostics metrics
 
 # Export to Prometheus format
-cognivault diagnostics metrics --format prometheus
+./cognivault diagnostics metrics --format prometheus
 
 # Agent-specific metrics only
-cognivault diagnostics metrics --agents
+./cognivault diagnostics metrics --agents
 
 # Time-windowed metrics (last N minutes)
-cognivault diagnostics metrics --window 30
+./cognivault diagnostics metrics --window 30
 ```
 
 ### System Status
@@ -1193,10 +1197,10 @@ Get comprehensive system information:
 
 ```bash
 # Detailed system status
-cognivault diagnostics status
+./cognivault diagnostics status
 
 # JSON output with custom time window
-cognivault diagnostics status --json --window 60
+./cognivault diagnostics status --json --window 60
 ```
 
 ### Agent Diagnostics
@@ -1205,10 +1209,10 @@ Monitor individual agent performance:
 
 ```bash
 # All agents status
-cognivault diagnostics agents
+./cognivault diagnostics agents
 
 # Specific agent details
-cognivault diagnostics agents --agent refiner --json
+./cognivault diagnostics agents --agent refiner --json
 ```
 
 ### Configuration Validation
@@ -1217,13 +1221,13 @@ Validate system configuration:
 
 ```bash
 # Configuration overview
-cognivault diagnostics config
+./cognivault diagnostics config
 
 # Validation only
-cognivault diagnostics config --validate
+./cognivault diagnostics config --validate
 
 # JSON output
-cognivault diagnostics config --json
+./cognivault diagnostics config --json
 ```
 
 ### Complete Diagnostics
@@ -1232,12 +1236,12 @@ Run full system diagnostics with export options:
 
 ```bash
 # Complete system report
-cognivault diagnostics full
+./cognivault diagnostics full
 
 # Export to file in different formats
-cognivault diagnostics full --format json --output system-report.json
-cognivault diagnostics full --format csv --output metrics.csv
-cognivault diagnostics full --format prometheus --output metrics.prom
+./cognivault diagnostics full --format json --output system-report.json
+./cognivault diagnostics full --format csv --output metrics.csv
+./cognivault diagnostics full --format prometheus --output metrics.prom
 ```
 
 ### Monitoring Integration
@@ -1255,27 +1259,27 @@ The CLI supports multiple output formats for seamless monitoring integration:
 
 ```bash
 # Validate built-in patterns
-cognivault diagnostics patterns validate standard
-cognivault diagnostics patterns validate conditional --level comprehensive
+./cognivault diagnostics patterns validate standard
+./cognivault diagnostics patterns validate conditional --level comprehensive
 
 # Test custom patterns
-cognivault diagnostics patterns validate /path/to/custom_pattern.py --format json
+./cognivault diagnostics patterns validate /path/to/custom_pattern.py --format json
 
 # Pattern discovery and certification
-cognivault diagnostics patterns discover --path ./patterns --validate
-cognivault diagnostics patterns certify /path/to/pattern.py --cert-output pattern.cert
+./cognivault diagnostics patterns discover --path ./patterns --validate
+./cognivault diagnostics patterns certify /path/to/pattern.py --cert-output pattern.cert
 
 # Performance benchmarking
-cognivault diagnostics patterns benchmark standard --baseline parallel --runs 10
+./cognivault diagnostics patterns benchmark standard --baseline parallel --runs 10
 
 # Interactive DAG exploration
-cognivault diagnostics dag-explorer explore --pattern conditional --agents refiner,synthesis
-cognivault diagnostics dag-explorer performance --runs 5
-cognivault diagnostics dag-explorer interactive
+./cognivault diagnostics dag-explorer explore --pattern conditional --agents refiner,synthesis
+./cognivault diagnostics dag-explorer performance --runs 5
+./cognivault diagnostics dag-explorer interactive
 
 # Execution tracing and debugging
-cognivault diagnostics execution-tracer debug --query "Test execution" --breakpoints refiner,synthesis
-cognivault diagnostics execution-tracer compare --baseline-file trace1.json --comparison-file trace2.json
+./cognivault diagnostics execution-tracer debug --query "Test execution" --breakpoints refiner,synthesis
+./cognivault diagnostics execution-tracer compare --baseline-file trace1.json --comparison-file trace2.json
 ```
 
 ### Developer Experience Features
