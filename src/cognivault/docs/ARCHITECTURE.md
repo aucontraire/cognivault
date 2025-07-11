@@ -18,8 +18,8 @@ CogniVault is a modular, agent-driven platform designed to process, refine, crit
 
 ## 🧩 Key Components
 
-### 1. **Dual Execution Orchestrators**
-CogniVault provides two orchestration modes for maximum flexibility:
+### 1. **Multi-Tier Execution Orchestrators**
+CogniVault provides multiple orchestration modes for maximum flexibility and production readiness:
 
 **AgentOrchestrator (Legacy)**
 - Sequential/parallel execution with dependency management
@@ -36,6 +36,15 @@ CogniVault provides two orchestration modes for maximum flexibility:
 - Optional checkpointing and conversation persistence using LangGraph MemorySaver
 - Thread-scoped memory management for multi-session workflows
 - Parallel execution flow: Refiner → [Critic, Historian] → Synthesis
+
+**AdvancedOrchestrator (Phase 2B Complete)** ✅
+- **Sophisticated Conditional Routing**: Dynamic agent selection based on context complexity and performance metrics
+- **Smart Fallback Mechanisms**: Hot-swap capabilities with circuit breaker patterns for agent failures
+- **Resource Scheduling**: Advanced resource allocation and scheduling with constraint management
+- **Dynamic Composition**: Runtime agent discovery and composition with optimization capabilities
+- **Comprehensive Failure Recovery**: Multi-level retry logic, checkpoint rollback, and emergency recovery
+- **Production-Grade Async Orchestration**: Race condition prevention, deadlock avoidance, resource leak protection
+- **86% Test Coverage**: Comprehensive test suite (59 tests) covering critical async orchestration paths
 
 ### 2. **Enhanced Agent System**
 Four-agent pipeline with sophisticated LLM-powered capabilities:
@@ -186,6 +195,18 @@ cognivault/
 │   ├── build_graph.py       # GraphFactory and core building logic
 │   ├── graph_patterns.py    # Pattern definitions and registry
 │   └── graph_cache.py       # LRU cache with TTL support
+├── dependencies/     # **[Phase 2B]** Advanced orchestration and dependency management
+│   ├── advanced_orchestrator.py  # Sophisticated conditional routing and failure recovery
+│   ├── graph_engine.py           # Dependency graph execution engine
+│   ├── execution_planner.py      # Execution planning and strategy management
+│   ├── failure_manager.py        # Comprehensive failure handling and recovery
+│   ├── resource_scheduler.py     # Resource allocation and scheduling
+│   └── dynamic_composition.py    # Runtime agent discovery and composition
+├── diagnostics/      # **[Phase 2C]** Developer experience and debugging tools
+│   ├── execution_tracer.py       # Execution path tracing and debugging
+│   ├── dag_explorer.py           # Interactive DAG exploration CLI tools
+│   ├── metrics.py                # Performance metrics collection
+│   └── cli.py                    # Diagnostic CLI command integration
 ├── store/            # Markdown export + future persistence
 ├── retrieval/        # Embedding + search layer (stub)
 tests/
