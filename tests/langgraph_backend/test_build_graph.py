@@ -278,7 +278,7 @@ class TestGraphFactory:
         assert "standard" in patterns
         assert "parallel" in patterns
         assert "conditional" in patterns
-        assert len(patterns) == 3
+        assert len(patterns) >= 3  # At least standard, parallel, conditional
 
 
 class TestGraphBuildError:

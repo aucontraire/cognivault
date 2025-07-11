@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+"""
+CogniVault CLI Entry Point
+
+This script provides a global 'cognivault' command that automatically handles
+the PYTHONPATH setup and module execution.
+"""
+import os
+import sys
+import subprocess
+
+def main():
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Set PYTHONPATH to include the src directory
+    src_path = os.path.join(script_dir, "src")
+    env = os.environ.copy()
+    if "PYTHONPATH" in env:
+        env["PYTHONPATH"] = f"{src_path}:{env['PYTHONPATH']}"
+    else:
+        env["PYTHONPATH"] = src_path
+    
+    # Execute the CLI module with all passed arguments
+    cmd = [sys.executable, "-m", "cognivault.cli"] + sys.argv[1:]
+    
+    try:
+        result = subprocess.run(cmd, env=env, cwd=script_dir)
+        sys.exit(result.returncode)
+    except KeyboardInterrupt:
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error running CogniVault: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

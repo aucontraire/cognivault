@@ -358,6 +358,15 @@ class PatternRegistry:
         self.register_pattern(ParallelPattern())
         self.register_pattern(ConditionalPattern())
 
+        # Register enhanced patterns
+        try:
+            from .conditional import EnhancedConditionalPattern
+
+            self.register_pattern(EnhancedConditionalPattern())
+        except ImportError:
+            # Enhanced conditional pattern not available
+            pass
+
     def register_pattern(self, pattern: GraphPattern) -> None:
         """
         Register a new graph pattern.

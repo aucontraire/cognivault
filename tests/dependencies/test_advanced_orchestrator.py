@@ -1792,3 +1792,632 @@ class TestOrchestratorObservability:
             assert_specific_agents_executed(results, ["success_agent"])
             assert "success_agent" in context.agent_outputs
             assert "graceful_degradation" in results.failure_recovery_actions
+
+
+# Critical Coverage Tests - Race Conditions, Deadlocks, Resource Leaks
+class TestAdvancedOrchestratorCriticalPaths:
+    """Tests for critical missing coverage areas to prevent race conditions, deadlocks, and resource leaks."""
+
+    @pytest.fixture
+    def orchestrator_with_dynamic_composition(self, simple_graph_engine):
+        """Create orchestrator with dynamic composition enabled."""
+        config = OrchestratorConfig(
+            max_concurrent_agents=2,
+            enable_failure_recovery=True,
+            enable_resource_scheduling=True,
+            enable_dynamic_composition=True,  # Enable for complex tests
+            default_execution_strategy=ExecutionStrategy.PARALLEL_BATCHED,
+            cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
+        )
+        return AdvancedOrchestrator(simple_graph_engine, config)
+
+    @pytest.mark.asyncio
+    async def test_agent_initialization_failure_handling(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test agent initialization failures - lines 217-272."""
+        # Clear existing loaded agents
+        orchestrator_with_dynamic_composition.loaded_agents.clear()
+
+        # Mock the graph engine to have specific agents we want to test
+        from cognivault.dependencies.graph_engine import DependencyNode
+
+        # Create proper DependencyNode mocks with priority values
+        mock_node1 = Mock(spec=DependencyNode)
+        mock_node1.priority = ExecutionPriority.NORMAL
+
+        mock_node2 = Mock(spec=DependencyNode)
+        mock_node2.priority = ExecutionPriority.NORMAL
+
+        mock_node3 = Mock(spec=DependencyNode)
+        mock_node3.priority = ExecutionPriority.NORMAL
+
+        mock_node4 = Mock(spec=DependencyNode)
+        mock_node4.priority = ExecutionPriority.NORMAL
+
+        orchestrator_with_dynamic_composition.graph_engine.nodes = {
+            "successful_agent": mock_node1,
+            "failing_agent": mock_node2,
+            "missing_agent": mock_node3,
+            "another_successful_agent": mock_node4,
+        }
+
+        # Mock dynamic composer to fail on certain agents
+        def mock_load_agent(agent_name):
+            if agent_name == "successful_agent":
+                return MockAgent("successful_agent")
+            elif agent_name == "failing_agent":
+                raise Exception("Agent load failure")
+            elif agent_name == "missing_agent":
+                return None  # Simulate agent not found
+            elif agent_name == "another_successful_agent":
+                return MockAgent("another_successful_agent")
+            else:
+                return MockAgent(agent_name)  # Fallback for other agents
+
+        orchestrator_with_dynamic_composition.dynamic_composer.load_agent = AsyncMock(
+            side_effect=mock_load_agent
+        )
+        orchestrator_with_dynamic_composition.dynamic_composer.discover_agents = (
+            AsyncMock()
+        )
+
+        # Should handle failures gracefully without stopping initialization
+        await orchestrator_with_dynamic_composition.initialize_agents()
+
+        # Verify only successful agents were loaded (should be 2: successful_agent and another_successful_agent)
+        assert len(orchestrator_with_dynamic_composition.loaded_agents) == 2
+        assert "successful_agent" in orchestrator_with_dynamic_composition.loaded_agents
+        assert (
+            "another_successful_agent"
+            in orchestrator_with_dynamic_composition.loaded_agents
+        )
+        assert (
+            "failing_agent" not in orchestrator_with_dynamic_composition.loaded_agents
+        )
+        assert (
+            "missing_agent" not in orchestrator_with_dynamic_composition.loaded_agents
+        )
+
+    @pytest.mark.asyncio
+    async def test_discovery_and_composition_phase(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test discovery and composition phase - lines 343-359."""
+        context = AgentContext(query="test discovery")
+
+        # Mock dynamic composer methods
+        discovery_results = {"discovered_agents": ["new_agent_1", "new_agent_2"]}
+        optimization_results = {"optimizations_applied": ["load_balancing", "caching"]}
+
+        orchestrator_with_dynamic_composition.dynamic_composer.auto_discover_and_swap = AsyncMock(
+            return_value=discovery_results
+        )
+        orchestrator_with_dynamic_composition.dynamic_composer.optimize_composition = (
+            AsyncMock(return_value=optimization_results)
+        )
+
+        await orchestrator_with_dynamic_composition._phase_discovery_and_composition(
+            context
+        )
+
+        # Verify results stored in context
+        assert context.execution_state["discovery_results"] == discovery_results
+        assert (
+            context.execution_state["composition_optimization"] == optimization_results
+        )
+
+    @pytest.mark.asyncio
+    async def test_execution_planning_phase(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test execution planning phase - lines 361-380."""
+        context = AgentContext(query="test planning")
+
+        # Mock execution plan
+        mock_plan = Mock()
+        mock_plan.get_execution_summary.return_value = {
+            "stages": 3,
+            "parallel_factor": 2.0,
+        }
+        mock_plan.get_total_stages.return_value = 3
+        mock_plan.parallelism_factor = 2.0
+
+        orchestrator_with_dynamic_composition.execution_planner.create_plan = Mock(
+            return_value=mock_plan
+        )
+
+        await orchestrator_with_dynamic_composition._phase_execution_planning(context)
+
+        # Verify plan was created and stored
+        assert orchestrator_with_dynamic_composition.current_plan == mock_plan
+        assert "execution_plan" in context.execution_state
+        orchestrator_with_dynamic_composition.execution_planner.create_plan.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_resource_allocation_phase_with_constraints(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test resource allocation phase with constraints - lines 381-408."""
+        context = AgentContext(query="test resource allocation")
+
+        # Add agents with resource constraints
+        agent1 = MockAgent("resource_heavy_agent")
+        agent2 = MockAgent("lightweight_agent")
+        orchestrator_with_dynamic_composition.loaded_agents = {
+            "resource_heavy_agent": agent1,
+            "lightweight_agent": agent2,
+        }
+
+        # Mock graph nodes with resource constraints
+        node1 = Mock()
+        node1.resource_constraints = {"memory": 1024, "cpu": 2}
+        node1.priority = ExecutionPriority.HIGH
+        node1.timeout_ms = 5000
+
+        node2 = Mock()
+        node2.resource_constraints = {"memory": 256, "cpu": 1}
+        node2.priority = ExecutionPriority.NORMAL
+        node2.timeout_ms = 3000
+
+        orchestrator_with_dynamic_composition.graph_engine.nodes = {
+            "resource_heavy_agent": node1,
+            "lightweight_agent": node2,
+        }
+
+        # Mock resource scheduler
+        orchestrator_with_dynamic_composition.resource_scheduler.request_resources = (
+            AsyncMock(return_value=["req_1", "req_2"])
+        )
+        orchestrator_with_dynamic_composition.resource_scheduler.get_resource_utilization = Mock(
+            return_value={"memory_usage": 0.75, "cpu_usage": 0.60}
+        )
+
+        await orchestrator_with_dynamic_composition._phase_resource_allocation(context)
+
+        # Verify resource requests were made
+        assert (
+            orchestrator_with_dynamic_composition.resource_scheduler.request_resources.call_count
+            == 2
+        )
+        assert "resource_utilization" in context.execution_state
+
+    @pytest.mark.asyncio
+    async def test_parallel_execution_race_condition_prevention(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test parallel execution to prevent race conditions - lines 478-493."""
+        context = AgentContext(query="test parallel execution")
+
+        # Create mock stage with parallel groups
+        mock_stage = Mock()
+        mock_group = Mock()
+        mock_group.agents = ["agent1", "agent2", "agent3"]
+        mock_stage.parallel_groups = [mock_group]
+
+        # Add agents that will execute concurrently
+        agent1 = MockAgent("agent1", delay=0.1)
+        agent2 = MockAgent("agent2", delay=0.2)
+        agent3 = MockAgent("agent3", delay=0.15)
+
+        orchestrator_with_dynamic_composition.loaded_agents = {
+            "agent1": agent1,
+            "agent2": agent2,
+            "agent3": agent3,
+        }
+
+        # Track execution order for race condition detection
+        execution_order = []
+        original_execute = (
+            orchestrator_with_dynamic_composition._execute_agent_with_failure_handling
+        )
+
+        async def track_execution(agent_id, ctx):
+            execution_order.append(f"{agent_id}_start")
+            await asyncio.sleep(0.05)  # Simulate work
+            execution_order.append(f"{agent_id}_end")
+
+        orchestrator_with_dynamic_composition._execute_agent_with_failure_handling = (
+            track_execution
+        )
+
+        start_time = time.time()
+        await orchestrator_with_dynamic_composition._execute_parallel_stage(
+            mock_stage, context
+        )
+        end_time = time.time()
+
+        # Verify parallel execution (should complete in ~0.05s, not 0.45s sequential)
+        assert (end_time - start_time) < 0.3  # Much faster than sequential
+        assert len(execution_order) == 6  # 3 starts + 3 ends
+
+        # Verify all agents started before any finished (true parallelism)
+        start_count = len([e for e in execution_order[:3] if e.endswith("_start")])
+        assert start_count == 3  # All agents started concurrently
+
+    @pytest.mark.asyncio
+    async def test_agent_execution_with_comprehensive_failure_handling(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test comprehensive agent execution failure handling - lines 501-573."""
+        context = AgentContext(query="test failure handling")
+
+        # Create agent that fails on first two attempts, succeeds on third
+        failing_agent = MockAgent("failing_agent", should_fail=True)
+        call_count = 0
+
+        async def selective_failure_run(ctx):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                raise Exception(f"Simulated failure attempt {call_count}")
+            # Succeed on third attempt
+            ctx.agent_outputs["failing_agent"] = "success after retries"
+            return ctx
+
+        failing_agent.run = selective_failure_run
+        orchestrator_with_dynamic_composition.loaded_agents = {
+            "failing_agent": failing_agent
+        }
+
+        # Mock failure manager methods
+        orchestrator_with_dynamic_composition.failure_manager.can_execute_agent = Mock(
+            return_value=(True, None)
+        )
+        orchestrator_with_dynamic_composition.failure_manager.handle_agent_failure = (
+            AsyncMock(return_value=(True, "retry"))  # Should retry
+        )
+        orchestrator_with_dynamic_composition.failure_manager.circuit_breakers = {
+            "failing_agent": Mock()
+        }
+
+        # Mock retry configuration
+        retry_config = Mock()
+        retry_config.calculate_delay.return_value = 1  # 1ms delay
+        orchestrator_with_dynamic_composition.failure_manager.retry_configs = {
+            "failing_agent": retry_config
+        }
+
+        await (
+            orchestrator_with_dynamic_composition._execute_agent_with_failure_handling(
+                "failing_agent", context
+            )
+        )
+
+        # Verify agent eventually succeeded after retries
+        assert "failing_agent" in context.agent_outputs
+        assert context.agent_outputs["failing_agent"] == "success after retries"
+        assert call_count == 3  # Failed twice, succeeded third time
+
+    @pytest.mark.asyncio
+    async def test_hot_swap_functionality(self, orchestrator_with_dynamic_composition):
+        """Test agent hot-swap functionality - lines 574-607."""
+        context = AgentContext(query="test hot swap")
+
+        # Mock swap opportunities
+        swap_opportunities = [
+            {"old_agent": "failed_agent", "new_agent": "replacement_agent"}
+        ]
+
+        orchestrator_with_dynamic_composition.dynamic_composer._find_swap_opportunities = AsyncMock(
+            return_value=swap_opportunities
+        )
+        orchestrator_with_dynamic_composition.dynamic_composer.hot_swap_agent = (
+            AsyncMock(return_value=True)
+        )
+        orchestrator_with_dynamic_composition.dynamic_composer.loaded_agents = {
+            "replacement_agent": MockAgent("replacement_agent")
+        }
+
+        # Add the failed agent to loaded agents
+        orchestrator_with_dynamic_composition.loaded_agents = {
+            "failed_agent": MockAgent("failed_agent")
+        }
+
+        result = await orchestrator_with_dynamic_composition._attempt_agent_hot_swap(
+            "failed_agent", context
+        )
+
+        # Verify hot swap was successful
+        assert result is True
+        assert (
+            "replacement_agent" in orchestrator_with_dynamic_composition.loaded_agents
+        )
+        assert "failed_agent" not in orchestrator_with_dynamic_composition.loaded_agents
+
+    @pytest.mark.asyncio
+    async def test_cleanup_and_finalization_resource_release(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test cleanup and finalization phase - lines 448-477."""
+        context = AgentContext(query="test cleanup")
+
+        # Add loaded agents
+        orchestrator_with_dynamic_composition.loaded_agents = {
+            "agent1": MockAgent("agent1"),
+            "agent2": MockAgent("agent2"),
+        }
+
+        # Mock resource scheduler
+        orchestrator_with_dynamic_composition.resource_scheduler.release_resources = (
+            AsyncMock()
+        )
+        orchestrator_with_dynamic_composition.resource_scheduler.get_scheduling_statistics = Mock(
+            return_value={"total_allocations": 5, "total_releases": 5}
+        )
+
+        # Mock dynamic composer and failure manager
+        orchestrator_with_dynamic_composition.dynamic_composer.get_composition_status = Mock(
+            return_value={"active_agents": 2, "swaps_performed": 1}
+        )
+        orchestrator_with_dynamic_composition.failure_manager.get_failure_statistics = (
+            Mock(return_value={"total_failures": 3, "recoveries_attempted": 2})
+        )
+
+        # Set pipeline start time
+        orchestrator_with_dynamic_composition.pipeline_start_time = (
+            time.time() - 1.0
+        )  # 1 second ago
+
+        await orchestrator_with_dynamic_composition._phase_cleanup_and_finalization(
+            context
+        )
+
+        # Verify resources were released for all agents
+        assert (
+            orchestrator_with_dynamic_composition.resource_scheduler.release_resources.call_count
+            == 2
+        )
+
+        # Verify statistics were collected
+        assert "final_composition_status" in context.execution_state
+        assert "failure_statistics" in context.execution_state
+        assert "resource_scheduling_statistics" in context.execution_state
+
+        # Verify timing metadata was set
+        assert "pipeline_end" in context.path_metadata
+        assert "total_duration_ms" in context.path_metadata
+        assert context.path_metadata["total_duration_ms"] > 0
+
+    @pytest.mark.asyncio
+    async def test_stage_recovery_mechanisms(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test stage recovery mechanisms - lines 609-626."""
+        context = AgentContext(query="test stage recovery")
+        error = Exception("Stage execution failed")
+
+        # Mock stage
+        mock_stage = Mock()
+        mock_stage.stage_id = "test_stage_1"
+
+        # Test fallback plan recovery
+        fallback_plan = Mock()
+        fallback_plan.stage_id = "fallback_stage_1"
+
+        current_plan = Mock()
+        current_plan.fallback_plan = fallback_plan
+        orchestrator_with_dynamic_composition.current_plan = current_plan
+
+        result = await orchestrator_with_dynamic_composition._attempt_stage_recovery(
+            mock_stage, error, context
+        )
+
+        # Verify fallback plan was activated
+        assert result is True
+        assert orchestrator_with_dynamic_composition.current_plan == fallback_plan
+
+    @pytest.mark.asyncio
+    async def test_pipeline_failure_handling(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test pipeline failure handling - lines 628-647."""
+        context = AgentContext(query="test pipeline failure")
+        error = RuntimeError("Critical pipeline error")
+
+        # Mock failure manager with recovery checkpoints
+        orchestrator_with_dynamic_composition.failure_manager.recovery_checkpoints = {
+            "earliest": {"context": context, "timestamp": time.time()}
+        }
+        orchestrator_with_dynamic_composition.failure_manager._rollback_to_checkpoint = Mock(
+            return_value=True
+        )
+
+        await orchestrator_with_dynamic_composition._handle_pipeline_failure(
+            error, context
+        )
+
+        # Verify failure metadata was recorded
+        assert "pipeline_failure" in context.path_metadata
+        failure_info = context.path_metadata["pipeline_failure"]
+        assert failure_info["error"] == "Critical pipeline error"
+        assert failure_info["error_type"] == "RuntimeError"
+        assert "timestamp" in failure_info
+
+        # Verify emergency recovery was attempted
+        orchestrator_with_dynamic_composition.failure_manager._rollback_to_checkpoint.assert_called_once_with(
+            "earliest", context
+        )
+
+    @pytest.mark.asyncio
+    async def test_advanced_orchestrator_full_pipeline_with_all_phases(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test complete advanced orchestrator pipeline - lines 289-341."""
+        query = "test full pipeline"
+
+        # Mock all required components
+        orchestrator_with_dynamic_composition.dynamic_composer.auto_discover_and_swap = AsyncMock(
+            return_value={"discovered": ["agent1"]}
+        )
+        orchestrator_with_dynamic_composition.dynamic_composer.optimize_composition = (
+            AsyncMock(return_value={"optimized": True})
+        )
+
+        # Mock execution plan
+        mock_plan = Mock()
+        mock_plan.get_execution_summary.return_value = {"stages": 2}
+        mock_plan.get_total_stages.return_value = 2
+        mock_plan.parallelism_factor = 1.5
+        mock_plan.stages = []
+        mock_plan.completed_at = None
+
+        orchestrator_with_dynamic_composition.execution_planner.create_plan = Mock(
+            return_value=mock_plan
+        )
+
+        # Mock resource scheduler
+        orchestrator_with_dynamic_composition.resource_scheduler.get_resource_utilization = Mock(
+            return_value={"memory": 0.5}
+        )
+        orchestrator_with_dynamic_composition.resource_scheduler.release_resources = (
+            AsyncMock()
+        )
+        orchestrator_with_dynamic_composition.resource_scheduler.get_scheduling_statistics = Mock(
+            return_value={"allocations": 3}
+        )
+
+        # Mock metrics collector
+        mock_metrics = Mock()
+        mock_metrics.record_pipeline_execution = Mock()
+
+        with patch(
+            "cognivault.dependencies.advanced_orchestrator.get_metrics_collector",
+            return_value=mock_metrics,
+        ):
+            with patch(
+                "cognivault.dependencies.advanced_orchestrator.observability_context"
+            ):
+                result = await orchestrator_with_dynamic_composition.run(query)
+
+        # Verify pipeline completed successfully
+        assert isinstance(result, AgentContext)
+        assert result.query == query
+        assert "execution_id" in result.path_metadata
+        assert "orchestration_type" in result.path_metadata
+        assert result.path_metadata["orchestration_type"] == "advanced"
+
+        # Verify all phases were called
+        orchestrator_with_dynamic_composition.dynamic_composer.auto_discover_and_swap.assert_called_once()
+        orchestrator_with_dynamic_composition.execution_planner.create_plan.assert_called_once()
+        mock_metrics.record_pipeline_execution.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_sequential_stage_execution(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test sequential stage execution - lines 495-499."""
+        context = AgentContext(query="test sequential execution")
+
+        # Create mock stage
+        mock_stage = Mock()
+        mock_stage.agents = ["agent1", "agent2"]
+
+        # Add agents
+        orchestrator_with_dynamic_composition.loaded_agents = {
+            "agent1": MockAgent("agent1"),
+            "agent2": MockAgent("agent2"),
+        }
+
+        # Track execution order
+        execution_order = []
+
+        async def track_sequential_execution(agent_id, ctx):
+            execution_order.append(agent_id)
+            await asyncio.sleep(0.01)  # Small delay
+
+        orchestrator_with_dynamic_composition._execute_agent_with_failure_handling = (
+            track_sequential_execution
+        )
+
+        await orchestrator_with_dynamic_composition._execute_sequential_stage(
+            mock_stage, context
+        )
+
+        # Verify sequential execution order
+        assert execution_order == ["agent1", "agent2"]
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_rollback_recovery(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test checkpoint rollback recovery when fallback plan unavailable."""
+        context = AgentContext(query="test checkpoint recovery")
+        error = Exception("Stage execution failed")
+
+        # Mock stage
+        mock_stage = Mock()
+        mock_stage.stage_id = "failing_stage"
+
+        # No fallback plan available
+        orchestrator_with_dynamic_composition.current_plan = Mock()
+        orchestrator_with_dynamic_composition.current_plan.fallback_plan = None
+
+        # Mock failure manager with checkpoints
+        orchestrator_with_dynamic_composition.failure_manager.recovery_checkpoints = {
+            "latest": {"context": context, "timestamp": time.time()}
+        }
+        orchestrator_with_dynamic_composition.failure_manager._rollback_to_checkpoint = Mock(
+            return_value=True
+        )
+
+        result = await orchestrator_with_dynamic_composition._attempt_stage_recovery(
+            mock_stage, error, context
+        )
+
+        # Verify checkpoint rollback was attempted
+        assert result is True
+        orchestrator_with_dynamic_composition.failure_manager._rollback_to_checkpoint.assert_called_once_with(
+            "latest", context
+        )
+
+    @pytest.mark.asyncio
+    async def test_agent_execution_timeout_and_circuit_breaker(
+        self, orchestrator_with_dynamic_composition
+    ):
+        """Test agent execution with timeout and circuit breaker integration."""
+        context = AgentContext(query="test timeout handling")
+
+        # Create agent that will fail immediately to trigger circuit breaker logic
+        failing_agent = MockAgent("failing_agent", should_fail=True)
+        orchestrator_with_dynamic_composition.loaded_agents = {
+            "failing_agent": failing_agent
+        }
+
+        # Mock failure manager to deny execution on second attempt (circuit breaker opens)
+        call_count = 0
+
+        def mock_can_execute(agent_id, ctx):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return (True, None)  # First call allows execution
+            else:
+                return (False, "Circuit breaker open")  # Subsequent calls blocked
+
+        orchestrator_with_dynamic_composition.failure_manager.can_execute_agent = Mock(
+            side_effect=mock_can_execute
+        )
+
+        # Mock failure manager to not retry after first failure
+        orchestrator_with_dynamic_composition.failure_manager.handle_agent_failure = (
+            AsyncMock(return_value=(False, "no_action"))  # Don't retry
+        )
+
+        # Mock circuit breaker
+        circuit_breaker = Mock()
+        orchestrator_with_dynamic_composition.failure_manager.circuit_breakers = {
+            "failing_agent": circuit_breaker
+        }
+
+        # This should raise an exception due to agent failure and no retry
+        with pytest.raises(Exception, match="Simulated failure"):
+            await orchestrator_with_dynamic_composition._execute_agent_with_failure_handling(
+                "failing_agent", context
+            )
+
+        # Verify circuit breaker was not called (agent never succeeded)
+        circuit_breaker.record_success.assert_not_called()
+
+        # Verify can_execute was called (checking circuit breaker state)
+        assert call_count >= 1

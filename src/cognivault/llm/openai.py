@@ -14,7 +14,6 @@ from cognivault.exceptions import (
     LLMError,
 )
 from cognivault.observability import get_logger, get_observability_context
-from cognivault.diagnostics.metrics import get_metrics_collector
 
 
 class OpenAIChatLLM(LLMInterface):
@@ -73,7 +72,15 @@ class OpenAIChatLLM(LLMInterface):
         """
         # Initialize observability
         logger = get_logger("llm.openai")
-        metrics = get_metrics_collector()
+
+        # Lazy import to avoid circular dependency
+        try:
+            from cognivault.diagnostics.metrics import get_metrics_collector
+
+            metrics = get_metrics_collector()
+        except ImportError:
+            metrics = None
+
         llm_start_time = time.time()
 
         # Get observability context for correlation
@@ -120,18 +127,19 @@ class OpenAIChatLLM(LLMInterface):
                 agent_name=obs_context.agent_name if obs_context else None,
             )
 
-            metrics.increment_counter(
-                "llm_api_calls_failed",
-                labels={
-                    "model": self.model or "unknown",
-                    "agent": (
-                        obs_context.agent_name
-                        if obs_context and obs_context.agent_name
-                        else "unknown"
-                    ),
-                    "error_type": type(e).__name__,
-                },
-            )
+            if metrics:
+                metrics.increment_counter(
+                    "llm_api_calls_failed",
+                    labels={
+                        "model": self.model or "unknown",
+                        "agent": (
+                            obs_context.agent_name
+                            if obs_context and obs_context.agent_name
+                            else "unknown"
+                        ),
+                        "error_type": type(e).__name__,
+                    },
+                )
 
             if on_log:
                 on_log(f"[OpenAIChatLLM][error] {str(e)}")
@@ -150,18 +158,19 @@ class OpenAIChatLLM(LLMInterface):
                 agent_name=obs_context.agent_name if obs_context else None,
             )
 
-            metrics.increment_counter(
-                "llm_api_calls_failed",
-                labels={
-                    "model": self.model or "unknown",
-                    "agent": (
-                        obs_context.agent_name
-                        if obs_context and obs_context.agent_name
-                        else "unknown"
-                    ),
-                    "error_type": "unexpected_error",
-                },
-            )
+            if metrics:
+                metrics.increment_counter(
+                    "llm_api_calls_failed",
+                    labels={
+                        "model": self.model or "unknown",
+                        "agent": (
+                            obs_context.agent_name
+                            if obs_context and obs_context.agent_name
+                            else "unknown"
+                        ),
+                        "error_type": "unexpected_error",
+                    },
+                )
 
             if on_log:
                 on_log(f"[OpenAIChatLLM][unexpected_error] {str(e)}")
@@ -221,20 +230,21 @@ class OpenAIChatLLM(LLMInterface):
                 agent_name=obs_context.agent_name if obs_context else None,
             )
 
-            metrics.record_timing(
-                "llm_call_duration",
-                llm_duration_ms,
-                labels={
-                    "model": self.model or "unknown",
-                    "agent": (
-                        obs_context.agent_name
-                        if obs_context and obs_context.agent_name
-                        else "unknown"
-                    ),
-                },
-            )
+            if metrics:
+                metrics.record_timing(
+                    "llm_call_duration",
+                    llm_duration_ms,
+                    labels={
+                        "model": self.model or "unknown",
+                        "agent": (
+                            obs_context.agent_name
+                            if obs_context and obs_context.agent_name
+                            else "unknown"
+                        ),
+                    },
+                )
 
-            if tokens_used:
+            if tokens_used and metrics:
                 metrics.increment_counter(
                     "llm_tokens_consumed",
                     tokens_used,
@@ -248,17 +258,18 @@ class OpenAIChatLLM(LLMInterface):
                     },
                 )
 
-            metrics.increment_counter(
-                "llm_api_calls_successful",
-                labels={
-                    "model": self.model or "unknown",
-                    "agent": (
-                        obs_context.agent_name
-                        if obs_context and obs_context.agent_name
-                        else "unknown"
-                    ),
-                },
-            )
+            if metrics:
+                metrics.increment_counter(
+                    "llm_api_calls_successful",
+                    labels={
+                        "model": self.model or "unknown",
+                        "agent": (
+                            obs_context.agent_name
+                            if obs_context and obs_context.agent_name
+                            else "unknown"
+                        ),
+                    },
+                )
 
             return LLMResponse(
                 text=text,

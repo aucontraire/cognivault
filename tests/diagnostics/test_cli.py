@@ -339,7 +339,7 @@ class TestDiagnosticsCLI:
                 "agents": {
                     "refiner": {
                         "name": "refiner",
-                        "description": "Query refinement agent",
+                        "description": "Refines and improves user queries",
                         "requires_llm": True,
                         "is_critical": True,
                         "failure_strategy": "fail_fast",
@@ -727,3 +727,236 @@ class TestDiagnosticsCLI:
             assert "CogniVault Health Check" in result.stdout
             assert "Status: HEALTHY" in result.stdout
             assert "Component Summary" in result.stdout
+
+    def test_health_command_quiet_mode(self):
+        """Test health command in quiet mode."""
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch.object(
+                diagnostics_cli.diagnostics,
+                "quick_health_check",
+                new_callable=AsyncMock,
+            ) as mock_health_check,
+        ):
+            # Mock ResourceScheduler to prevent background task creation
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
+
+            mock_health_check.return_value = {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "components": {"total": 1, "healthy": 1},
+                "uptime_seconds": 0.0,
+            }
+
+            result = self.runner.invoke(app, ["health", "--quiet"])
+
+            # Should exit cleanly with minimal output
+            assert result.exit_code == 0
+
+    def test_metrics_command_agents_only(self):
+        """Test metrics command with agents-only flag."""
+        mock_performance_summary = {
+            "execution": {
+                "total": 10,
+                "successful": 9,
+                "failed": 1,
+                "success_rate": 0.9,
+            },
+            "timing_ms": {
+                "average": 150.0,
+                "min": 100.0,
+                "max": 200.0,
+                "p50": 150.0,
+                "p95": 180.0,
+                "p99": 195.0,
+            },
+            "agents": {
+                "refiner": {
+                    "executions": 5,
+                    "success_rate": 0.8,
+                    "avg_duration_ms": 120.0,
+                    "tokens_consumed": 1000,
+                },
+                "critic": {
+                    "executions": 5,
+                    "success_rate": 1.0,
+                    "avg_duration_ms": 180.0,
+                    "tokens_consumed": 800,
+                },
+            },
+            "errors": {"breakdown": {}},
+        }
+
+        with patch(
+            "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.get_performance_summary"
+        ) as mock_get_performance:
+            mock_get_performance.return_value = mock_performance_summary
+
+            result = self.runner.invoke(app, ["metrics", "--agents"])
+
+            assert result.exit_code == 0
+            assert "Performance Metrics" in result.stdout
+            assert "Agent Metrics" in result.stdout
+            assert "refiner" in result.stdout
+            assert "critic" in result.stdout
+
+    def test_agents_command_specific_agent(self):
+        """Test agents command for specific agent."""
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch(
+                "cognivault.diagnostics.cli.DiagnosticsManager"
+            ) as mock_manager_class,
+        ):
+            # Mock ResourceScheduler
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
+
+            mock_manager = AsyncMock()
+            mock_agent_status = {
+                "timestamp": datetime.now().isoformat(),
+                "total_agents": 1,
+                "agents": {
+                    "refiner": {
+                        "name": "refiner",
+                        "description": "Refines and improves user queries",
+                        "requires_llm": True,
+                        "is_critical": True,
+                        "failure_strategy": "fail_fast",
+                        "dependencies": [],
+                        "health_check": True,
+                        "metrics": {
+                            "executions": 10,
+                            "success_rate": 0.9,
+                            "avg_duration_ms": 110.0,
+                            "tokens_consumed": 500,
+                        },
+                    }
+                },
+            }
+            mock_manager.get_agent_status.return_value = mock_agent_status
+            mock_manager_class.return_value = mock_manager
+
+            result = self.runner.invoke(app, ["agents", "--agent", "refiner"])
+
+            assert result.exit_code == 0
+            assert "refiner Agent Details" in result.stdout
+            assert "Refines and improves user queries" in result.stdout
+
+    def test_agents_command_json_output(self):
+        """Test agents command with JSON output."""
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch(
+                "cognivault.diagnostics.cli.DiagnosticsManager"
+            ) as mock_manager_class,
+        ):
+            # Mock ResourceScheduler
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
+
+            mock_manager = AsyncMock()
+            mock_agent_status = {
+                "timestamp": datetime.now().isoformat(),
+                "total_agents": 2,
+                "agents": {
+                    "refiner": {"health_check": True},
+                    "critic": {"health_check": False},
+                },
+            }
+            mock_manager.get_agent_status.return_value = mock_agent_status
+            mock_manager_class.return_value = mock_manager
+
+            result = self.runner.invoke(app, ["agents", "--json"])
+
+            assert result.exit_code == 0
+            # The CLI returns real agent data, just check structure
+            assert '"total_agents"' in result.stdout
+            assert '"agents"' in result.stdout
+            assert '"refiner"' in result.stdout
+
+    def test_config_command_validate_only(self):
+        """Test config command with validate only flag."""
+        mock_config_report = {
+            "timestamp": datetime.now().isoformat(),
+            "environment": "development",
+            "validation": {
+                "is_valid": False,
+                "error_count": 1,
+                "errors": ["Missing API key"],
+            },
+            "configuration": {},
+            "recommendations": [],
+        }
+
+        with patch.object(
+            diagnostics_cli.diagnostics,
+            "get_configuration_report",
+            return_value=mock_config_report,
+        ):
+            result = self.runner.invoke(app, ["config", "--validate"])
+
+            assert result.exit_code == 0
+            assert "Configuration has 1 errors" in result.stdout
+            assert "Missing API key" in result.stdout
+
+    def test_full_command_with_window_filter(self):
+        """Test full diagnostics command with time window."""
+        timestamp = datetime.now()
+
+        mock_diagnostics = SystemDiagnostics(
+            timestamp=timestamp,
+            overall_health=HealthStatus.HEALTHY,
+            component_healths={},
+            performance_metrics=PerformanceMetrics(
+                collection_start=timestamp,
+                collection_end=timestamp,
+                total_executions=0,
+                successful_executions=0,
+                failed_executions=0,
+                llm_api_calls=0,
+                total_tokens_consumed=0,
+                average_execution_time_ms=0.0,
+            ),
+            system_info={},
+            configuration_status={},
+            environment_info={},
+        )
+
+        with (
+            patch(
+                "cognivault.dependencies.resource_scheduler.ResourceScheduler"
+            ) as mock_scheduler_class,
+            patch(
+                "cognivault.diagnostics.cli.diagnostics_cli.diagnostics.run_full_diagnostics"
+            ) as mock_run_full,
+        ):
+            # Mock ResourceScheduler
+            mock_scheduler = AsyncMock()
+            mock_scheduler.request_resources = AsyncMock(return_value=[])
+            mock_scheduler.release_resources = AsyncMock(return_value=True)
+            mock_scheduler._scheduler_running = False
+            mock_scheduler_class.return_value = mock_scheduler
+
+            mock_run_full.return_value = mock_diagnostics
+
+            result = self.runner.invoke(app, ["full", "--window", "30"])
+
+            assert result.exit_code == 0
+            assert "Complete System Diagnostics" in result.stdout
