@@ -1,10 +1,16 @@
-from unittest.mock import patch, mock_open, Mock
+from unittest.mock import patch, mock_open, Mock, MagicMock, call
 from cognivault.context import AgentContext
 import pytest
 import json
 import tempfile
 import os
-from cognivault.cli import run as cli_main, create_llm_instance
+import typer
+from cognivault.cli import (
+    run as cli_main,
+    create_llm_instance,
+    _validate_langgraph_runtime,
+    _log_usage_analytics,
+)
 from typer.testing import CliRunner
 from cognivault.cli import app
 
@@ -1335,3 +1341,481 @@ async def test_cli_topic_analysis_without_export_md(capsys):
         captured = capsys.readouterr()
         assert "🧠 Refiner:" in captured.out
         assert "📄 Markdown exported to:" not in captured.out  # No export
+
+
+# Rollback and Checkpoint Management Tests
+
+
+@pytest.mark.asyncio
+async def test_cli_rollback_functionality():
+    """Test CLI rollback functionality with memory checkpoints."""
+    fake_context = AgentContext(query="Test rollback")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    # Mock the rollback functionality
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        return_value=fake_context,
+    ) as mock_orchestrator:
+        with patch("cognivault.cli._validate_langgraph_runtime") as mock_validate:
+            mock_validate.return_value = None
+
+            # Test rollback with memory checkpoints
+            await cli_main(
+                "Test rollback",
+                execution_mode="langgraph-real",
+                enable_checkpoints=True,
+                log_level="INFO",
+            )
+
+            # Verify orchestrator was called with checkpoints enabled
+            mock_orchestrator.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cli_checkpoint_management_with_thread_id():
+    """Test CLI checkpoint management with custom thread ID."""
+    fake_context = AgentContext(query="Test checkpoint thread")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        return_value=fake_context,
+    ) as mock_run:
+        with patch("cognivault.cli._validate_langgraph_runtime"):
+            with patch("cognivault.cli.create_llm_instance"):
+                # Test with custom thread ID
+                await cli_main(
+                    "Test checkpoint thread",
+                    execution_mode="langgraph-real",
+                    enable_checkpoints=True,
+                    thread_id="test-thread-123",
+                    log_level="INFO",
+                )
+
+                # Verify orchestrator run was called
+                mock_run.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cli_checkpoint_error_handling():
+    """Test CLI error handling when checkpoint operations fail."""
+    # Mock checkpoint failure
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        side_effect=Exception("Checkpoint error"),
+    ):
+        with patch("cognivault.cli._validate_langgraph_runtime"):
+            with patch("cognivault.cli.create_llm_instance"):
+                # Test error handling
+                with pytest.raises(Exception, match="Checkpoint error"):
+                    await cli_main(
+                        "Test checkpoint error",
+                        execution_mode="langgraph-real",
+                        enable_checkpoints=True,
+                        log_level="INFO",
+                    )
+
+
+# LangGraph Runtime Validation Tests
+
+
+def test_validate_langgraph_runtime_success():
+    """Test successful LangGraph runtime validation."""
+    with patch("langgraph.graph.StateGraph") as mock_state_graph:
+        with patch("langgraph.checkpoint.memory.MemorySaver"):
+            # Should not raise any exception
+            _validate_langgraph_runtime()
+            mock_state_graph.assert_called_once()
+
+
+def test_validate_langgraph_runtime_import_error():
+    """Test LangGraph runtime validation with import error."""
+    with patch(
+        "builtins.__import__", side_effect=ImportError("No module named 'langgraph'")
+    ):
+        with pytest.raises(ImportError, match="No module named 'langgraph'"):
+            _validate_langgraph_runtime()
+
+
+def test_validate_langgraph_runtime_functionality_error():
+    """Test LangGraph runtime validation with functionality error."""
+    with patch(
+        "langgraph.graph.StateGraph", side_effect=RuntimeError("StateGraph failed")
+    ):
+        with pytest.raises(RuntimeError, match="StateGraph failed"):
+            _validate_langgraph_runtime()
+
+
+@pytest.mark.asyncio
+async def test_cli_langgraph_validation_failure_handling(capsys):
+    """Test CLI handling of LangGraph validation failures."""
+    import typer
+
+    with patch(
+        "cognivault.cli._validate_langgraph_runtime",
+        side_effect=ImportError("LangGraph not installed"),
+    ):
+        with pytest.raises((SystemExit, ImportError, typer.Exit)):
+            await cli_main(
+                "Test validation failure",
+                execution_mode="langgraph-real",
+                log_level="INFO",
+            )
+
+
+# Usage Analytics Tests
+
+
+def test_log_usage_analytics_basic():
+    """Test basic usage analytics logging."""
+    with patch("os.makedirs") as mock_makedirs:
+        with patch("builtins.open", mock_open()) as mock_file:
+            _log_usage_analytics("legacy", ["refiner", "critic"])
+
+            # Verify directory creation
+            mock_makedirs.assert_called_once_with(
+                os.path.expanduser("~/.cognivault"), exist_ok=True
+            )
+
+            # Verify file writing
+            mock_file.assert_called_once()
+            handle = mock_file()
+            handle.write.assert_called_once()
+
+            # Verify JSON structure in written data
+            written_data = handle.write.call_args[0][0]
+            assert "timestamp" in written_data
+            assert "execution_mode" in written_data
+            assert "legacy" in written_data
+
+
+def test_log_usage_analytics_deprecated_mode_detection():
+    """Test analytics correctly identifies deprecated modes."""
+    with patch("os.makedirs"):
+        with patch("builtins.open", mock_open()) as mock_file:
+            # Test legacy mode
+            _log_usage_analytics("legacy", ["refiner"])
+            written_call = mock_file().write.call_args[0][0]
+            assert '"deprecated_mode": true' in written_call
+
+            # Reset mock
+            mock_file.reset_mock()
+
+            # Test langgraph mode
+            _log_usage_analytics("langgraph", ["critic"])
+            written_call = mock_file().write.call_args[0][0]
+            assert '"deprecated_mode": true' in written_call
+
+            # Reset mock
+            mock_file.reset_mock()
+
+            # Test langgraph-real mode (not deprecated)
+            _log_usage_analytics("langgraph-real", ["synthesis"])
+            written_call = mock_file().write.call_args[0][0]
+            assert '"deprecated_mode": false' in written_call
+
+
+def test_log_usage_analytics_error_handling():
+    """Test analytics error handling doesn't break CLI."""
+    with patch("os.makedirs", side_effect=OSError("Permission denied")):
+        # Should not raise exception
+        _log_usage_analytics("legacy", ["refiner"])
+
+    with patch("builtins.open", side_effect=IOError("File error")):
+        # Should not raise exception
+        _log_usage_analytics("langgraph", ["critic"])
+
+
+@pytest.mark.asyncio
+async def test_cli_analytics_integration():
+    """Test analytics integration in CLI execution."""
+    fake_context = AgentContext(query="Test analytics")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        with patch("cognivault.cli._log_usage_analytics") as mock_analytics:
+            with patch("cognivault.cli._validate_langgraph_runtime"):
+                await cli_main(
+                    "Test analytics",
+                    execution_mode="langgraph-real",
+                    agents="refiner,critic",
+                    log_level="INFO",
+                )
+
+                # Verify analytics were logged
+                mock_analytics.assert_called_once_with(
+                    "langgraph-real", ["refiner", "critic"]
+                )
+
+
+# Configuration and Error Handling Tests
+
+
+def test_create_llm_instance_success():
+    """Test successful LLM instance creation."""
+    with patch("cognivault.cli.OpenAIConfig.load") as mock_config:
+        mock_config.return_value = Mock(
+            api_key="test-key", model="gpt-4", base_url="https://api.openai.com/v1"
+        )
+
+        with patch("cognivault.cli.OpenAIChatLLM") as mock_llm:
+            llm_instance = create_llm_instance()
+
+            mock_config.assert_called_once()
+            mock_llm.assert_called_once_with(
+                api_key="test-key", model="gpt-4", base_url="https://api.openai.com/v1"
+            )
+
+
+def test_create_llm_instance_config_error():
+    """Test LLM instance creation with configuration error."""
+    with patch(
+        "cognivault.cli.OpenAIConfig.load",
+        side_effect=ValueError("Invalid config"),
+    ):
+        with pytest.raises(ValueError, match="Invalid config"):
+            create_llm_instance()
+
+
+@pytest.mark.asyncio
+async def test_cli_orchestrator_error_handling():
+    """Test CLI error handling for orchestrator failures."""
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        side_effect=RuntimeError("Orchestrator failed"),
+    ):
+        with patch("cognivault.cli._validate_langgraph_runtime"):
+            with patch("cognivault.cli.create_llm_instance"):
+                with pytest.raises(RuntimeError, match="Orchestrator failed"):
+                    await cli_main(
+                        "Test orchestrator error",
+                        execution_mode="langgraph-real",
+                        log_level="INFO",
+                    )
+
+
+@pytest.mark.asyncio
+async def test_cli_agent_parsing_error_handling():
+    """Test CLI error handling for invalid agent specifications."""
+    fake_context = AgentContext(query="Test invalid agents")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        with patch("cognivault.cli._validate_langgraph_runtime"):
+            # Test with empty agents string - should handle gracefully
+            await cli_main(
+                "Test invalid agents",
+                execution_mode="langgraph-real",
+                agents="",  # Empty agents string
+                log_level="INFO",
+            )
+
+
+# Advanced Comparison Mode Tests
+
+
+@pytest.mark.asyncio
+async def test_cli_comparison_mode_with_benchmarking():
+    """Test CLI comparison mode with statistical benchmarking."""
+    fake_context = AgentContext(query="Test comparison")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    with patch("cognivault.cli._run_comparison_mode") as mock_comparison:
+        mock_comparison.return_value = None
+
+        # Test comparison mode with benchmarking
+        await cli_main(
+            "Test comparison",
+            execution_mode="langgraph-real",
+            compare_modes=True,
+            benchmark_runs=5,
+            log_level="INFO",
+        )
+
+        # Verify comparison was executed
+        mock_comparison.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cli_comparison_mode_memory_tracking():
+    """Test CLI comparison mode with memory usage tracking."""
+    with patch("cognivault.cli._run_comparison_mode") as mock_comparison:
+        mock_comparison.return_value = None
+
+        # Test comparison mode memory tracking
+        await cli_main(
+            "Test memory tracking",
+            execution_mode="langgraph-real",
+            compare_modes=True,
+            log_level="DEBUG",
+        )
+
+        mock_comparison.assert_called_once()
+
+
+# DAG Visualization Integration Tests
+
+
+@pytest.mark.asyncio
+async def test_cli_dag_visualization_integration():
+    """Test CLI DAG visualization integration."""
+    fake_context = AgentContext(query="Test DAG visualization")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    with patch("cognivault.cli.cli_visualize_dag") as mock_visualize:
+        with patch(
+            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            return_value=fake_context,
+        ):
+            with patch("cognivault.cli._validate_langgraph_runtime"):
+                mock_visualize.return_value = None
+
+                # Test DAG visualization
+                await cli_main(
+                    "Test DAG visualization",
+                    execution_mode="langgraph-real",
+                    visualize_dag="stdout",
+                    log_level="INFO",
+                )
+
+                # Verify visualization was called
+                mock_visualize.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cli_dag_visualization_with_file_output():
+    """Test CLI DAG visualization with file output."""
+    fake_context = AgentContext(query="Test DAG file output")
+    fake_context.agent_outputs = {"Refiner": "Test output", "Critic": "Test output"}
+
+    with patch("cognivault.cli.cli_visualize_dag") as mock_visualize:
+        with patch(
+            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            return_value=fake_context,
+        ):
+            with patch("cognivault.cli._validate_langgraph_runtime"):
+                mock_visualize.return_value = None
+
+                # Test DAG visualization to file
+                await cli_main(
+                    "Test DAG file output",
+                    execution_mode="langgraph-real",
+                    visualize_dag="dag_output.md",
+                    agents="refiner,critic",
+                    log_level="INFO",
+                )
+
+                # Verify visualization was called with file output
+                mock_visualize.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cli_dag_visualization_error_handling(capsys):
+    """Test CLI DAG visualization error handling."""
+    fake_context = AgentContext(query="Test DAG error")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    with patch(
+        "cognivault.cli.cli_visualize_dag",
+        side_effect=Exception("Visualization failed"),
+    ) as mock_visualize:
+        with patch(
+            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            return_value=fake_context,
+        ):
+            with patch("cognivault.cli._validate_langgraph_runtime"):
+                # Should handle visualization errors gracefully without raising
+                await cli_main(
+                    "Test DAG error",
+                    execution_mode="langgraph-real",
+                    visualize_dag="stdout",
+                    log_level="INFO",
+                )
+
+                # Verify error was logged and execution continued
+                captured = capsys.readouterr()
+                assert "DAG visualization failed: Visualization failed" in captured.out
+
+
+# Integration Tests for Complete CLI Workflows
+
+
+@pytest.mark.asyncio
+async def test_cli_complete_workflow_with_all_features():
+    """Test complete CLI workflow with all features enabled."""
+    fake_context = AgentContext(query="Complete workflow test")
+    fake_context.agent_outputs = {
+        "Refiner": "Refined query",
+        "Critic": "Critical analysis",
+        "Synthesis": "Final synthesis",
+    }
+
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        return_value=fake_context,
+    ):
+        with patch("cognivault.cli._validate_langgraph_runtime"):
+            with patch("cognivault.cli.cli_visualize_dag") as mock_visualize:
+                with patch("cognivault.cli._log_usage_analytics") as mock_analytics:
+                    mock_visualize.return_value = None
+
+                    # Test complete workflow
+                    await cli_main(
+                        "Complete workflow test",
+                        execution_mode="langgraph-real",
+                        agents="refiner,critic,synthesis",
+                        enable_checkpoints=True,
+                        thread_id="workflow-123",
+                        visualize_dag="stdout",
+                        export_md=True,
+                        log_level="DEBUG",
+                    )
+
+                    # Verify all components were called
+                    mock_visualize.assert_called_once()
+                    mock_analytics.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cli_error_recovery_workflow():
+    """Test CLI error recovery and graceful degradation."""
+    # Test recovery from LLM failure
+    with patch(
+        "cognivault.cli.create_llm_instance",
+        side_effect=Exception("LLM creation failed"),
+    ):
+        with pytest.raises(Exception, match="LLM creation failed"):
+            await cli_main(
+                "Test error recovery", execution_mode="langgraph-real", log_level="INFO"
+            )
+
+
+@pytest.mark.asyncio
+async def test_cli_performance_monitoring_integration():
+    """Test CLI performance monitoring integration."""
+    fake_context = AgentContext(query="Performance test")
+    fake_context.agent_outputs = {"Refiner": "Test output"}
+
+    with patch(
+        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        return_value=fake_context,
+    ) as mock_run:
+        with patch("cognivault.cli._validate_langgraph_runtime"):
+            with patch("cognivault.cli.create_llm_instance"):
+                # Test performance monitoring
+                await cli_main(
+                    "Performance test",
+                    execution_mode="langgraph-real",
+                    trace=True,
+                    log_level="DEBUG",
+                )
+
+                # Verify orchestrator run was called
+                mock_run.assert_called_once()

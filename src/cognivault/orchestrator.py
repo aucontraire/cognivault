@@ -27,9 +27,15 @@ setup_logging()
 logger = get_logger(__name__)
 
 
+# DEPRECATED: Target Removal v1.1.0
+# This class will be removed after the 2-3 week safety period.
+# Use RealLangGraphOrchestrator (--execution-mode=langgraph-real) instead.
 class AgentOrchestrator:
     """
-    Coordinates and runs a set of AI agents to process a user query.
+    DEPRECATED: Coordinates and runs a set of AI agents to process a user query.
+
+    WARNING: This orchestrator is deprecated and will be removed in v1.1.0.
+    Use RealLangGraphOrchestrator with --execution-mode=langgraph-real instead.
 
     This orchestrator initializes the appropriate agents based on the specified configuration,
     then executes them sequentially to handle agent dependencies. The results are merged into a shared context.
@@ -57,7 +63,10 @@ class AgentOrchestrator:
         agents_to_run: Optional[list[str]] = None,
     ):
         """
-        Initialize the AgentOrchestrator with optional critic and custom agent list.
+        DEPRECATED: Initialize the AgentOrchestrator with optional critic and custom agent list.
+
+        WARNING: This method is deprecated and will be removed in v1.1.0.
+        Use RealLangGraphOrchestrator instead.
 
         Parameters
         ----------
@@ -163,9 +172,13 @@ class AgentOrchestrator:
                 f"Default agent order: {[agent.__class__.__name__ for agent in self.agents]}"
             )
 
+    # DEPRECATED: Target Removal v1.1.0
     async def run(self, query: str) -> AgentContext:
         """
-        Run all agents with conditional execution and graceful degradation.
+        DEPRECATED: Run all agents with conditional execution and graceful degradation.
+
+        WARNING: This method is deprecated and will be removed in v1.1.0.
+        Use RealLangGraphOrchestrator.run() instead.
 
         Implements LangGraph-compatible failure propagation strategies:
         - FAIL_FAST: Stop immediately on critical agent failure
@@ -458,9 +471,12 @@ class AgentOrchestrator:
 
         return context
 
+    # DEPRECATED: Target Removal v1.1.0
     async def _should_skip_agent(self, agent_name: str, context: AgentContext) -> bool:
         """
-        Check if an agent should be skipped due to dependency failures.
+        DEPRECATED: Check if an agent should be skipped due to dependency failures.
+
+        WARNING: This method is deprecated and will be removed in v1.1.0.
 
         Parameters
         ----------
@@ -506,6 +522,7 @@ class AgentOrchestrator:
 
         return False
 
+    # DEPRECATED: Target Removal v1.1.0
     async def _handle_agent_failure(
         self,
         agent_name: str,
@@ -514,7 +531,9 @@ class AgentOrchestrator:
         cause: Optional[Exception] = None,
     ) -> None:
         """
-        Handle agent failure according to its failure propagation strategy.
+        DEPRECATED: Handle agent failure according to its failure propagation strategy.
+
+        WARNING: This method is deprecated and will be removed in v1.1.0.
 
         Parameters
         ----------

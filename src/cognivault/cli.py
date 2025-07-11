@@ -6,6 +6,8 @@ import asyncio
 import json
 import time
 import statistics
+import os
+from datetime import datetime, timezone
 from typing import Optional, Union, Dict, List, Any
 from rich.console import Console
 from rich.table import Table
@@ -48,6 +50,52 @@ def create_llm_instance() -> LLMInterface:
         model=llm_config.model,
         base_url=llm_config.base_url,
     )
+
+
+def _log_usage_analytics(
+    execution_mode: str, agents: Optional[List[str]] = None
+) -> None:
+    """
+    Log usage analytics for tracking during deprecation period.
+
+    This function creates a simple usage log to track legacy mode usage
+    during the 2-3 week safety period before removal.
+
+    Parameters
+    ----------
+    execution_mode : str
+        The execution mode being used
+    agents : Optional[List[str]]
+        List of agents being executed
+    """
+    try:
+        # Create analytics directory if it doesn't exist
+        analytics_dir = os.path.expanduser("~/.cognivault")
+        os.makedirs(analytics_dir, exist_ok=True)
+
+        # Simple usage log file
+        analytics_file = os.path.join(analytics_dir, "usage_analytics.log")
+
+        # Create analytics entry
+        timestamp = datetime.now(timezone.utc).isoformat()
+        agent_list = agents if agents else ["default"]
+
+        analytics_entry = {
+            "timestamp": timestamp,
+            "execution_mode": execution_mode,
+            "agents": agent_list,
+            "agent_count": len(agent_list),
+            "deprecated_mode": execution_mode in ["legacy", "langgraph"],
+        }
+
+        # Append to analytics file
+        with open(analytics_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(analytics_entry) + "\n")
+
+    except Exception as e:
+        # Silent failure - analytics shouldn't break CLI
+        logging.getLogger(__name__).debug(f"Analytics logging failed: {e}")
+        pass
 
 
 def _validate_langgraph_runtime() -> None:
@@ -193,6 +241,9 @@ async def run(
         return
 
     logger.info(f"[{cli_name}] Execution mode: {execution_mode}")
+
+    # Log usage analytics for tracking during deprecation period
+    _log_usage_analytics(execution_mode, agents_to_run)
 
     # Create shared LLM instance for agents and topic manager
     llm = create_llm_instance()
