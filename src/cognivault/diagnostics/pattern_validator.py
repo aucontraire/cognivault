@@ -686,35 +686,63 @@ class PatternValidationFramework:
 
     def _load_pattern(self, pattern_path: str) -> GraphPattern:
         """Load a pattern from path."""
-        # Implementation would load pattern class from file/module
-        # For now, return a mock pattern
-        from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
+        import importlib.util
+        import sys
+        from pathlib import Path
 
-        class MockPattern(GraphPattern):
-            @property
-            def name(self) -> str:
-                return "mock_pattern"
+        # Handle different path formats
+        if pattern_path in ["standard", "parallel", "conditional"]:
+            # Load from pattern registry
+            from cognivault.langgraph_backend.graph_patterns.base import PatternRegistry
 
-            @property
-            def description(self) -> str:
-                return "Mock pattern for testing"
+            registry = PatternRegistry()
+            pattern = registry.get_pattern(pattern_path)
+            if pattern:
+                return pattern
+            else:
+                raise ValueError(f"Pattern '{pattern_path}' not found in registry")
 
-            def build_graph(self, agents, llm, config):
-                return "mock_graph"
+        # Load from file path
+        pattern_file = Path(pattern_path)
+        if not pattern_file.exists():
+            raise FileNotFoundError(f"Pattern file not found: {pattern_path}")
 
-            def get_pattern_name(self) -> str:
-                return "mock_pattern"
+        # Load module from file
+        spec = importlib.util.spec_from_file_location("custom_pattern", pattern_file)
+        if not spec or not spec.loader:
+            raise ImportError(f"Could not load pattern file: {pattern_path}")
 
-            def get_edges(self, agents: List[str]) -> List[Dict[str, str]]:
-                return []
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["custom_pattern"] = module
+        spec.loader.exec_module(module)
 
-            def get_entry_point(self, agents: List[str]) -> Optional[str]:
-                return "start"
+        # Find GraphPattern subclass
+        pattern_classes = [
+            obj
+            for name, obj in module.__dict__.items()
+            if (
+                isinstance(obj, type)
+                and issubclass(obj, GraphPattern)
+                and obj is not GraphPattern
+            )
+        ]
 
-            def get_exit_points(self, agents: List[str]) -> List[str]:
-                return ["end"]
+        if not pattern_classes:
+            raise ValueError(f"No GraphPattern subclass found in {pattern_path}")
+        elif len(pattern_classes) > 1:
+            class_names = [cls.__name__ for cls in pattern_classes]
+            raise ValueError(
+                f"Multiple GraphPattern subclasses found: {class_names}. "
+                f"Specify the pattern class name."
+            )
 
-        return MockPattern()
+        pattern_class = pattern_classes[0]
+
+        # Instantiate and return pattern
+        try:
+            return pattern_class()
+        except Exception as e:
+            raise RuntimeError(f"Error instantiating pattern class: {e}")
 
     def _validate_pattern_comprehensive(
         self, pattern: GraphPattern, level: ValidationLevel

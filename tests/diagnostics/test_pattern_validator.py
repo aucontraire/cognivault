@@ -522,10 +522,15 @@ class TestPatternValidationFramework:
 
     def test_load_pattern(self, framework):
         """Test pattern loading."""
-        pattern = framework._load_pattern("test/path")
+        # Test loading built-in pattern
+        pattern = framework._load_pattern("standard")
 
         assert isinstance(pattern, GraphPattern)
-        assert pattern.get_pattern_name() == "mock_pattern"
+        assert pattern.name == "standard"
+
+        # Test loading non-existent file
+        with pytest.raises(FileNotFoundError):
+            framework._load_pattern("test/path")
 
     def test_validate_pattern_comprehensive_pass(self, framework, mock_pattern):
         """Test comprehensive validation with passing pattern."""

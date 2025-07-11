@@ -44,6 +44,15 @@ class DiagnosticsCLI:
         app.command("config")(self.configuration_report)
         app.command("full")(self.full_diagnostics)
 
+        # Add pattern validation commands
+        from .pattern_validator import pattern_validator
+
+        app.add_typer(
+            pattern_validator.create_app(),
+            name="patterns",
+            help="Pattern validation and testing tools",
+        )
+
         return app
 
     def health_check(
