@@ -39,6 +39,9 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 📄 **Markdown-ready output** for integration with personal wikis
 - 🧪 **Full test suite** with `pytest` for all core components (89% coverage with 1,600+ tests)
 - 🔄 **Swappable LLM backend**: Plug-and-play support for OpenAI or stubs via configuration
+- 🏗️ **API Boundary Implementation**: Clean external/internal API separation with BaseAPI pattern for future service extraction
+- 🎭 **Mock-First Design**: Comprehensive mock implementations with contract testing for reliable API development
+- 📋 **Schema Management**: External schema protection with versioning and migration support for backward compatibility
 - 📋 **Agent Registry**: Dynamic agent registration system for extensible architecture
 - ⚙️ **Configuration Management**: Centralized configuration system with environment variables and JSON file support
 - 🧠 **Enhanced Context Management**: Advanced memory management with compression, snapshots, and size monitoring
@@ -103,6 +106,14 @@ src/
 │   │   ├── app_config.py
 │   │   ├── logging_config.py
 │   │   └── openai_config.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── decorators.py
+│   │   ├── external.py
+│   │   ├── internal.py
+│   │   ├── models.py
+│   │   └── schema_validation.py
 │   ├── context.py
 │   ├── diagnostics/
 │   │   ├── __init__.py
@@ -252,6 +263,14 @@ tests/
 ├── utils/
 │   ├── __init__.py
 │   └── test_versioning.py
+├── contracts/
+│   ├── __init__.py
+│   ├── conftest.py
+│   └── test_orchestration_api_contract.py
+├── fakes/
+│   ├── __init__.py
+│   ├── base_mock.py
+│   └── mock_orchestration.py
 ├── cli/
 │   ├── __init__.py
 │   ├── test_cli_langgraph_integration.py
@@ -507,6 +526,66 @@ The failure propagation system is designed for seamless LangGraph migration:
 - **Conditional Edges**: Failure strategies map directly to LangGraph conditional routing
 - **State Management**: Execution context preserves state for DAG reentrance
 - **Edge Metadata**: All execution decisions are tracked for DAG edge configuration
+
+### 🏗️ API Boundary Implementation (Phase 3A.2)
+
+CogniVault features a sophisticated API boundary implementation following ADR-004 specifications that establishes clear external/internal API separation and enables future service extraction.
+
+#### BaseAPI Interface Pattern
+
+All APIs implement a standardized `BaseAPI` interface with lifecycle management:
+
+```python
+from cognivault.api.external import OrchestrationAPI
+from cognivault.api.models import WorkflowRequest
+
+# External API with stable interface
+api = RealOrchestrationAPI()  # Production implementation
+await api.initialize()
+
+# Execute workflow through API boundary
+request = WorkflowRequest(
+    query="What are the implications of AI governance?",
+    agents=["refiner", "critic", "historian", "synthesis"]
+)
+response = await api.execute_workflow(request)
+print(f"Workflow {response.workflow_id}: {response.status}")
+```
+
+#### Mock-First Design & Contract Testing
+
+Comprehensive mock implementations enable immediate testing and parallel development:
+
+```python
+from tests.fakes.mock_orchestration import MockOrchestrationAPI
+
+# Mock API for testing - identical interface
+mock_api = MockOrchestrationAPI()
+await mock_api.initialize()
+
+# Configure failure scenarios for testing
+mock_api.set_failure_mode("execution_failure")
+mock_api.set_agent_outputs({"refiner": "Custom mock output"})
+
+# All contract tests pass for both real and mock implementations
+response = await mock_api.execute_workflow(request)
+```
+
+#### Key API Boundary Features
+
+- **External API Contracts**: `OrchestrationAPI`, `LLMGatewayAPI` with backward compatibility guarantees
+- **Internal API Contracts**: `InternalWorkflowExecutor`, `InternalPatternManager` (subject to refactor)
+- **Runtime Validation**: `@ensure_initialized`, `@rate_limited`, `@circuit_breaker` decorators
+- **Schema Management**: External schema protection with versioning and migration support
+- **Contract Testing**: Comprehensive test suite ensuring implementation consistency
+- **Service Extraction Ready**: Clear boundaries for future microservice deployment
+
+#### Architecture Benefits
+
+- **Clean Boundaries**: Explicit separation between stable external APIs and refactorable internals
+- **Testability**: Mock-first design enables comprehensive testing from day one
+- **Swappability**: Contract testing ensures implementations can be replaced seamlessly
+- **Service Evolution**: Prepared for microservice extraction without breaking changes
 
 ### 🛡️ Enterprise Error Handling & Agent Resilience
 

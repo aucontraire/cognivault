@@ -141,7 +141,7 @@ START → Refiner → [Critic, Historian] → Synthesis → END
 - Critic and Historian execute in parallel with concurrent state updates
 - Synthesis integrates all outputs for final analysis
 
-### 8. **Phase 2: Graph Builder Architecture**
+### 8. **Phase 2: Graph Builder Architecture** ✅
 **[Phase 2]** Extracted graph building logic into dedicated backend module for improved architecture:
 
 **Core Components:**
@@ -164,7 +164,42 @@ START → Refiner → [Critic, Historian] → Synthesis → END
 - Configuration-driven graph building (agents, checkpoints, patterns)
 - Backward compatibility with existing orchestrator interfaces
 
-### 9. **Memory Management & Checkpointing**
+### 9. **API Boundary Implementation (Phase 3A.2)** ✅
+Comprehensive API boundary patterns following ADR-004 specifications for clear external/internal API separation and service extraction readiness:
+
+**Core API Infrastructure:**
+- `BaseAPI`: Abstract interface with standardized lifecycle, health checks, and metrics
+- `HealthStatus` & `APIStatus`: Standardized health reporting across all APIs
+- Runtime validation decorators: `@ensure_initialized`, `@rate_limited`, `@circuit_breaker`
+
+**External API Contracts (Stable Interfaces):**
+- `OrchestrationAPI` (v1.0.0): Workflow execution with backward compatibility guarantees
+- `LLMGatewayAPI` (v1.0.0): Future service extraction boundary for LLM operations
+- External schema definitions with `# EXTERNAL SCHEMA` tagging for breaking change protection
+
+**Internal API Contracts (Subject to Refactor):**
+- `InternalWorkflowExecutor` (v0.1.0): Workflow execution internals
+- `InternalPatternManager` (v0.1.0): Graph pattern management
+- Internal schemas with version tracking for development flexibility
+
+**Mock-First Design & Contract Testing:**
+- `BaseMockAPI`: Configurable mock implementation base with realistic behavior
+- `MockOrchestrationAPI`: Complete workflow simulation with failure scenarios
+- Comprehensive contract testing framework ensuring implementation consistency
+- Parametrized test fixtures validating both mock and real implementations
+
+**Schema Management System:**
+- `SchemaValidator`: Runtime validation against external schemas
+- `SchemaMigrator`: Version transition management with migration functions
+- Clear external vs internal schema separation with version tracking
+
+**Architecture Benefits:**
+- **Service Extraction Ready**: Clear boundaries for independent microservice deployment
+- **Testability**: Mock-first design enables comprehensive testing from day one
+- **Swappability**: Contract testing ensures seamless implementation replacement
+- **Backward Compatibility**: External schema protection with structured migration paths
+
+### 10. **Memory Management & Checkpointing**
 Advanced memory management and conversation persistence for long-running workflows:
 
 **Core Components:**
@@ -208,6 +243,13 @@ This document! Used to track high-level system boundaries and design intent.
 ```
 cognivault/
 ├── agents/           # Agent implementations and entrypoints
+├── api/              # **[Phase 3A.2]** API boundary implementation
+│   ├── base.py                # BaseAPI interface and HealthStatus
+│   ├── decorators.py          # Runtime validation decorators
+│   ├── external.py            # External API contracts (stable)
+│   ├── internal.py            # Internal API contracts (refactorable)
+│   ├── models.py              # Schema definitions with versioning
+│   └── schema_validation.py   # Validation and migration utilities
 ├── config/           # Logging and LLM config
 ├── context.py        # AgentContext data container
 ├── llm/              # LLMInterface + concrete implementations
@@ -237,6 +279,12 @@ cognivault/
 ├── store/            # Markdown export + future persistence
 ├── retrieval/        # Embedding + search layer (stub)
 tests/
+├── contracts/        # **[Phase 3A.2]** Contract testing framework
+│   ├── conftest.py            # Shared test configuration
+│   └── test_orchestration_api_contract.py  # API contract validation
+├── fakes/            # **[Phase 3A.2]** Mock implementations
+│   ├── base_mock.py           # BaseMockAPI base class
+│   └── mock_orchestration.py  # MockOrchestrationAPI implementation
 ```
 
 ---
@@ -302,6 +350,11 @@ LangGraph 0.5.1 was chosen for Phase 1 development because:
 - ✅ Thread-scoped memory management for multi-session workflows
 - ✅ Centralized error policies with circuit breakers and retry strategies
 - ✅ Enhanced DAG visualization with checkpoint and error policy indicators
+- ✅ **[Phase 3A.2]** API boundary implementation with BaseAPI pattern
+- ✅ **[Phase 3A.2]** Mock-first design with comprehensive contract testing
+- ✅ **[Phase 3A.2]** External/internal API separation for service extraction
+- ✅ **[Phase 3A.2]** Schema management with versioning and migration support
+- 🔜 Real API implementation wiring to CLI execution flow
 - 🔜 Web frontend and storage persistence layer
 
 ---
@@ -313,6 +366,9 @@ LangGraph 0.5.1 was chosen for Phase 1 development because:
 - ✅ **Performance Optimization**: Intelligent caching and pattern-based graph construction *(Completed in Phase 2)*
 - ✅ **Graph Visualization**: DAG visualization and execution flow debugging *(Completed)*
 - ✅ **Conditional Execution**: Smart routing based on agent outputs and context state *(Completed)*
+- ✅ **API Boundary Implementation**: Clear external/internal API separation with service extraction readiness *(Completed in Phase 3A.2)*
+- **Real API Implementation Wiring**: Connect API boundaries to actual CLI execution flow
+- **Service Extraction**: Use established boundaries for microservice evolution
 - **Advanced Node Types**: DECISION and conditional routing nodes for complex workflows
 - **Multi-LLM Blending**: Parallel execution with different LLM providers
 - **Plugin Architecture**: Community agent ecosystem with dynamic loading
