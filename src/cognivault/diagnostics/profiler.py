@@ -35,7 +35,6 @@ from rich.text import Text
 
 from cognivault.context import AgentContext
 from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
 
 
 @dataclass
@@ -407,21 +406,16 @@ class PerformanceProfiler:
         if detailed:
             self._start_resource_monitoring()
 
-        # Create orchestrator
+        # Create orchestrator (Phase 3: Only langgraph-real supported)
         start_time = time.time()
         try:
-            if mode == "legacy":
-                # Lazy import to avoid circular dependency
-                from cognivault.orchestrator import AgentOrchestrator
+            if mode != "langgraph-real":
+                raise ValueError(
+                    f"Unsupported execution mode: {mode}. Only 'langgraph-real' is supported after Phase 3."
+                )
 
-                orchestrator = AgentOrchestrator(agents_to_run=agents)
-                context = asyncio.run(orchestrator.run(query))
-            elif mode == "langgraph":
-                langgraph_orchestrator = LangGraphOrchestrator(agents_to_run=agents)
-                context = asyncio.run(langgraph_orchestrator.run(query))
-            else:  # langgraph-real
-                real_orchestrator = RealLangGraphOrchestrator(agents_to_run=agents)
-                context = asyncio.run(real_orchestrator.run(query))
+            real_orchestrator = RealLangGraphOrchestrator(agents_to_run=agents)
+            context = asyncio.run(real_orchestrator.run(query))
 
             total_duration = time.time() - start_time
             success = len(context.failed_agents) == 0
