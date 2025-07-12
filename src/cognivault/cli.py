@@ -24,8 +24,6 @@ except ImportError:
 
 from cognivault.config.logging_config import setup_logging
 from cognivault.config.openai_config import OpenAIConfig
-from cognivault.orchestrator import AgentOrchestrator
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.topic_manager import TopicManager
@@ -50,52 +48,6 @@ def create_llm_instance() -> LLMInterface:
         model=llm_config.model,
         base_url=llm_config.base_url,
     )
-
-
-def _log_usage_analytics(
-    execution_mode: str, agents: Optional[List[str]] = None
-) -> None:
-    """
-    Log usage analytics for tracking during deprecation period.
-
-    This function creates a simple usage log to track legacy mode usage
-    during the 2-3 week safety period before removal.
-
-    Parameters
-    ----------
-    execution_mode : str
-        The execution mode being used
-    agents : Optional[List[str]]
-        List of agents being executed
-    """
-    try:
-        # Create analytics directory if it doesn't exist
-        analytics_dir = os.path.expanduser("~/.cognivault")
-        os.makedirs(analytics_dir, exist_ok=True)
-
-        # Simple usage log file
-        analytics_file = os.path.join(analytics_dir, "usage_analytics.log")
-
-        # Create analytics entry
-        timestamp = datetime.now(timezone.utc).isoformat()
-        agent_list = agents if agents else ["default"]
-
-        analytics_entry = {
-            "timestamp": timestamp,
-            "execution_mode": execution_mode,
-            "agents": agent_list,
-            "agent_count": len(agent_list),
-            "deprecated_mode": execution_mode in ["legacy", "langgraph"],
-        }
-
-        # Append to analytics file
-        with open(analytics_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(analytics_entry) + "\n")
-
-    except Exception as e:
-        # Silent failure - analytics shouldn't break CLI
-        logging.getLogger(__name__).debug(f"Analytics logging failed: {e}")
-        pass
 
 
 def _validate_langgraph_runtime() -> None:
@@ -212,110 +164,59 @@ async def run(
         if not query or query.strip() == "":
             return
 
-    # Validate execution mode
-    if execution_mode not in ["legacy", "langgraph", "langgraph-real"]:
-        raise ValueError(
-            f"Invalid execution mode: {execution_mode}. Must be 'legacy', 'langgraph', or 'langgraph-real'"
+    # Phase 3: Only langgraph-real mode supported
+    if execution_mode != "langgraph-real":
+        console.print(f"[red]❌ Unsupported execution mode: {execution_mode}[/red]")
+        console.print(
+            "[yellow]💡 Only 'langgraph-real' mode is supported after Phase 3 legacy cleanup[/yellow]"
         )
+        raise typer.Exit(1)
 
-    # Handle comparison mode
+    # Handle comparison mode (disabled after Phase 3 legacy cleanup)
     if compare_modes:
-        # Comparison mode now compares langgraph vs langgraph-real modes
-        # This provides performance and behavior comparison between the two LangGraph implementations
-        logger.info(
-            f"[{cli_name}] Comparison mode: using langgraph vs langgraph-real for comparison"
+        console.print(
+            "[red]❌ Comparison mode disabled after Phase 3 legacy cleanup[/red]"
         )
-
-        # Create shared LLM instance for comparison mode
-        llm = create_llm_instance()
-        await _run_comparison_mode(
-            query,
-            agents_to_run,
-            console,
-            trace,
-            export_md,
-            export_trace,
-            benchmark_runs,
-            llm,
+        console.print(
+            "[yellow]💡 Comparison mode will be reimplemented to compare different configurations of langgraph-real mode[/yellow]"
         )
-        return
+        raise typer.Exit(1)
 
     logger.info(f"[{cli_name}] Execution mode: {execution_mode}")
-
-    # Log usage analytics for tracking during deprecation period
-    _log_usage_analytics(execution_mode, agents_to_run)
 
     # Create shared LLM instance for agents and topic manager
     llm = create_llm_instance()
 
-    # Create orchestrator based on execution mode
-    if execution_mode == "legacy":
-        # Show strong deprecation warning for legacy mode
-        console.print("")
-        console.print("[bold red]🚨 DEPRECATION WARNING 🚨[/bold red]")
-        console.print(
-            "[red]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/red]"
-        )
-        console.print(
-            "[red]⚠️  Legacy orchestrator is DEPRECATED and will be REMOVED in 2-3 weeks.[/red]"
-        )
-        console.print(
-            "[red]🔁 Please remove --execution-mode=legacy flag to use the default LangGraph mode.[/red]"
-        )
-        console.print(
-            "[red]📖 Migration guide: Use default mode or --execution-mode=langgraph-real[/red]"
-        )
-        console.print(
-            "[red]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/red]"
-        )
-        console.print("")  # Add spacing
+    # Create RealLangGraphOrchestrator (only supported orchestrator after Phase 3)
+    try:
+        _validate_langgraph_runtime()
 
-        orchestrator: Union[
-            AgentOrchestrator, LangGraphOrchestrator, RealLangGraphOrchestrator
-        ] = AgentOrchestrator(agents_to_run=agents_to_run)
-    elif execution_mode == "langgraph":
-        # Show deprecation warning for intermediate langgraph mode
-        console.print(
-            "[yellow]⚠️  'langgraph' mode is deprecated. Use 'langgraph-real' (default) for production LangGraph integration.[/yellow]"
-        )
-        console.print("")  # Add spacing
-
-        orchestrator = LangGraphOrchestrator(agents_to_run=agents_to_run)
-    elif execution_mode == "langgraph-real":
-        # Add LangGraph runtime validation
-        try:
-            _validate_langgraph_runtime()
-
-            # Validate checkpoint flags
-            if rollback_last_checkpoint and not enable_checkpoints:
-                console.print(
-                    "[red]❌ --rollback-last-checkpoint requires --enable-checkpoints[/red]"
-                )
-                raise typer.Exit(1)
-
-            orchestrator = RealLangGraphOrchestrator(
-                agents_to_run=agents_to_run,
-                enable_checkpoints=enable_checkpoints,
-                thread_id=thread_id,
-            )
-
-        except ImportError as e:
+        # Validate checkpoint flags
+        if rollback_last_checkpoint and not enable_checkpoints:
             console.print(
-                f"[red]❌ LangGraph is not installed or incompatible: {e}[/red]"
-            )
-            console.print("[yellow]💡 Try: pip install langgraph==0.5.1[/yellow]")
-            raise typer.Exit(1)
-        except Exception as e:
-            console.print(f"[red]❌ LangGraph runtime error: {e}[/red]")
-            console.print(
-                "[yellow]💡 Check LangGraph installation with: cognivault diagnostics health[/yellow]"
+                "[red]❌ --rollback-last-checkpoint requires --enable-checkpoints[/red]"
             )
             raise typer.Exit(1)
-    else:
-        raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
-    # Handle rollback mode for langgraph-real
-    if rollback_last_checkpoint and execution_mode == "langgraph-real":
+        orchestrator = RealLangGraphOrchestrator(
+            agents_to_run=agents_to_run,
+            enable_checkpoints=enable_checkpoints,
+            thread_id=thread_id,
+        )
+
+    except ImportError as e:
+        console.print(f"[red]❌ LangGraph is not installed or incompatible: {e}[/red]")
+        console.print("[yellow]💡 Try: pip install langgraph==0.5.1[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]❌ LangGraph runtime error: {e}[/red]")
+        console.print(
+            "[yellow]💡 Check LangGraph installation with: cognivault diagnostics health[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    # Handle rollback mode
+    if rollback_last_checkpoint:
         await _run_rollback_mode(orchestrator, console, thread_id)
         return
 
@@ -692,426 +593,12 @@ def _export_trace_data(context, export_path, execution_time):
         json.dump(trace_data, f, indent=2, default=str)
 
 
-async def _run_comparison_mode(
-    query: str,
-    agents_to_run: Optional[list[str]],
-    console: Console,
-    trace: bool,
-    export_md: bool,
-    export_trace: Optional[str],
-    benchmark_runs: int = 1,
-    llm: Optional[LLMInterface] = None,
-):
-    """Run both langgraph and langgraph-real modes side-by-side for comparison."""
-    if benchmark_runs > 1:
-        console.print(
-            f"🔄 [bold magenta]Running Performance Benchmark ({benchmark_runs} runs per mode)[/bold magenta]\n"
-        )
-    else:
-        console.print(
-            "🔄 [bold magenta]Running Side-by-Side Execution Mode Comparison[/bold magenta]\n"
-        )
-
-    results: Dict[str, Any] = {}
-
-    # Run both LangGraph execution modes with benchmarking
-    for mode in ["langgraph", "langgraph-real"]:
-        console.print(f"⚡ [bold]Running {mode.title()} Mode...[/bold]")
-
-        mode_results: Dict[str, Any] = {
-            "execution_times": [],
-            "memory_usage": [],
-            "context_sizes": [],
-            "agent_counts": [],
-            "success_count": 0,
-            "error_count": 0,
-            "last_context": None,
-            "errors": [],
-        }
-
-        # Run multiple iterations for benchmarking
-        for run_num in range(benchmark_runs):
-            if benchmark_runs > 1:
-                console.print(f"  📊 Run {run_num + 1}/{benchmark_runs}")
-
-            # Create orchestrator for this mode
-            if mode == "langgraph":
-                mode_orchestrator: Union[
-                    LangGraphOrchestrator, RealLangGraphOrchestrator
-                ] = LangGraphOrchestrator(agents_to_run=agents_to_run)
-            else:  # langgraph-real
-                # Validate LangGraph runtime for real mode
-                try:
-                    _validate_langgraph_runtime()
-                    mode_orchestrator = RealLangGraphOrchestrator(
-                        agents_to_run=agents_to_run,
-                        enable_checkpoints=False,  # Disable checkpoints in comparison mode for consistency
-                        thread_id=None,
-                    )
-                except (ImportError, RuntimeError) as e:
-                    console.print(
-                        f"[red]❌ LangGraph-real mode failed validation: {e}[/red]"
-                    )
-                    # Fall back to langgraph mode for comparison
-                    mode_orchestrator = LangGraphOrchestrator(
-                        agents_to_run=agents_to_run
-                    )
-
-            # Measure memory before execution (if available)
-            memory_before = 0.0
-            process = None
-            if PSUTIL_AVAILABLE:
-                try:
-                    process = psutil.Process()
-                    memory_before = process.memory_info().rss / 1024 / 1024  # MB
-                except (ImportError, OSError, AttributeError):
-                    memory_before = 0.0
-                    process = None
-
-            # Execute with timing
-            start_time = time.time()
-            try:
-                context = await mode_orchestrator.run(query)
-                execution_time = time.time() - start_time
-
-                # Measure memory after execution (if available)
-                memory_used = 0.0
-                if PSUTIL_AVAILABLE and process is not None and memory_before > 0:
-                    try:
-                        memory_after = process.memory_info().rss / 1024 / 1024  # MB
-                        memory_used = memory_after - memory_before
-                    except (OSError, AttributeError):
-                        memory_used = 0.0
-
-                # Record metrics
-                mode_results["execution_times"].append(execution_time)
-                mode_results["memory_usage"].append(memory_used)
-                mode_results["context_sizes"].append(context.current_size)
-                mode_results["agent_counts"].append(len(context.agent_outputs))
-                mode_results["success_count"] += 1
-                mode_results["last_context"] = context
-
-                if benchmark_runs > 1:
-                    console.print(f"    ✅ Completed in {execution_time:.3f}s")
-
-            except Exception as e:
-                execution_time = time.time() - start_time
-                mode_results["execution_times"].append(execution_time)
-                mode_results["error_count"] += 1
-                mode_results["errors"].append(str(e))
-
-                if benchmark_runs > 1:
-                    console.print(f"    ❌ Failed after {execution_time:.3f}s: {e}")
-
-        results[mode] = mode_results
-
-        # Display summary for this mode
-        if mode_results["success_count"] > 0:
-            avg_time = statistics.mean(mode_results["execution_times"])
-            console.print(
-                f"📈 {mode.title()} summary: {mode_results['success_count']}/{benchmark_runs} successful, "
-                f"avg time: {avg_time:.3f}s\n"
-            )
-        else:
-            console.print(f"❌ {mode.title()} mode: All runs failed\n")
-
-    # Display comparison results
-    _display_comparison_results(results, console, query)
-
-    # Handle export options if both modes succeeded
-    if export_md and all(result["success_count"] > 0 for result in results.values()):
-        await _export_comparison_results(results, export_md, query, llm)
-
-    if export_trace:
-        _export_comparison_trace(results, export_trace)
+# NOTE: Comparison mode functions removed in Phase 3A.1
+# These functions will be reimplemented to compare different configurations of langgraph-real mode only
 
 
-def _display_comparison_results(results: dict, console: Console, query: str):
-    """Display side-by-side comparison of execution results with enhanced benchmarking data."""
-    console.print("📊 [bold blue]Performance Benchmark Results[/bold blue]\n")
-
-    # Performance comparison table
-    perf_table = Table(title="Performance Comparison")
-    perf_table.add_column("Metric", style="bold")
-    perf_table.add_column("LangGraph Mode", justify="right")
-    perf_table.add_column("LangGraph-Real Mode", justify="right")
-    perf_table.add_column("Difference", justify="right")
-
-    langgraph_results = results["langgraph"]
-    langgraph_real_results = results["langgraph-real"]
-
-    # Calculate statistics for execution times
-    if (
-        langgraph_results["execution_times"]
-        and langgraph_real_results["execution_times"]
-    ):
-        langgraph_avg = statistics.mean(langgraph_results["execution_times"])
-        langgraph_real_avg = statistics.mean(langgraph_real_results["execution_times"])
-        time_diff = langgraph_avg - langgraph_real_avg
-        time_diff_pct = (time_diff / langgraph_avg) * 100 if langgraph_avg > 0 else 0
-
-        # Execution time (with std dev if multiple runs)
-        if len(langgraph_results["execution_times"]) > 1:
-            langgraph_std = statistics.stdev(langgraph_results["execution_times"])
-            langgraph_time_str = f"{langgraph_avg:.3f}s ±{langgraph_std:.3f}"
-        else:
-            langgraph_time_str = f"{langgraph_avg:.3f}s"
-
-        if len(langgraph_real_results["execution_times"]) > 1:
-            langgraph_real_std = statistics.stdev(
-                langgraph_real_results["execution_times"]
-            )
-            langgraph_real_time_str = (
-                f"{langgraph_real_avg:.3f}s ±{langgraph_real_std:.3f}"
-            )
-        else:
-            langgraph_real_time_str = f"{langgraph_real_avg:.3f}s"
-
-        perf_table.add_row(
-            "Avg Execution Time",
-            langgraph_time_str,
-            langgraph_real_time_str,
-            f"{time_diff:+.3f}s ({time_diff_pct:+.1f}%)",
-        )
-
-        # Min/Max times if multiple runs
-        if len(langgraph_results["execution_times"]) > 1:
-            langgraph_min = min(langgraph_results["execution_times"])
-            langgraph_max = max(langgraph_results["execution_times"])
-            langgraph_real_min = min(langgraph_real_results["execution_times"])
-            langgraph_real_max = max(langgraph_real_results["execution_times"])
-
-            perf_table.add_row(
-                "Min Time",
-                f"{langgraph_min:.3f}s",
-                f"{langgraph_real_min:.3f}s",
-                f"{langgraph_min - langgraph_real_min:+.3f}s",
-            )
-            perf_table.add_row(
-                "Max Time",
-                f"{langgraph_max:.3f}s",
-                f"{langgraph_real_max:.3f}s",
-                f"{langgraph_max - langgraph_real_max:+.3f}s",
-            )
-
-    # Success rate
-    langgraph_success_rate = (
-        langgraph_results["success_count"] / len(langgraph_results["execution_times"])
-        if langgraph_results["execution_times"]
-        else 0
-    )
-    langgraph_real_success_rate = (
-        langgraph_real_results["success_count"]
-        / len(langgraph_real_results["execution_times"])
-        if langgraph_real_results["execution_times"]
-        else 0
-    )
-
-    perf_table.add_row(
-        "Success Rate",
-        f"{langgraph_success_rate:.1%}",
-        f"{langgraph_real_success_rate:.1%}",
-        f"{langgraph_success_rate - langgraph_real_success_rate:+.1%}",
-    )
-
-    # Memory usage
-    if langgraph_results["memory_usage"] and langgraph_real_results["memory_usage"]:
-        langgraph_mem_avg = statistics.mean(langgraph_results["memory_usage"])
-        langgraph_real_mem_avg = statistics.mean(langgraph_real_results["memory_usage"])
-        mem_diff = langgraph_mem_avg - langgraph_real_mem_avg
-
-        perf_table.add_row(
-            "Avg Memory Usage",
-            f"{langgraph_mem_avg:.1f} MB",
-            f"{langgraph_real_mem_avg:.1f} MB",
-            f"{mem_diff:+.1f} MB",
-        )
-
-    # Context size
-    if langgraph_results["context_sizes"] and langgraph_real_results["context_sizes"]:
-        langgraph_size_avg = statistics.mean(langgraph_results["context_sizes"])
-        langgraph_real_size_avg = statistics.mean(
-            langgraph_real_results["context_sizes"]
-        )
-        size_diff = langgraph_size_avg - langgraph_real_size_avg
-
-        perf_table.add_row(
-            "Avg Context Size",
-            f"{langgraph_size_avg:,.0f} bytes",
-            f"{langgraph_real_size_avg:,.0f} bytes",
-            f"{size_diff:+,.0f} bytes",
-        )
-
-    console.print(perf_table)
-    console.print()
-
-    # Display detailed results if both modes have successful runs
-    if (
-        langgraph_results["success_count"] > 0
-        and langgraph_real_results["success_count"] > 0
-    ):
-        _display_output_comparison(results, console)
-    else:
-        # Show error details
-        console.print("❌ [bold red]Execution Errors:[/bold red]")
-        for mode, mode_results in results.items():
-            if mode_results["errors"]:
-                console.print(f"  {mode.title()} mode errors:")
-                for error in mode_results["errors"]:
-                    console.print(f"    • {error}")
-        console.print()
-
-
-def _display_output_comparison(results: dict, console: Console):
-    """Display comparison of agent outputs between modes."""
-    langgraph_context = results["langgraph"]["last_context"]
-    langgraph_real_context = results["langgraph-real"]["last_context"]
-
-    if not langgraph_context or not langgraph_real_context:
-        console.print(
-            "⚠️  [yellow]Cannot compare outputs - missing context data[/yellow]"
-        )
-        return
-
-    langgraph_outputs = langgraph_context.agent_outputs
-    langgraph_real_outputs = langgraph_real_context.agent_outputs
-
-    # Find all agents that ran in either mode
-    all_agents = set(langgraph_outputs.keys()) | set(langgraph_real_outputs.keys())
-
-    for agent in all_agents:
-        langgraph_output = langgraph_outputs.get(agent, "[Not executed]")
-        langgraph_real_output = langgraph_real_outputs.get(agent, "[Not executed]")
-
-        # Check if outputs are identical
-        outputs_match = langgraph_output == langgraph_real_output
-        match_indicator = "✅ Identical" if outputs_match else "🔄 Different"
-
-        console.print(f"🤖 [bold]{agent} Agent - {match_indicator}[/bold]")
-
-        if not outputs_match:
-            # Show truncated outputs for comparison
-            langgraph_preview = (
-                (langgraph_output[:100] + "...")
-                if len(langgraph_output) > 100
-                else langgraph_output
-            )
-            langgraph_real_preview = (
-                (langgraph_real_output[:100] + "...")
-                if len(langgraph_real_output) > 100
-                else langgraph_real_output
-            )
-
-            comparison_table = Table(show_header=True)
-            comparison_table.add_column("LangGraph Mode", style="cyan", width=40)
-            comparison_table.add_column("LangGraph-Real Mode", style="green", width=40)
-            comparison_table.add_row(langgraph_preview, langgraph_real_preview)
-
-            console.print(comparison_table)
-
-        console.print()
-
-
-async def _export_comparison_results(
-    results: dict, export_md: bool, query: str, llm: Optional[LLMInterface] = None
-):
-    """Export comparison results to markdown."""
-    # For now, export the legacy mode results as primary
-    # TODO: Enhance to create a comprehensive comparison export
-    if results["legacy"]["success_count"] > 0 and results["legacy"]["last_context"]:
-        context = results["legacy"]["last_context"]
-
-        # Initialize topic manager for auto-tagging with shared LLM
-        topic_manager = TopicManager(llm=llm)
-
-        # Analyze and suggest topics
-        suggested_topics = []
-        suggested_domain = None
-        try:
-            topic_analysis = await topic_manager.analyze_and_suggest_topics(
-                query=query, agent_outputs=context.agent_outputs
-            )
-            suggested_topics = [s.topic for s in topic_analysis.suggested_topics]
-            suggested_domain = topic_analysis.suggested_domain
-        except Exception as e:
-            logging.getLogger(__name__).warning(
-                f"Topic analysis failed in comparison mode: {e}"
-            )
-
-        # Export with enhanced metadata
-        exporter = MarkdownExporter()
-        md_path = exporter.export(
-            agent_outputs=context.agent_outputs,
-            question=query,
-            topics=suggested_topics,
-            domain=suggested_domain,
-        )
-        print(f"📄 Comparison results exported to: {md_path}")
-
-
-def _export_comparison_trace(results: dict, export_trace: str):
-    """Export comparison trace data to JSON."""
-    comparison_data: Dict[str, Any] = {
-        "comparison_timestamp": time.time(),
-        "query": "",
-        "benchmark_summary": {},
-        "modes": {},
-    }
-
-    # Get query from successful context
-    for mode, result in results.items():
-        if result["success_count"] > 0 and result["last_context"]:
-            comparison_data["query"] = result["last_context"].query
-            break
-
-    # Add benchmark summary
-    for mode, result in results.items():
-        if result["execution_times"]:
-            summary = {
-                "total_runs": len(result["execution_times"]),
-                "successful_runs": result["success_count"],
-                "error_count": result["error_count"],
-                "avg_execution_time": statistics.mean(result["execution_times"]),
-                "execution_times": result["execution_times"],
-            }
-
-            if len(result["execution_times"]) > 1:
-                summary["std_dev_time"] = statistics.stdev(result["execution_times"])
-                summary["min_time"] = min(result["execution_times"])
-                summary["max_time"] = max(result["execution_times"])
-
-            if result["memory_usage"]:
-                summary["avg_memory_usage_mb"] = statistics.mean(result["memory_usage"])
-                summary["memory_usage"] = result["memory_usage"]
-
-            if result["context_sizes"]:
-                summary["avg_context_size"] = statistics.mean(result["context_sizes"])
-                summary["context_sizes"] = result["context_sizes"]
-
-            comparison_data["benchmark_summary"][mode] = summary
-
-        # Detailed mode data
-        if result["success_count"] > 0 and result["last_context"]:
-            context = result["last_context"]
-            comparison_data["modes"][mode] = {
-                "success": True,
-                "agent_outputs": context.agent_outputs,
-                "agent_trace": context.agent_trace,
-                "context_size_bytes": context.current_size,
-                "successful_agents": list(context.successful_agents),
-                "failed_agents": list(context.failed_agents),
-                "errors": result["errors"],
-            }
-        else:
-            comparison_data["modes"][mode] = {
-                "success": False,
-                "errors": result["errors"],
-            }
-
-    with open(export_trace, "w") as f:
-        json.dump(comparison_data, f, indent=2, default=str)
-
-    print(f"🔍 Comparison trace exported to: {export_trace}")
+# NOTE: Additional comparison mode display functions removed in Phase 3A.1
+# These functions will be reimplemented to compare different configurations of langgraph-real mode only
 
 
 async def _run_rollback_mode(orchestrator, console, thread_id):
