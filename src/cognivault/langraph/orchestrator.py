@@ -1,8 +1,8 @@
 """
-Real LangGraph orchestrator for CogniVault agents.
+Production LangGraph orchestrator for CogniVault agents.
 
-This module provides the actual LangGraph integration using the real LangGraph library,
-implementing production-ready DAG execution with StateGraph orchestration.
+This module provides LangGraph integration implementing production-ready
+DAG execution with StateGraph orchestration.
 
 Features:
 - True DAG-based execution using LangGraph StateGraph
@@ -57,11 +57,11 @@ from cognivault.langgraph_backend import (
 logger = get_logger(__name__)
 
 
-class RealLangGraphOrchestrator:
+class LangGraphOrchestrator:
     """
-    Real LangGraph orchestrator for CogniVault agents.
+    Production LangGraph orchestrator for CogniVault agents.
 
-    This orchestrator uses the actual LangGraph library to provide production-ready
+    This orchestrator uses LangGraph library to provide production-ready
     DAG-based execution with advanced state management, parallel processing, and
     conditional routing capabilities.
 
@@ -82,7 +82,7 @@ class RealLangGraphOrchestrator:
         memory_manager: Optional[CogniVaultMemoryManager] = None,
     ):
         """
-        Initialize the real LangGraph orchestrator.
+        Initialize the production LangGraph orchestrator.
 
         Parameters
         ----------
@@ -105,7 +105,7 @@ class RealLangGraphOrchestrator:
         self.enable_checkpoints = enable_checkpoints
         self.thread_id = thread_id
         self.registry = get_agent_registry()
-        self.logger = get_logger(f"{__name__}.RealLangGraphOrchestrator")
+        self.logger = get_logger(f"{__name__}.LangGraphOrchestrator")
 
         # Initialize memory manager
         if memory_manager:
@@ -136,7 +136,7 @@ class RealLangGraphOrchestrator:
         self._compiled_graph = None
 
         self.logger.info(
-            f"Initialized RealLangGraphOrchestrator with agents: {self.agents_to_run}, "
+            f"Initialized LangGraphOrchestrator with agents: {self.agents_to_run}, "
             f"checkpoints: {self.enable_checkpoints}, thread_id: {self.thread_id}"
         )
 
@@ -144,7 +144,7 @@ class RealLangGraphOrchestrator:
         self, query: str, config: Optional[Dict[str, Any]] = None
     ) -> AgentContext:
         """
-        Execute agents using real LangGraph StateGraph orchestration.
+        Execute agents using LangGraph StateGraph orchestration.
 
         This method implements true DAG-based execution with:
         - Refiner → [Critic, Historian] → Synthesis pipeline
@@ -174,10 +174,10 @@ class RealLangGraphOrchestrator:
         execution_id = str(uuid.uuid4())
 
         self.logger.info(
-            f"Starting real LangGraph execution for query: {query[:100]}... "
+            f"Starting LangGraph execution for query: {query[:100]}... "
             f"(execution_id: {execution_id})"
         )
-        self.logger.info(f"Execution mode: langgraph-real")
+        self.logger.info(f"Execution mode: langgraph")
         self.logger.info(f"Agents to run: {self.agents_to_run}")
         self.logger.info(f"Config: {config}")
 
@@ -270,7 +270,7 @@ class RealLangGraphOrchestrator:
                 self.successful_executions += 1
 
             self.logger.info(
-                f"Real LangGraph execution completed in {total_time_ms:.2f}ms "
+                f"LangGraph execution completed in {total_time_ms:.2f}ms "
                 f"(successful: {len(final_state['successful_agents'])}, "
                 f"failed: {len(final_state['failed_agents'])})"
             )

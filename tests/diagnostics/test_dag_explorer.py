@@ -174,7 +174,7 @@ class TestInteractiveDAGExplorer:
                     mock_analysis.assert_called_once_with("detailed")
 
     @patch("asyncio.run")
-    @patch("cognivault.diagnostics.dag_explorer.RealLangGraphOrchestrator")
+    @patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator")
     def test_trace_execution_without_live(
         self, mock_orchestrator, mock_asyncio, explorer
     ):
@@ -197,32 +197,44 @@ class TestInteractiveDAGExplorer:
             mock_orchestrator.assert_called_once()
             mock_asyncio.assert_called()
 
+    @patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator")
     @patch("asyncio.run")
-    @patch("cognivault.diagnostics.dag_explorer.RealLangGraphOrchestrator")
     def test_trace_execution_with_live(
-        self, mock_orchestrator, mock_asyncio, explorer, capsys
+        self, mock_asyncio, mock_orchestrator, explorer, capsys
     ):
         """Test DAG execution tracing with live monitoring."""
         mock_orchestrator_instance = Mock()
         mock_orchestrator.return_value = mock_orchestrator_instance
 
-        # Mock the async execution
+        # Mock DAGExecution object
         mock_execution = Mock()
         mock_asyncio.return_value = mock_execution
 
-        with patch.object(explorer, "_display_execution_trace"):
-            explorer.trace_execution(
-                query="Test query with live trace",
-                agents="refiner,critic,synthesis",
-                pattern="conditional",
-                live_trace=True,
-            )
+        # Create a simple sync function that returns the mock (not async)
+        def sync_execute_and_trace(*args, **kwargs):
+            return mock_execution
 
-            captured = capsys.readouterr()
-            assert "Live tracing would be implemented here" in captured.out
+        with patch.object(
+            explorer, "_execute_and_trace", side_effect=sync_execute_and_trace
+        ):
+            with patch.object(explorer, "_display_execution_trace"):
+                explorer.trace_execution(
+                    query="Test query with live trace",
+                    agents="refiner,critic,synthesis",
+                    pattern="conditional",
+                    live_trace=True,
+                )
 
-    def test_analyze_performance_basic(self, explorer):
+                captured = capsys.readouterr()
+                assert "Live tracing would be implemented here" in captured.out
+
+    @patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator")
+    def test_analyze_performance_basic(self, mock_orchestrator, explorer):
         """Test basic performance analysis."""
+        # Create non-async mock orchestrator
+        mock_orchestrator_instance = Mock()
+        mock_orchestrator.return_value = mock_orchestrator_instance
+
         with patch.object(explorer, "_analyze_graph_structure"):
             with patch.object(explorer, "_run_performance_analysis") as mock_benchmark:
                 with patch.object(explorer, "_display_performance_analysis"):

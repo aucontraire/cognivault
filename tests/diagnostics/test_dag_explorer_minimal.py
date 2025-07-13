@@ -156,7 +156,7 @@ class TestDAGExplorer:
         agents = ["refiner"]
 
         with patch("asyncio.run"):
-            with patch("cognivault.diagnostics.dag_explorer.RealLangGraphOrchestrator"):
+            with patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator"):
                 result = explorer._run_performance_analysis(
                     agents=agents, pattern="standard", queries=queries, runs=3
                 )
@@ -204,7 +204,7 @@ class TestDAGExplorer:
     def test_run_benchmark_suite(self, explorer):
         """Test benchmark suite execution."""
         with patch("asyncio.run"):
-            with patch("cognivault.diagnostics.dag_explorer.RealLangGraphOrchestrator"):
+            with patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator"):
                 result = explorer._run_benchmark_suite(["refiner"], ["standard"], 5, 2)
 
                 assert isinstance(result, dict)

@@ -23,7 +23,7 @@ from rich.layout import Layout
 from rich.live import Live
 
 from cognivault.context import AgentContext
-from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.langgraph_backend.build_graph import GraphFactory, GraphConfig
 from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
 from cognivault.langgraph_backend.graph_patterns.conditional import (
@@ -200,7 +200,7 @@ class InteractiveDAGExplorer:
 
         try:
             # Create orchestrator with tracing
-            orchestrator = RealLangGraphOrchestrator(
+            orchestrator = LangGraphOrchestrator(
                 agents_to_run=agent_list, enable_checkpoints=False
             )
 
@@ -448,7 +448,7 @@ class InteractiveDAGExplorer:
         self.console.print(table)
 
     async def _execute_and_trace(
-        self, orchestrator: RealLangGraphOrchestrator, query: str
+        self, orchestrator: LangGraphOrchestrator, query: str
     ) -> DAGExecution:
         """Execute query and capture detailed trace."""
         start_time = time.time()

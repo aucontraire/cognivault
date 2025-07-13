@@ -131,11 +131,8 @@ class CustomNodeAgent(BaseAgent):
 # Basic functionality tests
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_base_agent_run_concrete(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_base_agent_run_concrete():
     agent = ConcreteAgent(name="TestAgent")
     context = AgentContext(query="test")
     result = await agent.run(context)
@@ -289,11 +286,8 @@ def test_generate_step_id():
 
 
 # run_with_retry tests
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_success(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_success():
     agent = ConcreteAgent("TestAgent")
     context = AgentContext(query="test")
 
@@ -306,11 +300,8 @@ async def test_run_with_retry_success(anyio_backend):
     assert agent.run_called
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_with_step_id(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_with_step_id():
     agent = ConcreteAgent("TestAgent")
     context = AgentContext(query="test")
     step_id = "custom_step_123"
@@ -324,11 +315,8 @@ async def test_run_with_retry_with_step_id(anyio_backend):
     assert context.execution_state[metadata_key]["agent_id"] == agent.name
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_circuit_breaker_open(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_circuit_breaker_open():
     agent = ConcreteAgent("TestAgent")
     agent.circuit_breaker.is_open = True
     agent.circuit_breaker.failure_count = 5
@@ -341,11 +329,8 @@ async def test_run_with_retry_circuit_breaker_open(anyio_backend):
     assert exc_info.value.error_code == "circuit_breaker_open"
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_timeout(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_timeout():
     agent = TimeoutAgent("TimeoutAgent", delay=2.0, timeout_seconds=0.1)
     context = AgentContext(query="test")
 
@@ -358,11 +343,8 @@ async def test_run_with_retry_timeout(anyio_backend):
     assert agent.failure_count == 1
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_retries_on_failure(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_retries_on_failure():
     agent = FlakyAgent("FlakyAgent", failures_before_success=2)
     agent.retry_config = RetryConfig(max_retries=3, base_delay=0.01)
     context = AgentContext(query="test")
@@ -375,11 +357,8 @@ async def test_run_with_retry_retries_on_failure(anyio_backend):
     assert result.agent_outputs["FlakyAgent"] == "Success after 3 attempts"
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_max_retries_exceeded(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_max_retries_exceeded():
     agent = FailingAgent("FailingAgent")
     agent.retry_config = RetryConfig(max_retries=2, base_delay=0.01)
     context = AgentContext(query="test")
@@ -393,11 +372,8 @@ async def test_run_with_retry_max_retries_exceeded(anyio_backend):
     assert "Agent execution failed" in str(exc_info.value)
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_llm_error_passthrough(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_llm_error_passthrough():
     llm_error = LLMError("Test LLM error", "llm_test_error")
     agent = FailingAgent("FailingAgent", failure_type=llm_error)
     context = AgentContext(query="test")
@@ -438,11 +414,8 @@ def test_should_retry_exception_standard_exceptions():
 
 
 # _handle_retry_delay tests
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_handle_retry_delay_zero_delay(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_handle_retry_delay_zero_delay():
     agent = ConcreteAgent("TestAgent")
     agent.retry_config.base_delay = 0
 
@@ -454,11 +427,8 @@ async def test_handle_retry_delay_zero_delay(anyio_backend):
     assert end_time - start_time < 0.01  # Very fast
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_handle_retry_delay_exponential_backoff(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_handle_retry_delay_exponential_backoff():
     agent = ConcreteAgent("TestAgent")
     agent.retry_config = RetryConfig(
         base_delay=0.01, exponential_backoff=True, jitter=False, max_delay=1.0
@@ -476,11 +446,8 @@ async def test_handle_retry_delay_exponential_backoff(anyio_backend):
         mock_sleep.assert_called_with(0.04)
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_handle_retry_delay_with_jitter(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_handle_retry_delay_with_jitter():
     agent = ConcreteAgent("TestAgent")
     agent.retry_config = RetryConfig(
         base_delay=0.1, exponential_backoff=False, jitter=True
@@ -566,11 +533,8 @@ def test_should_retry_default_exception_behavior():
     assert agent._should_retry_exception(CustomException("Unknown error")) is True
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_circuit_breaker_time_calculation(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_run_with_retry_circuit_breaker_time_calculation():
     agent = ConcreteAgent("TestAgent")
 
     # Force circuit breaker to have a failure time for time calculation
@@ -593,11 +557,8 @@ async def test_run_with_retry_circuit_breaker_time_calculation(anyio_backend):
 
 
 # Integration tests
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_context_execution_tracking(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_context_execution_tracking():
     agent = ConcreteAgent("TestAgent")
     context = AgentContext(query="test")
 
@@ -618,11 +579,8 @@ async def test_context_execution_tracking(anyio_backend):
     assert "end_time" in metadata
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_context_trace_logging(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
+@pytest.mark.asyncio
+async def test_context_trace_logging():
     agent = ConcreteAgent("TestAgent")
     context = AgentContext(query="test")
 
@@ -640,12 +598,8 @@ async def test_context_trace_logging(anyio_backend):
     assert "execution_time_seconds" in trace["output"]
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_run_with_retry_unreachable_fallback(anyio_backend):
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
-
+@pytest.mark.asyncio
+async def test_run_with_retry_unreachable_fallback():
     class NoExceptionAgent(BaseAgent):
         def __init__(self):
             super().__init__("NoExceptionAgent")
@@ -664,12 +618,9 @@ async def test_run_with_retry_unreachable_fallback(anyio_backend):
 
 
 # LangGraph invoke() method tests
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_invoke_method_basic(anyio_backend):
+@pytest.mark.asyncio
+async def test_invoke_method_basic():
     """Test basic invoke() method functionality."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     agent = ConcreteAgent("TestAgent")
     context = AgentContext(query="test invoke")
@@ -683,12 +634,9 @@ async def test_invoke_method_basic(anyio_backend):
     assert agent.success_count == 1
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_invoke_method_with_config(anyio_backend):
+@pytest.mark.asyncio
+async def test_invoke_method_with_config():
     """Test invoke() method with configuration parameters."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     agent = ConcreteAgent("TestAgent")
     context = AgentContext(query="test invoke with config")
@@ -708,12 +656,9 @@ async def test_invoke_method_with_config(anyio_backend):
     assert agent.timeout_seconds == 30.0  # Should be back to default
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_invoke_method_timeout_override(anyio_backend):
+@pytest.mark.asyncio
+async def test_invoke_method_timeout_override():
     """Test that invoke() method can override timeout and restores it properly."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     agent = ConcreteAgent("TestAgent", timeout_seconds=30.0)
     context = AgentContext(query="test timeout override")
@@ -728,12 +673,9 @@ async def test_invoke_method_timeout_override(anyio_backend):
     assert agent.timeout_seconds == original_timeout
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_invoke_method_no_config(anyio_backend):
+@pytest.mark.asyncio
+async def test_invoke_method_no_config():
     """Test invoke() method without config parameter."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     agent = ConcreteAgent("TestAgent")
     context = AgentContext(query="test invoke no config")
@@ -745,12 +687,9 @@ async def test_invoke_method_no_config(anyio_backend):
     assert agent.execution_count == 1
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_invoke_method_error_propagation(anyio_backend):
+@pytest.mark.asyncio
+async def test_invoke_method_error_propagation():
     """Test that invoke() method properly propagates errors."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     agent = FailingAgent("FailingAgent")
     agent.retry_config = RetryConfig(max_retries=1, base_delay=0.01)
@@ -763,12 +702,9 @@ async def test_invoke_method_error_propagation(anyio_backend):
     assert agent.failure_count == 1
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_invoke_method_timeout_override_with_exception(anyio_backend):
+@pytest.mark.asyncio
+async def test_invoke_method_timeout_override_with_exception():
     """Test that timeout is restored even when an exception occurs."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     agent = FailingAgent("FailingAgent", timeout_seconds=30.0)
     agent.retry_config = RetryConfig(max_retries=0, base_delay=0.01)  # Fail immediately
@@ -784,12 +720,9 @@ async def test_invoke_method_timeout_override_with_exception(anyio_backend):
     assert agent.timeout_seconds == original_timeout
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_invoke_method_preserves_all_functionality(anyio_backend):
+@pytest.mark.asyncio
+async def test_invoke_method_preserves_all_functionality():
     """Test that invoke() preserves all BaseAgent functionality like retry, circuit breaker, etc."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     # Use FlakyAgent to test retry behavior through invoke()
     agent = FlakyAgent("FlakyAgent", failures_before_success=1)

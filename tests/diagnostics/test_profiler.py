@@ -193,7 +193,7 @@ class TestPerformanceProfiler:
         assert app is not None
         assert app.info.name == "profiler"
 
-    @patch("cognivault.diagnostics.profiler.RealLangGraphOrchestrator")
+    @patch("cognivault.diagnostics.profiler.LangGraphOrchestrator")
     def test_profile_execution_basic(self, mock_orchestrator, profiler):
         """Test basic execution profiling."""
         with patch.object(profiler, "_run_profiling_suite") as mock_suite:
@@ -672,8 +672,14 @@ class TestPerformanceProfiler:
         assert len(queries) > 0
         assert all(isinstance(q, str) for q in queries)
 
-    def test_execute_benchmark_suite(self, profiler):
+    @patch("cognivault.diagnostics.profiler.LangGraphOrchestrator")
+    def test_execute_benchmark_suite(self, mock_orchestrator, profiler):
         """Test executing benchmark suite."""
+        # Create non-async mock orchestrator
+        mock_orchestrator_instance = Mock()
+        mock_orchestrator_instance.run = Mock(return_value=AgentContext(query="test"))
+        mock_orchestrator.return_value = mock_orchestrator_instance
+
         with patch.object(profiler, "_profile_single_execution") as mock_profile:
             mock_profile.return_value = ExecutionProfile(
                 execution_id="bench_exec",
@@ -790,7 +796,7 @@ class TestPerformanceProfilerIntegration:
 
     def test_full_profiling_workflow(self, profiler):
         """Test complete profiling workflow."""
-        with patch("cognivault.diagnostics.profiler.RealLangGraphOrchestrator"):
+        with patch("cognivault.diagnostics.profiler.LangGraphOrchestrator"):
             with patch.object(profiler, "_run_profiling_suite") as mock_suite:
                 mock_suite.return_value = [
                     ExecutionProfile(

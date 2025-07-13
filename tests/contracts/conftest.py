@@ -4,12 +4,13 @@ import pytest
 from typing import List, Type, AsyncGenerator
 from cognivault.api.external import OrchestrationAPI
 from tests.fakes.mock_orchestration import MockOrchestrationAPI
+from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
 
 
 # Registry of all API implementations to test
 API_IMPLEMENTATIONS: List[Type[OrchestrationAPI]] = [
     MockOrchestrationAPI,
-    # RealOrchestrationAPI,  # Added when real implementation exists
+    LangGraphOrchestrationAPI,  # Real implementation now available
 ]
 
 

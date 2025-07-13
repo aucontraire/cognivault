@@ -1,7 +1,7 @@
 # 🧠 CogniVault
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
-![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
@@ -540,7 +540,7 @@ from cognivault.api.external import OrchestrationAPI
 from cognivault.api.models import WorkflowRequest
 
 # External API with stable interface
-api = RealOrchestrationAPI()  # Production implementation
+api = LangGraphOrchestrationAPI()  # Production implementation
 await api.initialize()
 
 # Execute workflow through API boundary

@@ -24,13 +24,22 @@ except ImportError:
 
 from cognivault.config.logging_config import setup_logging
 from cognivault.config.openai_config import OpenAIConfig
-from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.topic_manager import TopicManager
 from cognivault.llm.openai import OpenAIChatLLM
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.diagnostics.cli import app as diagnostics_app
 from cognivault.diagnostics.visualize_dag import cli_visualize_dag
+from cognivault.api.factory import (
+    initialize_api,
+    shutdown_api,
+    get_api_mode,
+    set_api_mode,
+    reset_api_cache,
+)
+from cognivault.api.models import WorkflowRequest, WorkflowResponse
+from cognivault.context import AgentContext
 
 app = typer.Typer()
 
@@ -110,6 +119,8 @@ async def run(
     enable_checkpoints: bool = False,
     thread_id: Optional[str] = None,
     rollback_last_checkpoint: bool = False,
+    use_api: bool = False,
+    api_mode: Optional[str] = None,
 ):
     cli_name = "CLI"
     # Configure logging based on CLI-provided level
@@ -124,6 +135,28 @@ async def run(
     logger = logging.getLogger(__name__)
     console = Console()
     start_time = time.time()
+
+    # Determine if API should be used
+    use_api_layer = (
+        use_api or os.getenv("COGNIVAULT_USE_API", "false").lower() == "true"
+    )
+
+    # Set API mode if specified
+    if api_mode:
+        original_mode = get_api_mode()
+        set_api_mode(api_mode)
+        logger.info(f"API mode set to: {api_mode} (was: {original_mode})")
+
+    # Log execution mode
+    if use_api_layer:
+        current_api_mode = get_api_mode()
+        logger.info(f"Using API layer with mode: {current_api_mode}")
+        console.print(
+            f"🔗 [bold cyan]Using API layer ({current_api_mode} mode)[/bold cyan]"
+        )
+    else:
+        logger.info("Using direct orchestrator execution")
+        console.print("🎯 [bold green]Using direct orchestrator execution[/bold green]")
 
     agents_to_run = [agent.strip() for agent in agents.split(",")] if agents else None
     logger.info(f"[{cli_name}] Received query: %s", query)
@@ -187,7 +220,7 @@ async def run(
     # Create shared LLM instance for agents and topic manager
     llm = create_llm_instance()
 
-    # Create RealLangGraphOrchestrator (only supported orchestrator after Phase 3)
+    # Create LangGraphOrchestrator (only supported orchestrator after Phase 3)
     try:
         _validate_langgraph_runtime()
 
@@ -198,7 +231,7 @@ async def run(
             )
             raise typer.Exit(1)
 
-        orchestrator = RealLangGraphOrchestrator(
+        orchestrator = LangGraphOrchestrator(
             agents_to_run=agents_to_run,
             enable_checkpoints=enable_checkpoints,
             thread_id=thread_id,
@@ -231,13 +264,21 @@ async def run(
         return
 
     # Execute the pipeline
-    if trace:
-        console.print(
-            f"🔍 [bold]Starting pipeline execution with detailed tracing ({execution_mode} mode)...[/bold]"
+    if use_api_layer:
+        # API execution path
+        context = await _run_with_api(
+            query, agents_to_run, console, trace, execution_mode, api_mode
         )
+        execution_time = time.time() - start_time
+    else:
+        # Direct orchestrator execution path (existing behavior)
+        if trace:
+            console.print(
+                f"🔍 [bold]Starting pipeline execution with detailed tracing ({execution_mode} mode)...[/bold]"
+            )
 
-    context = await orchestrator.run(query)
-    execution_time = time.time() - start_time
+        context = await orchestrator.run(query)
+        execution_time = time.time() - start_time
 
     # Display execution results with optional trace information
     if trace:
@@ -353,6 +394,16 @@ def main(
         "--rollback-last-checkpoint",
         help="Rollback to the latest checkpoint for the thread (requires --enable-checkpoints)",
     ),
+    use_api: bool = typer.Option(
+        False,
+        "--use-api",
+        help="Use API layer instead of direct orchestrator (enables API boundary testing)",
+    ),
+    api_mode: str = typer.Option(
+        None,
+        "--api-mode",
+        help="API mode: 'real' (production) or 'mock' (testing). Overrides COGNIVAULT_API_MODE environment variable",
+    ),
 ):
     """
     Run Cognivault agents based on the provided query and options.
@@ -386,8 +437,131 @@ def main(
             enable_checkpoints,
             thread_id,
             rollback_last_checkpoint,
+            use_api,
+            api_mode,
         )
     )
+
+
+async def _run_with_api(
+    query: str,
+    agents_to_run: Optional[List[str]],
+    console: Console,
+    trace: bool,
+    execution_mode: str,
+    api_mode: Optional[str],
+) -> AgentContext:
+    """
+    Execute workflow using the API layer.
+
+    Args:
+        query: The query to process
+        agents_to_run: List of agents to run
+        console: Rich console for output
+        trace: Whether to show detailed tracing
+        execution_mode: Execution mode (for compatibility)
+        api_mode: API mode override
+
+    Returns:
+        AgentContext with results
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Initialize API
+        if trace:
+            console.print(
+                f"🔗 [bold]Initializing API layer ({get_api_mode()} mode)...[/bold]"
+            )
+
+        api = await initialize_api(force_mode=api_mode)
+
+        if trace:
+            console.print(f"🚀 [bold]Starting workflow execution via API...[/bold]")
+
+        # Create workflow request
+        request = WorkflowRequest(
+            query=query,
+            agents=agents_to_run,
+            execution_config={"execution_mode": execution_mode, "trace": trace},
+        )
+
+        # Execute workflow
+        response = await api.execute_workflow(request)
+
+        if trace:
+            console.print(
+                f"✅ [bold]Workflow completed with status: {response.status}[/bold]"
+            )
+            console.print(
+                f"⏱️  [bold]Execution time: {response.execution_time_seconds:.2f}s[/bold]"
+            )
+
+        # Convert API response back to AgentContext for compatibility
+        context = AgentContext(query=query, agent_outputs=response.agent_outputs)
+
+        # Determine the actual API mode used
+        actual_api_mode = api_mode or get_api_mode()
+
+        # Add workflow metadata to context for tracing
+        if hasattr(context, "metadata"):
+            context.metadata.update(
+                {
+                    "workflow_id": response.workflow_id,
+                    "api_execution_time": response.execution_time_seconds,
+                    "api_status": response.status,
+                    "correlation_id": response.correlation_id,
+                    "execution_mode": "api",
+                    "api_mode": actual_api_mode,
+                }
+            )
+        else:
+            # If metadata doesn't exist, create it
+            context.metadata = {
+                "workflow_id": response.workflow_id,
+                "api_execution_time": response.execution_time_seconds,
+                "api_status": response.status,
+                "correlation_id": response.correlation_id,
+                "execution_mode": "api",
+                "api_mode": actual_api_mode,
+            }
+
+        if response.status == "failed":
+            if response.error_message:
+                console.print(
+                    f"[red]❌ Workflow failed: {response.error_message}[/red]"
+                )
+                logger.error(f"API workflow failed: {response.error_message}")
+            else:
+                console.print("[red]❌ Workflow failed with unknown error[/red]")
+                logger.error("API workflow failed with unknown error")
+
+        return context
+
+    except Exception as e:
+        console.print(f"[red]❌ API execution failed: {e}[/red]")
+        logger.error(f"API execution failed: {e}")
+
+        # Create error context for consistency
+        error_context = AgentContext(
+            query=query, agent_outputs={"error": f"API execution failed: {e}"}
+        )
+        actual_api_mode = api_mode or get_api_mode()
+        error_context.metadata = {
+            "execution_mode": "api",
+            "api_mode": actual_api_mode,
+            "error": str(e),
+        }
+        return error_context
+
+    finally:
+        # Cleanup API resources
+        try:
+            if trace:
+                console.print("🧹 [bold]Cleaning up API resources...[/bold]")
+            await shutdown_api()
+        except Exception as e:
+            logger.warning(f"API cleanup warning: {e}")
 
 
 async def _run_health_check(orchestrator, console, agents_to_run):
@@ -605,7 +779,7 @@ async def _run_rollback_mode(orchestrator, console, thread_id):
     """Handle rollback to latest checkpoint."""
     console.print("🔄 [bold]Rolling back to latest checkpoint[/bold]")
 
-    # Check if this is a RealLangGraphOrchestrator with rollback capability
+    # Check if this is a LangGraphOrchestrator with rollback capability
     if not hasattr(orchestrator, "rollback_to_checkpoint"):
         console.print("[red]❌ Rollback not supported for this orchestrator[/red]")
         return

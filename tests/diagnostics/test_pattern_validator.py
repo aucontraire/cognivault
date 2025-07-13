@@ -230,7 +230,7 @@ class TestStructuralValidator:
     def test_validate_get_pattern_name_exception(self, validator):
         """Test validation when get_pattern_name raises exception."""
         pattern = Mock()
-        pattern.build_graph = Mock()
+        pattern.build_graph = Mock(return_value=Mock())  # Ensure non-async return
         pattern.get_pattern_name = Mock(side_effect=Exception("Test error"))
 
         issues = validator.validate(pattern, ValidationLevel.BASIC)

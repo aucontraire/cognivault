@@ -11,6 +11,7 @@ import asyncio
 from datetime import datetime, timezone
 from cognivault.api.external import OrchestrationAPI
 from cognivault.api.models import WorkflowRequest, WorkflowResponse, StatusResponse
+from cognivault.api.events import emit_workflow_started, emit_workflow_completed
 from .base_mock import BaseMockAPI
 
 
@@ -43,6 +44,16 @@ class MockOrchestrationAPI(BaseMockAPI, OrchestrationAPI):
         workflow_id = str(uuid.uuid4())
         agents = request.agents or self._default_agents
 
+        # Emit workflow started event
+        await emit_workflow_started(
+            workflow_id=workflow_id,
+            query=request.query,
+            agents=request.agents,
+            execution_config=request.execution_config,
+            correlation_id=request.correlation_id,
+            metadata={"api_version": self.api_version},
+        )
+
         # Simulate execution time
         start_time = datetime.now(timezone.utc)
         execution_delay = len(agents) * 0.1  # 100ms per agent
@@ -50,7 +61,7 @@ class MockOrchestrationAPI(BaseMockAPI, OrchestrationAPI):
 
         # Handle failure scenarios
         if self._failure_mode == "execution_failure":
-            return WorkflowResponse(
+            error_response = WorkflowResponse(
                 workflow_id=workflow_id,
                 status="failed",
                 agent_outputs={},
@@ -58,6 +69,18 @@ class MockOrchestrationAPI(BaseMockAPI, OrchestrationAPI):
                 correlation_id=request.correlation_id,
                 error_message="Mock execution failure",
             )
+
+            # Emit workflow completed (failed) event
+            await emit_workflow_completed(
+                workflow_id=workflow_id,
+                status="failed",
+                execution_time_seconds=execution_delay,
+                error_message="Mock execution failure",
+                correlation_id=request.correlation_id,
+                metadata={"api_version": self.api_version},
+            )
+
+            return error_response
 
         # Generate mock outputs
         outputs = {
@@ -78,6 +101,16 @@ class MockOrchestrationAPI(BaseMockAPI, OrchestrationAPI):
             "response": response,
             "created_at": start_time,
         }
+
+        # Emit workflow completed event
+        await emit_workflow_completed(
+            workflow_id=workflow_id,
+            status="completed",
+            execution_time_seconds=execution_delay,
+            agent_outputs=outputs,
+            correlation_id=request.correlation_id,
+            metadata={"api_version": self.api_version},
+        )
 
         return response
 

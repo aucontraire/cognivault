@@ -67,6 +67,8 @@ class BaseMockAPI(BaseAPI):
             "requests_per_second": 1.5,
             "average_response_time_ms": 150,
             "error_rate": 0.01,
+            "api_initialized": self._initialized,
+            "api_version": self._api_version,
             **self._metrics,
         }
 

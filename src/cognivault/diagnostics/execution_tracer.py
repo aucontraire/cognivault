@@ -29,7 +29,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.prompt import Prompt
 
 from cognivault.context import AgentContext
-from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 
 
 class TraceLevel(Enum):
@@ -472,7 +472,7 @@ class ExecutionTracer:
 
         try:
             # Create orchestrator with tracing hooks
-            orchestrator = RealLangGraphOrchestrator(agents_to_run=agents)
+            orchestrator = LangGraphOrchestrator(agents_to_run=agents)
 
             # Add tracing hooks (simplified for demo)
             start_time = time.time()
@@ -539,7 +539,7 @@ class ExecutionTracer:
         with Live(layout, refresh_per_second=1 / refresh_rate) as live:
             # Start execution in background
             async def execute_async():
-                orchestrator = RealLangGraphOrchestrator(agents_to_run=agents)
+                orchestrator = LangGraphOrchestrator(agents_to_run=agents)
                 context = await orchestrator.run(query)
                 return context
 
