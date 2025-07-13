@@ -38,7 +38,7 @@ from cognivault.langraph.node_wrappers import (
     validate_node_input,
     NodeExecutionError,
 )
-from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.diagnostics.visualize_dag import DAGVisualizer, DAGVisualizationConfig
 
 
@@ -736,10 +736,10 @@ class TestHistorianIntegration:
     """Integration tests for historian with the full system."""
 
     @pytest.mark.asyncio
-    async def test_historian_with_real_orchestrator_mock(self):
-        """Test historian integration with RealLangGraphOrchestrator using mocks."""
+    async def test_historian_with_orchestrator_mock(self):
+        """Test historian integration with LangGraphOrchestrator using mocks."""
         # Create orchestrator with historian support
-        orchestrator = RealLangGraphOrchestrator(
+        orchestrator = LangGraphOrchestrator(
             agents_to_run=["refiner", "critic", "historian", "synthesis"],
             enable_checkpoints=False,
         )
@@ -826,7 +826,7 @@ class TestHistorianIntegration:
 
     def test_historian_agents_list_includes_historian(self):
         """Test that orchestrator includes historian in agents list."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         # Should include historian by default in Phase 2.1
         assert "historian" in orchestrator.agents_to_run
@@ -841,14 +841,14 @@ class TestHistorianIntegration:
     def test_historian_custom_agents_list(self):
         """Test orchestrator with custom agents list including historian."""
         custom_agents = ["refiner", "historian", "synthesis"]
-        orchestrator = RealLangGraphOrchestrator(agents_to_run=custom_agents)
+        orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
 
         assert orchestrator.agents_to_run == custom_agents
         assert "historian" in orchestrator.agents_to_run
 
     def test_historian_performance_tracking(self):
         """Test that historian performance is tracked properly."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         # Verify performance tracking is initialized
         assert orchestrator.total_executions == 0

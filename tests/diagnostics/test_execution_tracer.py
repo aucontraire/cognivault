@@ -231,7 +231,7 @@ class TestExecutionTracer:
         assert app is not None
         assert app.info.name == "execution-tracer"
 
-    @patch("cognivault.diagnostics.execution_tracer.RealLangGraphOrchestrator")
+    @patch("cognivault.diagnostics.execution_tracer.LangGraphOrchestrator")
     def test_trace_execution_basic(self, mock_orchestrator, tracer):
         """Test basic execution tracing."""
         mock_orchestrator_instance = Mock()
@@ -380,7 +380,7 @@ class TestExecutionTracer:
         )
 
         with patch(
-            "cognivault.diagnostics.execution_tracer.RealLangGraphOrchestrator"
+            "cognivault.diagnostics.execution_tracer.LangGraphOrchestrator"
         ) as mock_orch:
             mock_orchestrator = Mock()
             mock_orch.return_value = mock_orchestrator
@@ -690,7 +690,7 @@ class TestExecutionTracerIntegration:
 
     def test_full_tracing_workflow(self, tracer):
         """Test complete tracing workflow."""
-        with patch("cognivault.diagnostics.execution_tracer.RealLangGraphOrchestrator"):
+        with patch("cognivault.diagnostics.execution_tracer.LangGraphOrchestrator"):
             with patch.object(tracer, "_execute_with_tracing") as mock_execute:
                 mock_trace = ExecutionTrace(
                     trace_id="integration_trace",

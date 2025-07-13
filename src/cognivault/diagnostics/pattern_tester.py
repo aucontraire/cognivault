@@ -32,11 +32,11 @@ from rich.progress import (
 from rich.live import Live
 
 from cognivault.context import AgentContext
-from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
 
 
-class TestResult(Enum):
+class PatternTestResult(Enum):
     """Test execution results."""
 
     PASS = "pass"
@@ -46,7 +46,7 @@ class TestResult(Enum):
     TIMEOUT = "timeout"
 
 
-class TestType(Enum):
+class PatternTestType(Enum):
     """Types of pattern tests."""
 
     UNIT = "unit"
@@ -58,13 +58,13 @@ class TestType(Enum):
 
 
 @dataclass
-class TestCase:
+class PatternTestCase:
     """Individual test case definition."""
 
     test_id: str
     name: str
     description: str
-    test_type: TestType
+    test_type: PatternTestType
     pattern_name: str
     agents: List[str]
     test_query: str
@@ -77,11 +77,11 @@ class TestCase:
 
 
 @dataclass
-class TestExecution:
+class PatternTestExecution:
     """Test execution result."""
 
-    test_case: TestCase
-    result: TestResult
+    test_case: PatternTestCase
+    result: PatternTestResult
     duration: float
     error_message: Optional[str] = None
     output_data: Optional[Dict[str, Any]] = None
@@ -91,13 +91,13 @@ class TestExecution:
 
 
 @dataclass
-class TestSuite:
+class PatternTestSuite:
     """Collection of related test cases."""
 
     suite_id: str
     name: str
     description: str
-    test_cases: List[TestCase]
+    test_cases: List[PatternTestCase]
     setup_hooks: List[Callable] = field(default_factory=list)
     teardown_hooks: List[Callable] = field(default_factory=list)
     parallel_execution: bool = True
@@ -105,14 +105,14 @@ class TestSuite:
 
 
 @dataclass
-class TestSession:
+class PatternTestSession:
     """Complete test session results."""
 
     session_id: str
     start_time: datetime
     end_time: Optional[datetime] = None
-    test_suites: List[TestSuite] = field(default_factory=list)
-    executions: List[TestExecution] = field(default_factory=list)
+    test_suites: List[PatternTestSuite] = field(default_factory=list)
+    executions: List[PatternTestExecution] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
     artifacts: Dict[str, str] = field(default_factory=dict)
 
@@ -176,8 +176,8 @@ class PatternTestRunner:
 
     def __init__(self) -> None:
         self.console = Console()
-        self.active_sessions: Dict[str, TestSession] = {}
-        self.test_registry: Dict[str, TestCase] = {}
+        self.active_sessions: Dict[str, PatternTestSession] = {}
+        self.test_registry: Dict[str, PatternTestCase] = {}
         self.pattern_cache: Dict[str, GraphPattern] = {}
 
     def create_app(self) -> typer.Typer:
@@ -224,7 +224,7 @@ class PatternTestRunner:
         self.console.print("[bold blue]🧪 Pattern Test Runner[/bold blue]")
 
         # Parse test types
-        test_type_list = [TestType(t.strip()) for t in test_types.split(",")]
+        test_type_list = [PatternTestType(t.strip()) for t in test_types.split(",")]
 
         # Load or generate test configuration
         if test_config:
@@ -271,7 +271,7 @@ class PatternTestRunner:
                 suite_data = json.load(f)
 
             # Create test suite from loaded data (simplified)
-            test_suite = TestSuite(
+            test_suite = PatternTestSuite(
                 suite_id=suite_data.get("suite_id", str(uuid.uuid4())),
                 name=suite_data.get("name", "Loaded Test Suite"),
                 description=suite_data.get("description", ""),
@@ -325,7 +325,9 @@ class PatternTestRunner:
                 f"<testsuite tests='{session.summary.get('total_tests', 0)}' failures='{session.summary.get('failed_count', 0)}'>"
             )
             for execution in session.executions:
-                result = "passed" if execution.result == TestResult.PASS else "failed"
+                result = (
+                    "passed" if execution.result == PatternTestResult.PASS else "failed"
+                )
                 self.console.print(
                     f"  <testcase name='{execution.test_case.name}' status='{result}'/>"
                 )
@@ -352,7 +354,7 @@ class PatternTestRunner:
         """Generate a comprehensive test suite for a pattern."""
         self.console.print("[bold cyan]🏗️  Test Suite Generator[/bold cyan]")
 
-        test_type_list = [TestType(t.strip()) for t in test_types.split(",")]
+        test_type_list = [PatternTestType(t.strip()) for t in test_types.split(",")]
 
         # Generate test suite - simplified implementation
         test_cases = []
@@ -363,7 +365,7 @@ class PatternTestRunner:
 
         for i, test_type in enumerate(test_type_list):
             test_cases.append(
-                TestCase(
+                PatternTestCase(
                     test_id=f"{test_type.value}_{i + 1}",
                     name=f"{test_type.value.title()} Test {i + 1}",
                     description=f"Generated {test_type.value} test",
@@ -375,7 +377,7 @@ class PatternTestRunner:
                 )
             )
 
-        test_suite = TestSuite(
+        test_suite = PatternTestSuite(
             suite_id=str(uuid.uuid4()),
             name=f"Generated Test Suite for {Path(pattern_path).stem}",
             description=f"Auto-generated {coverage_level} coverage test suite",
@@ -775,8 +777,8 @@ class PatternTestRunner:
     # Helper methods
 
     def _generate_default_test_suite(
-        self, pattern_path: str, test_types: List[TestType]
-    ) -> TestSuite:
+        self, pattern_path: str, test_types: List[PatternTestType]
+    ) -> PatternTestSuite:
         """Generate a default test suite for a pattern."""
         test_cases = []
 
@@ -786,24 +788,24 @@ class PatternTestRunner:
 
         # Generate test cases for each type
         for test_type in test_types:
-            if test_type == TestType.UNIT:
+            if test_type == PatternTestType.UNIT:
                 test_cases.extend(
                     self._generate_unit_tests(
                         pattern_path, queries[:3], agent_combinations[:3]
                     )
                 )
-            elif test_type == TestType.INTEGRATION:
+            elif test_type == PatternTestType.INTEGRATION:
                 test_cases.extend(
                     self._generate_integration_tests(
                         pattern_path, queries[3:6], agent_combinations[3:6]
                     )
                 )
-            elif test_type == TestType.PERFORMANCE:
+            elif test_type == PatternTestType.PERFORMANCE:
                 test_cases.extend(
                     self._generate_performance_tests(pattern_path, queries[6:9])
                 )
 
-        return TestSuite(
+        return PatternTestSuite(
             suite_id=str(uuid.uuid4()),
             name=f"Default Test Suite for {Path(pattern_path).stem}",
             description="Auto-generated test suite",
@@ -812,17 +814,17 @@ class PatternTestRunner:
 
     def _generate_unit_tests(
         self, pattern_path: str, queries: List[str], agent_combos: List[List[str]]
-    ) -> List[TestCase]:
+    ) -> List[PatternTestCase]:
         """Generate unit tests."""
         test_cases = []
 
         for i, (query, agents) in enumerate(zip(queries, agent_combos)):
             test_cases.append(
-                TestCase(
+                PatternTestCase(
                     test_id=f"unit_{i + 1}",
                     name=f"Unit Test {i + 1}",
                     description=f"Basic functionality test with {len(agents)} agents",
-                    test_type=TestType.UNIT,
+                    test_type=PatternTestType.UNIT,
                     pattern_name=Path(pattern_path).stem,
                     agents=agents,
                     test_query=query,
@@ -836,17 +838,17 @@ class PatternTestRunner:
 
     def _generate_integration_tests(
         self, pattern_path: str, queries: List[str], agent_combos: List[List[str]]
-    ) -> List[TestCase]:
+    ) -> List[PatternTestCase]:
         """Generate integration tests."""
         test_cases = []
 
         for i, (query, agents) in enumerate(zip(queries, agent_combos)):
             test_cases.append(
-                TestCase(
+                PatternTestCase(
                     test_id=f"integration_{i + 1}",
                     name=f"Integration Test {i + 1}",
                     description=f"End-to-end test with {len(agents)} agents",
-                    test_type=TestType.INTEGRATION,
+                    test_type=PatternTestType.INTEGRATION,
                     pattern_name=Path(pattern_path).stem,
                     agents=agents,
                     test_query=query,
@@ -860,17 +862,17 @@ class PatternTestRunner:
 
     def _generate_performance_tests(
         self, pattern_path: str, queries: List[str]
-    ) -> List[TestCase]:
+    ) -> List[PatternTestCase]:
         """Generate performance tests."""
         test_cases = []
 
         for i, query in enumerate(queries):
             test_cases.append(
-                TestCase(
+                PatternTestCase(
                     test_id=f"performance_{i + 1}",
                     name=f"Performance Test {i + 1}",
                     description=f"Performance benchmark test",
-                    test_type=TestType.PERFORMANCE,
+                    test_type=PatternTestType.PERFORMANCE,
                     pattern_name=Path(pattern_path).stem,
                     agents=["refiner", "critic", "synthesis"],
                     test_query=query,
@@ -884,13 +886,13 @@ class PatternTestRunner:
 
     def _execute_test_suite(
         self,
-        test_suite: TestSuite,
+        test_suite: PatternTestSuite,
         parallel: bool,
         max_workers: int,
         verbose: bool = False,
-    ) -> TestSession:
+    ) -> PatternTestSession:
         """Execute a test suite."""
-        session = TestSession(
+        session = PatternTestSession(
             session_id=str(uuid.uuid4()),
             start_time=datetime.now(timezone.utc),
             test_suites=[test_suite],
@@ -925,8 +927,8 @@ class PatternTestRunner:
         return session
 
     def _execute_tests_parallel(
-        self, test_cases: List[TestCase], max_workers: int, verbose: bool
-    ) -> List[TestExecution]:
+        self, test_cases: List[PatternTestCase], max_workers: int, verbose: bool
+    ) -> List[PatternTestExecution]:
         """Execute tests in parallel."""
         executions = []
 
@@ -953,16 +955,18 @@ class PatternTestRunner:
 
                         if verbose:
                             status = (
-                                "✅" if execution.result == TestResult.PASS else "❌"
+                                "✅"
+                                if execution.result == PatternTestResult.PASS
+                                else "❌"
                             )
                             self.console.print(
                                 f"{status} {test_case.name}: {execution.result.value}"
                             )
 
                     except Exception as e:
-                        execution = TestExecution(
+                        execution = PatternTestExecution(
                             test_case=test_case,
-                            result=TestResult.ERROR,
+                            result=PatternTestResult.ERROR,
                             duration=0.0,
                             error_message=str(e),
                         )
@@ -973,8 +977,8 @@ class PatternTestRunner:
         return executions
 
     def _execute_tests_sequential(
-        self, test_cases: List[TestCase], verbose: bool
-    ) -> List[TestExecution]:
+        self, test_cases: List[PatternTestCase], verbose: bool
+    ) -> List[PatternTestExecution]:
         """Execute tests sequentially."""
         executions = []
 
@@ -992,7 +996,9 @@ class PatternTestRunner:
                 executions.append(execution)
 
                 if verbose:
-                    status = "✅" if execution.result == TestResult.PASS else "❌"
+                    status = (
+                        "✅" if execution.result == PatternTestResult.PASS else "❌"
+                    )
                     self.console.print(
                         f"{status} {test_case.name}: {execution.result.value}"
                     )
@@ -1001,13 +1007,13 @@ class PatternTestRunner:
 
         return executions
 
-    def _execute_single_test(self, test_case: TestCase) -> TestExecution:
+    def _execute_single_test(self, test_case: PatternTestCase) -> PatternTestExecution:
         """Execute a single test case."""
         start_time = time.time()
 
         try:
             # Create orchestrator (simplified for demo)
-            orchestrator = RealLangGraphOrchestrator(agents_to_run=test_case.agents)
+            orchestrator = LangGraphOrchestrator(agents_to_run=test_case.agents)
 
             # Execute with timeout
             result = asyncio.run(
@@ -1021,7 +1027,7 @@ class PatternTestRunner:
             # Evaluate test result
             test_result = self._evaluate_test_result(result, test_case.expected_outcome)
 
-            return TestExecution(
+            return PatternTestExecution(
                 test_case=test_case,
                 result=test_result,
                 duration=duration,
@@ -1029,52 +1035,60 @@ class PatternTestRunner:
             )
 
         except asyncio.TimeoutError:
-            return TestExecution(
+            return PatternTestExecution(
                 test_case=test_case,
-                result=TestResult.TIMEOUT,
+                result=PatternTestResult.TIMEOUT,
                 duration=time.time() - start_time,
                 error_message="Test execution timed out",
             )
         except Exception as e:
-            return TestExecution(
+            return PatternTestExecution(
                 test_case=test_case,
-                result=TestResult.ERROR,
+                result=PatternTestResult.ERROR,
                 duration=time.time() - start_time,
                 error_message=str(e),
             )
 
     def _evaluate_test_result(
         self, context: AgentContext, expected: Dict[str, Any]
-    ) -> TestResult:
+    ) -> PatternTestResult:
         """Evaluate if test result matches expectations."""
         try:
             # Check success expectation
             if expected.get("success", True):
                 if len(context.failed_agents) > 0:
-                    return TestResult.FAIL
+                    return PatternTestResult.FAIL
 
             # Check minimum agents
             if "min_agents" in expected:
                 if len(context.agent_outputs) < expected["min_agents"]:
-                    return TestResult.FAIL
+                    return PatternTestResult.FAIL
 
             # Check all agents executed
             if expected.get("all_agents_executed", False):
                 if len(context.failed_agents) > 0:
-                    return TestResult.FAIL
+                    return PatternTestResult.FAIL
 
-            return TestResult.PASS
+            return PatternTestResult.PASS
 
         except Exception:
-            return TestResult.ERROR
+            return PatternTestResult.ERROR
 
-    def _calculate_session_summary(self, session: TestSession) -> Dict[str, Any]:
+    def _calculate_session_summary(self, session: PatternTestSession) -> Dict[str, Any]:
         """Calculate session summary statistics."""
         total_tests = len(session.executions)
-        passed = sum(1 for e in session.executions if e.result == TestResult.PASS)
-        failed = sum(1 for e in session.executions if e.result == TestResult.FAIL)
-        errors = sum(1 for e in session.executions if e.result == TestResult.ERROR)
-        timeouts = sum(1 for e in session.executions if e.result == TestResult.TIMEOUT)
+        passed = sum(
+            1 for e in session.executions if e.result == PatternTestResult.PASS
+        )
+        failed = sum(
+            1 for e in session.executions if e.result == PatternTestResult.FAIL
+        )
+        errors = sum(
+            1 for e in session.executions if e.result == PatternTestResult.ERROR
+        )
+        timeouts = sum(
+            1 for e in session.executions if e.result == PatternTestResult.TIMEOUT
+        )
 
         total_duration = sum(e.duration for e in session.executions)
         avg_duration = total_duration / total_tests if total_tests > 0 else 0
@@ -1090,7 +1104,7 @@ class PatternTestRunner:
             "avg_duration": avg_duration,
         }
 
-    def _display_test_summary(self, session: TestSession):
+    def _display_test_summary(self, session: PatternTestSession):
         """Display test session summary."""
         summary = session.summary
 
@@ -1115,7 +1129,7 @@ class PatternTestRunner:
 
         # Failed tests details
         failed_executions = [
-            e for e in session.executions if e.result != TestResult.PASS
+            e for e in session.executions if e.result != PatternTestResult.PASS
         ]
         if failed_executions:
             failed_table = Table(title="Failed Tests")
@@ -1132,7 +1146,7 @@ class PatternTestRunner:
 
             self.console.print(failed_table)
 
-    def _save_test_results(self, session: TestSession, output_dir: str):
+    def _save_test_results(self, session: PatternTestSession, output_dir: str):
         """Save test results to files."""
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)

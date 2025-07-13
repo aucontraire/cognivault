@@ -272,12 +272,9 @@ def test_graph_definition_to_dict():
 
 
 # Graph Executor Tests
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_graph_executor_simple_execution(anyio_backend):
+@pytest.mark.asyncio
+async def test_graph_executor_simple_execution():
     """Test basic graph execution."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     # Build a simple graph
     builder = GraphBuilder()
@@ -306,12 +303,9 @@ async def test_graph_executor_simple_execution(anyio_backend):
     ]
 
 
-@pytest.mark.parametrize("anyio_backend", ["asyncio", "trio"])
-@pytest.mark.anyio
-async def test_graph_executor_parallel_execution(anyio_backend):
+@pytest.mark.asyncio
+async def test_graph_executor_parallel_execution():
     """Test graph execution with parallel branches."""
-    if anyio_backend == "trio":
-        pytest.skip("Trio not supported due to asyncio-specific constructs.")
 
     # Build parallel graph
     builder = GraphBuilder()

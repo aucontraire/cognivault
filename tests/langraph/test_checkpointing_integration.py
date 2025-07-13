@@ -21,7 +21,7 @@ from cognivault.langraph.error_policies import (
     ErrorPolicyManager,
     get_error_policy_manager,
 )
-from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.langraph.state_schemas import create_initial_state
 from cognivault.context import AgentContext
 
@@ -54,11 +54,11 @@ class TestMemoryManagerIntegration:
     def mock_orchestrator_with_checkpoints(self, enabled_memory_manager):
         """Fixture for orchestrator with checkpointing enabled."""
         with patch.multiple(
-            "cognivault.langraph.real_orchestrator",
+            "cognivault.langraph.orchestrator",
             get_agent_registry=Mock(),
             get_logger=Mock(return_value=Mock()),
         ):
-            orchestrator = RealLangGraphOrchestrator(
+            orchestrator = LangGraphOrchestrator(
                 agents_to_run=["refiner", "synthesis"],
                 enable_checkpoints=True,
                 thread_id="test_orchestrator",
@@ -75,11 +75,11 @@ class TestMemoryManagerIntegration:
     def mock_orchestrator_without_checkpoints(self, disabled_memory_manager):
         """Fixture for orchestrator with checkpointing disabled."""
         with patch.multiple(
-            "cognivault.langraph.real_orchestrator",
+            "cognivault.langraph.orchestrator",
             get_agent_registry=Mock(),
             get_logger=Mock(return_value=Mock()),
         ):
-            orchestrator = RealLangGraphOrchestrator(
+            orchestrator = LangGraphOrchestrator(
                 agents_to_run=["refiner", "synthesis"],
                 enable_checkpoints=False,
                 memory_manager=disabled_memory_manager,
@@ -409,7 +409,7 @@ class TestEndToEndIntegration:
         """Fixture for full orchestrator setup with mocked dependencies."""
         with (
             patch.multiple(
-                "cognivault.langraph.real_orchestrator",
+                "cognivault.langraph.orchestrator",
                 get_agent_registry=Mock(),
                 get_logger=Mock(return_value=Mock()),
             ),
@@ -420,7 +420,7 @@ class TestEndToEndIntegration:
             mock_memory_saver.return_value = Mock()
 
             # Create orchestrator with checkpointing
-            orchestrator = RealLangGraphOrchestrator(
+            orchestrator = LangGraphOrchestrator(
                 agents_to_run=["refiner", "critic", "historian", "synthesis"],
                 enable_checkpoints=True,
                 thread_id="e2e_test",

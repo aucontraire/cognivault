@@ -12,9 +12,10 @@ pydantic>=2.0
 langgraph==0.5.1           # Pinned for Phase 1 stability - real LangGraph DAG execution
 
 # ===========================
-# Async Backends
+# Async Backend (Pure Asyncio)
 # ===========================
-trio>=0.24.0
+# Note: CogniVault uses pure asyncio architecture
+# Trio support was removed as all components use asyncio-specific constructs
 
 # ===========================
 # Retrieval

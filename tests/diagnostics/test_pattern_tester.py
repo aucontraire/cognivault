@@ -16,51 +16,51 @@ from datetime import datetime, timezone
 from cognivault.diagnostics.pattern_tester import (
     PatternTestRunner,
     TestDataGenerator,
-    TestResult,
-    TestType,
-    TestCase,
-    TestExecution,
-    TestSuite,
-    TestSession,
+    PatternTestResult,
+    PatternTestType,
+    PatternTestCase,
+    PatternTestExecution,
+    PatternTestSuite,
+    PatternTestSession,
 )
 from cognivault.context import AgentContext
 
 
-class TestTestResult:
-    """Test suite for TestResult enum."""
+class TestPatternTestResult:
+    """Test suite for PatternTestResult enum."""
 
     def test_test_results(self):
-        """Test TestResult enum values."""
-        assert TestResult.PASS.value == "pass"
-        assert TestResult.FAIL.value == "fail"
-        assert TestResult.ERROR.value == "error"
-        assert TestResult.SKIP.value == "skip"
-        assert TestResult.TIMEOUT.value == "timeout"
+        """Test PatternTestResult enum values."""
+        assert PatternTestResult.PASS.value == "pass"
+        assert PatternTestResult.FAIL.value == "fail"
+        assert PatternTestResult.ERROR.value == "error"
+        assert PatternTestResult.SKIP.value == "skip"
+        assert PatternTestResult.TIMEOUT.value == "timeout"
 
 
-class TestTestType:
-    """Test suite for TestType enum."""
+class TestPatternTestType:
+    """Test suite for PatternTestType enum."""
 
     def test_test_types(self):
-        """Test TestType enum values."""
-        assert TestType.UNIT.value == "unit"
-        assert TestType.INTEGRATION.value == "integration"
-        assert TestType.PERFORMANCE.value == "performance"
-        assert TestType.STRESS.value == "stress"
-        assert TestType.REGRESSION.value == "regression"
-        assert TestType.COMPATIBILITY.value == "compatibility"
+        """Test PatternTestType enum values."""
+        assert PatternTestType.UNIT.value == "unit"
+        assert PatternTestType.INTEGRATION.value == "integration"
+        assert PatternTestType.PERFORMANCE.value == "performance"
+        assert PatternTestType.STRESS.value == "stress"
+        assert PatternTestType.REGRESSION.value == "regression"
+        assert PatternTestType.COMPATIBILITY.value == "compatibility"
 
 
-class TestTestCase:
-    """Test suite for TestCase dataclass."""
+class TestPatternTestCase:
+    """Test suite for PatternTestCase dataclass."""
 
     def test_test_case_creation(self):
-        """Test TestCase creation with all fields."""
-        test_case = TestCase(
+        """Test PatternTestCase creation with all fields."""
+        test_case = PatternTestCase(
             test_id="test_123",
             name="Test Case 1",
             description="Test description",
-            test_type=TestType.UNIT,
+            test_type=PatternTestType.UNIT,
             pattern_name="test_pattern",
             agents=["refiner", "critic"],
             test_query="Test query",
@@ -75,7 +75,7 @@ class TestTestCase:
         assert test_case.test_id == "test_123"
         assert test_case.name == "Test Case 1"
         assert test_case.description == "Test description"
-        assert test_case.test_type == TestType.UNIT
+        assert test_case.test_type == PatternTestType.UNIT
         assert test_case.pattern_name == "test_pattern"
         assert len(test_case.agents) == 2
         assert test_case.test_query == "Test query"
@@ -87,12 +87,12 @@ class TestTestCase:
         assert test_case.cleanup_required is True
 
     def test_test_case_defaults(self):
-        """Test TestCase with default values."""
-        test_case = TestCase(
+        """Test PatternTestCase with default values."""
+        test_case = PatternTestCase(
             test_id="test_minimal",
             name="Minimal Test",
             description="Minimal test case",
-            test_type=TestType.INTEGRATION,
+            test_type=PatternTestType.INTEGRATION,
             pattern_name="pattern",
             agents=["refiner"],
             test_query="Query",
@@ -106,16 +106,16 @@ class TestTestCase:
         assert test_case.cleanup_required is False
 
 
-class TestTestExecution:
-    """Test suite for TestExecution dataclass."""
+class TestPatternTestExecution:
+    """Test suite for PatternTestExecution dataclass."""
 
     def test_test_execution_creation(self):
-        """Test TestExecution creation."""
-        test_case = TestCase(
+        """Test PatternTestExecution creation."""
+        test_case = PatternTestCase(
             test_id="exec_test",
             name="Execution Test",
             description="Test execution",
-            test_type=TestType.UNIT,
+            test_type=PatternTestType.UNIT,
             pattern_name="pattern",
             agents=["refiner"],
             test_query="Query",
@@ -125,9 +125,9 @@ class TestTestExecution:
         context = AgentContext(query="test")
         timestamp = datetime.now(timezone.utc)
 
-        execution = TestExecution(
+        execution = PatternTestExecution(
             test_case=test_case,
-            result=TestResult.PASS,
+            result=PatternTestResult.PASS,
             duration=2.5,
             error_message=None,
             output_data={"result": "success"},
@@ -137,7 +137,7 @@ class TestTestExecution:
         )
 
         assert execution.test_case == test_case
-        assert execution.result == TestResult.PASS
+        assert execution.result == PatternTestResult.PASS
         assert execution.duration == 2.5
         assert execution.error_message is None
         assert execution.output_data["result"] == "success"
@@ -146,51 +146,51 @@ class TestTestExecution:
         assert execution.retry_attempt == 1
 
     def test_test_execution_failure(self):
-        """Test TestExecution for failed test."""
-        test_case = TestCase(
+        """Test PatternTestExecution for failed test."""
+        test_case = PatternTestCase(
             test_id="fail_test",
             name="Failing Test",
             description="Test that fails",
-            test_type=TestType.UNIT,
+            test_type=PatternTestType.UNIT,
             pattern_name="pattern",
             agents=["refiner"],
             test_query="Query",
             expected_outcome={"success": True},
         )
 
-        execution = TestExecution(
+        execution = PatternTestExecution(
             test_case=test_case,
-            result=TestResult.FAIL,
+            result=PatternTestResult.FAIL,
             duration=1.0,
             error_message="Test assertion failed",
         )
 
-        assert execution.result == TestResult.FAIL
+        assert execution.result == PatternTestResult.FAIL
         assert execution.error_message == "Test assertion failed"
         assert execution.context is None
 
 
-class TestTestSuite:
-    """Test suite for TestSuite dataclass."""
+class TestPatternTestSuite:
+    """Test suite for PatternTestSuite dataclass."""
 
     def test_test_suite_creation(self):
-        """Test TestSuite creation."""
+        """Test PatternTestSuite creation."""
         test_cases = [
-            TestCase(
+            PatternTestCase(
                 test_id="suite_test_1",
                 name="Suite Test 1",
                 description="First test",
-                test_type=TestType.UNIT,
+                test_type=PatternTestType.UNIT,
                 pattern_name="pattern",
                 agents=["refiner"],
                 test_query="Query 1",
                 expected_outcome={"success": True},
             ),
-            TestCase(
+            PatternTestCase(
                 test_id="suite_test_2",
                 name="Suite Test 2",
                 description="Second test",
-                test_type=TestType.INTEGRATION,
+                test_type=PatternTestType.INTEGRATION,
                 pattern_name="pattern",
                 agents=["critic"],
                 test_query="Query 2",
@@ -204,7 +204,7 @@ class TestTestSuite:
         def teardown_hook():
             pass
 
-        suite = TestSuite(
+        suite = PatternTestSuite(
             suite_id="suite_123",
             name="Test Suite",
             description="Comprehensive test suite",
@@ -225,14 +225,14 @@ class TestTestSuite:
         assert suite.max_workers == 2
 
 
-class TestTestSession:
-    """Test suite for TestSession dataclass."""
+class TestPatternTestSession:
+    """Test suite for PatternTestSession dataclass."""
 
     def test_test_session_creation(self):
-        """Test TestSession creation."""
+        """Test PatternTestSession creation."""
         start_time = datetime.now(timezone.utc)
 
-        session = TestSession(
+        session = PatternTestSession(
             session_id="session_123",
             start_time=start_time,
             summary={"total_tests": 5, "passed": 4, "failed": 1},
@@ -328,11 +328,11 @@ class TestPatternTestRunner:
     @pytest.fixture
     def sample_test_case(self):
         """Create sample test case."""
-        return TestCase(
+        return PatternTestCase(
             test_id="sample_test",
             name="Sample Test",
             description="Sample test case",
-            test_type=TestType.UNIT,
+            test_type=PatternTestType.UNIT,
             pattern_name="test_pattern",
             agents=["refiner"],
             test_query="Sample query",
@@ -342,7 +342,7 @@ class TestPatternTestRunner:
     @pytest.fixture
     def sample_test_suite(self, sample_test_case):
         """Create sample test suite."""
-        return TestSuite(
+        return PatternTestSuite(
             suite_id="sample_suite",
             name="Sample Suite",
             description="Sample test suite",
@@ -364,17 +364,19 @@ class TestPatternTestRunner:
 
     def test_generate_default_test_suite(self, runner):
         """Test generating default test suite."""
-        test_types = [TestType.UNIT, TestType.INTEGRATION]
+        test_types = [PatternTestType.UNIT, PatternTestType.INTEGRATION]
         suite = runner._generate_default_test_suite("test/pattern.py", test_types)
 
-        assert isinstance(suite, TestSuite)
+        assert isinstance(suite, PatternTestSuite)
         assert suite.name.startswith("Default Test Suite")
         assert len(suite.test_cases) > 0
 
         # Check that test cases have correct types
-        unit_tests = [tc for tc in suite.test_cases if tc.test_type == TestType.UNIT]
+        unit_tests = [
+            tc for tc in suite.test_cases if tc.test_type == PatternTestType.UNIT
+        ]
         integration_tests = [
-            tc for tc in suite.test_cases if tc.test_type == TestType.INTEGRATION
+            tc for tc in suite.test_cases if tc.test_type == PatternTestType.INTEGRATION
         ]
 
         assert len(unit_tests) > 0
@@ -390,7 +392,7 @@ class TestPatternTestRunner:
         )
 
         assert len(unit_tests) == 2
-        assert all(tc.test_type == TestType.UNIT for tc in unit_tests)
+        assert all(tc.test_type == PatternTestType.UNIT for tc in unit_tests)
         assert all("unit" in tc.tags for tc in unit_tests)
         assert all(tc.timeout == 30.0 for tc in unit_tests)
 
@@ -404,7 +406,7 @@ class TestPatternTestRunner:
         )
 
         assert len(integration_tests) == 1
-        assert integration_tests[0].test_type == TestType.INTEGRATION
+        assert integration_tests[0].test_type == PatternTestType.INTEGRATION
         assert "integration" in integration_tests[0].tags
         assert integration_tests[0].timeout == 60.0
 
@@ -417,46 +419,60 @@ class TestPatternTestRunner:
         )
 
         assert len(performance_tests) == 2
-        assert all(tc.test_type == TestType.PERFORMANCE for tc in performance_tests)
+        assert all(
+            tc.test_type == PatternTestType.PERFORMANCE for tc in performance_tests
+        )
         assert all("performance" in tc.tags for tc in performance_tests)
         assert all("max_duration" in tc.expected_outcome for tc in performance_tests)
 
+    @patch("asyncio.wait_for")
     @patch("asyncio.run")
-    def test_execute_single_test_success(self, mock_asyncio, runner, sample_test_case):
+    def test_execute_single_test_success(
+        self, mock_asyncio, mock_wait_for, runner, sample_test_case
+    ):
         """Test successful single test execution."""
         mock_context = AgentContext(query="test")
         mock_context.failed_agents = []
         mock_context.agent_outputs = {"refiner": "output"}
+        mock_wait_for.return_value = mock_context
         mock_asyncio.return_value = mock_context
 
-        with patch("cognivault.diagnostics.pattern_tester.RealLangGraphOrchestrator"):
+        with patch("cognivault.diagnostics.pattern_tester.LangGraphOrchestrator"):
             execution = runner._execute_single_test(sample_test_case)
 
-            assert isinstance(execution, TestExecution)
+            assert isinstance(execution, PatternTestExecution)
             assert execution.test_case == sample_test_case
-            assert execution.result == TestResult.PASS
+            assert execution.result == PatternTestResult.PASS
             assert execution.duration > 0
 
+    @patch("asyncio.wait_for")
     @patch("asyncio.run")
-    def test_execute_single_test_timeout(self, mock_asyncio, runner, sample_test_case):
+    def test_execute_single_test_timeout(
+        self, mock_asyncio, mock_wait_for, runner, sample_test_case
+    ):
         """Test single test execution with timeout."""
+        mock_wait_for.side_effect = asyncio.TimeoutError()
         mock_asyncio.side_effect = asyncio.TimeoutError()
 
-        with patch("cognivault.diagnostics.pattern_tester.RealLangGraphOrchestrator"):
+        with patch("cognivault.diagnostics.pattern_tester.LangGraphOrchestrator"):
             execution = runner._execute_single_test(sample_test_case)
 
-            assert execution.result == TestResult.TIMEOUT
+            assert execution.result == PatternTestResult.TIMEOUT
             assert "timed out" in execution.error_message
 
+    @patch("asyncio.wait_for")
     @patch("asyncio.run")
-    def test_execute_single_test_error(self, mock_asyncio, runner, sample_test_case):
+    def test_execute_single_test_error(
+        self, mock_asyncio, mock_wait_for, runner, sample_test_case
+    ):
         """Test single test execution with error."""
+        mock_wait_for.side_effect = Exception("Test error")
         mock_asyncio.side_effect = Exception("Test error")
 
-        with patch("cognivault.diagnostics.pattern_tester.RealLangGraphOrchestrator"):
+        with patch("cognivault.diagnostics.pattern_tester.LangGraphOrchestrator"):
             execution = runner._execute_single_test(sample_test_case)
 
-            assert execution.result == TestResult.ERROR
+            assert execution.result == PatternTestResult.ERROR
             assert "Test error" in execution.error_message
 
     def test_evaluate_test_result_success(self, runner):
@@ -468,7 +484,7 @@ class TestPatternTestRunner:
         expected = {"success": True}
         result = runner._evaluate_test_result(context, expected)
 
-        assert result == TestResult.PASS
+        assert result == PatternTestResult.PASS
 
     def test_evaluate_test_result_failure(self, runner):
         """Test evaluating failed test result."""
@@ -479,7 +495,7 @@ class TestPatternTestRunner:
         expected = {"success": True}
         result = runner._evaluate_test_result(context, expected)
 
-        assert result == TestResult.FAIL
+        assert result == PatternTestResult.FAIL
 
     def test_evaluate_test_result_min_agents_fail(self, runner):
         """Test evaluating test with insufficient agents."""
@@ -490,7 +506,7 @@ class TestPatternTestRunner:
         expected = {"min_agents": 2}
         result = runner._evaluate_test_result(context, expected)
 
-        assert result == TestResult.FAIL
+        assert result == PatternTestResult.FAIL
 
     def test_evaluate_test_result_all_agents_required(self, runner):
         """Test evaluating test requiring all agents to execute."""
@@ -501,18 +517,56 @@ class TestPatternTestRunner:
         expected = {"all_agents_executed": True}
         result = runner._evaluate_test_result(context, expected)
 
-        assert result == TestResult.FAIL
+        assert result == PatternTestResult.FAIL
 
     def test_calculate_session_summary(self, runner):
         """Test calculating session summary."""
+        # Create proper mock test cases to avoid async warnings
+        mock_test_case = PatternTestCase(
+            test_id="mock",
+            name="Mock Test",
+            description="Test case for mocking",
+            pattern_name="test_pattern",
+            test_query="test",
+            agents=["refiner"],
+            test_type=PatternTestType.UNIT,
+            expected_outcome={},
+            timeout=30.0,
+            tags=[],
+        )
+
         executions = [
-            TestExecution(test_case=Mock(), result=TestResult.PASS, duration=1.0),
-            TestExecution(test_case=Mock(), result=TestResult.FAIL, duration=2.0),
-            TestExecution(test_case=Mock(), result=TestResult.ERROR, duration=0.5),
-            TestExecution(test_case=Mock(), result=TestResult.TIMEOUT, duration=5.0),
+            PatternTestExecution(
+                test_case=mock_test_case,
+                result=PatternTestResult.PASS,
+                duration=1.0,
+                context=None,
+                error_message=None,
+            ),
+            PatternTestExecution(
+                test_case=mock_test_case,
+                result=PatternTestResult.FAIL,
+                duration=2.0,
+                context=None,
+                error_message="Test failed",
+            ),
+            PatternTestExecution(
+                test_case=mock_test_case,
+                result=PatternTestResult.ERROR,
+                duration=0.5,
+                context=None,
+                error_message="Test error",
+            ),
+            PatternTestExecution(
+                test_case=mock_test_case,
+                result=PatternTestResult.TIMEOUT,
+                duration=5.0,
+                context=None,
+                error_message="Test timeout",
+            ),
         ]
 
-        session = TestSession(
+        session = PatternTestSession(
             session_id="test",
             start_time=datetime.now(timezone.utc),
             executions=executions,
@@ -531,7 +585,7 @@ class TestPatternTestRunner:
 
     def test_calculate_session_summary_empty(self, runner):
         """Test calculating summary for empty session."""
-        session = TestSession(
+        session = PatternTestSession(
             session_id="empty", start_time=datetime.now(timezone.utc), executions=[]
         )
 
@@ -544,36 +598,36 @@ class TestPatternTestRunner:
     def test_execute_test_suite_sequential(self, runner, sample_test_suite):
         """Test executing test suite sequentially."""
         with patch.object(runner, "_execute_single_test") as mock_execute:
-            mock_execution = TestExecution(
+            mock_execution = PatternTestExecution(
                 test_case=sample_test_suite.test_cases[0],
-                result=TestResult.PASS,
+                result=PatternTestResult.PASS,
                 duration=1.0,
             )
             mock_execute.return_value = mock_execution
 
             session = runner._execute_test_suite(sample_test_suite, False, 1)
 
-            assert isinstance(session, TestSession)
+            assert isinstance(session, PatternTestSession)
             assert len(session.executions) == 1
             assert session.summary["total_tests"] == 1
 
     def test_execute_test_suite_parallel(self, runner, sample_test_suite):
         """Test executing test suite in parallel."""
         with patch.object(runner, "_execute_single_test") as mock_execute:
-            mock_execution = TestExecution(
+            mock_execution = PatternTestExecution(
                 test_case=sample_test_suite.test_cases[0],
-                result=TestResult.PASS,
+                result=PatternTestResult.PASS,
                 duration=1.0,
             )
             mock_execute.return_value = mock_execution
 
             # Add more test cases for parallel execution
             sample_test_suite.test_cases.append(
-                TestCase(
+                PatternTestCase(
                     test_id="parallel_test",
                     name="Parallel Test",
                     description="Test for parallel execution",
-                    test_type=TestType.UNIT,
+                    test_type=PatternTestType.UNIT,
                     pattern_name="pattern",
                     agents=["critic"],
                     test_query="Parallel query",
@@ -583,7 +637,7 @@ class TestPatternTestRunner:
 
             session = runner._execute_test_suite(sample_test_suite, True, 2)
 
-            assert isinstance(session, TestSession)
+            assert isinstance(session, PatternTestSession)
             assert len(session.executions) == 2
 
     def test_execute_test_suite_with_hooks(self, runner, sample_test_suite):
@@ -603,9 +657,9 @@ class TestPatternTestRunner:
         sample_test_suite.teardown_hooks = [teardown_hook]
 
         with patch.object(runner, "_execute_single_test") as mock_execute:
-            mock_execute.return_value = TestExecution(
+            mock_execute.return_value = PatternTestExecution(
                 test_case=sample_test_suite.test_cases[0],
-                result=TestResult.PASS,
+                result=PatternTestResult.PASS,
                 duration=1.0,
             )
 
@@ -625,22 +679,22 @@ class TestPatternTestRunner:
 
         with patch.object(runner, "_execute_single_test") as mock_execute:
             with patch.object(runner.console, "print") as mock_print:
-                mock_execute.return_value = TestExecution(
+                mock_execute.return_value = PatternTestExecution(
                     test_case=sample_test_suite.test_cases[0],
-                    result=TestResult.PASS,
+                    result=PatternTestResult.PASS,
                     duration=1.0,
                 )
 
                 # Should not raise exception despite failing hooks
                 session = runner._execute_test_suite(sample_test_suite, False, 1)
 
-                assert isinstance(session, TestSession)
+                assert isinstance(session, PatternTestSession)
                 # Should have printed error messages
                 mock_print.assert_called()
 
     def test_display_test_summary(self, runner):
         """Test displaying test summary."""
-        session = TestSession(
+        session = PatternTestSession(
             session_id="display_test",
             start_time=datetime.now(timezone.utc),
             summary={
@@ -653,18 +707,18 @@ class TestPatternTestRunner:
                 "total_duration": 15.5,
             },
             executions=[
-                TestExecution(
-                    test_case=TestCase(
+                PatternTestExecution(
+                    test_case=PatternTestCase(
                         test_id="failed_test",
                         name="Failed Test",
                         description="Test that failed",
-                        test_type=TestType.UNIT,
+                        test_type=PatternTestType.UNIT,
                         pattern_name="pattern",
                         agents=["refiner"],
                         test_query="Query",
                         expected_outcome={"success": True},
                     ),
-                    result=TestResult.FAIL,
+                    result=PatternTestResult.FAIL,
                     duration=1.0,
                     error_message="Assertion failed",
                 )
@@ -679,24 +733,24 @@ class TestPatternTestRunner:
 
     def test_save_test_results(self, runner, tmp_path):
         """Test saving test results to file."""
-        session = TestSession(
+        session = PatternTestSession(
             session_id="save_test",
             start_time=datetime.now(timezone.utc),
             end_time=datetime.now(timezone.utc),
             summary={"total_tests": 1, "passed_count": 1},
             executions=[
-                TestExecution(
-                    test_case=TestCase(
+                PatternTestExecution(
+                    test_case=PatternTestCase(
                         test_id="save_test_case",
                         name="Save Test",
                         description="Test for saving",
-                        test_type=TestType.UNIT,
+                        test_type=PatternTestType.UNIT,
                         pattern_name="pattern",
                         agents=["refiner"],
                         test_query="Query",
                         expected_outcome={"success": True},
                     ),
-                    result=TestResult.PASS,
+                    result=PatternTestResult.PASS,
                     duration=1.0,
                 )
             ],
@@ -728,16 +782,16 @@ class TestPatternTestRunnerIntegration:
     def test_full_testing_workflow(self, runner):
         """Test complete testing workflow."""
         with patch.object(runner, "_execute_single_test") as mock_execute:
-            mock_execute.return_value = TestExecution(
-                test_case=Mock(), result=TestResult.PASS, duration=1.0
+            mock_execute.return_value = PatternTestExecution(
+                test_case=Mock(), result=PatternTestResult.PASS, duration=1.0
             )
 
             # Should not raise exceptions
-            test_types = [TestType.UNIT]
+            test_types = [PatternTestType.UNIT]
             suite = runner._generate_default_test_suite("test/pattern.py", test_types)
             session = runner._execute_test_suite(suite, False, 1)
 
-            assert isinstance(session, TestSession)
+            assert isinstance(session, PatternTestSession)
 
     def test_cli_app_integration(self, runner):
         """Test CLI app creation and commands."""
@@ -787,13 +841,17 @@ class TestPatternTestRunnerPerformance:
         import time
 
         start_time = time.time()
-        test_types = [TestType.UNIT, TestType.INTEGRATION, TestType.PERFORMANCE]
+        test_types = [
+            PatternTestType.UNIT,
+            PatternTestType.INTEGRATION,
+            PatternTestType.PERFORMANCE,
+        ]
         suite = runner._generate_default_test_suite("test/pattern.py", test_types)
         end_time = time.time()
 
         # Should complete quickly
         assert (end_time - start_time) < 2.0
-        assert isinstance(suite, TestSuite)
+        assert isinstance(suite, PatternTestSuite)
         assert len(suite.test_cases) > 0
 
     def test_summary_calculation_performance(self, runner):
@@ -804,14 +862,16 @@ class TestPatternTestRunnerPerformance:
         executions = []
         for i in range(100):
             executions.append(
-                TestExecution(
+                PatternTestExecution(
                     test_case=Mock(),
-                    result=TestResult.PASS if i % 2 == 0 else TestResult.FAIL,
+                    result=(
+                        PatternTestResult.PASS if i % 2 == 0 else PatternTestResult.FAIL
+                    ),
                     duration=float(i % 5 + 1),
                 )
             )
 
-        session = TestSession(
+        session = PatternTestSession(
             session_id="perf_test",
             start_time=datetime.now(timezone.utc),
             executions=executions,
@@ -846,11 +906,11 @@ class TestPatternTestRunnerErrorHandling:
         result = runner._evaluate_test_result(context, expected)
 
         # Should return ERROR for exception during evaluation
-        assert result == TestResult.ERROR
+        assert result == PatternTestResult.ERROR
 
     def test_execute_test_suite_empty_test_cases(self, runner):
         """Test executing test suite with no test cases."""
-        empty_suite = TestSuite(
+        empty_suite = PatternTestSuite(
             suite_id="empty_suite",
             name="Empty Suite",
             description="Suite with no tests",
@@ -859,13 +919,13 @@ class TestPatternTestRunnerErrorHandling:
 
         session = runner._execute_test_suite(empty_suite, False, 1)
 
-        assert isinstance(session, TestSession)
+        assert isinstance(session, PatternTestSession)
         assert len(session.executions) == 0
         assert session.summary["total_tests"] == 0
 
     def test_display_summary_no_failed_tests(self, runner):
         """Test displaying summary with no failed tests."""
-        session = TestSession(
+        session = PatternTestSession(
             session_id="success_test",
             start_time=datetime.now(timezone.utc),
             summary={
@@ -890,7 +950,7 @@ class TestPatternTestRunnerErrorHandling:
         """Test saving test results with automatic directory creation."""
         nested_dir = tmp_path / "nested" / "results"
 
-        session = TestSession(
+        session = PatternTestSession(
             session_id="dir_test",
             start_time=datetime.now(timezone.utc),
             summary={"total_tests": 0},
@@ -925,7 +985,7 @@ class TestPatternTestRunnerCLICommands:
 
         # Mock the CLI command logic without typer
         pattern_path = "test/pattern.py"
-        test_types = [TestType.UNIT, TestType.INTEGRATION]
+        test_types = [PatternTestType.UNIT, PatternTestType.INTEGRATION]
         coverage_level = "standard"
 
         # Generate test cases (simplified)

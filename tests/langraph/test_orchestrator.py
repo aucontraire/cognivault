@@ -1,4 +1,4 @@
-"""Tests for RealLangGraphOrchestrator."""
+"""Tests for LangGraphOrchestrator."""
 
 import pytest
 import asyncio
@@ -6,7 +6,7 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from typing import Dict, Any, List, Optional
 
 from cognivault.context import AgentContext
-from cognivault.langraph.real_orchestrator import RealLangGraphOrchestrator
+from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.langraph.node_wrappers import NodeExecutionError
 from cognivault.langraph.state_schemas import (
     CogniVaultState,
@@ -17,12 +17,12 @@ from cognivault.langraph.state_schemas import (
 )
 
 
-class TestRealLangGraphOrchestrator:
-    """Test RealLangGraphOrchestrator class."""
+class TestLangGraphOrchestrator:
+    """Test LangGraphOrchestrator class."""
 
     def test_initialization_default(self):
         """Test orchestrator initialization with default parameters."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         assert orchestrator.agents_to_run == [
             "refiner",
@@ -42,14 +42,14 @@ class TestRealLangGraphOrchestrator:
     def test_initialization_custom_agents(self):
         """Test orchestrator initialization with custom agents."""
         custom_agents = ["refiner", "synthesis"]
-        orchestrator = RealLangGraphOrchestrator(agents_to_run=custom_agents)
+        orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
 
         assert orchestrator.agents_to_run == custom_agents
         assert orchestrator.enable_checkpoints is False
 
     def test_initialization_with_checkpoints(self):
         """Test orchestrator initialization with checkpoints enabled."""
-        orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
+        orchestrator = LangGraphOrchestrator(enable_checkpoints=True)
 
         assert orchestrator.enable_checkpoints is True
         assert orchestrator.agents_to_run == [
@@ -61,11 +61,11 @@ class TestRealLangGraphOrchestrator:
 
     def test_initialization_logging(self):
         """Test that initialization logs appropriate messages."""
-        with patch("cognivault.langraph.real_orchestrator.get_logger") as mock_logger:
+        with patch("cognivault.langraph.orchestrator.get_logger") as mock_logger:
             mock_logger_instance = Mock()
             mock_logger.return_value = mock_logger_instance
 
-            orchestrator = RealLangGraphOrchestrator(
+            orchestrator = LangGraphOrchestrator(
                 agents_to_run=["refiner", "critic"], enable_checkpoints=True
             )
 
@@ -76,13 +76,13 @@ class TestRealLangGraphOrchestrator:
             assert "checkpoints: True" in log_call
 
 
-class TestRealLangGraphOrchestratorRun:
-    """Test RealLangGraphOrchestrator.run method."""
+class TestLangGraphOrchestratorRun:
+    """Test LangGraphOrchestrator.run method."""
 
     @pytest.mark.asyncio
     async def test_run_success(self):
         """Test successful orchestrator run."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         # Mock the compiled graph
         mock_compiled_graph = AsyncMock()
@@ -160,7 +160,7 @@ class TestRealLangGraphOrchestratorRun:
     @pytest.mark.asyncio
     async def test_run_with_config(self):
         """Test orchestrator run with configuration."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         mock_compiled_graph = AsyncMock()
         final_state = create_initial_state("Test query", "test-exec-id")
@@ -184,7 +184,7 @@ class TestRealLangGraphOrchestratorRun:
     @pytest.mark.asyncio
     async def test_run_with_checkpoints(self):
         """Test orchestrator run with checkpoints enabled."""
-        orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
+        orchestrator = LangGraphOrchestrator(enable_checkpoints=True)
 
         mock_compiled_graph = AsyncMock()
         final_state = create_initial_state("Test query", "test-exec-id")
@@ -209,7 +209,7 @@ class TestRealLangGraphOrchestratorRun:
     @pytest.mark.asyncio
     async def test_run_with_partial_failure(self):
         """Test orchestrator run with partial agent failure."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         mock_compiled_graph = AsyncMock()
         final_state = create_initial_state("Test query", "test-exec-id")
@@ -251,7 +251,7 @@ class TestRealLangGraphOrchestratorRun:
     @pytest.mark.asyncio
     async def test_run_execution_failure(self):
         """Test orchestrator run with execution failure."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         mock_compiled_graph = AsyncMock()
         mock_compiled_graph.ainvoke.side_effect = RuntimeError("Graph execution failed")
@@ -268,17 +268,17 @@ class TestRealLangGraphOrchestratorRun:
     @pytest.mark.asyncio
     async def test_run_invalid_initial_state(self):
         """Test orchestrator run with invalid initial state."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         with patch(
-            "cognivault.langraph.real_orchestrator.create_initial_state"
+            "cognivault.langraph.orchestrator.create_initial_state"
         ) as mock_create:
             # Create invalid state
             invalid_state = {}
             mock_create.return_value = invalid_state
 
             with patch(
-                "cognivault.langraph.real_orchestrator.validate_state_integrity",
+                "cognivault.langraph.orchestrator.validate_state_integrity",
                 return_value=False,
             ):
                 with pytest.raises(
@@ -289,7 +289,7 @@ class TestRealLangGraphOrchestratorRun:
     @pytest.mark.asyncio
     async def test_run_logging(self):
         """Test that run method logs appropriate messages."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         mock_compiled_graph = AsyncMock()
         final_state = create_initial_state("Test query", "test-exec-id")
@@ -304,23 +304,19 @@ class TestRealLangGraphOrchestratorRun:
 
                 # Check for key log messages
                 log_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-                assert any(
-                    "Starting real LangGraph execution" in msg for msg in log_calls
-                )
-                assert any("Execution mode: langgraph-real" in msg for msg in log_calls)
+                assert any("Starting LangGraph execution" in msg for msg in log_calls)
+                assert any("Execution mode: langgraph" in msg for msg in log_calls)
                 assert any("Executing LangGraph StateGraph" in msg for msg in log_calls)
-                assert any(
-                    "Real LangGraph execution completed" in msg for msg in log_calls
-                )
+                assert any("LangGraph execution completed" in msg for msg in log_calls)
 
 
 class TestGetCompiledGraph:
-    """Test RealLangGraphOrchestrator._get_compiled_graph method."""
+    """Test LangGraphOrchestrator._get_compiled_graph method."""
 
     @pytest.mark.asyncio
     async def test_get_compiled_graph_basic(self):
         """Test getting compiled graph without checkpoints using GraphFactory."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         # Mock the GraphFactory.create_graph method instead of StateGraph directly
         with patch.object(
@@ -357,7 +353,7 @@ class TestGetCompiledGraph:
             mock_memory_saver.return_value = mock_checkpointer
 
             # Create orchestrator after patching MemorySaver
-            orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
+            orchestrator = LangGraphOrchestrator(enable_checkpoints=True)
 
             # Mock the GraphFactory.create_graph method
             with patch.object(
@@ -381,7 +377,7 @@ class TestGetCompiledGraph:
     @pytest.mark.asyncio
     async def test_get_compiled_graph_caching(self):
         """Test that compiled graph is cached by the orchestrator."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         # Mock the GraphFactory.create_graph method
         with patch.object(
@@ -404,12 +400,12 @@ class TestGetCompiledGraph:
 
 
 class TestConvertStateToContext:
-    """Test RealLangGraphOrchestrator._convert_state_to_context method."""
+    """Test LangGraphOrchestrator._convert_state_to_context method."""
 
     @pytest.mark.asyncio
     async def test_convert_state_to_context_basic(self):
         """Test basic state to context conversion."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
 
@@ -421,7 +417,7 @@ class TestConvertStateToContext:
     @pytest.mark.asyncio
     async def test_convert_state_to_context_with_refiner(self):
         """Test conversion with refiner output."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
         state["refiner"] = {
@@ -442,7 +438,7 @@ class TestConvertStateToContext:
     @pytest.mark.asyncio
     async def test_convert_state_to_context_with_critic(self):
         """Test conversion with critic output."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
         state["critic"] = {
@@ -465,7 +461,7 @@ class TestConvertStateToContext:
     @pytest.mark.asyncio
     async def test_convert_state_to_context_with_synthesis(self):
         """Test conversion with synthesis output."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
         state["synthesis"] = {
@@ -492,7 +488,7 @@ class TestConvertStateToContext:
     @pytest.mark.asyncio
     async def test_convert_state_to_context_with_successful_agents(self):
         """Test conversion with successful agents tracking."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
         state["successful_agents"] = ["refiner", "critic", "synthesis"]
@@ -506,7 +502,7 @@ class TestConvertStateToContext:
     @pytest.mark.asyncio
     async def test_convert_state_to_context_with_errors(self):
         """Test conversion with errors."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
         state["errors"] = [
@@ -526,7 +522,7 @@ class TestConvertStateToContext:
     @pytest.mark.asyncio
     async def test_convert_state_to_context_with_none_outputs(self):
         """Test conversion with None agent outputs."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
         state["refiner"] = None
@@ -541,11 +537,11 @@ class TestConvertStateToContext:
 
 
 class TestGetExecutionStatistics:
-    """Test RealLangGraphOrchestrator.get_execution_statistics method."""
+    """Test LangGraphOrchestrator.get_execution_statistics method."""
 
     def test_get_execution_statistics_no_executions(self):
         """Test statistics with no executions."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         stats = orchestrator.get_execution_statistics()
 
@@ -562,7 +558,7 @@ class TestGetExecutionStatistics:
 
     def test_get_execution_statistics_with_executions(self):
         """Test statistics with executions."""
-        orchestrator = RealLangGraphOrchestrator(enable_checkpoints=True)
+        orchestrator = LangGraphOrchestrator(enable_checkpoints=True)
 
         orchestrator.total_executions = 10
         orchestrator.successful_executions = 8
@@ -579,7 +575,7 @@ class TestGetExecutionStatistics:
     def test_get_execution_statistics_custom_agents(self):
         """Test statistics with custom agents."""
         custom_agents = ["refiner", "synthesis"]
-        orchestrator = RealLangGraphOrchestrator(agents_to_run=custom_agents)
+        orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
 
         stats = orchestrator.get_execution_statistics()
 
@@ -587,14 +583,14 @@ class TestGetExecutionStatistics:
 
 
 class TestGetDagStructure:
-    """Test RealLangGraphOrchestrator.get_dag_structure method."""
+    """Test LangGraphOrchestrator.get_dag_structure method."""
 
     def test_get_dag_structure_basic(self):
         """Test getting DAG structure."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         with patch(
-            "cognivault.langraph.real_orchestrator.get_node_dependencies"
+            "cognivault.langraph.orchestrator.get_node_dependencies"
         ) as mock_deps:
             mock_deps.return_value = {
                 "refiner": [],
@@ -625,10 +621,10 @@ class TestGetDagStructure:
     def test_get_dag_structure_custom_agents(self):
         """Test getting DAG structure with custom agents."""
         custom_agents = ["refiner", "synthesis"]
-        orchestrator = RealLangGraphOrchestrator(agents_to_run=custom_agents)
+        orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
 
         with patch(
-            "cognivault.langraph.real_orchestrator.get_node_dependencies"
+            "cognivault.langraph.orchestrator.get_node_dependencies"
         ) as mock_deps:
             mock_deps.return_value = {
                 "refiner": [],
@@ -641,12 +637,12 @@ class TestGetDagStructure:
 
 
 class TestIntegration:
-    """Integration tests for RealLangGraphOrchestrator."""
+    """Integration tests for LangGraphOrchestrator."""
 
     @pytest.mark.asyncio
     async def test_full_orchestration_workflow(self):
         """Test complete orchestration workflow using GraphFactory."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         # Create realistic final state
         final_state = create_initial_state("What is AI?", "test-exec-id")
@@ -730,12 +726,10 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_error_handling_integration(self):
         """Test error handling integration."""
-        orchestrator = RealLangGraphOrchestrator()
+        orchestrator = LangGraphOrchestrator()
 
         # Mock graph compilation failure
-        with patch(
-            "cognivault.langraph.real_orchestrator.StateGraph"
-        ) as mock_state_graph:
+        with patch("cognivault.langraph.orchestrator.StateGraph") as mock_state_graph:
             mock_state_graph.side_effect = RuntimeError("StateGraph creation failed")
 
             with pytest.raises(NodeExecutionError):
@@ -748,8 +742,8 @@ class TestIntegration:
 
     def test_multiple_orchestrator_instances(self):
         """Test multiple orchestrator instances maintain separate state."""
-        orchestrator1 = RealLangGraphOrchestrator(agents_to_run=["refiner"])
-        orchestrator2 = RealLangGraphOrchestrator(agents_to_run=["critic"])
+        orchestrator1 = LangGraphOrchestrator(agents_to_run=["refiner"])
+        orchestrator2 = LangGraphOrchestrator(agents_to_run=["critic"])
 
         # Modify statistics
         orchestrator1.total_executions = 5

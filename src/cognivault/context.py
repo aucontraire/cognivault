@@ -128,6 +128,9 @@ class AgentContext(BaseModel):
     conditional_routing: Dict[str, Any] = Field(default_factory=dict)
     path_metadata: Dict[str, Any] = Field(default_factory=dict)
 
+    # General metadata for API integration and tracing
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
     # Success tracking for artifact export logic
     success: bool = True
 

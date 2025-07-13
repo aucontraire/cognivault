@@ -23,7 +23,7 @@ async def test_cli_default_execution_mode_is_langgraph_real():
     fake_context.agent_outputs = {"Refiner": "Test output"}
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         # Test without explicit execution mode - should use langgraph-real
@@ -60,7 +60,7 @@ async def test_cli_runs_with_refiner(capsys):
     fake_context = AgentContext(query="Why is democracy shifting?")
     fake_context.agent_outputs = {"Refiner": "[Refined Note] Democracy is evolving..."}
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main("Why is democracy shifting?", agents="refiner", log_level="INFO")
@@ -85,7 +85,7 @@ async def test_cli_runs_with_export_md(tmp_path, capsys):
     with (
         patch("cognivault.store.wiki_adapter.MarkdownExporter.export") as mock_export,
         patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ),
     ):
@@ -104,7 +104,7 @@ async def test_cli_runs_with_multiple_agents(capsys):
         "Critic": "[Critique] Something something bias.",
     }
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main(
@@ -127,7 +127,7 @@ async def test_cli_runs_with_all_agents(capsys):
         "Synthesis": "[Synthesis result]",
     }
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main("Explain democratic backsliding.", agents=None, log_level="INFO")
@@ -150,7 +150,7 @@ async def test_cli_malformed_agents(capsys):
     fake_context = AgentContext(query="Test malformed agents")
     fake_context.agent_outputs = {"Refiner": "[Refined Note] Cleaned up input."}
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main("Test malformed agents", agents=",refiner,,", log_level="INFO")
@@ -162,7 +162,7 @@ def test_cli_main_entrypoint_runs():
     fake_context = AgentContext(query="What is cognitive dissonance?")
     fake_context.agent_outputs = {"Refiner": "[Refined Note] It's when thoughts clash."}
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         result = runner.invoke(
@@ -190,7 +190,7 @@ async def test_cli_health_check_flag(capsys):
     fake_orchestrator.registry = fake_registry
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator",
         return_value=fake_orchestrator,
     ):
         await cli_main("test query", health_check=True, log_level="INFO")
@@ -226,7 +226,7 @@ async def test_cli_dry_run_flag(capsys):
     fake_orchestrator.registry = fake_registry
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator",
         return_value=fake_orchestrator,
     ):
         await cli_main("test query", dry_run=True, log_level="INFO")
@@ -252,7 +252,7 @@ async def test_cli_trace_flag(capsys):
     ]
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main("test query", agents="refiner", trace=True, log_level="INFO")
@@ -283,7 +283,7 @@ async def test_cli_export_trace_flag(tmp_path):
     export_file = tmp_path / "test_trace.json"
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main(
@@ -324,7 +324,7 @@ async def test_cli_trace_with_conditional_routing(capsys):
     }
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main("test query", agents="refiner", trace=True, log_level="INFO")
@@ -346,7 +346,7 @@ async def test_cli_trace_with_failed_agents(capsys):
     fake_context.agent_execution_status = {"Refiner": "completed", "Critic": "failed"}
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main(
@@ -365,7 +365,7 @@ def test_cli_health_check_typer_interface():
     fake_orchestrator.registry = fake_registry
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator",
         return_value=fake_orchestrator,
     ):
         result = runner.invoke(
@@ -391,7 +391,7 @@ def test_cli_dry_run_typer_interface():
     fake_orchestrator.registry = fake_registry
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator",
         return_value=fake_orchestrator,
     ):
         result = runner.invoke(
@@ -419,7 +419,7 @@ def test_cli_trace_typer_interface():
     fake_context.execution_edges = []
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         result = runner.invoke(
@@ -459,7 +459,7 @@ def test_cli_export_trace_typer_interface():
 
     try:
         with patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ):
             result = runner.invoke(
@@ -505,7 +505,7 @@ async def test_cli_combined_flags(capsys, tmp_path):
     export_file = tmp_path / "combined_trace.json"
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         await cli_main(
@@ -540,9 +540,9 @@ async def test_cli_health_check_specific_agents(capsys):
 
     fake_registry.check_health.side_effect = mock_check_health
 
-    # Mock the get_agent_registry function that RealLangGraphOrchestrator uses
+    # Mock the get_agent_registry function that LangGraphOrchestrator uses
     with patch(
-        "cognivault.langraph.real_orchestrator.get_agent_registry",
+        "cognivault.langraph.orchestrator.get_agent_registry",
         return_value=fake_registry,
     ):
         await cli_main(
@@ -600,7 +600,7 @@ async def test_cli_execution_mode_default_legacy(capsys):
     fake_context.failed_agents = set()
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ) as mock_orchestrator:
         await cli_main(
@@ -610,7 +610,7 @@ async def test_cli_execution_mode_default_legacy(capsys):
             log_level="INFO",
         )
 
-        # Verify RealLangGraphOrchestrator was called (new default behavior)
+        # Verify LangGraphOrchestrator was called (new default behavior)
         mock_orchestrator.assert_called_once_with("test query")
 
         captured = capsys.readouterr()
@@ -935,7 +935,7 @@ async def test_cli_topic_analysis_with_llm(capsys):
     with (
         patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
         patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ),
         patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
@@ -984,7 +984,7 @@ async def test_cli_topic_analysis_error_handling(capsys):
     with (
         patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
         patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ),
         patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
@@ -1037,7 +1037,7 @@ async def test_cli_topic_analysis_without_export_md(capsys):
     with (
         patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
         patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ),
         patch("cognivault.cli.TopicManager", return_value=mock_topic_manager),
@@ -1070,7 +1070,7 @@ async def test_cli_rollback_functionality():
 
     # Mock the rollback functionality
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ) as mock_orchestrator:
         with patch("cognivault.cli._validate_langgraph_runtime") as mock_validate:
@@ -1095,7 +1095,7 @@ async def test_cli_checkpoint_management_with_thread_id():
     fake_context.agent_outputs = {"Refiner": "Test output"}
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ) as mock_run:
         with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1118,7 +1118,7 @@ async def test_cli_checkpoint_error_handling():
     """Test CLI error handling when checkpoint operations fail."""
     # Mock checkpoint failure
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         side_effect=Exception("Checkpoint error"),
     ):
         with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1219,7 +1219,7 @@ def test_create_llm_instance_config_error():
 async def test_cli_orchestrator_error_handling():
     """Test CLI error handling for orchestrator failures."""
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         side_effect=RuntimeError("Orchestrator failed"),
     ):
         with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1239,7 +1239,7 @@ async def test_cli_agent_parsing_error_handling():
     fake_context.agent_outputs = {"Refiner": "Test output"}
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1298,7 +1298,7 @@ async def test_cli_dag_visualization_integration():
 
     with patch("cognivault.cli.cli_visualize_dag") as mock_visualize:
         with patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ):
             with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1324,7 +1324,7 @@ async def test_cli_dag_visualization_with_file_output():
 
     with patch("cognivault.cli.cli_visualize_dag") as mock_visualize:
         with patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ):
             with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1354,7 +1354,7 @@ async def test_cli_dag_visualization_error_handling(capsys):
         side_effect=Exception("Visualization failed"),
     ) as mock_visualize:
         with patch(
-            "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+            "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
             return_value=fake_context,
         ):
             with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1385,7 +1385,7 @@ async def test_cli_complete_workflow_with_all_features():
     }
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ):
         with patch("cognivault.cli._validate_langgraph_runtime"):
@@ -1429,7 +1429,7 @@ async def test_cli_performance_monitoring_integration():
     fake_context.agent_outputs = {"Refiner": "Test output"}
 
     with patch(
-        "cognivault.langraph.real_orchestrator.RealLangGraphOrchestrator.run",
+        "cognivault.langraph.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
     ) as mock_run:
         with patch("cognivault.cli._validate_langgraph_runtime"):
