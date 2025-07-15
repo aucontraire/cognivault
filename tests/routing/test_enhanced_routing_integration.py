@@ -2239,28 +2239,34 @@ class TestRoutingDecisionSerializationEdgeCases:
     def setup_method(self):
         """Setup for each test."""
         from cognivault.routing.resource_optimizer import ResourceOptimizer
-        from cognivault.routing.routing_decision import RoutingDecision, RoutingReasoning, ConfidenceLevel
+        from cognivault.routing.routing_decision import (
+            RoutingDecision,
+            RoutingReasoning,
+            ConfidenceLevel,
+        )
         from datetime import datetime, timezone
-        
+
         self.optimizer = ResourceOptimizer()
         self.performance_data = {
             "refiner": {"success_rate": 0.95, "average_time_ms": 1500.0},
             "critic": {"success_rate": 0.85, "average_time_ms": 2000.0},
-            "synthesis": {"success_rate": 0.9, "average_time_ms": 1800.0}
+            "synthesis": {"success_rate": 0.9, "average_time_ms": 1800.0},
         }
-        
+
         # Create a comprehensive routing decision for testing
         self.test_decision = self.optimizer.select_optimal_agents(
             available_agents=["refiner", "critic", "synthesis"],
             complexity_score=0.7,
             performance_data=self.performance_data,
-            strategy=OptimizationStrategy.BALANCED
+            strategy=OptimizationStrategy.BALANCED,
         )
-        
+
         # Add comprehensive reasoning data
         self.test_decision.add_reasoning("complexity", "level", "high")
         self.test_decision.add_reasoning("performance", "metrics", {"avg_time": 1766.7})
-        self.test_decision.add_reasoning("resource", "utilization", {"cpu": 0.8, "memory": 0.6})
+        self.test_decision.add_reasoning(
+            "resource", "utilization", {"cpu": 0.8, "memory": 0.6}
+        )
         self.test_decision.add_risk("test_risk", "test_mitigation")
         self.test_decision.add_fallback_option("fallback_agent")
         self.test_decision.add_optimization_opportunity("Consider parallel execution")
@@ -2269,17 +2275,17 @@ class TestRoutingDecisionSerializationEdgeCases:
         """Test basic serialization and deserialization roundtrip."""
         # Serialize to dict
         decision_dict = self.test_decision.to_dict()
-        
+
         # Verify dict structure
         assert isinstance(decision_dict, dict)
         assert "decision_id" in decision_dict
         assert "timestamp" in decision_dict
         assert "selected_agents" in decision_dict
         assert "reasoning" in decision_dict
-        
+
         # Deserialize from dict
         restored_decision = RoutingDecision.from_dict(decision_dict)
-        
+
         # Verify restoration
         assert restored_decision.decision_id == self.test_decision.decision_id
         assert restored_decision.selected_agents == self.test_decision.selected_agents
@@ -2300,11 +2306,11 @@ class TestRoutingDecisionSerializationEdgeCases:
             estimated_total_time_ms=None,  # None value
             estimated_success_probability=None,  # None value
         )
-        
+
         # Serialize and deserialize
         decision_dict = decision.to_dict()
         restored_decision = RoutingDecision.from_dict(decision_dict)
-        
+
         # Verify None values are preserved
         assert restored_decision.query_hash is None
         assert restored_decision.entry_point is None
@@ -2324,7 +2330,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             exit_points=[],  # Empty list
             optimization_opportunities=[],  # Empty list
         )
-        
+
         # Clear reasoning to have empty collections
         decision.reasoning.risks_identified = []
         decision.reasoning.mitigation_strategies = []
@@ -2335,11 +2341,11 @@ class TestRoutingDecisionSerializationEdgeCases:
         decision.reasoning.agent_selection_rationale = {}
         decision.reasoning.excluded_agents_rationale = {}
         decision.reasoning.resource_utilization_estimate = {}
-        
+
         # Serialize and deserialize
         decision_dict = decision.to_dict()
         restored_decision = RoutingDecision.from_dict(decision_dict)
-        
+
         # Verify empty collections are preserved
         assert restored_decision.selected_agents == []
         assert restored_decision.available_agents == []
@@ -2355,36 +2361,54 @@ class TestRoutingDecisionSerializationEdgeCases:
         """Test serialization with complex nested data structures."""
         # Create decision with complex nested data
         decision = self.test_decision
-        
+
         # Add complex nested reasoning data
-        decision.add_reasoning("complexity", "nested_analysis", {
-            "factors": ["query_length", "semantic_complexity"],
-            "metrics": {"readability": 0.8, "ambiguity": 0.3},
-            "sub_analysis": {
-                "grammar": {"score": 0.9, "issues": []},
-                "vocabulary": {"score": 0.7, "advanced_terms": ["optimization"]}
-            }
-        })
-        
-        decision.add_reasoning("performance", "agent_metrics", {
-            "refiner": {"latency": 1500, "throughput": 100, "memory_usage": 0.6},
-            "critic": {"latency": 2000, "throughput": 80, "memory_usage": 0.7}
-        })
-        
+        decision.add_reasoning(
+            "complexity",
+            "nested_analysis",
+            {
+                "factors": ["query_length", "semantic_complexity"],
+                "metrics": {"readability": 0.8, "ambiguity": 0.3},
+                "sub_analysis": {
+                    "grammar": {"score": 0.9, "issues": []},
+                    "vocabulary": {"score": 0.7, "advanced_terms": ["optimization"]},
+                },
+            },
+        )
+
+        decision.add_reasoning(
+            "performance",
+            "agent_metrics",
+            {
+                "refiner": {"latency": 1500, "throughput": 100, "memory_usage": 0.6},
+                "critic": {"latency": 2000, "throughput": 80, "memory_usage": 0.7},
+            },
+        )
+
         # Add complex parallel groups
-        decision.parallel_groups = [
-            ["critic", "historian"],
-            ["analyzer", "validator"]
-        ]
-        
+        decision.parallel_groups = [["critic", "historian"], ["analyzer", "validator"]]
+
         # Serialize and deserialize
         decision_dict = decision.to_dict()
         restored_decision = RoutingDecision.from_dict(decision_dict)
-        
+
         # Verify complex data is preserved
-        assert restored_decision.reasoning.complexity_analysis["nested_analysis"]["sub_analysis"]["grammar"]["score"] == 0.9
-        assert restored_decision.reasoning.performance_analysis["agent_metrics"]["refiner"]["latency"] == 1500
-        assert restored_decision.parallel_groups == [["critic", "historian"], ["analyzer", "validator"]]
+        assert (
+            restored_decision.reasoning.complexity_analysis["nested_analysis"][
+                "sub_analysis"
+            ]["grammar"]["score"]
+            == 0.9
+        )
+        assert (
+            restored_decision.reasoning.performance_analysis["agent_metrics"][
+                "refiner"
+            ]["latency"]
+            == 1500
+        )
+        assert restored_decision.parallel_groups == [
+            ["critic", "historian"],
+            ["analyzer", "validator"],
+        ]
 
     def test_serialization_with_unicode_and_special_characters(self):
         """Test serialization with Unicode and special characters."""
@@ -2392,31 +2416,33 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM
+            confidence_level=ConfidenceLevel.MEDIUM,
         )
-        
+
         # Add Unicode and special characters
-        decision.reasoning.strategy_rationale = "Stratégie d'optimisation avec caractères spéciaux: éàü"
+        decision.reasoning.strategy_rationale = (
+            "Stratégie d'optimisation avec caractères spéciaux: éàü"
+        )
         decision.reasoning.agent_selection_rationale = {
             "refiner": "Sélectionné pour l'analyse 🤖",
-            "critic": "Excluded due to performance issues ⚠️"
+            "critic": "Excluded due to performance issues ⚠️",
         }
-        
+
         decision.reasoning.risks_identified = [
             "Risk with émojis 🚨",
             "Risk with quotes \"quoted text\" and 'single quotes'",
-            "Risk with newlines\nand\ttabs"
+            "Risk with newlines\nand\ttabs",
         ]
-        
+
         # Serialize and deserialize
         decision_dict = decision.to_dict()
         restored_decision = RoutingDecision.from_dict(decision_dict)
-        
+
         # Verify Unicode is preserved
         assert "éàü" in restored_decision.reasoning.strategy_rationale
         assert "🤖" in restored_decision.reasoning.agent_selection_rationale["refiner"]
         assert "🚨" in restored_decision.reasoning.risks_identified[0]
-        assert "\"quoted text\"" in restored_decision.reasoning.risks_identified[1]
+        assert '"quoted text"' in restored_decision.reasoning.risks_identified[1]
         assert "\n" in restored_decision.reasoning.risks_identified[2]
 
     def test_deserialization_with_missing_required_fields(self):
@@ -2428,7 +2454,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             "confidence_score": 0.5,
             # Missing required fields: decision_id, timestamp, confidence_level
         }
-        
+
         # Should raise KeyError for missing required fields
         with pytest.raises(KeyError):
             RoutingDecision.from_dict(incomplete_dict)
@@ -2442,12 +2468,12 @@ class TestRoutingDecisionSerializationEdgeCases:
             "selected_agents": ["refiner"],
             "routing_strategy": "test",
             "confidence_score": 0.5,
-            "confidence_level": "medium"
+            "confidence_level": "medium",
         }
-        
+
         # Should work with default values for missing optional fields
         restored_decision = RoutingDecision.from_dict(minimal_dict)
-        
+
         # Verify defaults are applied
         assert restored_decision.query_hash is None
         assert restored_decision.available_agents == []
@@ -2462,10 +2488,10 @@ class TestRoutingDecisionSerializationEdgeCases:
     def test_deserialization_with_invalid_enum_values(self):
         """Test deserialization with invalid enum values."""
         decision_dict = self.test_decision.to_dict()
-        
+
         # Corrupt the confidence level
         decision_dict["confidence_level"] = "invalid_level"
-        
+
         # Should raise ValueError for invalid enum value
         with pytest.raises(ValueError):
             RoutingDecision.from_dict(decision_dict)
@@ -2473,10 +2499,10 @@ class TestRoutingDecisionSerializationEdgeCases:
     def test_deserialization_with_invalid_timestamp(self):
         """Test deserialization with invalid timestamp format."""
         decision_dict = self.test_decision.to_dict()
-        
+
         # Corrupt the timestamp
         decision_dict["timestamp"] = "invalid-timestamp"
-        
+
         # Should raise ValueError for invalid timestamp
         with pytest.raises(ValueError):
             RoutingDecision.from_dict(decision_dict)
@@ -2484,11 +2510,11 @@ class TestRoutingDecisionSerializationEdgeCases:
     def test_deserialization_with_wrong_data_types(self):
         """Test deserialization with wrong data types."""
         decision_dict = self.test_decision.to_dict()
-        
+
         # Corrupt data types
         decision_dict["selected_agents"] = "not_a_list"  # Should be list
         decision_dict["confidence_score"] = "not_a_number"  # Should be float
-        
+
         # Should handle type errors gracefully or raise appropriate exceptions
         with pytest.raises((TypeError, ValueError, AttributeError)):
             RoutingDecision.from_dict(decision_dict)
@@ -2500,23 +2526,25 @@ class TestRoutingDecisionSerializationEdgeCases:
             routing_strategy="x" * 1000,  # Very long string
             confidence_score=1.0,  # Maximum confidence
             confidence_level=ConfidenceLevel.VERY_HIGH,
-            estimated_total_time_ms=float('inf'),  # Infinity
+            estimated_total_time_ms=float("inf"),  # Infinity
             estimated_success_probability=0.0,  # Minimum probability
         )
-        
+
         # Add extreme reasoning data
         decision.reasoning.risks_identified = ["risk"] * 50  # Many risks
-        decision.reasoning.complexity_analysis = {f"key_{i}": f"value_{i}" for i in range(100)}  # Large dict
-        
+        decision.reasoning.complexity_analysis = {
+            f"key_{i}": f"value_{i}" for i in range(100)
+        }  # Large dict
+
         # Serialize and deserialize
         decision_dict = decision.to_dict()
         restored_decision = RoutingDecision.from_dict(decision_dict)
-        
+
         # Verify extreme values are preserved
         assert len(restored_decision.selected_agents) == 100
         assert len(restored_decision.routing_strategy) == 1000
         assert restored_decision.confidence_score == 1.0
-        assert restored_decision.estimated_total_time_ms == float('inf')
+        assert restored_decision.estimated_total_time_ms == float("inf")
         assert restored_decision.estimated_success_probability == 0.0
         assert len(restored_decision.reasoning.risks_identified) == 50
         assert len(restored_decision.reasoning.complexity_analysis) == 100
@@ -2527,42 +2555,48 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM
+            confidence_level=ConfidenceLevel.MEDIUM,
         )
-        
+
         # Create self-referential structure (not actually circular in this case)
         decision.reasoning.complexity_analysis = {
             "self_ref": decision.decision_id,
             "nested": {
                 "decision_id": decision.decision_id,
-                "timestamp": decision.timestamp.isoformat()
-            }
+                "timestamp": decision.timestamp.isoformat(),
+            },
         }
-        
+
         # Should serialize successfully
         decision_dict = decision.to_dict()
         restored_decision = RoutingDecision.from_dict(decision_dict)
-        
+
         # Verify references are preserved as values
-        assert restored_decision.reasoning.complexity_analysis["self_ref"] == decision.decision_id
-        assert restored_decision.reasoning.complexity_analysis["nested"]["decision_id"] == decision.decision_id
+        assert (
+            restored_decision.reasoning.complexity_analysis["self_ref"]
+            == decision.decision_id
+        )
+        assert (
+            restored_decision.reasoning.complexity_analysis["nested"]["decision_id"]
+            == decision.decision_id
+        )
 
     def test_serialization_json_compatibility(self):
         """Test that serialized decisions are JSON-compatible."""
         import json
-        
+
         # Serialize to dict
         decision_dict = self.test_decision.to_dict()
-        
+
         # Should be JSON serializable
         json_string = json.dumps(decision_dict, indent=2)
         assert isinstance(json_string, str)
         assert len(json_string) > 0
-        
+
         # Should be JSON deserializable
         restored_dict = json.loads(json_string)
         assert isinstance(restored_dict, dict)
-        
+
         # Should be able to create RoutingDecision from JSON-restored dict
         restored_decision = RoutingDecision.from_dict(restored_dict)
         assert restored_decision.decision_id == self.test_decision.decision_id
@@ -2570,27 +2604,27 @@ class TestRoutingDecisionSerializationEdgeCases:
     def test_serialization_with_custom_objects(self):
         """Test serialization with custom objects that should be converted."""
         from datetime import datetime, timezone
-        
+
         decision = RoutingDecision(
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
             confidence_level=ConfidenceLevel.MEDIUM,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
-        
+
         # Add custom objects in reasoning
         decision.reasoning.performance_analysis = {
             "timestamp": datetime.now(timezone.utc),
-            "metrics": {"value": 42}
+            "metrics": {"value": 42},
         }
-        
+
         # Serialize - should convert datetime to string
         decision_dict = decision.to_dict()
-        
+
         # Verify datetime is converted to string
         assert isinstance(decision_dict["timestamp"], str)
-        
+
         # Deserialize should work
         restored_decision = RoutingDecision.from_dict(decision_dict)
         assert isinstance(restored_decision.timestamp, datetime)
@@ -2598,34 +2632,38 @@ class TestRoutingDecisionSerializationEdgeCases:
     def test_serialization_performance_with_large_data(self):
         """Test serialization performance with large data structures."""
         import time
-        
+
         # Create decision with large data
         decision = RoutingDecision(
             selected_agents=["agent"] * 1000,
             routing_strategy="performance_test",
             confidence_score=0.8,
-            confidence_level=ConfidenceLevel.HIGH
+            confidence_level=ConfidenceLevel.HIGH,
         )
-        
+
         # Add large reasoning data
-        decision.reasoning.complexity_analysis = {f"key_{i}": f"value_{i}" * 100 for i in range(1000)}
-        decision.reasoning.performance_analysis = {f"agent_{i}": {"metric": i} for i in range(1000)}
+        decision.reasoning.complexity_analysis = {
+            f"key_{i}": f"value_{i}" * 100 for i in range(1000)
+        }
+        decision.reasoning.performance_analysis = {
+            f"agent_{i}": {"metric": i} for i in range(1000)
+        }
         decision.reasoning.risks_identified = [f"risk_{i}" for i in range(1000)]
-        
+
         # Measure serialization time
         start_time = time.time()
         decision_dict = decision.to_dict()
         serialize_time = time.time() - start_time
-        
+
         # Measure deserialization time
         start_time = time.time()
         restored_decision = RoutingDecision.from_dict(decision_dict)
         deserialize_time = time.time() - start_time
-        
+
         # Should complete in reasonable time (< 1 second each)
         assert serialize_time < 1.0, f"Serialization took {serialize_time:.2f}s"
         assert deserialize_time < 1.0, f"Deserialization took {deserialize_time:.2f}s"
-        
+
         # Verify large data is preserved
         assert len(restored_decision.selected_agents) == 1000
         assert len(restored_decision.reasoning.complexity_analysis) == 1000
@@ -2636,23 +2674,25 @@ class TestRoutingDecisionSerializationEdgeCases:
         """Test serialization consistency to ensure backward compatibility."""
         # Create decision with all possible fields
         decision = self.test_decision
-        
+
         # Serialize multiple times
         dict1 = decision.to_dict()
         dict2 = decision.to_dict()
-        
+
         # Should be identical
         assert dict1 == dict2
-        
+
         # Deserialize multiple times
         restored1 = RoutingDecision.from_dict(dict1)
         restored2 = RoutingDecision.from_dict(dict2)
-        
+
         # Should be equivalent
         assert restored1.decision_id == restored2.decision_id
         assert restored1.selected_agents == restored2.selected_agents
         assert restored1.confidence_score == restored2.confidence_score
-        assert restored1.reasoning.risks_identified == restored2.reasoning.risks_identified
+        assert (
+            restored1.reasoning.risks_identified == restored2.reasoning.risks_identified
+        )
 
     def test_serialization_error_handling(self):
         """Test error handling during serialization edge cases."""
@@ -2661,19 +2701,19 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM
+            confidence_level=ConfidenceLevel.MEDIUM,
         )
-        
+
         # Corrupt reasoning object
         decision.reasoning = None
-        
+
         # Should raise AttributeError
         with pytest.raises(AttributeError):
             decision.to_dict()
-        
+
         # Test with missing confidence_level
         decision.confidence_level = None
-        
+
         # Should raise AttributeError when accessing .value
         with pytest.raises(AttributeError):
             decision.to_dict()
