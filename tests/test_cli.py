@@ -1,4 +1,4 @@
-from unittest.mock import patch, mock_open, Mock, MagicMock, call
+from unittest.mock import patch, Mock
 from cognivault.context import AgentContext
 import pytest
 import json

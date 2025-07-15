@@ -28,16 +28,13 @@ from cognivault.dependencies.execution_planner import (
 from cognivault.dependencies.failure_manager import (
     FailureManager,
     CascadePreventionStrategy,
-    RetryConfiguration,
 )
 from cognivault.dependencies.resource_scheduler import (
     ResourceScheduler,
-    ResourcePool,
     ResourceType,
 )
 from cognivault.dependencies.dynamic_composition import (
     DynamicAgentComposer,
-    AgentMetadata,
 )
 from cognivault.dependencies.advanced_orchestrator import (
     AdvancedOrchestrator,
@@ -1097,8 +1094,6 @@ class TestOrchestratorFailureHandling:
     @pytest.mark.asyncio
     async def test_fail_fast_strategy(self, simple_graph_engine):
         """Test FAIL_FAST strategy raises PipelineExecutionError."""
-        from cognivault.exceptions import PipelineExecutionError
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create agent that will fail and add to graph engine
@@ -1136,7 +1131,6 @@ class TestOrchestratorFailureHandling:
     @pytest.mark.asyncio
     async def test_warn_continue_strategy(self, simple_graph_engine):
         """Test WARN_CONTINUE strategy logs warning but continues."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
@@ -1177,7 +1171,6 @@ class TestOrchestratorFailureHandling:
     @pytest.mark.asyncio
     async def test_graceful_degradation_strategy(self, simple_graph_engine):
         """Test GRACEFUL_DEGRADATION creates warnings and marks degraded."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
@@ -1219,7 +1212,6 @@ class TestOrchestratorFailureHandling:
     @pytest.mark.asyncio
     async def test_conditional_fallback_with_agents(self, simple_graph_engine):
         """Test CONDITIONAL_FALLBACK with actual fallback agents."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing primary agent and add to graph engine
@@ -1269,8 +1261,6 @@ class TestOrchestratorFailureHandling:
     @pytest.mark.asyncio
     async def test_conditional_fallback_no_fallback_agents(self, simple_graph_engine):
         """Test CONDITIONAL_FALLBACK when no fallback agents available."""
-        from cognivault.exceptions import PipelineExecutionError
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
@@ -1309,8 +1299,6 @@ class TestOrchestratorFailureHandling:
     @pytest.mark.asyncio
     async def test_critical_agent_failure_handling(self, simple_graph_engine):
         """Test handling of critical agent failures."""
-        from cognivault.exceptions import PipelineExecutionError
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create critical failing agent and add to graph engine
@@ -1350,7 +1338,6 @@ class TestOrchestratorFailureHandling:
     @pytest.mark.asyncio
     async def test_agent_execution_failure_with_metrics(self, simple_graph_engine):
         """Test agent failure with proper metrics recording."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
@@ -1403,7 +1390,6 @@ class TestOrchestratorDependencyManagement:
     @pytest.mark.asyncio
     async def test_agent_dependency_validation(self, simple_graph_engine):
         """Test dependency validation for agents."""
-        from cognivault.agents.registry import AgentRegistry
 
         # Create agents with dependencies and add to graph engine
         agent_a = MockAgent("agent_a")
@@ -1453,7 +1439,6 @@ class TestOrchestratorDependencyManagement:
     @pytest.mark.asyncio
     async def test_dependency_failure_strategies(self, simple_graph_engine):
         """Test different failure strategies for dependencies."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create dependency chain: agent_a -> agent_b
@@ -1507,7 +1492,6 @@ class TestOrchestratorDependencyManagement:
     @pytest.mark.asyncio
     async def test_graceful_degradation_with_dependencies(self, simple_graph_engine):
         """Test graceful degradation when dependencies fail."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create dependency chain where first agent fails
@@ -1584,7 +1568,6 @@ class TestOrchestratorHealthChecks:
     @pytest.mark.asyncio
     async def test_agent_health_check_failure(self, simple_graph_engine):
         """Test agent health check failure handling."""
-        from cognivault.agents.registry import AgentRegistry
 
         # Create agent that will fail health check and add to graph engine
         unhealthy_agent = MockAgent("unhealthy_agent")
@@ -1614,7 +1597,6 @@ class TestOrchestratorHealthChecks:
     @pytest.mark.asyncio
     async def test_health_check_routing_decisions(self, simple_graph_engine):
         """Test conditional routing for health check failures."""
-        from cognivault.agents.registry import AgentRegistry
 
         # Create multiple agents with mixed health and add to graph engine
         healthy_agent = MockAgent("healthy_agent")
@@ -1660,7 +1642,6 @@ class TestOrchestratorObservability:
     @pytest.mark.asyncio
     async def test_execution_state_tracking(self, orchestrator):
         """Test complex execution state tracking across multiple failures."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create mixed scenario with success, failure, and degradation
@@ -1743,7 +1724,6 @@ class TestOrchestratorObservability:
     @pytest.mark.asyncio
     async def test_mixed_failure_strategies(self, orchestrator):
         """Test pipeline with agents having different failure strategies."""
-        from cognivault.agents.registry import AgentRegistry
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create agents with different failure behaviors

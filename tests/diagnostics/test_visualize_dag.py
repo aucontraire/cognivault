@@ -13,8 +13,7 @@ This module tests the DAG visualization functionality including:
 import pytest
 import tempfile
 import os
-from unittest.mock import patch, mock_open, MagicMock
-from io import StringIO
+from unittest.mock import patch, MagicMock
 
 from cognivault.diagnostics.visualize_dag import (
     DAGVisualizationConfig,

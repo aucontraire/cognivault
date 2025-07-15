@@ -1,18 +1,12 @@
 """Tests for LangGraphOrchestrator."""
 
 import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Dict, Any, List, Optional
+from unittest.mock import Mock, AsyncMock, patch
 
 from cognivault.context import AgentContext
 from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.langraph.node_wrappers import NodeExecutionError
 from cognivault.langraph.state_schemas import (
-    CogniVaultState,
-    RefinerOutput,
-    CriticOutput,
-    SynthesisOutput,
     create_initial_state,
 )
 
@@ -728,9 +722,13 @@ class TestIntegration:
         """Test error handling integration."""
         orchestrator = LangGraphOrchestrator()
 
-        # Mock graph compilation failure
-        with patch("cognivault.langraph.orchestrator.StateGraph") as mock_state_graph:
-            mock_state_graph.side_effect = RuntimeError("StateGraph creation failed")
+        # Mock graph compilation failure by mocking the GraphFactory
+        with patch(
+            "cognivault.langraph.orchestrator.GraphFactory"
+        ) as mock_graph_factory:
+            mock_graph_factory.return_value.create_graph.side_effect = RuntimeError(
+                "Graph creation failed"
+            )
 
             with pytest.raises(NodeExecutionError):
                 await orchestrator.run("Test query")

@@ -8,7 +8,6 @@ and correlation context propagation work end-to-end.
 
 import asyncio
 import pytest
-from typing import Dict, Any, List
 from unittest.mock import Mock, AsyncMock
 
 from cognivault.context import AgentContext
@@ -16,12 +15,9 @@ from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
 from cognivault.events import (
     get_global_event_emitter,
-    EventType,
-    AgentExecutionStartedEvent,
-    AgentExecutionCompletedEvent,
 )
 from cognivault.events.sinks import InMemoryEventSink
-from cognivault.correlation import trace, get_correlation_id, get_workflow_id
+from cognivault.correlation import trace
 
 
 class MockAgent(BaseAgent):

@@ -5,10 +5,8 @@ This module provides comprehensive validation, testing, and certification
 capabilities for custom graph patterns with semantic validation integration.
 """
 
-import asyncio
 import inspect
-import importlib
-from typing import Dict, List, Optional, Any, Type, Callable, Set, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -20,13 +18,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.tree import Tree
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
 
 # from cognivault.langgraph_backend.semantic_validation import SemanticValidator
-from cognivault.context import AgentContext
 
 
 class ValidationLevel(Enum):
@@ -688,7 +683,6 @@ class PatternValidationFramework:
         """Load a pattern from path."""
         import importlib.util
         import sys
-        from pathlib import Path
 
         # Handle different path formats
         if pattern_path in ["standard", "parallel", "conditional"]:

@@ -8,10 +8,8 @@ integration with LangGraph MemorySaver.
 
 import pytest
 import json
-import uuid
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, patch, MagicMock
-from typing import Dict, Any, Optional
+from unittest.mock import Mock, patch
 
 from cognivault.langraph.memory_manager import (
     CogniVaultMemoryManager,
@@ -19,7 +17,7 @@ from cognivault.langraph.memory_manager import (
     CheckpointInfo,
     create_memory_manager,
 )
-from cognivault.langraph.state_schemas import CogniVaultState, create_initial_state
+from cognivault.langraph.state_schemas import create_initial_state
 
 
 @pytest.fixture

@@ -9,27 +9,23 @@ import asyncio
 import time
 import json
 import uuid
-from typing import Dict, List, Optional, Any, Tuple, Callable, Set
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
 from enum import Enum
 
 import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.tree import Tree
 from rich.progress import (
     Progress,
     BarColumn,
     TextColumn,
     SpinnerColumn,
-    TimeElapsedColumn,
 )
-from rich.live import Live
 
 from cognivault.context import AgentContext
 from cognivault.langraph.orchestrator import LangGraphOrchestrator
@@ -871,7 +867,7 @@ class PatternTestRunner:
                 PatternTestCase(
                     test_id=f"performance_{i + 1}",
                     name=f"Performance Test {i + 1}",
-                    description=f"Performance benchmark test",
+                    description="Performance benchmark test",
                     test_type=PatternTestType.PERFORMANCE,
                     pattern_name=Path(pattern_path).stem,
                     agents=["refiner", "critic", "synthesis"],

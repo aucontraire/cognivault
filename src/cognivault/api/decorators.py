@@ -6,13 +6,10 @@ and circuit breaker patterns for API resilience.
 """
 
 import time
-import asyncio
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
 from typing import Callable, Dict, Any, Optional
-from datetime import datetime, timedelta
 
 from cognivault.observability import get_logger
 
@@ -149,7 +146,7 @@ class CircuitBreaker:
                 # Move to half-open to test recovery
                 self.state = CircuitState.HALF_OPEN
                 logger.info(
-                    f"Circuit breaker moving to HALF_OPEN state for recovery test"
+                    "Circuit breaker moving to HALF_OPEN state for recovery test"
                 )
                 return True
             return False

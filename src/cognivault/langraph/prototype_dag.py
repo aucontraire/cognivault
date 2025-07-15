@@ -12,12 +12,10 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
 from cognivault.context import AgentContext
-from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
 from cognivault.config.openai_config import OpenAIConfig
 from cognivault.llm.openai import OpenAIChatLLM
 from cognivault.observability import get_logger
-from cognivault.exceptions import PipelineExecutionError, StateTransitionError
 
 from .adapter import (
     LangGraphNodeAdapter,
@@ -26,7 +24,6 @@ from .adapter import (
     NodeConfiguration,
 )
 from .graph_builder import GraphBuilder, GraphEdge, EdgeType, GraphDefinition
-from .routing import ConditionalRouter, SuccessFailureRouter
 
 logger = get_logger(__name__)
 
@@ -536,7 +533,7 @@ async def run_prototype_demo(
     result = await executor.execute_refiner_critic_dag(query, config)
 
     # Log summary
-    logger.info(f"Demo execution completed:")
+    logger.info("Demo execution completed:")
     logger.info(f"  Success: {result.success}")
     logger.info(f"  Execution time: {result.total_execution_time_ms:.2f}ms")
     logger.info(f"  Nodes executed: {result.nodes_executed}")

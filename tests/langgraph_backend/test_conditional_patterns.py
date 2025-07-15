@@ -6,9 +6,7 @@ and semantic validation integration of the enhanced conditional pattern system.
 """
 
 import pytest
-import time
 from unittest.mock import Mock, patch
-from typing import List, Dict, Any
 
 from cognivault.langgraph_backend.graph_patterns.conditional import (
     EnhancedConditionalPattern,
@@ -16,14 +14,9 @@ from cognivault.langgraph_backend.graph_patterns.conditional import (
     ContextAnalyzer,
     ContextComplexity,
     RoutingStrategy,
-    RoutingConfig,
     PerformanceTracker,
     FallbackManager,
     FallbackRule,
-)
-from cognivault.langgraph_backend.semantic_validation import (
-    ValidationResult,
-    ValidationSeverity,
 )
 
 

@@ -7,10 +7,9 @@ testing and development.
 """
 
 import json
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
 
 from cognivault.observability import get_logger
@@ -265,8 +264,6 @@ def create_file_sink(
     filters = None
 
     if event_types or agent_names:
-        from .types import EventType
-
         filters = EventFilters()
 
         if event_types:

@@ -7,15 +7,12 @@ ensuring all features are preserved and round-trip integrity is maintained.
 
 import pytest
 import time
-from unittest.mock import Mock, patch
-from typing import Dict, Any
+from unittest.mock import patch
 
 from cognivault.context import AgentContext
 from cognivault.langraph.state_bridge import (
     AgentContextStateBridge,
-    StateBridgeError,
     StateConversionError,
-    StateValidationError,
 )
 
 
@@ -465,7 +462,6 @@ class TestAgentContextStateBridge:
     def test_state_bridge_thread_safety(self):
         """Test that state bridge operations are thread-safe."""
         import threading
-        import time
 
         # Arrange
         contexts = []

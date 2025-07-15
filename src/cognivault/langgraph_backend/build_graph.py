@@ -6,12 +6,10 @@ node addition, edge definition, and compilation. It separates these concerns
 from orchestration logic for better maintainability and testability.
 """
 
-import logging
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 
 from cognivault.langraph.state_schemas import CogniVaultState
 from cognivault.langraph.node_wrappers import (
@@ -19,7 +17,6 @@ from cognivault.langraph.node_wrappers import (
     critic_node,
     historian_node,
     synthesis_node,
-    get_node_dependencies,
 )
 from cognivault.langraph.memory_manager import CogniVaultMemoryManager
 from cognivault.observability import get_logger

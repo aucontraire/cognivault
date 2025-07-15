@@ -6,7 +6,6 @@ Comprehensive test coverage for the production API implementation.
 
 import pytest
 import uuid
-import os
 import time
 from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timezone

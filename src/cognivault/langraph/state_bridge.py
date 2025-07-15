@@ -12,10 +12,8 @@ Key Features:
 - Comprehensive error handling
 """
 
-import json
 import time
-from typing import Dict, Any, Optional, List, Set
-from dataclasses import asdict
+from typing import Dict, Any
 
 from cognivault.context import AgentContext
 from cognivault.observability import get_logger

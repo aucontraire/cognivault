@@ -279,7 +279,6 @@ class TestLangGraphInstallation:
     def test_langgraph_pydantic_compatibility(self) -> None:
         """Test that LangGraph works with Pydantic v2."""
         # Arrange
-        from langgraph.graph import StateGraph
         from pydantic import BaseModel
         import pydantic
 

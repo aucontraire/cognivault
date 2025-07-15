@@ -18,7 +18,6 @@ from .base import GraphPattern
 from ..semantic_validation import (
     SemanticValidator,
     ValidationResult,
-    ValidationIssue,
     ValidationSeverity,
 )
 
@@ -1129,7 +1128,7 @@ class ConditionalPatternValidator(SemanticValidator):
             result.add_issue(
                 ValidationSeverity.ERROR,
                 f"Strategy {strategy.value} requires at least {requirements['min_agents']} agents, got {len(agents)}",
-                suggestion=f"Add more agents or use a different strategy",
+                suggestion="Add more agents or use a different strategy",
             )
 
         if len(agents) > requirements["max_agents"]:

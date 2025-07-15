@@ -8,7 +8,7 @@ resource allocation, and concurrency control.
 import pytest
 import asyncio
 import time
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import patch
 
 from cognivault.dependencies.graph_engine import ExecutionPriority, ResourceConstraint
 from cognivault.dependencies.resource_scheduler import (
@@ -18,7 +18,6 @@ from cognivault.dependencies.resource_scheduler import (
     ResourceAllocation,
     ResourceType,
     SchedulingPolicy,
-    ResourceState,
     PriorityQueue,
 )
 

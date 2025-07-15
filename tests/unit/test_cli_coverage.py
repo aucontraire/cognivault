@@ -6,7 +6,6 @@ Focuses on untested code paths and edge cases.
 
 import pytest
 import os
-import sys
 import tempfile
 import json
 from unittest.mock import patch, Mock, AsyncMock

@@ -8,7 +8,6 @@ topic taxonomy, and all related utility functions for metadata management.
 import pytest
 import uuid
 from datetime import datetime
-from typing import Dict, Any
 
 from cognivault.store.frontmatter import (
     EnhancedFrontmatter,

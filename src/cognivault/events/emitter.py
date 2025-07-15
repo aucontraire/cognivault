@@ -7,13 +7,13 @@ and correlation context propagation.
 """
 
 import os
-import asyncio
-from typing import List, Optional, Dict, Any, Union, TYPE_CHECKING
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime, timezone
 
 from cognivault.observability import get_logger
-from cognivault.correlation import get_correlation_id, get_workflow_id
+from cognivault.correlation import get_correlation_id
 from cognivault.agents.metadata import AgentMetadata
+from cognivault.routing.routing_decision import RoutingDecision
 
 if TYPE_CHECKING:
     from .sinks import EventSink
@@ -279,6 +279,62 @@ async def emit_routing_decision(
         confidence_score=confidence_score,
         reasoning=reasoning or {},
         metadata=metadata or {},
+    )
+
+    await emitter.emit(event)
+
+
+async def emit_routing_decision_from_object(
+    routing_decision: "RoutingDecision",
+    workflow_id: str,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit routing decision event from RoutingDecision object.
+
+    Parameters
+    ----------
+    routing_decision : RoutingDecision
+        The routing decision object to emit
+    workflow_id : str
+        Workflow identifier
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    # Import here to avoid circular imports
+
+    emitter = get_global_event_emitter()
+
+    # Create enhanced event with full routing decision data
+    event = RoutingDecisionEvent(
+        event_type=EventType.ROUTING_DECISION_MADE,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        selected_agents=routing_decision.selected_agents,
+        routing_strategy=routing_decision.routing_strategy,
+        confidence_score=routing_decision.confidence_score,
+        reasoning=routing_decision.reasoning.to_dict(),
+        metadata={
+            **(metadata or {}),
+            "decision_id": routing_decision.decision_id,
+            "confidence_level": routing_decision.confidence_level.value,
+            "available_agents": routing_decision.available_agents,
+            "excluded_agents": routing_decision.get_excluded_agents(),
+            "execution_order": routing_decision.execution_order,
+            "parallel_groups": routing_decision.parallel_groups,
+            "entry_point": routing_decision.entry_point,
+            "exit_points": routing_decision.exit_points,
+            "estimated_total_time_ms": routing_decision.estimated_total_time_ms,
+            "estimated_success_probability": routing_decision.estimated_success_probability,
+            "optimization_opportunities": routing_decision.optimization_opportunities,
+            "is_high_confidence": routing_decision.is_high_confidence(),
+            "is_risky": routing_decision.is_risky(),
+            "has_fallbacks": routing_decision.has_fallbacks(),
+        },
     )
 
     await emitter.emit(event)

@@ -8,7 +8,7 @@ LangGraph DAG structures with rich visualization and navigation capabilities.
 import asyncio
 import json
 import time
-from typing import Dict, List, Optional, Any, Tuple, Set
+from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -17,18 +17,10 @@ from rich.console import Console
 from rich.table import Table
 from rich.tree import Tree
 from rich.panel import Panel
-from rich.text import Text
-from rich.prompt import Prompt, Confirm
-from rich.layout import Layout
-from rich.live import Live
+from rich.prompt import Prompt
 
-from cognivault.context import AgentContext
 from cognivault.langraph.orchestrator import LangGraphOrchestrator
 from cognivault.langgraph_backend.build_graph import GraphFactory, GraphConfig
-from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
-from cognivault.langgraph_backend.graph_patterns.conditional import (
-    EnhancedConditionalPattern,
-)
 
 
 class ExplorationMode(Enum):
@@ -470,7 +462,7 @@ class InteractiveDAGExplorer:
 
             return execution
 
-        except Exception as e:
+        except Exception:
             return DAGExecution(
                 execution_id=execution_id,
                 nodes_executed=[],

@@ -497,7 +497,7 @@ class LangGraphConfigManager:
         issues = config.validate()
         if issues:
             raise ValueError(
-                f"Configuration validation failed:\n"
+                "Configuration validation failed:\n"
                 + "\n".join(f"  - {issue}" for issue in issues)
             )
 

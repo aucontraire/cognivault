@@ -3,7 +3,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
 from cognivault.context import AgentContext
@@ -16,8 +16,6 @@ from cognivault.exceptions import (
 from cognivault.correlation import (
     get_correlation_id,
     get_workflow_id,
-    create_child_span,
-    add_trace_metadata,
 )
 
 # Event emission imports

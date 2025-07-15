@@ -23,6 +23,7 @@ from .emitter import (
     emit_agent_execution_started,
     emit_agent_execution_completed,
     emit_routing_decision,
+    emit_routing_decision_from_object,
 )
 from .sinks import (
     EventSink,
@@ -48,6 +49,7 @@ __all__ = [
     "emit_agent_execution_started",
     "emit_agent_execution_completed",
     "emit_routing_decision",
+    "emit_routing_decision_from_object",
     # Event sinks
     "EventSink",
     "FileEventSink",

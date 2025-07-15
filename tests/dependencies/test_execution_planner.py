@@ -7,7 +7,6 @@ and stage management.
 
 import pytest
 import time
-from unittest.mock import Mock, MagicMock
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent

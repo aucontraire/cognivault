@@ -8,10 +8,8 @@ benchmarking, performance monitoring, and optimization suggestions.
 import pytest
 import json
 import time
-import asyncio
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timezone
-from pathlib import Path
 
 from cognivault.diagnostics.profiler import (
     PerformanceProfiler,

@@ -1,9 +1,8 @@
 """Integration tests for langgraph_backend module."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import time
-from typing import Any, Dict, List
 
 from cognivault.langgraph_backend import (
     GraphFactory,
@@ -11,13 +10,6 @@ from cognivault.langgraph_backend import (
     GraphBuildError,
     CacheConfig,
 )
-from cognivault.langgraph_backend.graph_patterns import (
-    StandardPattern,
-    ParallelPattern,
-    ConditionalPattern,
-    PatternRegistry,
-)
-from cognivault.langgraph_backend.graph_cache import GraphCache
 
 
 class TestLangGraphBackendIntegration:

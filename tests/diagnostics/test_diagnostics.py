@@ -6,7 +6,6 @@ coordination between health checks and metrics collection.
 """
 
 import pytest
-import psutil
 from datetime import datetime, timedelta
 from unittest.mock import patch
 

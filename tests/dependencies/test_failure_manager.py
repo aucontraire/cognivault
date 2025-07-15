@@ -7,12 +7,9 @@ circuit breakers, and recovery mechanisms.
 
 import pytest
 import time
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
-from cognivault.exceptions import PipelineExecutionError
 from cognivault.dependencies.graph_engine import (
     DependencyGraphEngine,
     DependencyNode,

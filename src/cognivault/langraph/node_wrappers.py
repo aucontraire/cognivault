@@ -18,7 +18,6 @@ Design Principles:
 
 import asyncio
 import time
-import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from functools import wraps
@@ -33,7 +32,6 @@ from cognivault.langraph.state_schemas import (
     CriticOutput,
     HistorianOutput,
     SynthesisOutput,
-    set_agent_output,
     record_agent_error,
 )
 from cognivault.observability import get_logger
@@ -112,7 +110,7 @@ def circuit_breaker(max_failures: int = 3, reset_timeout: float = 300.0):
                 _sync_state()
                 return result
 
-            except Exception as e:
+            except Exception:
                 circuit_state["failure_count"] += 1
                 circuit_state["last_failure_time"] = time.time()
 
