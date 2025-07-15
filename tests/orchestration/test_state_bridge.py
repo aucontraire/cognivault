@@ -10,7 +10,7 @@ import time
 from unittest.mock import patch
 
 from cognivault.context import AgentContext
-from cognivault.langraph.state_bridge import (
+from cognivault.orchestration.state_bridge import (
     AgentContextStateBridge,
     StateConversionError,
 )
@@ -246,7 +246,7 @@ class TestAgentContextStateBridge:
         context = AgentContext(query="Test query", context_id="error-123")
 
         # Act with mocked serialization failure
-        with patch("cognivault.langraph.state_bridge.dict") as mock_dict:
+        with patch("cognivault.orchestration.state_bridge.dict") as mock_dict:
             mock_dict.side_effect = Exception("Serialization failed")
 
             with pytest.raises(StateConversionError) as exc_info:
@@ -360,7 +360,7 @@ class TestAgentContextStateBridge:
         context = AgentContext(query="Test query", context_id="snap-error-123")
 
         # Act with mocked error
-        with patch("cognivault.langraph.state_bridge.hasattr") as mock_hasattr:
+        with patch("cognivault.orchestration.state_bridge.hasattr") as mock_hasattr:
             mock_hasattr.side_effect = Exception("Serialization error")
 
             snapshots = AgentContextStateBridge._serialize_snapshots(context)

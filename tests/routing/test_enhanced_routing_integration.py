@@ -361,7 +361,7 @@ class TestEndToEndRoutingIntegration:
     async def test_orchestrator_routing_integration(self):
         """Test orchestrator integration with enhanced routing."""
         # Import here to avoid circular imports
-        from cognivault.langraph.orchestrator import LangGraphOrchestrator
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 
         # Create orchestrator with enhanced routing
         orchestrator = LangGraphOrchestrator(
@@ -408,7 +408,7 @@ class TestEndToEndRoutingIntegration:
 
     def test_routing_statistics_collection(self):
         """Test routing statistics collection."""
-        from cognivault.langraph.orchestrator import LangGraphOrchestrator
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 
         orchestrator = LangGraphOrchestrator(
             use_enhanced_routing=True,
@@ -423,7 +423,7 @@ class TestEndToEndRoutingIntegration:
 
     def test_agent_performance_updates(self):
         """Test agent performance metric updates."""
-        from cognivault.langraph.orchestrator import LangGraphOrchestrator
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 
         orchestrator = LangGraphOrchestrator(
             use_enhanced_routing=True,

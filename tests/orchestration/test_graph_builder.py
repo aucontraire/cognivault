@@ -10,7 +10,7 @@ from cognivault.agents.base_agent import (
     BaseAgent,
     NodeType,
 )
-from cognivault.langraph.graph_builder import (
+from cognivault.orchestration.graph_builder import (
     GraphBuilder,
     GraphEdge,
     EdgeType,

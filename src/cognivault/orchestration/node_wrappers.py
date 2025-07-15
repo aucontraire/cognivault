@@ -25,8 +25,8 @@ from functools import wraps
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
-from cognivault.langraph.state_bridge import AgentContextStateBridge
-from cognivault.langraph.state_schemas import (
+from cognivault.orchestration.state_bridge import AgentContextStateBridge
+from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     RefinerOutput,
     CriticOutput,

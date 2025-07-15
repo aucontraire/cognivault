@@ -19,7 +19,7 @@ from cognivault.llm.factory import LLMFactory
 from cognivault.llm.provider_enum import LLMProvider
 
 
-async def demo_langraph_interface():
+async def demo_orchestration_interface():
     """Demonstrate the LangGraph-compatible invoke() interface."""
     print("🔗 CogniVault LangGraph Interface Demo")
     print("=" * 50)
@@ -52,14 +52,14 @@ async def demo_langraph_interface():
 
     # Test invoke with configuration
     config = {
-        "step_id": "demo_langraph_step_001",
+        "step_id": "demo_orchestration_step_001",
         "timeout_seconds": 45.0,  # Override default timeout
     }
 
     result2 = await refiner.invoke(context2, config=config)
 
     print(f"✅ Agent executed with custom config")
-    print(f"🔧 Custom step_id used: demo_langraph_step_001")
+    print(f"🔧 Custom step_id used: demo_orchestration_step_001")
     print(f"⏱️ Timeout override applied and restored")
     print(f"📊 Total executions: {refiner.execution_count}")
 
@@ -147,4 +147,4 @@ async def demo_langraph_interface():
 
 
 if __name__ == "__main__":
-    asyncio.run(demo_langraph_interface())
+    asyncio.run(demo_orchestration_interface())

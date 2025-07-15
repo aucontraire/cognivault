@@ -12,7 +12,7 @@ from unittest.mock import patch
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent, LangGraphNodeDefinition
 from cognivault.exceptions import AgentExecutionError, StateTransitionError
-from cognivault.langraph.adapter import (
+from cognivault.orchestration.adapter import (
     StandardNodeAdapter,
     ConditionalNodeAdapter,
     NodeConfiguration,

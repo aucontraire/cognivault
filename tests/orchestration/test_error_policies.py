@@ -11,7 +11,7 @@ import asyncio
 import time
 from unittest.mock import Mock, AsyncMock, patch
 
-from cognivault.langraph.error_policies import (
+from cognivault.orchestration.error_policies import (
     ErrorPolicyType,
     FallbackStrategy,
     RetryConfig,
@@ -454,7 +454,7 @@ class TestRetryDecorator:
         """Test non-retryable error fails immediately."""
         # Set up policy manager to only retry on ValueError
         with patch(
-            "cognivault.langraph.error_policies.get_error_policy_manager"
+            "cognivault.orchestration.error_policies.get_error_policy_manager"
         ) as mock_manager:
             mock_policy = ErrorPolicy(
                 policy_type=ErrorPolicyType.RETRY_WITH_BACKOFF,
@@ -603,7 +603,7 @@ class TestTimeoutDecorator:
 
         # Create policy with no timeout
         with patch(
-            "cognivault.langraph.error_policies.get_error_policy_manager"
+            "cognivault.orchestration.error_policies.get_error_policy_manager"
         ) as mock_manager:
             mock_policy = ErrorPolicy(
                 policy_type=ErrorPolicyType.RETRY_WITH_BACKOFF, timeout_seconds=None
@@ -629,7 +629,7 @@ class TestTimeoutDecorator:
 
         # Create policy with very short timeout
         with patch(
-            "cognivault.langraph.error_policies.get_error_policy_manager"
+            "cognivault.orchestration.error_policies.get_error_policy_manager"
         ) as mock_manager:
             mock_policy = ErrorPolicy(
                 policy_type=ErrorPolicyType.RETRY_WITH_BACKOFF,

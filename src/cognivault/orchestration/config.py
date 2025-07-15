@@ -383,19 +383,21 @@ class LangGraphConfigManager:
     """Manager for LangGraph configuration loading and validation."""
 
     DEFAULT_CONFIG_PATHS = [
-        "langraph.json",
-        "langraph.yaml",
-        "config/langraph.json",
-        "config/langraph.yaml",
-        ".cognivault/langraph.json",
-        ".cognivault/langraph.yaml",
+        "orchestration.json",
+        "orchestration.yaml",
+        "config/orchestration.json",
+        "config/orchestration.yaml",
+        ".cognivault/orchestration.json",
+        ".cognivault/orchestration.yaml",
     ]
 
     @classmethod
     def load_default_config(cls) -> LangGraphIntegrationConfig:
         """Load configuration from default locations."""
-        # Try environment variable first
-        config_path = os.getenv("COGNIVAULT_LANGRAPH_CONFIG")
+        # Try environment variable first (support both old and new names for backward compatibility)
+        config_path = os.getenv("COGNIVAULT_ORCHESTRATION_CONFIG") or os.getenv(
+            "COGNIVAULT_LANGRAPH_CONFIG"
+        )
         if config_path:
             try:
                 return LangGraphIntegrationConfig.load_from_file(config_path)
@@ -506,7 +508,7 @@ class LangGraphConfigManager:
 _global_config: Optional[LangGraphIntegrationConfig] = None
 
 
-def get_langraph_config() -> LangGraphIntegrationConfig:
+def get_orchestration_config() -> LangGraphIntegrationConfig:
     """Get the global LangGraph configuration."""
     global _global_config
     if _global_config is None:
@@ -514,14 +516,14 @@ def get_langraph_config() -> LangGraphIntegrationConfig:
     return _global_config
 
 
-def set_langraph_config(config: LangGraphIntegrationConfig) -> None:
+def set_orchestration_config(config: LangGraphIntegrationConfig) -> None:
     """Set the global LangGraph configuration."""
     global _global_config
     LangGraphConfigManager.validate_config(config)
     _global_config = config
 
 
-def reset_langraph_config() -> None:
+def reset_orchestration_config() -> None:
     """Reset the global LangGraph configuration to default."""
     global _global_config
     _global_config = None

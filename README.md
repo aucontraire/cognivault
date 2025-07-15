@@ -83,7 +83,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 CogniVault is organized into focused modules:
 
 - **`agents/`** - Core AI agents with specialized roles (Refiner, Historian, Critic, Synthesis)
-- **`langraph/`** - LangGraph orchestration, DAG execution, and state management
+- **`orchestration/`** - LangGraph orchestration, DAG execution, and state management
 - **`routing/`** - Enhanced intelligent routing system with performance optimization
 - **`events/`** - Event-driven architecture with workflow tracking and observability
 - **`langgraph_backend/`** - Graph building, compilation, and pattern management
@@ -281,7 +281,7 @@ graph_config = node_def.to_dict()
 Build and execute DAGs with automatic dependency resolution:
 
 ```python
-from cognivault.langraph.graph_builder import GraphBuilder, GraphExecutor
+from cognivault.orchestration.graph_builder import GraphBuilder, GraphExecutor
 
 # Build graph from agents
 builder = GraphBuilder()

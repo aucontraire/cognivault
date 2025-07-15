@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.exceptions import AgentExecutionError
-from cognivault.langraph.prototype_dag import (
+from cognivault.orchestration.prototype_dag import (
     PrototypeDAGExecutor,
     DAGExecutionResult,
     run_prototype_demo,
@@ -106,9 +106,9 @@ class TestPrototypeDAGExecutor:
         assert executor.max_execution_time_seconds == 120.0
 
     @pytest.mark.asyncio
-    @patch("cognivault.langraph.prototype_dag.get_agent_registry")
-    @patch("cognivault.langraph.prototype_dag.OpenAIConfig")
-    @patch("cognivault.langraph.prototype_dag.OpenAIChatLLM")
+    @patch("cognivault.orchestration.prototype_dag.get_agent_registry")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_successful_dag_execution(
         self, mock_llm_class, mock_config, mock_get_registry, mock_registry
     ):
@@ -138,9 +138,9 @@ class TestPrototypeDAGExecutor:
         assert executor.failed_executions == 0
 
     @pytest.mark.asyncio
-    @patch("cognivault.langraph.prototype_dag.get_agent_registry")
-    @patch("cognivault.langraph.prototype_dag.OpenAIConfig")
-    @patch("cognivault.langraph.prototype_dag.OpenAIChatLLM")
+    @patch("cognivault.orchestration.prototype_dag.get_agent_registry")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_dag_execution_with_failure(
         self, mock_llm_class, mock_config, mock_get_registry
     ):
@@ -180,9 +180,9 @@ class TestPrototypeDAGExecutor:
         assert executor.failed_executions == 1
 
     @pytest.mark.asyncio
-    @patch("cognivault.langraph.prototype_dag.get_agent_registry")
-    @patch("cognivault.langraph.prototype_dag.OpenAIConfig")
-    @patch("cognivault.langraph.prototype_dag.OpenAIChatLLM")
+    @patch("cognivault.orchestration.prototype_dag.get_agent_registry")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_partial_execution_success(
         self, mock_llm_class, mock_config, mock_get_registry
     ):
@@ -236,9 +236,9 @@ class TestPrototypeDAGExecutor:
         assert "configuration" in stats
 
     @pytest.mark.asyncio
-    @patch("cognivault.langraph.prototype_dag.get_agent_registry")
-    @patch("cognivault.langraph.prototype_dag.OpenAIConfig")
-    @patch("cognivault.langraph.prototype_dag.OpenAIChatLLM")
+    @patch("cognivault.orchestration.prototype_dag.get_agent_registry")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
+    @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_execution_with_custom_config(
         self, mock_llm_class, mock_config, mock_get_registry, mock_registry
     ):
@@ -348,7 +348,7 @@ class TestRunPrototypeDemo:
     """Test cases for the run_prototype_demo function."""
 
     @pytest.mark.asyncio
-    @patch("cognivault.langraph.prototype_dag.PrototypeDAGExecutor")
+    @patch("cognivault.orchestration.prototype_dag.PrototypeDAGExecutor")
     async def test_run_prototype_demo(self, mock_executor_class):
         """Test the prototype demo function."""
         # Setup mock executor
@@ -381,7 +381,7 @@ class TestRunPrototypeDemo:
         assert config["node_timeout_seconds"] == 30.0
 
     @pytest.mark.asyncio
-    @patch("cognivault.langraph.prototype_dag.PrototypeDAGExecutor")
+    @patch("cognivault.orchestration.prototype_dag.PrototypeDAGExecutor")
     async def test_run_prototype_demo_default_query(self, mock_executor_class):
         """Test the prototype demo with default query."""
         mock_executor = Mock()
@@ -405,8 +405,8 @@ class TestRunPrototypeDemo:
         assert "renewable energy" in call_args[0][0].lower()
 
     @pytest.mark.asyncio
-    @patch("cognivault.langraph.prototype_dag.logger")
-    @patch("cognivault.langraph.prototype_dag.PrototypeDAGExecutor")
+    @patch("cognivault.orchestration.prototype_dag.logger")
+    @patch("cognivault.orchestration.prototype_dag.PrototypeDAGExecutor")
     async def test_run_prototype_demo_logging(self, mock_executor_class, mock_logger):
         """Test that the demo function logs execution results."""
         mock_executor = Mock()
@@ -443,10 +443,12 @@ class TestDAGIntegration:
 
         with (
             patch(
-                "cognivault.langraph.prototype_dag.get_agent_registry"
+                "cognivault.orchestration.prototype_dag.get_agent_registry"
             ) as mock_get_registry,
-            patch("cognivault.langraph.prototype_dag.OpenAIConfig") as mock_config,
-            patch("cognivault.langraph.prototype_dag.OpenAIChatLLM") as mock_llm_class,
+            patch("cognivault.orchestration.prototype_dag.OpenAIConfig") as mock_config,
+            patch(
+                "cognivault.orchestration.prototype_dag.OpenAIChatLLM"
+            ) as mock_llm_class,
         ):
             # Setup mocks
             registry = Mock()

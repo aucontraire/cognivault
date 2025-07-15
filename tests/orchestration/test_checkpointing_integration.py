@@ -10,15 +10,15 @@ import pytest
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 
-from cognivault.langraph.memory_manager import (
+from cognivault.orchestration.memory_manager import (
     CogniVaultMemoryManager,
     CheckpointConfig,
 )
-from cognivault.langraph.error_policies import (
+from cognivault.orchestration.error_policies import (
     get_error_policy_manager,
 )
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
-from cognivault.langraph.state_schemas import create_initial_state
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.state_schemas import create_initial_state
 from cognivault.context import AgentContext
 
 
@@ -35,7 +35,7 @@ class TestMemoryManagerIntegration:
             checkpoint_ttl_hours=1,
         )
         with patch(
-            "cognivault.langraph.memory_manager.MemorySaver"
+            "cognivault.orchestration.memory_manager.MemorySaver"
         ) as mock_memory_saver:
             mock_memory_saver.return_value = Mock()
             yield CogniVaultMemoryManager(config)
@@ -50,7 +50,7 @@ class TestMemoryManagerIntegration:
     def mock_orchestrator_with_checkpoints(self, enabled_memory_manager):
         """Fixture for orchestrator with checkpointing enabled."""
         with patch.multiple(
-            "cognivault.langraph.orchestrator",
+            "cognivault.orchestration.orchestrator",
             get_agent_registry=Mock(),
             get_logger=Mock(return_value=Mock()),
         ):
@@ -71,7 +71,7 @@ class TestMemoryManagerIntegration:
     def mock_orchestrator_without_checkpoints(self, disabled_memory_manager):
         """Fixture for orchestrator with checkpointing disabled."""
         with patch.multiple(
-            "cognivault.langraph.orchestrator",
+            "cognivault.orchestration.orchestrator",
             get_agent_registry=Mock(),
             get_logger=Mock(return_value=Mock()),
         ):
@@ -357,7 +357,7 @@ class TestErrorPolicyIntegration:
 
     def test_error_statistics_integration(self, policy_manager):
         """Test error statistics integration."""
-        from cognivault.langraph.error_policies import get_error_statistics
+        from cognivault.orchestration.error_policies import get_error_statistics
 
         stats = get_error_statistics()
 
@@ -370,7 +370,7 @@ class TestErrorPolicyIntegration:
             assert "state" in historian_stats
             assert "failure_count" in historian_stats
 
-    @patch("cognivault.langraph.error_policies.get_error_policy_manager")
+    @patch("cognivault.orchestration.error_policies.get_error_policy_manager")
     def test_custom_error_policy_in_orchestrator(self, mock_get_manager):
         """Test custom error policy usage in orchestrator context."""
         # Create mock policy manager with custom policies
@@ -381,7 +381,7 @@ class TestErrorPolicyIntegration:
         mock_get_manager.return_value = mock_manager
 
         # Import function that uses the policy manager
-        from cognivault.langraph.error_policies import timeout_policy
+        from cognivault.orchestration.error_policies import timeout_policy
 
         # The decorator should use our mocked manager
         @timeout_policy("test_node")
@@ -404,12 +404,12 @@ class TestEndToEndIntegration:
         """Fixture for full orchestrator setup with mocked dependencies."""
         with (
             patch.multiple(
-                "cognivault.langraph.orchestrator",
+                "cognivault.orchestration.orchestrator",
                 get_agent_registry=Mock(),
                 get_logger=Mock(return_value=Mock()),
             ),
             patch(
-                "cognivault.langraph.memory_manager.MemorySaver"
+                "cognivault.orchestration.memory_manager.MemorySaver"
             ) as mock_memory_saver,
         ):
             mock_memory_saver.return_value = Mock()

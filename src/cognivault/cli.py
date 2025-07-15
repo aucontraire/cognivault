@@ -21,7 +21,7 @@ except ImportError:
 
 from cognivault.config.logging_config import setup_logging
 from cognivault.config.openai_config import OpenAIConfig
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.topic_manager import TopicManager
 from cognivault.llm.openai import OpenAIChatLLM

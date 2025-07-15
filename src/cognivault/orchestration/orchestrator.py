@@ -31,8 +31,8 @@ from cognivault.events import (
     emit_workflow_completed,
     emit_routing_decision_from_object,
 )
-from cognivault.langraph.state_bridge import AgentContextStateBridge
-from cognivault.langraph.state_schemas import (
+from cognivault.orchestration.state_bridge import AgentContextStateBridge
+from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     RefinerOutput,
     CriticOutput,
@@ -41,11 +41,11 @@ from cognivault.langraph.state_schemas import (
     create_initial_state,
     validate_state_integrity,
 )
-from cognivault.langraph.node_wrappers import (
+from cognivault.orchestration.node_wrappers import (
     NodeExecutionError,
     get_node_dependencies,
 )
-from cognivault.langraph.memory_manager import (
+from cognivault.orchestration.memory_manager import (
     CogniVaultMemoryManager,
     create_memory_manager,
 )
