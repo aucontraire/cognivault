@@ -36,6 +36,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🧠 **Multi-agent orchestration**: Four specialized agents (Refiner, Historian, Critic, Synthesis) for structured thought reflection
 - 🔁 **LangGraph-powered execution**: Production DAG-based orchestration with checkpointing and conversation rollback
 - 🧠 **Enhanced intelligent routing**: Algorithm-driven agent selection with performance optimization and constraint validation
+- 🌊 **Event-driven architecture**: Comprehensive event system with workflow tracking, metrics collection, and observability
 - 📄 **Markdown-ready output**: Integration-friendly output for personal wikis and knowledge management systems
 - 🔄 **Swappable LLM backends**: Plug-and-play support for OpenAI or stubs via configuration
 
@@ -84,6 +85,7 @@ CogniVault is organized into focused modules:
 - **`agents/`** - Core AI agents with specialized roles (Refiner, Historian, Critic, Synthesis)
 - **`langraph/`** - LangGraph orchestration, DAG execution, and state management
 - **`routing/`** - Enhanced intelligent routing system with performance optimization
+- **`events/`** - Event-driven architecture with workflow tracking and observability
 - **`langgraph_backend/`** - Graph building, compilation, and pattern management
 - **`api/`** - External/internal API boundaries for service extraction
 - **`diagnostics/`** - Rich CLI tools, observability framework, and pattern validation
@@ -91,6 +93,41 @@ CogniVault is organized into focused modules:
 - **`exceptions/`** - Comprehensive exception hierarchy with agent isolation
 - **`llm/`** - Swappable LLM backend abstraction (OpenAI, stubs)
 - **`observability/`** - Structured logging, metrics, and correlation tracking
+
+---
+
+## 🌊 Event-Driven Architecture
+
+CogniVault features a comprehensive event system for observability and future service extraction:
+
+### Event Types
+
+- **Workflow Events**: Lifecycle tracking (started, completed, failed, cancelled)
+- **Agent Execution Events**: Individual agent performance and status monitoring
+- **Routing Events**: Decision tracking with confidence scoring and reasoning
+- **Performance Events**: Metrics collection and health check monitoring
+- **API Events**: Service boundary tracking for future microservice extraction
+
+### Event Features
+
+- **Multi-axis Agent Classification**: Enhanced metadata with task classification and capability tracking
+- **Correlation Context**: Full tracing with correlation IDs and parent span tracking
+- **Production-Ready Sinks**: File, console, and in-memory event storage options
+- **Event Filtering & Statistics**: Comprehensive querying and analytics capabilities
+- **Serialization Support**: JSON-compatible event data for storage and transmission
+
+### Usage
+
+```python
+from cognivault.events import (
+    emit_workflow_started,
+    emit_agent_execution_completed,
+    get_global_event_emitter
+)
+
+# Events are automatically emitted during workflow execution
+# Custom event sinks can be configured for monitoring integration
+```
 
 ---
 
