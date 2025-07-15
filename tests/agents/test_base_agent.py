@@ -780,7 +780,7 @@ def test_node_output_schema():
     assert output_schema.type_hint == "AgentContext"
 
 
-def test_langraph_node_definition():
+def test_langgraph_node_definition():
     """Test LangGraphNodeDefinition creation and to_dict method."""
     inputs = [NodeInputSchema("context", "Input context", True, "AgentContext")]
     outputs = [NodeOutputSchema("context", "Output context", "AgentContext")]

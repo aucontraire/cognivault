@@ -28,7 +28,7 @@ from rich.progress import (
 )
 
 from cognivault.context import AgentContext
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 
 
 @dataclass

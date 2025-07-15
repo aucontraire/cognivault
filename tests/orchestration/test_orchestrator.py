@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
 from cognivault.context import AgentContext
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
-from cognivault.langraph.node_wrappers import NodeExecutionError
-from cognivault.langraph.state_schemas import (
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.node_wrappers import NodeExecutionError
+from cognivault.orchestration.state_schemas import (
     create_initial_state,
 )
 
@@ -55,7 +55,7 @@ class TestLangGraphOrchestrator:
 
     def test_initialization_logging(self):
         """Test that initialization logs appropriate messages."""
-        with patch("cognivault.langraph.orchestrator.get_logger") as mock_logger:
+        with patch("cognivault.orchestration.orchestrator.get_logger") as mock_logger:
             mock_logger_instance = Mock()
             mock_logger.return_value = mock_logger_instance
 
@@ -265,14 +265,14 @@ class TestLangGraphOrchestratorRun:
         orchestrator = LangGraphOrchestrator()
 
         with patch(
-            "cognivault.langraph.orchestrator.create_initial_state"
+            "cognivault.orchestration.orchestrator.create_initial_state"
         ) as mock_create:
             # Create invalid state
             invalid_state = {}
             mock_create.return_value = invalid_state
 
             with patch(
-                "cognivault.langraph.orchestrator.validate_state_integrity",
+                "cognivault.orchestration.orchestrator.validate_state_integrity",
                 return_value=False,
             ):
                 with pytest.raises(
@@ -341,7 +341,7 @@ class TestGetCompiledGraph:
     async def test_get_compiled_graph_with_checkpoints(self):
         """Test getting compiled graph with checkpoints using GraphFactory."""
         with patch(
-            "cognivault.langraph.memory_manager.MemorySaver"
+            "cognivault.orchestration.memory_manager.MemorySaver"
         ) as mock_memory_saver:
             mock_checkpointer = Mock()
             mock_memory_saver.return_value = mock_checkpointer
@@ -584,7 +584,7 @@ class TestGetDagStructure:
         orchestrator = LangGraphOrchestrator()
 
         with patch(
-            "cognivault.langraph.orchestrator.get_node_dependencies"
+            "cognivault.orchestration.orchestrator.get_node_dependencies"
         ) as mock_deps:
             mock_deps.return_value = {
                 "refiner": [],
@@ -618,7 +618,7 @@ class TestGetDagStructure:
         orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
 
         with patch(
-            "cognivault.langraph.orchestrator.get_node_dependencies"
+            "cognivault.orchestration.orchestrator.get_node_dependencies"
         ) as mock_deps:
             mock_deps.return_value = {
                 "refiner": [],
@@ -724,7 +724,7 @@ class TestIntegration:
 
         # Mock graph compilation failure by mocking the GraphFactory
         with patch(
-            "cognivault.langraph.orchestrator.GraphFactory"
+            "cognivault.orchestration.orchestrator.GraphFactory"
         ) as mock_graph_factory:
             mock_graph_factory.return_value.create_graph.side_effect = RuntimeError(
                 "Graph creation failed"

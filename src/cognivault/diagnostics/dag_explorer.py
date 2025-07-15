@@ -19,7 +19,7 @@ from rich.tree import Tree
 from rich.panel import Panel
 from rich.prompt import Prompt
 
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.langgraph_backend.build_graph import GraphFactory, GraphConfig
 
 

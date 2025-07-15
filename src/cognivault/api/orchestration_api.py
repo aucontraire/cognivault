@@ -15,7 +15,7 @@ from cognivault.api.external import OrchestrationAPI
 from cognivault.api.models import WorkflowRequest, WorkflowResponse, StatusResponse
 from cognivault.api.base import HealthStatus, APIStatus
 from cognivault.api.decorators import ensure_initialized
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.observability import get_logger
 from cognivault.api.events import emit_workflow_started, emit_workflow_completed
 

@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
-from cognivault.langraph.node_wrappers import (
+from cognivault.orchestration.node_wrappers import (
     refiner_node,
     critic_node,
     historian_node,
@@ -22,7 +22,7 @@ from cognivault.langraph.node_wrappers import (
     create_agent_with_llm,
     convert_state_to_context,
 )
-from cognivault.langraph.state_schemas import (
+from cognivault.orchestration.state_schemas import (
     create_initial_state,
     RefinerOutput,
     CriticOutput,
@@ -227,7 +227,7 @@ class TestNodeMetrics:
             await asyncio.sleep(0.01)  # Small delay for timing
             return "success"
 
-        with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+        with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
             result = await test_func()
             assert result == "success"
 
@@ -249,7 +249,7 @@ class TestNodeMetrics:
         async def test_func():
             raise RuntimeError("Test error")
 
-        with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+        with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
             with pytest.raises(RuntimeError):
                 await test_func()
 
@@ -270,7 +270,7 @@ class TestNodeMetrics:
             await asyncio.sleep(0.01)
             return "success"
 
-        with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+        with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
             await test_func()
 
             # Check that timing is included in logs (should be > 0ms)
@@ -295,12 +295,14 @@ class TestCreateAgentWithLLM:
         mock_registry.create_agent.return_value = mock_agent
 
         with patch(
-            "cognivault.langraph.node_wrappers.get_agent_registry",
+            "cognivault.orchestration.node_wrappers.get_agent_registry",
             return_value=mock_registry,
         ):
-            with patch("cognivault.langraph.node_wrappers.OpenAIConfig") as mock_config:
+            with patch(
+                "cognivault.orchestration.node_wrappers.OpenAIConfig"
+            ) as mock_config:
                 with patch(
-                    "cognivault.langraph.node_wrappers.OpenAIChatLLM"
+                    "cognivault.orchestration.node_wrappers.OpenAIChatLLM"
                 ) as mock_llm_class:
                     # Setup mocks
                     mock_config_instance = Mock()
@@ -335,12 +337,14 @@ class TestCreateAgentWithLLM:
         mock_registry.create_agent.return_value = mock_agent
 
         with patch(
-            "cognivault.langraph.node_wrappers.get_agent_registry",
+            "cognivault.orchestration.node_wrappers.get_agent_registry",
             return_value=mock_registry,
         ):
-            with patch("cognivault.langraph.node_wrappers.OpenAIConfig") as mock_config:
+            with patch(
+                "cognivault.orchestration.node_wrappers.OpenAIConfig"
+            ) as mock_config:
                 with patch(
-                    "cognivault.langraph.node_wrappers.OpenAIChatLLM"
+                    "cognivault.orchestration.node_wrappers.OpenAIChatLLM"
                 ) as mock_llm_class:
                     mock_config_instance = Mock()
                     mock_config_instance.api_key = "test-key"
@@ -367,7 +371,7 @@ class TestConvertStateToContext:
         """Test basic state to context conversion."""
         state = create_initial_state("What is AI?", "exec-123")
 
-        with patch("cognivault.langraph.node_wrappers.AgentContextStateBridge"):
+        with patch("cognivault.orchestration.node_wrappers.AgentContextStateBridge"):
             context = await convert_state_to_context(state)
 
             assert isinstance(context, AgentContext)
@@ -389,7 +393,7 @@ class TestConvertStateToContext:
         }
         state["refiner"] = refiner_output
 
-        with patch("cognivault.langraph.node_wrappers.AgentContextStateBridge"):
+        with patch("cognivault.orchestration.node_wrappers.AgentContextStateBridge"):
             context = await convert_state_to_context(state)
 
             # Check that refiner output is added to context
@@ -416,7 +420,7 @@ class TestConvertStateToContext:
         }
         state["critic"] = critic_output
 
-        with patch("cognivault.langraph.node_wrappers.AgentContextStateBridge"):
+        with patch("cognivault.orchestration.node_wrappers.AgentContextStateBridge"):
             context = await convert_state_to_context(state)
 
             # Check that critic output is added to context
@@ -441,8 +445,8 @@ class TestConvertStateToContext:
             "timestamp": "2023-01-01T00:00:00",
         }
 
-        with patch("cognivault.langraph.node_wrappers.AgentContextStateBridge"):
-            with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+        with patch("cognivault.orchestration.node_wrappers.AgentContextStateBridge"):
+            with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
                 context = await convert_state_to_context(state)
 
                 # Should log warning for empty refined_question
@@ -462,7 +466,7 @@ class TestRefinerNode:
         mock_agent = MockAgent("Refiner", "AI is artificial intelligence")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
             result_state = await refiner_node(state)
@@ -484,7 +488,7 @@ class TestRefinerNode:
         mock_agent = MockAgent("Refiner", should_fail=True)
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Refiner execution failed"):
@@ -512,7 +516,7 @@ class TestCriticNode:
         mock_agent = MockAgent("Critic", "Good analysis")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
             result_state = await critic_node(state)
@@ -551,7 +555,7 @@ class TestCriticNode:
         mock_agent = MockAgent("Critic", should_fail=True)
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Critic execution failed"):
@@ -604,7 +608,7 @@ class TestSynthesisNode:
         mock_agent = MockAgent("Synthesis", "Final synthesis")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
             result_state = await synthesis_node(state)
@@ -725,7 +729,7 @@ class TestSynthesisNode:
         mock_agent = MockAgent("Synthesis", should_fail=True)
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Synthesis execution failed"):
@@ -803,7 +807,7 @@ class TestValidateNodeInput:
         state = create_initial_state("Test query", "exec-validate")
 
         # Missing refiner output
-        with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+        with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
             assert validate_node_input(state, "critic") is False
             mock_logger.warning.assert_called_once_with(
                 "Node critic missing required dependency: refiner"
@@ -855,7 +859,7 @@ class TestValidateNodeInput:
         state = create_initial_state("Test query", "exec-validate")
 
         # Missing both dependencies
-        with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+        with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
             assert validate_node_input(state, "synthesis") is False
 
             # Should log warnings for both missing dependencies
@@ -922,7 +926,7 @@ class TestIntegration:
                 raise ValueError(f"Unknown agent: {name}")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             side_effect=create_mock_agent,
         ):
             # Execute refiner
@@ -972,7 +976,7 @@ class TestIntegration:
                 raise ValueError(f"Unknown agent: {name}")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             side_effect=create_mock_agent,
         ):
             # Execute refiner (should succeed)
@@ -991,10 +995,10 @@ class TestIntegration:
         mock_agent = MockAgent("Refiner", "Test output")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
-            with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+            with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
                 # Execute node with both decorators
                 result_state = await refiner_node(state)
 

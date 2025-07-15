@@ -11,14 +11,14 @@ from dataclasses import dataclass
 
 from langgraph.graph import StateGraph, END
 
-from cognivault.langraph.state_schemas import CogniVaultState
-from cognivault.langraph.node_wrappers import (
+from cognivault.orchestration.state_schemas import CogniVaultState
+from cognivault.orchestration.node_wrappers import (
     refiner_node,
     critic_node,
     historian_node,
     synthesis_node,
 )
-from cognivault.langraph.memory_manager import CogniVaultMemoryManager
+from cognivault.orchestration.memory_manager import CogniVaultMemoryManager
 from cognivault.observability import get_logger
 
 from .graph_patterns import GraphPattern, PatternRegistry

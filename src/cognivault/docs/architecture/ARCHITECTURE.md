@@ -255,7 +255,7 @@ cognivault/
 ├── llm/              # LLMInterface + concrete implementations
 ├── orchestrator.py   # Orchestration engine
 ├── cli.py            # Command-line entrypoint
-├── langraph/         # LangGraph compatibility layer
+├── orchestration/         # LangGraph compatibility layer
 │   ├── graph_builder.py     # DAG construction and validation
 │   ├── routing.py           # Graph execution and routing
 │   ├── memory_manager.py    # LangGraph MemorySaver integration with thread ID scoping

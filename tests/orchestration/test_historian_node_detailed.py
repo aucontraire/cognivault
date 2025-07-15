@@ -18,13 +18,13 @@ from unittest.mock import patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
-from cognivault.langraph.state_schemas import (
+from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     RefinerOutput,
     create_initial_state,
     set_agent_output,
 )
-from cognivault.langraph.node_wrappers import (
+from cognivault.orchestration.node_wrappers import (
     historian_node,
     NodeExecutionError,
     circuit_breaker,
@@ -152,7 +152,7 @@ class TestHistorianNodeCircuitBreaker:
         failing_agent = ControlledHistorianAgent(behavior="failure")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
             # First failure
@@ -186,7 +186,7 @@ class TestHistorianNodeCircuitBreaker:
             return await original_historian_node.__wrapped__.__wrapped__(state)
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
             # Trigger circuit breaker
@@ -245,7 +245,7 @@ class TestHistorianNodeCircuitBreaker:
         agent = FailThenSucceedAgent()
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=agent,
         ):
             # First call should fail after exhausting retries
@@ -287,11 +287,11 @@ class TestHistorianNodeMetrics:
         success_agent = ControlledHistorianAgent(behavior="success")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
             # Capture log output to verify metrics
-            with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+            with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
                 result_state = await historian_node(initial_state)
 
                 # Verify success metrics were logged
@@ -314,10 +314,10 @@ class TestHistorianNodeMetrics:
         failing_agent = ControlledHistorianAgent(behavior="failure")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
-            with patch("cognivault.langraph.node_wrappers.logger") as mock_logger:
+            with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
                 with pytest.raises(NodeExecutionError):
                     await historian_node(initial_state)
 
@@ -347,7 +347,7 @@ class TestHistorianNodeMetrics:
         slow_agent = ControlledHistorianAgent(behavior="slow")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=slow_agent,
         ):
             start_time = time.time()
@@ -385,7 +385,7 @@ class TestHistorianNodeErrorHandling:
         memory_error_agent = ControlledHistorianAgent(behavior="memory_error")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=memory_error_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Historian execution failed"):
@@ -397,7 +397,7 @@ class TestHistorianNodeErrorHandling:
         timeout_agent = ControlledHistorianAgent(behavior="timeout_error")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=timeout_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Historian execution failed"):
@@ -409,7 +409,7 @@ class TestHistorianNodeErrorHandling:
         partial_failure_agent = ControlledHistorianAgent(behavior="partial_failure")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=partial_failure_agent,
         ):
             # First execution should succeed with partial data
@@ -436,11 +436,11 @@ class TestHistorianNodeErrorHandling:
         failing_agent = ControlledHistorianAgent(behavior="failure")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
             with patch(
-                "cognivault.langraph.node_wrappers.record_agent_error"
+                "cognivault.orchestration.node_wrappers.record_agent_error"
             ) as mock_record:
                 with pytest.raises(NodeExecutionError):
                     await historian_node(initial_state)
@@ -477,7 +477,7 @@ class TestHistorianNodeEdgeCases:
         success_agent = ControlledHistorianAgent(behavior="success")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -499,7 +499,7 @@ class TestHistorianNodeEdgeCases:
         success_agent = ControlledHistorianAgent(behavior="success")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -514,7 +514,7 @@ class TestHistorianNodeEdgeCases:
         no_llm_agent = ControlledHistorianAgent(behavior="no_llm")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=no_llm_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -555,7 +555,7 @@ class TestHistorianNodeEdgeCases:
         zero_conf_agent = ZeroConfidenceAgent()
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=zero_conf_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -595,7 +595,7 @@ class TestHistorianNodeEdgeCases:
         max_results_agent = MaxResultsAgent()
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=max_results_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -614,7 +614,7 @@ class TestHistorianNodeEdgeCases:
         success_agent = ControlledHistorianAgent(behavior="success")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -636,7 +636,7 @@ class TestHistorianNodeEdgeCases:
         success_agent = ControlledHistorianAgent(behavior="success")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
             # Execute multiple concurrent calls
@@ -684,7 +684,7 @@ class TestHistorianNodePerformance:
         fast_agent = ControlledHistorianAgent(behavior="success")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=fast_agent,
         ):
             # Measure performance for multiple executions
@@ -713,7 +713,7 @@ class TestHistorianNodePerformance:
         success_agent = ControlledHistorianAgent(behavior="success")
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
             # Execute many times to detect memory leaks
@@ -755,7 +755,7 @@ class TestHistorianNodePerformance:
         fast_agent = FastAgent()
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=fast_agent,
         ):
             start_time = time.time()

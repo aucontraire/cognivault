@@ -1,9 +1,9 @@
 """
-LangGraph compatibility layer for CogniVault.
+CogniVault Orchestration Engine.
 
-This package provides utilities for converting CogniVault agents into
-LangGraph-compatible graph structures, including node adapters for seamless
-agent-to-node conversion and prototype DAG execution.
+This package provides the core orchestration capabilities for CogniVault,
+including LangGraph integration, node adapters for seamless agent-to-node
+conversion, state management, and production DAG execution.
 """
 
 from .graph_builder import GraphBuilder, GraphEdge, GraphDefinition
@@ -25,9 +25,9 @@ from .config import (
     ExecutionMode,
     ValidationLevel,
     FailurePolicy,
-    get_langraph_config,
-    set_langraph_config,
-    reset_langraph_config,
+    get_orchestration_config,
+    set_orchestration_config,
+    reset_orchestration_config,
 )
 
 __all__ = [
@@ -57,7 +57,7 @@ __all__ = [
     "ExecutionMode",
     "ValidationLevel",
     "FailurePolicy",
-    "get_langraph_config",
-    "set_langraph_config",
-    "reset_langraph_config",
+    "get_orchestration_config",
+    "set_orchestration_config",
+    "reset_orchestration_config",
 ]

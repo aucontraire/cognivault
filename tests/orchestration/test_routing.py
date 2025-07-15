@@ -8,7 +8,7 @@ for conditional execution in LangGraph DAGs.
 import pytest
 
 from cognivault.context import AgentContext
-from cognivault.langraph.routing import (
+from cognivault.orchestration.routing import (
     ConditionalRouter,
     SuccessFailureRouter,
     OutputBasedRouter,

@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
-from cognivault.langraph.state_schemas import (
+from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     HistorianOutput,
     RefinerOutput,
@@ -27,14 +27,14 @@ from cognivault.langraph.state_schemas import (
     set_agent_output,
     record_agent_error,
 )
-from cognivault.langraph.node_wrappers import (
+from cognivault.orchestration.node_wrappers import (
     historian_node,
     convert_state_to_context,
     get_node_dependencies,
     validate_node_input,
     NodeExecutionError,
 )
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.diagnostics.visualize_dag import DAGVisualizer, DAGVisualizationConfig
 
 
@@ -392,7 +392,7 @@ class TestHistorianNode:
     ):
         """Test basic historian node execution."""
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_historian_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -426,7 +426,7 @@ class TestHistorianNode:
         failing_agent = MockHistorianAgent(should_fail=True)
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Historian execution failed"):
@@ -438,7 +438,7 @@ class TestHistorianNode:
     ):
         """Test that historian node produces correctly formatted output."""
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_historian_agent,
         ):
             result_state = await historian_node(initial_state)
@@ -475,7 +475,7 @@ class TestHistorianNode:
         mock_agent = MockHistorianAgent()
 
         with patch(
-            "cognivault.langraph.node_wrappers.create_agent_with_llm",
+            "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
             # Add some existing agent outputs to test context conversion

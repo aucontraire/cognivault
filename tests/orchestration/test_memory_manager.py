@@ -11,13 +11,13 @@ import json
 from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, patch
 
-from cognivault.langraph.memory_manager import (
+from cognivault.orchestration.memory_manager import (
     CogniVaultMemoryManager,
     CheckpointConfig,
     CheckpointInfo,
     create_memory_manager,
 )
-from cognivault.langraph.state_schemas import create_initial_state
+from cognivault.orchestration.state_schemas import create_initial_state
 
 
 @pytest.fixture
@@ -116,7 +116,7 @@ class TestCogniVaultMemoryManager:
     def memory_manager(self, enabled_config):
         """Fixture for memory manager with checkpointing enabled."""
         with patch(
-            "cognivault.langraph.memory_manager.MemorySaver"
+            "cognivault.orchestration.memory_manager.MemorySaver"
         ) as mock_memory_saver:
             mock_memory_saver.return_value = Mock()
             manager = CogniVaultMemoryManager(enabled_config)
@@ -174,7 +174,7 @@ class TestCogniVaultMemoryManager:
         config = CheckpointConfig(
             enabled=True, thread_id=None, auto_generate_thread_id=True
         )
-        with patch("cognivault.langraph.memory_manager.MemorySaver"):
+        with patch("cognivault.orchestration.memory_manager.MemorySaver"):
             manager = CogniVaultMemoryManager(config)
 
             result = manager.get_thread_id()
@@ -185,7 +185,7 @@ class TestCogniVaultMemoryManager:
         config = CheckpointConfig(
             enabled=True, thread_id=None, auto_generate_thread_id=False
         )
-        with patch("cognivault.langraph.memory_manager.MemorySaver"):
+        with patch("cognivault.orchestration.memory_manager.MemorySaver"):
             manager = CogniVaultMemoryManager(config)
 
             result = manager.get_thread_id()
@@ -329,7 +329,7 @@ class TestCogniVaultMemoryManager:
     def test_cleanup_no_ttl(self, sample_state):
         """Test cleanup when TTL is not set."""
         config = CheckpointConfig(enabled=True, checkpoint_ttl_hours=None)
-        with patch("cognivault.langraph.memory_manager.MemorySaver"):
+        with patch("cognivault.orchestration.memory_manager.MemorySaver"):
             manager = CogniVaultMemoryManager(config)
 
             removed_count = manager.cleanup_expired_checkpoints()
@@ -362,7 +362,7 @@ class TestCogniVaultMemoryManager:
     def test_rollback_disabled_rollback_flag(self, sample_state):
         """Test rollback when rollback flag is disabled."""
         config = CheckpointConfig(enabled=True, enable_rollback=False)
-        with patch("cognivault.langraph.memory_manager.MemorySaver"):
+        with patch("cognivault.orchestration.memory_manager.MemorySaver"):
             manager = CogniVaultMemoryManager(config)
 
             result = manager.rollback_to_checkpoint("test_thread")
@@ -388,7 +388,7 @@ class TestCogniVaultMemoryManager:
         )
         assert result is None
 
-    @patch("cognivault.langraph.memory_manager.create_initial_state")
+    @patch("cognivault.orchestration.memory_manager.create_initial_state")
     def test_rollback_fallback_success(
         self, mock_create_state, memory_manager, sample_state
     ):
@@ -542,7 +542,7 @@ class TestFactoryFunction:
         assert not manager.is_enabled()
         assert manager.config.enabled is False
 
-    @patch("cognivault.langraph.memory_manager.MemorySaver")
+    @patch("cognivault.orchestration.memory_manager.MemorySaver")
     def test_factory_enabled(self, mock_memory_saver):
         """Test factory with checkpointing enabled."""
         mock_memory_saver.return_value = Mock()
@@ -575,7 +575,7 @@ class TestErrorHandling:
     def manager_with_mock_memory_saver(self):
         """Fixture with mocked MemorySaver that can raise exceptions."""
         config = CheckpointConfig(enabled=True)
-        with patch("cognivault.langraph.memory_manager.MemorySaver") as mock_class:
+        with patch("cognivault.orchestration.memory_manager.MemorySaver") as mock_class:
             mock_instance = Mock()
             mock_class.return_value = mock_instance
             manager = CogniVaultMemoryManager(config)

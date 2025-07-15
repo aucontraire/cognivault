@@ -25,7 +25,7 @@ from rich.layout import Layout
 from rich.prompt import Prompt
 
 from cognivault.context import AgentContext
-from cognivault.langraph.orchestrator import LangGraphOrchestrator
+from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 
 
 class TraceLevel(Enum):
