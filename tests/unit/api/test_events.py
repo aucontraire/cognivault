@@ -6,7 +6,6 @@ Comprehensive test coverage for event system components.
 
 import pytest
 import os
-import asyncio
 from datetime import datetime, timezone
 from unittest.mock import patch, Mock, AsyncMock
 

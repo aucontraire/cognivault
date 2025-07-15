@@ -6,37 +6,14 @@ their dependencies, and creation logic. It enables dynamic agent loading
 while maintaining type safety and proper dependency injection.
 """
 
-from typing import Dict, Type, Optional, List
-from dataclasses import dataclass
+from typing import Dict, Type, Optional, List, Literal
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.exceptions import (
     DependencyResolutionError,
     FailurePropagationStrategy,
 )
-
-
-@dataclass
-class AgentMetadata:
-    """Metadata for registered agents with conditional execution support."""
-
-    name: str
-    agent_class: Type[BaseAgent]
-    requires_llm: bool = False
-    description: str = ""
-    dependencies: Optional[List[str]] = None
-    is_critical: bool = True  # Whether failure should stop the pipeline
-    failure_strategy: FailurePropagationStrategy = FailurePropagationStrategy.FAIL_FAST
-    fallback_agents: Optional[List[str]] = None  # Alternative agents if this fails
-    health_checks: Optional[List[str]] = None  # Health check functions to run
-
-    def __post_init__(self):
-        if self.dependencies is None:
-            self.dependencies = []
-        if self.fallback_agents is None:
-            self.fallback_agents = []
-        if self.health_checks is None:
-            self.health_checks = []
+from cognivault.agents.metadata import AgentMetadata
 
 
 class AgentRegistry:
@@ -63,6 +40,16 @@ class AgentRegistry:
         failure_strategy: FailurePropagationStrategy = FailurePropagationStrategy.FAIL_FAST,
         fallback_agents: Optional[List[str]] = None,
         health_checks: Optional[List[str]] = None,
+        # New multi-axis classification parameters
+        cognitive_speed: Literal["fast", "slow", "adaptive"] = "adaptive",
+        cognitive_depth: Literal["shallow", "deep", "variable"] = "variable",
+        processing_pattern: Literal["atomic", "composite", "chain"] = "atomic",
+        primary_capability: str = "",
+        secondary_capabilities: Optional[List[str]] = None,
+        pipeline_role: Literal[
+            "entry", "intermediate", "terminal", "standalone"
+        ] = "standalone",
+        bounded_context: str = "reflection",
     ) -> None:
         """
         Register an agent type with the registry.
@@ -87,6 +74,20 @@ class AgentRegistry:
             Alternative agents to try if this one fails
         health_checks : List[str], optional
             Health check functions to run before executing
+        cognitive_speed : str, optional
+            Agent cognitive speed: "fast", "slow", "adaptive"
+        cognitive_depth : str, optional
+            Agent cognitive depth: "shallow", "deep", "variable"
+        processing_pattern : str, optional
+            Processing pattern: "atomic", "composite", "chain"
+        primary_capability : str, optional
+            Primary capability (e.g., "critical_analysis", "translation")
+        secondary_capabilities : List[str], optional
+            Additional capabilities this agent provides
+        pipeline_role : str, optional
+            Role in pipeline: "entry", "intermediate", "terminal", "standalone"
+        bounded_context : str, optional
+            Bounded context: "reflection", "transformation", "retrieval"
         """
         if name in self._agents:
             raise ValueError(f"Agent '{name}' is already registered")
@@ -101,6 +102,14 @@ class AgentRegistry:
             failure_strategy=failure_strategy,
             fallback_agents=fallback_agents or [],
             health_checks=health_checks or [],
+            # Multi-axis classification
+            cognitive_speed=cognitive_speed,
+            cognitive_depth=cognitive_depth,
+            processing_pattern=processing_pattern,
+            primary_capability=primary_capability,
+            secondary_capabilities=secondary_capabilities or [],
+            pipeline_role=pipeline_role,
+            bounded_context=bounded_context,
         )
         self._agents[name] = metadata
 
@@ -142,16 +151,52 @@ class AgentRegistry:
 
         # Create agent with appropriate parameters
         try:
+            # For agents that support configurable names, try to pass the name
+            import inspect
+
+            constructor_params = inspect.signature(
+                metadata.agent_class.__init__
+            ).parameters
+
             if metadata.requires_llm:
-                return metadata.agent_class(llm=llm, **kwargs)  # type: ignore
+                if "name" in constructor_params:
+                    return metadata.agent_class(llm=llm, name=name, **kwargs)  # type: ignore
+                else:
+                    return metadata.agent_class(llm=llm, **kwargs)  # type: ignore
             else:
-                return metadata.agent_class(**kwargs)
+                if "name" in constructor_params:
+                    return metadata.agent_class(name=name, **kwargs)
+                else:
+                    return metadata.agent_class(**kwargs)
         except Exception as e:
             raise ValueError(f"Failed to create agent '{name}': {e}") from e
 
     def get_available_agents(self) -> List[str]:
         """Get list of all registered agent names."""
         return list(self._agents.keys())
+
+    def get_metadata(self, name: str) -> AgentMetadata:
+        """
+        Get metadata for a specific agent.
+
+        Parameters
+        ----------
+        name : str
+            Name of the agent
+
+        Returns
+        -------
+        AgentMetadata
+            Agent metadata
+
+        Raises
+        ------
+        ValueError
+            If agent name is not registered
+        """
+        if name not in self._agents:
+            raise ValueError(f"Unknown agent: '{name}'")
+        return self._agents[name]
 
     def get_agent_info(self, name: str) -> AgentMetadata:
         """
@@ -357,6 +402,22 @@ class AgentRegistry:
             return True  # Unknown agents are considered critical
         return self._agents[agent_name].is_critical
 
+    def get_agent_metadata(self, agent_name: str) -> Optional[AgentMetadata]:
+        """
+        Get the full metadata for an agent.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent
+
+        Returns
+        -------
+        AgentMetadata, optional
+            Complete metadata for the agent, or None if not found
+        """
+        return self._agents.get(agent_name)
+
     def _register_core_agents(self) -> None:
         """Register the core agents that ship with CogniVault with conditional execution support."""
         # Import here to avoid circular imports
@@ -365,7 +426,7 @@ class AgentRegistry:
         from cognivault.agents.historian.agent import HistorianAgent
         from cognivault.agents.synthesis.agent import SynthesisAgent
 
-        # Register core agents with failure propagation strategies
+        # Register core agents with failure propagation strategies and multi-axis classification
         self.register(
             name="refiner",
             agent_class=RefinerAgent,
@@ -375,6 +436,14 @@ class AgentRegistry:
             is_critical=True,  # Refiner failure is critical
             failure_strategy=FailurePropagationStrategy.FAIL_FAST,
             fallback_agents=[],  # No fallback - query refinement is essential
+            # Multi-axis classification
+            cognitive_speed="slow",
+            cognitive_depth="deep",
+            processing_pattern="atomic",
+            primary_capability="intent_clarification",
+            secondary_capabilities=["prompt_structuring", "scope_definition"],
+            pipeline_role="entry",
+            bounded_context="reflection",
         )
 
         self.register(
@@ -386,6 +455,14 @@ class AgentRegistry:
             is_critical=False,  # Critic can be skipped if it fails
             failure_strategy=FailurePropagationStrategy.GRACEFUL_DEGRADATION,
             fallback_agents=[],  # No direct fallback, but can be skipped
+            # Multi-axis classification
+            cognitive_speed="slow",
+            cognitive_depth="deep",
+            processing_pattern="composite",
+            primary_capability="critical_analysis",
+            secondary_capabilities=["assumption_identification", "bias_detection"],
+            pipeline_role="intermediate",
+            bounded_context="reflection",
         )
 
         self.register(
@@ -397,6 +474,14 @@ class AgentRegistry:
             is_critical=False,  # Historian is helpful but not essential
             failure_strategy=FailurePropagationStrategy.WARN_CONTINUE,
             fallback_agents=[],  # No fallback needed for mock historical data
+            # Multi-axis classification
+            cognitive_speed="adaptive",
+            cognitive_depth="variable",
+            processing_pattern="composite",
+            primary_capability="context_retrieval",
+            secondary_capabilities=["memory_search", "relevance_ranking"],
+            pipeline_role="intermediate",
+            bounded_context="retrieval",
         )
 
         self.register(
@@ -408,6 +493,14 @@ class AgentRegistry:
             is_critical=True,  # Synthesis is needed for final output
             failure_strategy=FailurePropagationStrategy.CONDITIONAL_FALLBACK,
             fallback_agents=[],  # Could fallback to simple concatenation
+            # Multi-axis classification
+            cognitive_speed="slow",
+            cognitive_depth="deep",
+            processing_pattern="chain",
+            primary_capability="multi_perspective_synthesis",
+            secondary_capabilities=["conflict_resolution", "theme_identification"],
+            pipeline_role="terminal",
+            bounded_context="reflection",
         )
 
 
@@ -440,6 +533,16 @@ def register_agent(
     failure_strategy: FailurePropagationStrategy = FailurePropagationStrategy.FAIL_FAST,
     fallback_agents: Optional[List[str]] = None,
     health_checks: Optional[List[str]] = None,
+    # New multi-axis classification parameters
+    cognitive_speed: Literal["fast", "slow", "adaptive"] = "adaptive",
+    cognitive_depth: Literal["shallow", "deep", "variable"] = "variable",
+    processing_pattern: Literal["atomic", "composite", "chain"] = "atomic",
+    primary_capability: str = "",
+    secondary_capabilities: Optional[List[str]] = None,
+    pipeline_role: Literal[
+        "entry", "intermediate", "terminal", "standalone"
+    ] = "standalone",
+    bounded_context: str = "reflection",
 ) -> None:
     """
     Register an agent with the global registry.
@@ -478,6 +581,13 @@ def register_agent(
         failure_strategy,
         fallback_agents,
         health_checks,
+        cognitive_speed,
+        cognitive_depth,
+        processing_pattern,
+        primary_capability,
+        secondary_capabilities,
+        pipeline_role,
+        bounded_context,
     )
 
 
@@ -501,3 +611,21 @@ def create_agent(name: str, llm: Optional[LLMInterface] = None, **kwargs) -> Bas
     """
     registry = get_agent_registry()
     return registry.create_agent(name, llm, **kwargs)
+
+
+def get_agent_metadata(name: str) -> Optional[AgentMetadata]:
+    """
+    Get agent metadata using the global registry.
+
+    Parameters
+    ----------
+    name : str
+        Name of the agent
+
+    Returns
+    -------
+    AgentMetadata, optional
+        Complete metadata for the agent, or None if not found
+    """
+    registry = get_agent_registry()
+    return registry.get_agent_metadata(name)

@@ -5,15 +5,12 @@ import typer
 import asyncio
 import json
 import time
-import statistics
 import os
-from datetime import datetime, timezone
-from typing import Optional, Union, Dict, List, Any
+from typing import Optional, List
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.tree import Tree
-from rich.text import Text
 
 try:
     import psutil
@@ -36,9 +33,8 @@ from cognivault.api.factory import (
     shutdown_api,
     get_api_mode,
     set_api_mode,
-    reset_api_cache,
 )
-from cognivault.api.models import WorkflowRequest, WorkflowResponse
+from cognivault.api.models import WorkflowRequest
 from cognivault.context import AgentContext
 
 app = typer.Typer()
@@ -477,7 +473,7 @@ async def _run_with_api(
         api = await initialize_api(force_mode=api_mode)
 
         if trace:
-            console.print(f"🚀 [bold]Starting workflow execution via API...[/bold]")
+            console.print("🚀 [bold]Starting workflow execution via API...[/bold]")
 
         # Create workflow request
         request = WorkflowRequest(

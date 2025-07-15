@@ -2,7 +2,6 @@
 
 import pytest
 from unittest.mock import Mock
-from typing import List, Dict, Any
 
 from cognivault.langgraph_backend.graph_patterns import (
     GraphPattern,

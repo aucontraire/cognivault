@@ -6,11 +6,9 @@ for conditional execution in LangGraph DAGs.
 """
 
 import pytest
-from unittest.mock import Mock
 
 from cognivault.context import AgentContext
 from cognivault.langraph.routing import (
-    RoutingFunction,
     ConditionalRouter,
     SuccessFailureRouter,
     OutputBasedRouter,

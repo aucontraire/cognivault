@@ -8,14 +8,12 @@ dynamic graph reconfiguration.
 
 import importlib
 import inspect
-import pkgutil
-import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Any, Type, Callable, Tuple
+from typing import Dict, List, Optional, Any, Callable
 from abc import ABC, abstractmethod
 
 from cognivault.agents.base_agent import BaseAgent
@@ -24,9 +22,6 @@ from cognivault.observability import get_logger
 from .graph_engine import (
     DependencyGraphEngine,
     DependencyNode,
-    DependencyEdge,
-    DependencyType,
-    ExecutionPriority,
 )
 
 logger = get_logger(__name__)

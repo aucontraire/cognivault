@@ -20,8 +20,6 @@ from cognivault.api.factory import (
     get_cached_api_info,
     _cached_orchestration_api,
 )
-from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
-from tests.fakes.mock_orchestration import MockOrchestrationAPI
 
 
 class TestAPIFactoryErrorHandling:

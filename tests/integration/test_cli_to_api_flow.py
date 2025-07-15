@@ -8,18 +8,12 @@ the API layer to the underlying orchestrator.
 import pytest
 import asyncio
 import os
-import tempfile
-import json
-from unittest.mock import patch, AsyncMock
-from typing import Dict, Any
 
 from cognivault.api.factory import (
     get_orchestration_api,
     initialize_api,
     shutdown_api,
     reset_api_cache,
-    set_api_mode,
-    get_api_mode,
     temporary_api_mode,
 )
 from cognivault.api.models import WorkflowRequest, WorkflowResponse
@@ -538,7 +532,7 @@ if __name__ == "__main__":
 
                 response = await api.execute_workflow(request)
 
-                print(f"✅ Test passed!")
+                print("✅ Test passed!")
                 print(f"   Workflow ID: {response.workflow_id}")
                 print(f"   Status: {response.status}")
                 print(f"   Execution time: {response.execution_time_seconds:.2f}s")

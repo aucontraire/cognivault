@@ -9,7 +9,7 @@ import pytest
 import json
 import tempfile
 import time
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 from cognivault.diagnostics.pattern_validator import (

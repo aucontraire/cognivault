@@ -8,8 +8,7 @@ graph validation.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Dict, Any, Optional, Callable, Set, Tuple
-from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional, Callable, Set
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent, LangGraphNodeDefinition

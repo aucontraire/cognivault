@@ -5,7 +5,7 @@ This module provides conditional routing functions and utilities
 for building dynamic graph execution paths.
 """
 
-from typing import Callable, Dict, Any, List, Optional
+from typing import Callable, Dict, List, Optional
 from abc import ABC, abstractmethod
 
 from cognivault.context import AgentContext

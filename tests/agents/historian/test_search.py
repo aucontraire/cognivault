@@ -333,7 +333,6 @@ class TestTagBasedSearch:
 
     def _create_ai_note(self):
         """Create AI-focused note."""
-        import yaml
 
         frontmatter = {
             "title": "Machine Learning Fundamentals",
@@ -358,7 +357,6 @@ class TestTagBasedSearch:
 
     def _create_psychology_note(self):
         """Create psychology-focused note."""
-        import yaml
 
         frontmatter = {
             "title": "Cognitive Psychology Research",
@@ -379,7 +377,6 @@ class TestTagBasedSearch:
 
     def _create_philosophy_note(self):
         """Create philosophy-focused note."""
-        import yaml
 
         frontmatter = {
             "title": "Ethics and Moral Reasoning",
@@ -399,7 +396,6 @@ class TestTagBasedSearch:
 
     def _create_mixed_topic_note(self):
         """Create note with mixed topics."""
-        import yaml
 
         frontmatter = {
             "title": "AI Ethics and Psychology",
@@ -627,7 +623,6 @@ class TestKeywordSearch:
 
     def _create_keyword_test_notes(self):
         """Create notes for keyword search testing."""
-        import yaml
 
         # High-density AI note
         frontmatter1 = {
@@ -815,7 +810,6 @@ class TestHybridSearch:
 
     def _create_hybrid_test_notes(self):
         """Create notes for hybrid search testing."""
-        import yaml
 
         # Note with strong topic match but weak content
         frontmatter1 = {

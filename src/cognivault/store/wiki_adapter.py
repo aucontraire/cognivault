@@ -2,13 +2,12 @@ import os
 from datetime import datetime
 import uuid
 import hashlib
-from typing import KeysView, Optional, Dict, Any, List
+from typing import KeysView, Optional, Dict, List
 from .utils import slugify_title
 from .frontmatter import (
     EnhancedFrontmatter,
     AgentExecutionResult,
     AgentStatus,
-    create_basic_frontmatter,
     frontmatter_to_yaml_dict,
     TopicTaxonomy,
 )

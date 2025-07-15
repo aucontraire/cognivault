@@ -9,12 +9,12 @@ constraints, and failure scenarios.
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Set, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from abc import ABC, abstractmethod
 
 from cognivault.context import AgentContext
 from cognivault.observability import get_logger
-from .graph_engine import DependencyGraphEngine, DependencyNode, ExecutionPriority
+from .graph_engine import DependencyGraphEngine, DependencyNode
 
 logger = get_logger(__name__)
 

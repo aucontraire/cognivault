@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, Optional, Union
 
 from cognivault.agents.base_agent import (
     BaseAgent,
@@ -9,7 +9,6 @@ from cognivault.agents.base_agent import (
 )
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
-from cognivault.store.frontmatter import AgentExecutionResult, AgentStatus
 
 logger = logging.getLogger(__name__)
 

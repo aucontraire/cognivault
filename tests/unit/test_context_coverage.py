@@ -5,8 +5,8 @@ Focuses on edge cases and error scenarios.
 """
 
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import patch, Mock
+from datetime import datetime
+from unittest.mock import patch
 
 from cognivault.context import AgentContext
 from cognivault.exceptions import StateTransitionError

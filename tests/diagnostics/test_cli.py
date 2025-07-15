@@ -8,9 +8,8 @@ health checks, metrics, and various output formats.
 import json
 import tempfile
 from datetime import datetime
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 from typer.testing import CliRunner
-import typer
 
 from cognivault.diagnostics.cli import app, diagnostics_cli
 from cognivault.diagnostics.health import HealthStatus, ComponentHealth

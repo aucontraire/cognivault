@@ -14,16 +14,23 @@ Features:
 """
 
 import time
-import uuid
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
 from cognivault.observability import get_logger
+from cognivault.correlation import (
+    ensure_correlation_context,
+    create_child_span,
+    add_trace_metadata,
+)
+from cognivault.events import (
+    emit_workflow_started,
+    emit_workflow_completed,
+    emit_routing_decision_from_object,
+)
 from cognivault.langraph.state_bridge import AgentContextStateBridge
 from cognivault.langraph.state_schemas import (
     CogniVaultState,
@@ -35,16 +42,11 @@ from cognivault.langraph.state_schemas import (
     validate_state_integrity,
 )
 from cognivault.langraph.node_wrappers import (
-    refiner_node,
-    critic_node,
-    historian_node,
-    synthesis_node,
     NodeExecutionError,
     get_node_dependencies,
 )
 from cognivault.langraph.memory_manager import (
     CogniVaultMemoryManager,
-    CheckpointConfig,
     create_memory_manager,
 )
 from cognivault.langgraph_backend import (
@@ -52,6 +54,17 @@ from cognivault.langgraph_backend import (
     GraphConfig,
     GraphBuildError,
     CacheConfig,
+)
+from cognivault.langgraph_backend.graph_patterns.conditional import (
+    EnhancedConditionalPattern,
+    ContextAnalyzer,
+    PerformanceTracker,
+)
+from cognivault.routing import (
+    ResourceOptimizer,
+    ResourceConstraints,
+    OptimizationStrategy,
+    RoutingDecision,
 )
 
 logger = get_logger(__name__)
@@ -80,6 +93,8 @@ class LangGraphOrchestrator:
         enable_checkpoints: bool = False,
         thread_id: Optional[str] = None,
         memory_manager: Optional[CogniVaultMemoryManager] = None,
+        use_enhanced_routing: bool = True,
+        optimization_strategy: OptimizationStrategy = OptimizationStrategy.BALANCED,
     ):
         """
         Initialize the production LangGraph orchestrator.
@@ -95,13 +110,34 @@ class LangGraphOrchestrator:
         memory_manager : CogniVaultMemoryManager, optional
             Custom memory manager instance. If None, one will be created.
         """
-        # For Phase 2.1, we include all four agents with historian
-        self.agents_to_run = agents_to_run or [
+        # Default agents - will be optimized by enhanced routing if enabled
+        self.default_agents = [
             "refiner",
             "critic",
             "historian",
             "synthesis",
         ]
+
+        # Enhanced routing configuration
+        self.use_enhanced_routing = use_enhanced_routing
+        self.optimization_strategy = optimization_strategy
+
+        # Initialize routing systems
+        self.conditional_pattern: Optional[EnhancedConditionalPattern] = (
+            EnhancedConditionalPattern() if self.use_enhanced_routing else None
+        )
+        self.resource_optimizer: Optional[ResourceOptimizer] = (
+            ResourceOptimizer() if self.use_enhanced_routing else None
+        )
+        self.context_analyzer: Optional[ContextAnalyzer] = (
+            ContextAnalyzer() if self.use_enhanced_routing else None
+        )
+        self.performance_tracker: Optional[PerformanceTracker] = (
+            PerformanceTracker() if self.use_enhanced_routing else None
+        )
+
+        # Set initial agents (may be overridden by routing)
+        self.agents_to_run = agents_to_run or self.default_agents
         self.enable_checkpoints = enable_checkpoints
         self.thread_id = thread_id
         self.registry = get_agent_registry()
@@ -151,6 +187,7 @@ class LangGraphOrchestrator:
         - Parallel execution of Critic and Historian after Refiner
         - Type-safe state management
         - Comprehensive error handling and recovery
+        - Correlation context propagation for tracing
 
         Parameters
         ----------
@@ -171,15 +208,73 @@ class LangGraphOrchestrator:
         """
         config = config or {}
         start_time = time.time()
-        execution_id = str(uuid.uuid4())
+
+        # Ensure correlation context exists (create if not present)
+        correlation_ctx = ensure_correlation_context()
+
+        # Use correlation IDs for execution tracking
+        execution_id = correlation_ctx.workflow_id
+        correlation_id = correlation_ctx.correlation_id
+
+        # Create orchestrator span for detailed tracing
+        orchestrator_span = create_child_span("langgraph_orchestrator")
+
+        # Add orchestrator metadata to trace
+        add_trace_metadata("orchestrator_type", "langgraph-real")
+        add_trace_metadata("agents_requested", self.agents_to_run)
+        add_trace_metadata("query_length", len(query))
+        add_trace_metadata("config", config)
+
+        # Enhanced routing decision if enabled
+        routing_decision = None
+        if self.use_enhanced_routing:
+            routing_decision = await self._make_routing_decision(
+                query, self.default_agents, config
+            )
+
+            # Update agents based on routing decision
+            self.agents_to_run = routing_decision.selected_agents
+
+            # Emit routing decision event
+            await emit_routing_decision_from_object(
+                routing_decision=routing_decision,
+                workflow_id=execution_id,
+                correlation_id=correlation_id,
+                metadata={
+                    "orchestrator_type": "langgraph-real",
+                    "optimization_strategy": self.optimization_strategy.value,
+                    "routing_enabled": True,
+                },
+            )
 
         self.logger.info(
             f"Starting LangGraph execution for query: {query[:100]}... "
-            f"(execution_id: {execution_id})"
+            f"(execution_id: {execution_id}, correlation_id: {correlation_id})"
         )
-        self.logger.info(f"Execution mode: langgraph")
+        self.logger.info("Execution mode: langgraph")
         self.logger.info(f"Agents to run: {self.agents_to_run}")
+        if routing_decision:
+            self.logger.info(f"Routing strategy: {routing_decision.routing_strategy}")
+            self.logger.info(
+                f"Routing confidence: {routing_decision.confidence_score:.2f}"
+            )
         self.logger.info(f"Config: {config}")
+        self.logger.info(f"Correlation context: {correlation_ctx.to_dict()}")
+
+        # Emit workflow started event
+        await emit_workflow_started(
+            workflow_id=execution_id,
+            query=query,
+            agents=self.agents_to_run,
+            execution_config=config,
+            correlation_id=correlation_id,
+            metadata={
+                "orchestrator_type": "langgraph-real",
+                "orchestrator_span": orchestrator_span,
+                "phase": "phase2_1",
+                "checkpoints_enabled": self.enable_checkpoints,
+            },
+        )
 
         self.total_executions += 1
 
@@ -241,13 +336,15 @@ class LangGraphOrchestrator:
             # Convert LangGraph state back to AgentContext
             context = await self._convert_state_to_context(final_state)
 
-            # Add execution metadata
+            # Add execution metadata with correlation context
             total_time_ms = (time.time() - start_time) * 1000
             context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
                     "phase": "phase2_1",
                     "execution_id": execution_id,
+                    "correlation_id": correlation_id,
+                    "orchestrator_span": orchestrator_span,
                     "thread_id": thread_id,
                     "agents_requested": self.agents_to_run,
                     "config": config,
@@ -257,7 +354,36 @@ class LangGraphOrchestrator:
                     "successful_agents_count": len(final_state["successful_agents"]),
                     "failed_agents_count": len(final_state["failed_agents"]),
                     "errors_count": len(final_state["errors"]),
+                    "correlation_context": correlation_ctx.to_dict(),
                 }
+            )
+
+            # Emit workflow completed event
+            await emit_workflow_completed(
+                workflow_id=execution_id,
+                status=(
+                    "completed"
+                    if not final_state["failed_agents"]
+                    else "partial_failure"
+                ),
+                execution_time_seconds=total_time_ms / 1000,
+                agent_outputs={
+                    agent: (
+                        str(output)[:200] + "..."
+                        if len(str(output)) > 200
+                        else str(output)
+                    )
+                    for agent, output in context.agent_outputs.items()
+                },
+                successful_agents=list(final_state["successful_agents"]),
+                failed_agents=list(final_state["failed_agents"]),
+                correlation_id=correlation_id,
+                metadata={
+                    "orchestrator_type": "langgraph-real",
+                    "orchestrator_span": orchestrator_span,
+                    "thread_id": thread_id,
+                    "total_agents": len(self.agents_to_run),
+                },
             )
 
             # Update statistics
@@ -285,19 +411,38 @@ class LangGraphOrchestrator:
                 f"LangGraph execution failed after {total_time_ms:.2f}ms: {e}"
             )
 
-            # Create fallback context with error information
+            # Emit workflow failed event
+            await emit_workflow_completed(
+                workflow_id=execution_id,
+                status="failed",
+                execution_time_seconds=total_time_ms / 1000,
+                error_message=str(e),
+                successful_agents=[],
+                failed_agents=self.agents_to_run,  # All requested agents failed
+                correlation_id=correlation_id,
+                metadata={
+                    "orchestrator_type": "langgraph-real",
+                    "orchestrator_span": orchestrator_span,
+                    "error_type": type(e).__name__,
+                },
+            )
+
+            # Create fallback context with error information and correlation
             context = AgentContext(query=query)
             context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
                     "phase": "phase2_1",
                     "execution_id": execution_id,
+                    "correlation_id": correlation_id,
+                    "orchestrator_span": orchestrator_span,
                     "agents_requested": self.agents_to_run,
                     "config": config,
                     "execution_time_ms": total_time_ms,
                     "langgraph_execution": True,
                     "execution_error": str(e),
                     "execution_error_type": type(e).__name__,
+                    "correlation_context": correlation_ctx.to_dict(),
                 }
             )
 
@@ -679,3 +824,135 @@ class LangGraphOrchestrator:
     # ✅ Add graph compilation caching for performance
     # ✅ Separate concerns: orchestration vs graph building
     # ✅ Maintain backward compatibility with enhanced functionality
+
+    async def _make_routing_decision(
+        self, query: str, available_agents: List[str], config: Dict[str, Any]
+    ) -> "RoutingDecision":
+        """
+        Make intelligent routing decision using enhanced routing system.
+
+        Parameters
+        ----------
+        query : str
+            The user query to analyze
+        available_agents : List[str]
+            Available agents to choose from
+        config : Dict[str, Any]
+            Configuration parameters
+
+        Returns
+        -------
+        RoutingDecision
+            Comprehensive routing decision with reasoning
+        """
+        # Import here to avoid circular imports - already imported at top of file
+
+        # Analyze query complexity
+        if not self.context_analyzer:
+            raise ValueError("Context analyzer not available for routing decision")
+        context_analysis = self.context_analyzer.analyze_context(query)
+
+        # Get performance data from registry
+        performance_data = {}
+        for agent in available_agents:
+            agent_lower = agent.lower()
+            # Get performance metrics from the pattern's performance tracker
+            if self.performance_tracker:
+                performance_data[agent_lower] = {
+                    "success_rate": self.performance_tracker.get_success_rate(
+                        agent_lower
+                    )
+                    or 0.8,
+                    "average_time_ms": self.performance_tracker.get_average_time(
+                        agent_lower
+                    )
+                    or 2000.0,
+                    "performance_score": self.performance_tracker.get_performance_score(
+                        agent_lower
+                    ),
+                }
+            else:
+                # Fallback performance data when tracker is not available
+                performance_data[agent_lower] = {
+                    "success_rate": 0.8,
+                    "average_time_ms": 2000.0,
+                    "performance_score": 0.7,
+                }
+
+        # Build resource constraints from config
+        constraints = ResourceConstraints(
+            max_execution_time_ms=config.get("max_execution_time_ms"),
+            max_agents=config.get("max_agents", 4),
+            min_agents=config.get("min_agents", 1),
+            min_success_rate=config.get("min_success_rate", 0.7),
+        )
+
+        # Extract context requirements
+        context_requirements = {
+            "requires_research": context_analysis.requires_research,
+            "requires_criticism": context_analysis.requires_criticism,
+            "requires_synthesis": True,  # Always needed for final output
+            "requires_refinement": True,  # Always needed for input processing
+        }
+
+        # Make routing decision
+        if not self.resource_optimizer:
+            raise ValueError("Resource optimizer not available for routing decision")
+        routing_decision = self.resource_optimizer.select_optimal_agents(
+            available_agents=available_agents,
+            complexity_score=context_analysis.complexity_score,
+            performance_data=performance_data,
+            constraints=constraints,
+            strategy=self.optimization_strategy,
+            context_requirements=context_requirements,
+        )
+
+        # Update performance tracker with routing decision
+        if self.conditional_pattern:
+            self.conditional_pattern.update_performance_metrics(
+                "routing_decision",
+                0.0,  # No execution time for decision
+                routing_decision.confidence_score > 0.5,  # Success if high confidence
+            )
+
+        return routing_decision
+
+    def update_agent_performance(
+        self, agent: str, duration_ms: float, success: bool
+    ) -> None:
+        """
+        Update performance metrics for an agent.
+
+        Parameters
+        ----------
+        agent : str
+            Agent name
+        duration_ms : float
+            Execution duration in milliseconds
+        success : bool
+            Whether execution was successful
+        """
+        if self.use_enhanced_routing and self.performance_tracker:
+            self.performance_tracker.record_execution(agent, duration_ms, success)
+
+    def get_routing_statistics(self) -> Dict[str, Any]:
+        """
+        Get routing system statistics.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Routing statistics including performance and decision metrics
+        """
+        if not self.use_enhanced_routing:
+            return {"enhanced_routing": False}
+
+        stats = {
+            "enhanced_routing": True,
+            "optimization_strategy": self.optimization_strategy.value,
+        }
+
+        if self.conditional_pattern:
+            stats.update(self.conditional_pattern.get_routing_statistics())
+
+        return stats

@@ -10,12 +10,11 @@ import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 import logging
 
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.checkpoint.base import CheckpointMetadata
 
 from .state_schemas import CogniVaultState, create_initial_state
 

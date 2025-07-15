@@ -5,9 +5,7 @@ This file ensures that tests run in a safe environment without making
 real API calls or depending on external services.
 """
 
-import os
 import pytest
-from unittest.mock import patch
 
 
 @pytest.fixture(autouse=True)

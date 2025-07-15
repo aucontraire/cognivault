@@ -10,8 +10,8 @@ import asyncio
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from enum import Enum
 
 from cognivault.context import AgentContext
@@ -26,7 +26,6 @@ from cognivault.diagnostics.metrics import get_metrics_collector
 from .graph_engine import (
     DependencyGraphEngine,
     DependencyNode,
-    DependencyEdge,
     DependencyType,
     ExecutionPriority,
     ResourceConstraint,
@@ -38,10 +37,9 @@ from .failure_manager import (
     RetryConfiguration,
     RetryStrategy,
 )
-from .resource_scheduler import ResourceScheduler, SchedulingPolicy, ResourceType
+from .resource_scheduler import ResourceScheduler, ResourceType
 from .dynamic_composition import (
     DynamicAgentComposer,
-    FilesystemDiscoverer,
     RegistryDiscoverer,
     create_version_upgrade_rule,
     create_failure_recovery_rule,
@@ -880,7 +878,7 @@ class AdvancedOrchestrator:
                 stage_duration_ms=stage_duration,
                 success=True,
             )
-        except Exception as e:
+        except Exception:
             stage_duration = (time.time() - stage_start) * 1000
             return PipelineStage(
                 stage_id="preparation",
@@ -935,7 +933,7 @@ class AdvancedOrchestrator:
                 stage_duration_ms=stage_duration,
                 success=True,
             )
-        except Exception as e:
+        except Exception:
             stage_duration = (time.time() - stage_start) * 1000
             return PipelineStage(
                 stage_id="resource_allocation",
@@ -987,7 +985,7 @@ class AdvancedOrchestrator:
                 stage_duration_ms=stage_duration,
                 success=not has_failures,  # Stage succeeds only if no agent failures
             )
-        except Exception as e:
+        except Exception:
             stage_duration = (time.time() - stage_start) * 1000
             return PipelineStage(
                 stage_id="execution",
@@ -1014,7 +1012,7 @@ class AdvancedOrchestrator:
                 stage_duration_ms=stage_duration,
                 success=True,
             )
-        except Exception as e:
+        except Exception:
             stage_duration = (time.time() - stage_start) * 1000
             return PipelineStage(
                 stage_id="cleanup",

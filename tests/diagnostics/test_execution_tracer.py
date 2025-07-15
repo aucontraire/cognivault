@@ -10,7 +10,6 @@ import json
 import time
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timezone
-from pathlib import Path
 
 from cognivault.diagnostics.execution_tracer import (
     ExecutionTracer,

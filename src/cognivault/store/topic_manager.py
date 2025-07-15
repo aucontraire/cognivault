@@ -7,7 +7,7 @@ that analyze agent outputs to automatically propose relevant topics and tags.
 
 import re
 import logging
-from typing import Dict, List, Any, Optional, Set, Tuple, Union
+from typing import Dict, List, Any, Optional, Tuple
 from collections import Counter
 from dataclasses import dataclass
 
@@ -447,7 +447,7 @@ class TopicMapper:
                 topic=top_domain,
                 confidence=0.8,
                 source="domain_mapping",
-                reasoning=f"Primary domain based on keyword analysis",
+                reasoning="Primary domain based on keyword analysis",
                 related_terms=list(self.domain_keywords[top_domain])[:5],
             )
             suggestions.append(domain_suggestion)

@@ -7,9 +7,8 @@ automated testing, CI integration, and coverage analysis capabilities.
 
 import pytest
 import json
-import tempfile
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock, mock_open
+from unittest.mock import Mock, patch
 from pathlib import Path
 from datetime import datetime, timezone
 

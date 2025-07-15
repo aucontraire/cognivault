@@ -11,17 +11,14 @@ import statistics
 import json
 import psutil
 import threading
-from typing import Dict, List, Optional, Any, Tuple, Callable
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-import contextlib
-from concurrent.futures import ThreadPoolExecutor
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 from rich.progress import (
     Progress,
     BarColumn,
@@ -29,9 +26,6 @@ from rich.progress import (
     TimeElapsedColumn,
     SpinnerColumn,
 )
-from rich.layout import Layout
-from rich.live import Live
-from rich.text import Text
 
 from cognivault.context import AgentContext
 from cognivault.langraph.orchestrator import LangGraphOrchestrator
@@ -600,7 +594,7 @@ class PerformanceProfiler:
             TimeElapsedColumn(),
             console=self.console,
         ) as progress:
-            task = progress.add_task(f"Running benchmark suite...", total=total_runs)
+            task = progress.add_task("Running benchmark suite...", total=total_runs)
 
             for mode in modes:
                 for query in queries:

@@ -7,7 +7,7 @@ including topics, agent status tracking, domain classification, and more.
 
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 

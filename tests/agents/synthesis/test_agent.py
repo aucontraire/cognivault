@@ -7,8 +7,8 @@ meta-insights generation, and wiki-ready output formatting capabilities.
 
 import pytest
 import asyncio
-from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from typing import Dict, Optional
+from unittest.mock import Mock, patch
 
 from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext

@@ -10,8 +10,8 @@ import tempfile
 import shutil
 import asyncio
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from typing import Dict, Optional
+from unittest.mock import Mock, AsyncMock, patch
 
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.agents.historian.search import SearchResult

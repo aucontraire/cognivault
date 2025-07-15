@@ -9,12 +9,10 @@ import asyncio
 import time
 import json
 import threading
-from typing import Dict, List, Optional, Any, Tuple, Callable, Set, Union
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from enum import Enum
-from contextlib import contextmanager
 import uuid
 
 import typer
@@ -22,10 +20,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.tree import Tree
 from rich.panel import Panel
-from rich.text import Text
 from rich.live import Live
 from rich.layout import Layout
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.prompt import Prompt
 
 from cognivault.context import AgentContext
@@ -1228,7 +1224,7 @@ class ExecutionTracer:
     def _export_flamegraph(self, trace: ExecutionTrace, output_file: str):
         """Export trace as flamegraph SVG."""
         # Simplified flamegraph export
-        self.console.print(f"[yellow]⚠️ Flamegraph export not yet implemented[/yellow]")
+        self.console.print("[yellow]⚠️ Flamegraph export not yet implemented[/yellow]")
         self.console.print(f"Would export to: {output_file}")
 
 

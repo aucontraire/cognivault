@@ -6,7 +6,6 @@ and graph optimization capabilities.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent

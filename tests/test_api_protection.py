@@ -4,10 +4,8 @@ Test that API protection mechanisms work correctly.
 This test file verifies that our safety measures prevent real API calls during testing.
 """
 
-import pytest
 import os
 import sys
-from unittest.mock import patch
 
 # Add src to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

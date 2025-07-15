@@ -12,7 +12,6 @@ from cognivault.context import AgentContext
 from cognivault.config.app_config import get_config
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.historian.search import SearchFactory, SearchResult
-from cognivault.store.frontmatter import AgentExecutionResult, AgentStatus
 
 logger = logging.getLogger(__name__)
 

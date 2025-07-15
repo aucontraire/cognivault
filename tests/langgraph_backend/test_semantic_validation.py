@@ -1,7 +1,6 @@
 """Tests for semantic validation layer."""
 
 import pytest
-from unittest.mock import Mock
 
 from cognivault.langgraph_backend.semantic_validation import (
     SemanticValidator,

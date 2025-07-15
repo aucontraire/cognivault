@@ -6,10 +6,8 @@ exploration modes, and analysis capabilities.
 """
 
 import pytest
-import json
 from unittest.mock import Mock, patch, AsyncMock
 from rich.console import Console
-from pathlib import Path
 
 from cognivault.diagnostics.dag_explorer import (
     InteractiveDAGExplorer,
@@ -18,7 +16,6 @@ from cognivault.diagnostics.dag_explorer import (
     DAGExecution,
 )
 from cognivault.context import AgentContext
-from cognivault.langgraph_backend.build_graph import GraphConfig
 
 
 class TestInteractiveDAGExplorer:

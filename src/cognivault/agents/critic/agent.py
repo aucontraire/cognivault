@@ -8,7 +8,7 @@ from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 
 class CriticAgent(BaseAgent):

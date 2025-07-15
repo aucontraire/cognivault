@@ -15,8 +15,7 @@ Features:
 """
 
 import os
-import sys
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -811,7 +810,7 @@ def cli_visualize_dag(
     # Validate agents
     if not validate_agents(agents):
         raise ValueError(
-            f"Unsupported agents found. Supported: refiner, critic, synthesis, historian"
+            "Unsupported agents found. Supported: refiner, critic, synthesis, historian"
         )
 
     # Create configuration
