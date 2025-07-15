@@ -13,6 +13,26 @@ from cognivault.exceptions import (
     LLMError,
     RetryPolicy,
 )
+from cognivault.correlation import (
+    get_correlation_id,
+    get_workflow_id,
+    create_child_span,
+    add_trace_metadata,
+)
+
+# Event emission imports
+try:
+    from cognivault.events import (
+        emit_agent_execution_started,
+        emit_agent_execution_completed,
+    )
+
+    # Don't import registry here to avoid circular import
+    # Will import at runtime when needed
+
+    EVENTS_AVAILABLE = True
+except ImportError:
+    EVENTS_AVAILABLE = False
 
 
 class RetryConfig:
@@ -246,6 +266,43 @@ class BaseAgent(ABC):
             )
 
         self.execution_count += 1
+
+        # Emit agent execution started event if available
+        if EVENTS_AVAILABLE:
+            try:
+                from cognivault.agents.registry import get_agent_registry
+
+                registry = get_agent_registry()
+                try:
+                    agent_metadata = registry.get_metadata(self.name)
+                except ValueError:
+                    # Agent not registered in registry, use None metadata
+                    agent_metadata = None
+
+                await emit_agent_execution_started(
+                    workflow_id=get_workflow_id() or step_id,
+                    agent_name=self.name,
+                    input_context={
+                        "step_id": step_id,
+                        "execution_count": self.execution_count,
+                        "input_tokens": getattr(context, "token_count", 0),
+                        "context_size": len(str(context)),
+                    },
+                    agent_metadata=agent_metadata,
+                    correlation_id=get_correlation_id(),
+                    metadata={
+                        "retry_config": {
+                            "max_retries": self.retry_config.max_retries,
+                            "timeout_seconds": self.timeout_seconds,
+                        },
+                        "circuit_breaker_enabled": self.circuit_breaker is not None,
+                    },
+                )
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to emit agent execution started event: {e}"
+                )
+
         retries = 0
         last_exception: Optional[Exception] = None
 
@@ -274,6 +331,48 @@ class BaseAgent(ABC):
                     f"[{self.name}] Execution successful "
                     f"(step: {step_id}, time: {execution_time:.2f}s, attempt: {retries + 1})"
                 )
+
+                # Emit agent execution completed event if available
+                if EVENTS_AVAILABLE:
+                    try:
+                        from cognivault.agents.registry import get_agent_registry
+
+                        registry = get_agent_registry()
+                        try:
+                            agent_metadata = registry.get_metadata(self.name)
+                        except ValueError:
+                            # Agent not registered in registry, use None metadata
+                            agent_metadata = None
+
+                        await emit_agent_execution_completed(
+                            workflow_id=get_workflow_id() or step_id,
+                            agent_name=self.name,
+                            success=True,
+                            output_context={
+                                "step_id": step_id,
+                                "execution_time_seconds": execution_time,
+                                "attempts_used": retries + 1,
+                                "output_tokens": getattr(result, "token_count", 0),
+                                "context_size": len(str(result)),
+                            },
+                            agent_metadata=agent_metadata,
+                            correlation_id=get_correlation_id(),
+                            execution_time_ms=execution_time * 1000,
+                            metadata={
+                                "success_count": self.success_count,
+                                "total_executions": self.execution_count,
+                                "circuit_breaker_state": (
+                                    "closed"
+                                    if not self.circuit_breaker
+                                    or not self.circuit_breaker.is_open
+                                    else "open"
+                                ),
+                            },
+                        )
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Failed to emit agent execution completed event: {e}"
+                        )
 
                 # Add execution metadata to context
                 context.log_trace(
@@ -305,6 +404,50 @@ class BaseAgent(ABC):
                     if self.circuit_breaker:
                         self.circuit_breaker.record_failure()
 
+                    # Emit agent execution completed event for timeout failure if available
+                    if EVENTS_AVAILABLE:
+                        try:
+                            from cognivault.agents.registry import get_agent_registry
+
+                            registry = get_agent_registry()
+                            try:
+                                agent_metadata = registry.get_metadata(self.name)
+                            except ValueError:
+                                # Agent not registered in registry, use None metadata
+                                agent_metadata = None
+
+                            await emit_agent_execution_completed(
+                                workflow_id=get_workflow_id() or step_id,
+                                agent_name=self.name,
+                                success=False,
+                                output_context={
+                                    "step_id": step_id,
+                                    "attempts_made": retries + 1,
+                                    "max_retries": self.retry_config.max_retries,
+                                    "timeout_seconds": self.timeout_seconds,
+                                    "error_type": "AgentTimeoutError",
+                                    "error_message": f"Agent timed out after {self.timeout_seconds}s",
+                                },
+                                agent_metadata=agent_metadata,
+                                correlation_id=get_correlation_id(),
+                                error_message=f"Agent timed out after {self.timeout_seconds}s",
+                                error_type="AgentTimeoutError",
+                                metadata={
+                                    "failure_count": self.failure_count,
+                                    "total_executions": self.execution_count,
+                                    "circuit_breaker_state": (
+                                        "open"
+                                        if self.circuit_breaker
+                                        and self.circuit_breaker.is_open
+                                        else "closed"
+                                    ),
+                                },
+                            )
+                        except Exception as emit_e:
+                            self.logger.warning(
+                                f"Failed to emit agent timeout event: {emit_e}"
+                            )
+
                     raise AgentTimeoutError(
                         agent_name=self.name,
                         timeout_seconds=self.timeout_seconds,
@@ -334,6 +477,49 @@ class BaseAgent(ABC):
                     self.failure_count += 1
                     if self.circuit_breaker:
                         self.circuit_breaker.record_failure()
+
+                    # Emit agent execution completed event for failure if available
+                    if EVENTS_AVAILABLE:
+                        try:
+                            from cognivault.agents.registry import get_agent_registry
+
+                            registry = get_agent_registry()
+                            try:
+                                agent_metadata = registry.get_metadata(self.name)
+                            except ValueError:
+                                # Agent not registered in registry, use None metadata
+                                agent_metadata = None
+
+                            await emit_agent_execution_completed(
+                                workflow_id=get_workflow_id() or step_id,
+                                agent_name=self.name,
+                                success=False,
+                                output_context={
+                                    "step_id": step_id,
+                                    "attempts_made": retries + 1,
+                                    "max_retries": self.retry_config.max_retries,
+                                    "error_type": type(e).__name__,
+                                    "error_message": str(e),
+                                },
+                                agent_metadata=agent_metadata,
+                                correlation_id=get_correlation_id(),
+                                error_message=str(e),
+                                error_type=type(e).__name__,
+                                metadata={
+                                    "failure_count": self.failure_count,
+                                    "total_executions": self.execution_count,
+                                    "circuit_breaker_state": (
+                                        "open"
+                                        if self.circuit_breaker
+                                        and self.circuit_breaker.is_open
+                                        else "closed"
+                                    ),
+                                },
+                            )
+                        except Exception as emit_e:
+                            self.logger.warning(
+                                f"Failed to emit agent execution failed event: {emit_e}"
+                            )
 
                     # Convert to appropriate agent exception
                     if isinstance(e, (AgentExecutionError, LLMError)):

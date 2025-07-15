@@ -341,8 +341,8 @@ async def refiner_node(state: CogniVaultState) -> Dict[str, Any]:
         # Convert state to context
         context = await convert_state_to_context(state)
 
-        # Execute agent
-        result_context = await agent.run(context)
+        # Execute agent with event emission and retry logic
+        result_context = await agent.run_with_retry(context)
 
         # Extract refiner output (using "Refiner" key, not "refiner")
         refiner_raw_output = result_context.agent_outputs.get("Refiner", "")
@@ -401,8 +401,8 @@ async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
         # Convert state to context
         context = await convert_state_to_context(state)
 
-        # Execute agent
-        result_context = await agent.run(context)
+        # Execute agent with event emission and retry logic
+        result_context = await agent.run_with_retry(context)
 
         # Extract critic output (using "Critic" key, not "critic")
         critic_raw_output = result_context.agent_outputs.get("Critic", "")
@@ -463,8 +463,8 @@ async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
         # Convert state to context
         context = await convert_state_to_context(state)
 
-        # Execute agent
-        result_context = await agent.run(context)
+        # Execute agent with event emission and retry logic
+        result_context = await agent.run_with_retry(context)
 
         # Extract historian output (using "Historian" key, not "historian")
         historian_raw_output = result_context.agent_outputs.get("Historian", "")
@@ -548,8 +548,8 @@ async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
         # Convert state to context
         context = await convert_state_to_context(state)
 
-        # Execute agent
-        result_context = await agent.run(context)
+        # Execute agent with event emission and retry logic
+        result_context = await agent.run_with_retry(context)
 
         # Extract synthesis output (using "Synthesis" key, not "synthesis")
         synthesis_raw_output = result_context.agent_outputs.get("Synthesis", "")

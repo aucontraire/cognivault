@@ -24,6 +24,18 @@ from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
 from cognivault.observability import get_logger
+from cognivault.correlation import (
+    get_correlation_id,
+    get_workflow_id,
+    ensure_correlation_context,
+    create_child_span,
+    add_trace_metadata,
+    get_current_context,
+)
+from cognivault.events import (
+    emit_workflow_started,
+    emit_workflow_completed,
+)
 from cognivault.langraph.state_bridge import AgentContextStateBridge
 from cognivault.langraph.state_schemas import (
     CogniVaultState,
@@ -151,6 +163,7 @@ class LangGraphOrchestrator:
         - Parallel execution of Critic and Historian after Refiner
         - Type-safe state management
         - Comprehensive error handling and recovery
+        - Correlation context propagation for tracing
 
         Parameters
         ----------
@@ -171,15 +184,46 @@ class LangGraphOrchestrator:
         """
         config = config or {}
         start_time = time.time()
-        execution_id = str(uuid.uuid4())
+
+        # Ensure correlation context exists (create if not present)
+        correlation_ctx = ensure_correlation_context()
+
+        # Use correlation IDs for execution tracking
+        execution_id = correlation_ctx.workflow_id
+        correlation_id = correlation_ctx.correlation_id
+
+        # Create orchestrator span for detailed tracing
+        orchestrator_span = create_child_span("langgraph_orchestrator")
+
+        # Add orchestrator metadata to trace
+        add_trace_metadata("orchestrator_type", "langgraph-real")
+        add_trace_metadata("agents_requested", self.agents_to_run)
+        add_trace_metadata("query_length", len(query))
+        add_trace_metadata("config", config)
 
         self.logger.info(
             f"Starting LangGraph execution for query: {query[:100]}... "
-            f"(execution_id: {execution_id})"
+            f"(execution_id: {execution_id}, correlation_id: {correlation_id})"
         )
         self.logger.info(f"Execution mode: langgraph")
         self.logger.info(f"Agents to run: {self.agents_to_run}")
         self.logger.info(f"Config: {config}")
+        self.logger.info(f"Correlation context: {correlation_ctx.to_dict()}")
+
+        # Emit workflow started event
+        await emit_workflow_started(
+            workflow_id=execution_id,
+            query=query,
+            agents=self.agents_to_run,
+            execution_config=config,
+            correlation_id=correlation_id,
+            metadata={
+                "orchestrator_type": "langgraph-real",
+                "orchestrator_span": orchestrator_span,
+                "phase": "phase2_1",
+                "checkpoints_enabled": self.enable_checkpoints,
+            },
+        )
 
         self.total_executions += 1
 
@@ -241,13 +285,15 @@ class LangGraphOrchestrator:
             # Convert LangGraph state back to AgentContext
             context = await self._convert_state_to_context(final_state)
 
-            # Add execution metadata
+            # Add execution metadata with correlation context
             total_time_ms = (time.time() - start_time) * 1000
             context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
                     "phase": "phase2_1",
                     "execution_id": execution_id,
+                    "correlation_id": correlation_id,
+                    "orchestrator_span": orchestrator_span,
                     "thread_id": thread_id,
                     "agents_requested": self.agents_to_run,
                     "config": config,
@@ -257,7 +303,36 @@ class LangGraphOrchestrator:
                     "successful_agents_count": len(final_state["successful_agents"]),
                     "failed_agents_count": len(final_state["failed_agents"]),
                     "errors_count": len(final_state["errors"]),
+                    "correlation_context": correlation_ctx.to_dict(),
                 }
+            )
+
+            # Emit workflow completed event
+            await emit_workflow_completed(
+                workflow_id=execution_id,
+                status=(
+                    "completed"
+                    if not final_state["failed_agents"]
+                    else "partial_failure"
+                ),
+                execution_time_seconds=total_time_ms / 1000,
+                agent_outputs={
+                    agent: (
+                        str(output)[:200] + "..."
+                        if len(str(output)) > 200
+                        else str(output)
+                    )
+                    for agent, output in context.agent_outputs.items()
+                },
+                successful_agents=list(final_state["successful_agents"]),
+                failed_agents=list(final_state["failed_agents"]),
+                correlation_id=correlation_id,
+                metadata={
+                    "orchestrator_type": "langgraph-real",
+                    "orchestrator_span": orchestrator_span,
+                    "thread_id": thread_id,
+                    "total_agents": len(self.agents_to_run),
+                },
             )
 
             # Update statistics
@@ -285,19 +360,38 @@ class LangGraphOrchestrator:
                 f"LangGraph execution failed after {total_time_ms:.2f}ms: {e}"
             )
 
-            # Create fallback context with error information
+            # Emit workflow failed event
+            await emit_workflow_completed(
+                workflow_id=execution_id,
+                status="failed",
+                execution_time_seconds=total_time_ms / 1000,
+                error_message=str(e),
+                successful_agents=[],
+                failed_agents=self.agents_to_run,  # All requested agents failed
+                correlation_id=correlation_id,
+                metadata={
+                    "orchestrator_type": "langgraph-real",
+                    "orchestrator_span": orchestrator_span,
+                    "error_type": type(e).__name__,
+                },
+            )
+
+            # Create fallback context with error information and correlation
             context = AgentContext(query=query)
             context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
                     "phase": "phase2_1",
                     "execution_id": execution_id,
+                    "correlation_id": correlation_id,
+                    "orchestrator_span": orchestrator_span,
                     "agents_requested": self.agents_to_run,
                     "config": config,
                     "execution_time_ms": total_time_ms,
                     "langgraph_execution": True,
                     "execution_error": str(e),
                     "execution_error_type": type(e).__name__,
+                    "correlation_context": correlation_ctx.to_dict(),
                 }
             )
 
