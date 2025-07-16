@@ -8,7 +8,7 @@ LangGraph DAG structures with rich visualization and navigation capabilities.
 import asyncio
 import json
 import time
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -19,8 +19,19 @@ from rich.tree import Tree
 from rich.panel import Panel
 from rich.prompt import Prompt
 
-from cognivault.orchestration.orchestrator import LangGraphOrchestrator
-from cognivault.langgraph_backend.build_graph import GraphFactory, GraphConfig
+# Import these for runtime use and testing
+try:
+    from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+    from cognivault.langgraph_backend.build_graph import GraphFactory, GraphConfig
+except ImportError:
+    # Fallback for environments where LangGraph isn't available
+    if TYPE_CHECKING:
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+        from cognivault.langgraph_backend.build_graph import GraphFactory, GraphConfig
+    else:
+        LangGraphOrchestrator = None
+        GraphFactory = None
+        GraphConfig = None
 
 
 class ExplorationMode(Enum):
@@ -67,7 +78,11 @@ class InteractiveDAGExplorer:
 
     def __init__(self) -> None:
         self.console = Console()
-        self.graph_factory = GraphFactory()
+        # Initialize GraphFactory if available
+        if GraphFactory is not None:
+            self.graph_factory = GraphFactory()
+        else:
+            self.graph_factory = None
         self.current_graph = None
         self.current_nodes: Dict[str, DAGNode] = {}
         self.execution_history: List[DAGExecution] = []
@@ -117,7 +132,8 @@ class InteractiveDAGExplorer:
             config = GraphConfig(
                 agents_to_run=agent_list or ["refiner", "critic"], pattern_name=pattern
             )
-            self.current_graph = self.graph_factory.create_graph(config)
+            if self.graph_factory is not None:
+                self.current_graph = self.graph_factory.create_graph(config)
             self._analyze_graph_structure()
 
             if output == "console":
@@ -158,10 +174,18 @@ class InteractiveDAGExplorer:
         agent_list = [a.strip() for a in agents.split(",")] if agents else None
 
         try:
+            # Use GraphFactory and GraphConfig if available
+            if GraphFactory is None or GraphConfig is None:
+                raise ImportError("GraphFactory or GraphConfig not available")
+
+            if self.graph_factory is None:
+                self.graph_factory = GraphFactory()
+
             config = GraphConfig(
                 agents_to_run=agent_list or ["refiner", "critic"], pattern_name=pattern
             )
-            self.current_graph = self.graph_factory.create_graph(config)
+            if self.graph_factory is not None:
+                self.current_graph = self.graph_factory.create_graph(config)
             self._analyze_graph_structure()
 
             # Structural analysis
@@ -191,6 +215,10 @@ class InteractiveDAGExplorer:
         agent_list = [a.strip() for a in agents.split(",")] if agents else None
 
         try:
+            # Use LangGraphOrchestrator if available
+            if LangGraphOrchestrator is None:
+                raise ImportError("LangGraphOrchestrator not available")
+
             # Create orchestrator with tracing
             orchestrator = LangGraphOrchestrator(
                 agents_to_run=agent_list, enable_checkpoints=False
@@ -440,7 +468,7 @@ class InteractiveDAGExplorer:
         self.console.print(table)
 
     async def _execute_and_trace(
-        self, orchestrator: LangGraphOrchestrator, query: str
+        self, orchestrator: "LangGraphOrchestrator", query: str
     ) -> DAGExecution:
         """Execute query and capture detailed trace."""
         start_time = time.time()

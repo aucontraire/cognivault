@@ -853,8 +853,16 @@ class DiagnosticsCLI:
                 "[orange]⚠️ LangGraph has some issues - check errors above[/orange]"
             )
         elif status == "not_installed":
+            # Dynamically suggest the installed version or fallback to 0.5.3
+            try:
+                import langgraph
+
+                suggested_version = getattr(langgraph, "__version__", "0.5.3")
+            except ImportError:
+                suggested_version = "0.5.3"
+
             self.console.print(
-                "[red]❌ LangGraph is not installed. Run: pip install langgraph==0.5.1[/red]"
+                f"[red]❌ LangGraph is not installed. Run: pip install langgraph=={suggested_version}[/red]"
             )
         elif status == "error":
             self.console.print("[red]❌ LangGraph integration has errors[/red]")

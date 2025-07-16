@@ -11,7 +11,7 @@ import statistics
 import json
 import psutil
 import threading
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,7 +28,16 @@ from rich.progress import (
 )
 
 from cognivault.context import AgentContext
-from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+
+# Import for runtime use and testing
+try:
+    from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+except ImportError:
+    # Fallback for environments where LangGraph isn't available
+    if TYPE_CHECKING:
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+    else:
+        LangGraphOrchestrator = None
 
 
 @dataclass
@@ -407,6 +416,10 @@ class PerformanceProfiler:
                 raise ValueError(
                     f"Unsupported execution mode: {mode}. Only 'langgraph-real' is supported after Phase 3."
                 )
+
+            # Use LangGraphOrchestrator if available
+            if LangGraphOrchestrator is None:
+                raise ValueError("LangGraphOrchestrator not available")
 
             orchestrator = LangGraphOrchestrator(agents_to_run=agents)
             context = asyncio.run(orchestrator.run(query))

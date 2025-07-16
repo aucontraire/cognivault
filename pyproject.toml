@@ -1,0 +1,203 @@
+[tool.poetry]
+name = "cognivault"
+version = "0.10.0-beta.1"
+description = "An async, multi-agent CLI system for structured thought reflection and synthesis with enhanced LLM-powered capabilities"
+authors = ["aucontraire"]
+license = "AGPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/aucontraire/cognivault"
+repository = "https://github.com/aucontraire/cognivault"
+documentation = "https://github.com/aucontraire/cognivault/src/corgnivault/docs"
+keywords = ["llm", "agents", "cli", "reflection", "synthesis", "langgraph", "async"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Linguistic",
+]
+packages = [{include = "cognivault", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+# Core Dependencies
+openai = "1.92.3"
+tiktoken = "*"
+typer = {extras = ["all"], version = "*"}
+pydantic = ">=2.0"
+
+# LangGraph Integration
+langgraph = "0.5.3"
+langchain-core = ">=0.3.0,<0.4.0"
+
+# Retrieval
+faiss-cpu = "*"
+
+# Embedding and NLP
+numpy = "*"
+scikit-learn = "*"
+
+# Markdown Handling
+python-frontmatter = "*"
+markdown = "*"
+beautifulsoup4 = "*"
+
+# Logging & Debugging
+loguru = "*"
+watchdog = "*"
+rich = "*"
+python-dotenv = "*"
+psutil = "*"
+
+[tool.poetry.group.dev.dependencies]
+# Testing
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+
+# Code Quality
+ruff = "*"
+black = "*"
+isort = "*"
+mypy = "*"
+
+# Type Hints
+types-psutil = "*"
+types-PyYAML = "*"
+
+# Testing Mocks for LLMs
+openai-responses = ">=0.12.0"
+
+# Diagram/Visualization (Optional Future)
+graphviz = "*"
+
+# Optional dependencies (uncomment to use ChromaDB instead of FAISS)
+# chromadb = {optional = true}
+
+# [tool.poetry.extras]
+# chromadb = ["chromadb"]
+
+[tool.poetry.scripts]
+cognivault = "cognivault.cli:app"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# Tool configurations
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+    "B904",  # raise ... from err in exception handling (too strict for our use case)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+no_implicit_reexport = true
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "faiss.*",
+    "chromadb.*",
+    "langgraph.*",
+    "openai_responses.*",
+    "graphviz.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = [
+    "tests",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+    "tests.py",
+]
+python_classes = [
+    "Test*",
+]
+python_functions = [
+    "test_*",
+]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
