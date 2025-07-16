@@ -21,21 +21,28 @@ except ImportError:
 
 from cognivault.config.logging_config import setup_logging
 from cognivault.config.openai_config import OpenAIConfig
-from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.topic_manager import TopicManager
 from cognivault.llm.openai import OpenAIChatLLM
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.diagnostics.cli import app as diagnostics_app
 from cognivault.diagnostics.visualize_dag import cli_visualize_dag
-from cognivault.api.factory import (
-    initialize_api,
-    shutdown_api,
-    get_api_mode,
-    set_api_mode,
-)
-from cognivault.api.models import WorkflowRequest
 from cognivault.context import AgentContext
+
+# Import API functions at module level for testing
+try:
+    from cognivault.api.factory import get_api_mode, initialize_api, shutdown_api
+except ImportError:
+    # Provide dummy functions if API is not available
+    def get_api_mode():  # type: ignore
+        return "none"
+
+    async def initialize_api(force_mode=None):  # type: ignore
+        return None
+
+    async def shutdown_api():  # type: ignore
+        pass
+
 
 app = typer.Typer()
 
@@ -66,7 +73,7 @@ def _validate_langgraph_runtime() -> None:
         if version and not version.startswith("0.5"):
             raise RuntimeError(
                 f"LangGraph version {version} may not be compatible. "
-                f"Expected version 0.5.x. Consider: pip install langgraph==0.5.1"
+                f"Expected version 0.5.x. Consider: pip install langgraph=={version or '0.5.3'}"
             )
 
         # Test essential imports
@@ -139,6 +146,8 @@ async def run(
 
     # Set API mode if specified
     if api_mode:
+        from cognivault.api.factory import set_api_mode
+
         original_mode = get_api_mode()
         set_api_mode(api_mode)
         logger.info(f"API mode set to: {api_mode} (was: {original_mode})")
@@ -227,6 +236,9 @@ async def run(
             )
             raise typer.Exit(1)
 
+        # Import LangGraphOrchestrator only when needed to avoid module-level LangGraph import
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+
         orchestrator = LangGraphOrchestrator(
             agents_to_run=agents_to_run,
             enable_checkpoints=enable_checkpoints,
@@ -235,7 +247,7 @@ async def run(
 
     except ImportError as e:
         console.print(f"[red]❌ LangGraph is not installed or incompatible: {e}[/red]")
-        console.print("[yellow]💡 Try: pip install langgraph==0.5.1[/yellow]")
+        console.print("[yellow]💡 Try: pip install langgraph==0.5.3[/yellow]")
         raise typer.Exit(1)
     except Exception as e:
         console.print(f"[red]❌ LangGraph runtime error: {e}[/red]")
@@ -464,6 +476,9 @@ async def _run_with_api(
     logger = logging.getLogger(__name__)
 
     try:
+        # Import API models when needed
+        from cognivault.api.models import WorkflowRequest
+
         # Initialize API
         if trace:
             console.print(
@@ -590,12 +605,12 @@ async def _run_health_check(orchestrator, console, agents_to_run):
                 details = "Health check failed"
                 all_healthy = False
 
-            health_table.add_row(agent_name.title(), status, details)
+            health_table.add_row(str(agent_name).title(), status, details)
 
         except Exception as e:
             status = "[red]✗ Error[/red]"
             details = f"Health check error: {str(e)}"
-            health_table.add_row(agent_name.title(), status, details)
+            health_table.add_row(str(agent_name).title(), status, details)
             all_healthy = False
 
     console.print(health_table)

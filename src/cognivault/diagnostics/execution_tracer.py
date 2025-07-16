@@ -9,7 +9,7 @@ import asyncio
 import time
 import json
 import threading
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -25,7 +25,16 @@ from rich.layout import Layout
 from rich.prompt import Prompt
 
 from cognivault.context import AgentContext
-from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+
+# Import for runtime use and testing
+try:
+    from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+except ImportError:
+    # Fallback for environments where LangGraph isn't available
+    if TYPE_CHECKING:
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+    else:
+        LangGraphOrchestrator = None
 
 
 class TraceLevel(Enum):
@@ -467,6 +476,10 @@ class ExecutionTracer:
         )
 
         try:
+            # Use LangGraphOrchestrator if available
+            if LangGraphOrchestrator is None:
+                raise ImportError("LangGraphOrchestrator not available")
+
             # Create orchestrator with tracing hooks
             orchestrator = LangGraphOrchestrator(agents_to_run=agents)
 
@@ -535,6 +548,10 @@ class ExecutionTracer:
         with Live(layout, refresh_per_second=1 / refresh_rate) as live:
             # Start execution in background
             async def execute_async():
+                # Use LangGraphOrchestrator if available
+                if LangGraphOrchestrator is None:
+                    raise ImportError("LangGraphOrchestrator not available")
+
                 orchestrator = LangGraphOrchestrator(agents_to_run=agents)
                 context = await orchestrator.run(query)
                 return context

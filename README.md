@@ -1,6 +1,7 @@
 # 🧠 CogniVault
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
+![Poetry](https://img.shields.io/badge/poetry-managed-blue)
 ![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
@@ -8,6 +9,46 @@
 
 CogniVault is a modular, CLI-based multi-agent assistant designed to help you reflect, refine, and organize your thoughts through structured dialogue and cumulative insight. It simulates a memory-augmented thinking partner, enabling long-term knowledge building across multiple agent perspectives.
 
+## 📋 Requirements
+
+Before getting started, ensure you have the following installed:
+
+- **Python 3.12+** (tested with Python 3.12.2)
+- **Poetry** (for dependency management)
+- **Git** (for cloning the repository)
+
+### Installing Poetry
+
+Poetry is the recommended way to manage dependencies for this project. Install it using one of these methods:
+
+**Option 1: Official installer (recommended)**
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
+```
+
+**Option 2: Via pip**
+```bash
+pip install poetry
+```
+
+**Option 3: Via package manager**
+```bash
+# macOS (Homebrew)
+brew install poetry
+
+# Ubuntu/Debian
+curl -sSL https://install.python-poetry.org | python3 -
+
+# Windows (PowerShell)
+(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
+```
+
+After installation, verify Poetry is working:
+```bash
+poetry --version
+```
+
+For detailed installation instructions, see the [official Poetry documentation](https://python-poetry.org/docs/#installation).
 
 ## ⚡ Quickstart
 
@@ -16,15 +57,22 @@ Clone the repo and run a basic question through the CLI:
 ```bash
 git clone https://github.com/aucontraire/cognivault.git
 cd cognivault
+
+# Install dependencies with Poetry
+poetry install
+
+# Run setup (creates environment and installs git hooks)
 bash setup.sh
+
+# Run your first question
 make run QUESTION="What are the long-term effects of AI in education?"
 
 # Or use the convenient cognivault command
-./cognivault main "What are the long-term effects of AI in education?"
-./cognivault diagnostics health  # Check system health
+cognivault main "What are the long-term effects of AI in education?"
+cognivault diagnostics health  # Check system health
 ```
 
-See [🖥️ Usage](#️usage) for running specific agents and debugging options.
+See [🖥️ Usage](#️usage) for running specific agents and debugging options, or check the [📖 Comprehensive CLI Usage Guide](src/cognivault/docs/CLI_USAGE.md) for detailed command reference.
 
 ---
 
@@ -44,7 +92,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 *How you work with CogniVault - tools and interfaces that make development productive*
 
 - ✅ **Rich CLI interface**: Full-featured command-line tool using Typer with comprehensive help and options
-- 📊 **Comprehensive diagnostics**: `./cognivault diagnostics` suite for health checks, metrics, and system status
+- 📊 **Comprehensive diagnostics**: `cognivault diagnostics` suite for health checks, metrics, and system status
 - 🔍 **Execution observability**: Real-time tracing (`--trace`), health checks (`--health-check`), dry run (`--dry-run`)
 - 📊 **DAG visualization**: Mermaid diagram generation (`--visualize-dag`) for pipeline analysis and debugging
 - 🔀 **Performance comparison**: Statistical benchmarking between execution modes (`--compare-modes`)
@@ -574,16 +622,28 @@ This error handling foundation prepares CogniVault for LangGraph migration by pr
 
 ## 🛠️ Installation & Setup
 
+**Prerequisites**: Make sure you have [Poetry installed](#-requirements) before proceeding.
+
+### Quick Setup
+
 To get started quickly:
 
 ```bash
+# Clone the repository
+git clone https://github.com/aucontraire/cognivault.git
+cd cognivault
+
+# Install dependencies with Poetry
+poetry install
+
+# Run setup script (creates environment and installs git hooks)
 bash setup.sh
 ```
 
-This script will:
+The `setup.sh` script will:
 
 - Create a Python 3.12.2 virtual environment using `pyenv`
-- Install dependencies from `requirements.txt`
+- Install dependencies from `pyproject.toml` using Poetry
 - Install Git hooks to enforce formatting, type-checking, and testing before commits and pushes
 
 If you don't have `pyenv` installed, refer to: https://github.com/pyenv/pyenv#installation
@@ -769,6 +829,10 @@ This approach allows you to cleanly swap or combine LLMs in the future with mini
 
 ## 🖥️ Usage
 
+> **📖 For comprehensive CLI documentation, see the [CLI Usage Guide](src/cognivault/docs/CLI_USAGE.md)**
+> 
+> The CLI Usage Guide provides detailed information on all commands, options, troubleshooting, and use cases.
+
 ### Run the assistant
 
 Make sure your `.env` file is configured with your OpenAI credentials if using the OpenAI LLM backend.
@@ -782,13 +846,13 @@ make run QUESTION="Is democracy becoming more robust globally?"
 This executes:
 
 ```bash
-PYTHONPATH=src python -m cognivault.cli "$(QUESTION)" $(if $(AGENTS),--agents=$(AGENTS),) $(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) $(if $(EXPORT_MD),--export-md,) $(if $(TRACE),--trace,) $(if $(HEALTH_CHECK),--health-check,) $(if $(DRY_RUN),--dry-run,) $(if $(EXPORT_TRACE),--export-trace=$(EXPORT_TRACE),)
+cognivault main "$(QUESTION)" $(if $(AGENTS),--agents=$(AGENTS),) $(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) $(if $(EXPORT_MD),--export-md,) $(if $(TRACE),--trace,) $(if $(HEALTH_CHECK),--health-check,) $(if $(DRY_RUN),--dry-run,) $(if $(EXPORT_TRACE),--export-trace=$(EXPORT_TRACE),)
 ```
 
-⚠️ Note: `$(QUESTION)` is a Makefile variable — this syntax only works with `make run`. If you're calling the Python CLI directly, use standard shell quotes:
+⚠️ Note: `$(QUESTION)` is a Makefile variable — this syntax only works with `make run`. If you're calling the CLI directly, use standard shell quotes:
 
 ```bash
-PYTHONPATH=src python -m cognivault.cli "What is cognition?" --agents=refiner,critic
+cognivault main "What is cognition?" --agents=refiner,critic
 ```
 
 You can also run a **single agent in isolation** using the `AGENTS` environment variable:
@@ -1171,6 +1235,8 @@ The checkpointing system prepares CogniVault for **long-running workflows**, **m
 
 ## 📊 CLI Diagnostics & Observability
 
+> **📖 For complete CLI command documentation, see the [CLI Usage Guide](src/cognivault/docs/CLI_USAGE.md)**
+
 CogniVault includes comprehensive diagnostics capabilities accessible via the `cognivault diagnostics` command suite, enhanced with Phase 2C developer experience tools:
 
 ### Health Checks
@@ -1179,13 +1245,13 @@ Check system health with detailed component analysis:
 
 ```bash
 # Quick health overview
-./cognivault diagnostics health
+cognivault diagnostics health
 
 # JSON output for automation
-./cognivault diagnostics health --format json
+cognivault diagnostics health --format json
 
 # Quiet mode (exit codes only)
-./cognivault diagnostics health --quiet
+cognivault diagnostics health --quiet
 ```
 
 ### Performance Metrics
@@ -1194,16 +1260,16 @@ Monitor system performance and statistics:
 
 ```bash
 # Performance overview
-./cognivault diagnostics metrics
+cognivault diagnostics metrics
 
 # Export to Prometheus format
-./cognivault diagnostics metrics --format prometheus
+cognivault diagnostics metrics --format prometheus
 
 # Agent-specific metrics only
-./cognivault diagnostics metrics --agents
+cognivault diagnostics metrics --agents
 
 # Time-windowed metrics (last N minutes)
-./cognivault diagnostics metrics --window 30
+cognivault diagnostics metrics --window 30
 ```
 
 ### System Status
@@ -1212,10 +1278,10 @@ Get comprehensive system information:
 
 ```bash
 # Detailed system status
-./cognivault diagnostics status
+cognivault diagnostics status
 
 # JSON output with custom time window
-./cognivault diagnostics status --json --window 60
+cognivault diagnostics status --json --window 60
 ```
 
 ### Agent Diagnostics
@@ -1224,10 +1290,10 @@ Monitor individual agent performance:
 
 ```bash
 # All agents status
-./cognivault diagnostics agents
+cognivault diagnostics agents
 
 # Specific agent details
-./cognivault diagnostics agents --agent refiner --json
+cognivault diagnostics agents --agent refiner --json
 ```
 
 ### Configuration Validation
@@ -1236,13 +1302,13 @@ Validate system configuration:
 
 ```bash
 # Configuration overview
-./cognivault diagnostics config
+cognivault diagnostics config
 
 # Validation only
-./cognivault diagnostics config --validate
+cognivault diagnostics config --validate
 
 # JSON output
-./cognivault diagnostics config --json
+cognivault diagnostics config --json
 ```
 
 ### Complete Diagnostics
@@ -1251,12 +1317,12 @@ Run full system diagnostics with export options:
 
 ```bash
 # Complete system report
-./cognivault diagnostics full
+cognivault diagnostics full
 
 # Export to file in different formats
-./cognivault diagnostics full --format json --output system-report.json
-./cognivault diagnostics full --format csv --output metrics.csv
-./cognivault diagnostics full --format prometheus --output metrics.prom
+cognivault diagnostics full --format json --output system-report.json
+cognivault diagnostics full --format csv --output metrics.csv
+cognivault diagnostics full --format prometheus --output metrics.prom
 ```
 
 ### Monitoring Integration
@@ -1274,27 +1340,27 @@ The CLI supports multiple output formats for seamless monitoring integration:
 
 ```bash
 # Validate built-in patterns
-./cognivault diagnostics patterns validate standard
-./cognivault diagnostics patterns validate conditional --level comprehensive
+cognivault diagnostics patterns validate standard
+cognivault diagnostics patterns validate conditional --level comprehensive
 
 # Test custom patterns
-./cognivault diagnostics patterns validate /path/to/custom_pattern.py --format json
+cognivault diagnostics patterns validate /path/to/custom_pattern.py --format json
 
 # Pattern discovery and certification
-./cognivault diagnostics patterns discover --path ./patterns --validate
-./cognivault diagnostics patterns certify /path/to/pattern.py --cert-output pattern.cert
+cognivault diagnostics patterns discover --path ./patterns --validate
+cognivault diagnostics patterns certify /path/to/pattern.py --cert-output pattern.cert
 
 # Performance benchmarking
-./cognivault diagnostics patterns benchmark standard --baseline parallel --runs 10
+cognivault diagnostics patterns benchmark standard --baseline parallel --runs 10
 
 # Interactive DAG exploration
-./cognivault diagnostics dag-explorer explore --pattern conditional --agents refiner,synthesis
-./cognivault diagnostics dag-explorer performance --runs 5
-./cognivault diagnostics dag-explorer interactive
+cognivault diagnostics dag-explorer explore --pattern conditional --agents refiner,synthesis
+cognivault diagnostics dag-explorer performance --runs 5
+cognivault diagnostics dag-explorer interactive
 
 # Execution tracing and debugging
-./cognivault diagnostics execution-tracer debug --query "Test execution" --breakpoints refiner,synthesis
-./cognivault diagnostics execution-tracer compare --baseline-file trace1.json --comparison-file trace2.json
+cognivault diagnostics execution-tracer debug --query "Test execution" --breakpoints refiner,synthesis
+cognivault diagnostics execution-tracer compare --baseline-file trace1.json --comparison-file trace2.json
 ```
 
 ### Developer Experience Features
@@ -1385,7 +1451,7 @@ This can help trace detailed agent behavior while viewing test coverage results.
 This executes:
 
 ```bash
-PYTHONPATH=src pytest --cov=cognivault --cov-report=term-missing tests/
+poetry run pytest --cov=cognivault --cov-report=term-missing tests/
 ```
 
 Run coverage on a specific module:

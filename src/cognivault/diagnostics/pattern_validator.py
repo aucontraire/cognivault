@@ -6,7 +6,10 @@ capabilities for custom graph patterns with semantic validation integration.
 """
 
 import inspect
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -19,8 +22,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
-
+# LangGraph imports moved to function level to avoid module-level import issues
+# from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
 # from cognivault.langgraph_backend.semantic_validation import SemanticValidator
 
 
@@ -73,7 +76,7 @@ class PatternValidator(ABC):
 
     @abstractmethod
     def validate(
-        self, pattern: GraphPattern, level: ValidationLevel
+        self, pattern: "GraphPattern", level: ValidationLevel
     ) -> List[ValidationIssue]:
         """Validate a graph pattern."""
         pass
@@ -93,7 +96,7 @@ class StructuralValidator(PatternValidator):
         return "Structural Validator"
 
     def validate(
-        self, pattern: GraphPattern, level: ValidationLevel
+        self, pattern: "GraphPattern", level: ValidationLevel
     ) -> List[ValidationIssue]:
         """Validate structural requirements."""
         issues = []
@@ -172,7 +175,7 @@ class SemanticValidator(PatternValidator):
         return "Semantic Validator"
 
     def validate(
-        self, pattern: GraphPattern, level: ValidationLevel
+        self, pattern: "GraphPattern", level: ValidationLevel
     ) -> List[ValidationIssue]:
         """Validate semantic correctness."""
         issues = []
@@ -234,7 +237,7 @@ class PerformanceValidator(PatternValidator):
         return "Performance Validator"
 
     def validate(
-        self, pattern: GraphPattern, level: ValidationLevel
+        self, pattern: "GraphPattern", level: ValidationLevel
     ) -> List[ValidationIssue]:
         """Validate performance characteristics."""
         issues = []
@@ -252,7 +255,7 @@ class PerformanceValidator(PatternValidator):
         return issues
 
     def _check_performance_patterns(
-        self, pattern: GraphPattern
+        self, pattern: "GraphPattern"
     ) -> List[ValidationIssue]:
         """Check for performance anti-patterns."""
         issues = []
@@ -271,7 +274,7 @@ class PerformanceValidator(PatternValidator):
 
         return issues
 
-    def _check_memory_patterns(self, pattern: GraphPattern) -> List[ValidationIssue]:
+    def _check_memory_patterns(self, pattern: "GraphPattern") -> List[ValidationIssue]:
         """Check for memory usage patterns."""
         issues = []
 
@@ -290,7 +293,7 @@ class PerformanceValidator(PatternValidator):
         return issues
 
     def _check_efficiency_patterns(
-        self, pattern: GraphPattern
+        self, pattern: "GraphPattern"
     ) -> List[ValidationIssue]:
         """Check for execution efficiency patterns."""
         issues = []
@@ -319,7 +322,7 @@ class SecurityValidator(PatternValidator):
         return "Security Validator"
 
     def validate(
-        self, pattern: GraphPattern, level: ValidationLevel
+        self, pattern: "GraphPattern", level: ValidationLevel
     ) -> List[ValidationIssue]:
         """Validate security aspects."""
         issues = []
@@ -333,7 +336,9 @@ class SecurityValidator(PatternValidator):
 
         return issues
 
-    def _check_security_patterns(self, pattern: GraphPattern) -> List[ValidationIssue]:
+    def _check_security_patterns(
+        self, pattern: "GraphPattern"
+    ) -> List[ValidationIssue]:
         """Check for security anti-patterns."""
         issues = []
 
@@ -363,7 +368,7 @@ class SecurityValidator(PatternValidator):
 
         return issues
 
-    def _check_data_validation(self, pattern: GraphPattern) -> List[ValidationIssue]:
+    def _check_data_validation(self, pattern: "GraphPattern") -> List[ValidationIssue]:
         """Check for proper data validation."""
         issues = []
 
@@ -679,14 +684,14 @@ class PatternValidationFramework:
 
     # Helper methods
 
-    def _load_pattern(self, pattern_path: str) -> GraphPattern:
+    def _load_pattern(self, pattern_path: str) -> "GraphPattern":
         """Load a pattern from path."""
         import importlib.util
         import sys
 
         # Handle different path formats
         if pattern_path in ["standard", "parallel", "conditional"]:
-            # Load from pattern registry
+            # Load from pattern registry - import at runtime to avoid LangGraph import chain
             from cognivault.langgraph_backend.graph_patterns.base import PatternRegistry
 
             registry = PatternRegistry()
@@ -709,6 +714,9 @@ class PatternValidationFramework:
         module = importlib.util.module_from_spec(spec)
         sys.modules["custom_pattern"] = module
         spec.loader.exec_module(module)
+
+        # Import GraphPattern only when needed to avoid module-level LangGraph import
+        from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
 
         # Find GraphPattern subclass
         pattern_classes = [
@@ -739,7 +747,7 @@ class PatternValidationFramework:
             raise RuntimeError(f"Error instantiating pattern class: {e}")
 
     def _validate_pattern_comprehensive(
-        self, pattern: GraphPattern, level: ValidationLevel
+        self, pattern: "GraphPattern", level: ValidationLevel
     ) -> PatternValidationReport:
         """Run comprehensive validation on pattern."""
         all_issues = []
@@ -881,7 +889,7 @@ class PatternValidationFramework:
 
     def _run_pattern_tests(
         self,
-        pattern: GraphPattern,
+        pattern: "GraphPattern",
         queries: List[str],
         agents: List[str],
         runs: int,
@@ -907,7 +915,7 @@ class PatternValidationFramework:
         self.console.print(table)
 
     def _run_certification_tests(
-        self, pattern: GraphPattern, suite: Optional[str]
+        self, pattern: "GraphPattern", suite: Optional[str]
     ) -> PatternValidationReport:
         """Run certification tests."""
         return self._validate_pattern_comprehensive(
@@ -948,7 +956,7 @@ Status: {"CERTIFIED" if report.certification_ready else "NOT CERTIFIED"}
         return StructuralValidator()
 
     def _generate_comprehensive_report(
-        self, pattern: GraphPattern, report_type: str, include_metrics: bool
+        self, pattern: "GraphPattern", report_type: str, include_metrics: bool
     ) -> str:
         """Generate comprehensive report."""
         return f"""# Comprehensive Pattern Report
@@ -962,7 +970,7 @@ Generated: {datetime.now().isoformat()}
 
     def _benchmark_pattern_performance(
         self,
-        pattern: GraphPattern,
+        pattern: "GraphPattern",
         baseline: Optional[str],
         agents: List[str],
         runs: int,

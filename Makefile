@@ -4,10 +4,10 @@ install:
 	bash scripts/setup.sh
 
 test:
-	PYTHONPATH=src pytest tests/
+	poetry run pytest tests/
 
 run:
-	PYTHONPATH=src python -m cognivault.cli main "$(QUESTION)" \
+	poetry run python -m cognivault.cli main "$(QUESTION)" \
 	$(if $(AGENTS),--agents=$(AGENTS),) \
 	$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL),) \
 	$(if $(EXPORT_MD),--export-md,) \
@@ -23,14 +23,14 @@ run:
 	$(if $(BENCHMARK_RUNS),--benchmark-runs=$(BENCHMARK_RUNS),)
 
 lint:
-	ruff check src/ tests/
+	poetry run ruff check src/ tests/
 
 format:
-	black src/ tests/ scripts/
-	ruff format src/ tests/
+	poetry run black src/ tests/ scripts/
+	poetry run ruff format src/ tests/
 
 typecheck:
-	mypy src/ tests/
+	poetry run mypy src/ tests/
 
 check:
 	$(MAKE) format
@@ -40,16 +40,16 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +
 
 coverage-all:
-	PYTHONPATH=src pytest --cov=cognivault --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
+	poetry run pytest --cov=cognivault --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
 
 coverage:
-	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
+	poetry run pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
 
 coverage-one:
-	PYTHONPATH=src pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
+	poetry run pytest --cov=cognivault.$(m) --cov-report=term-missing tests/ --log-cli-level=$${LOG_LEVEL:-WARNING}
 
 test-agent-%:
-	PYTHONPATH=src python scripts/agents/$*/test_batch.py
+	poetry run python scripts/agents/$*/test_batch.py
 
 run-agent-cli-%:
-	PYTHONPATH=src python -m cognivault.agents.$*.main $(ARGS)
+	poetry run python -m cognivault.agents.$*.main $(ARGS)

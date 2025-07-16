@@ -805,7 +805,7 @@ class LangGraphOrchestrator:
         )
 
     # Phase 2.0 Implementation Complete ✅
-    # ✅ Add real LangGraph dependency to requirements.txt (done in Phase 1)
+    # ✅ Add real LangGraph dependency to pyproject.toml (done in Phase 1)
     # ✅ Import real LangGraph StateGraph and related classes
     # ✅ Convert agents to LangGraph StateGraph nodes (node_wrappers.py)
     # ✅ Implement actual StateGraph execution with typed state management

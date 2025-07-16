@@ -93,9 +93,9 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m cognivault.agents.refiner.main --query "What is cognition?"
-  python -m cognivault.agents.refiner.main --query "AI and society" --debug
-  python -m cognivault.agents.refiner.main  # Interactive mode
+  poetry run python -m cognivault.agents.refiner.main --query "What is cognition?"
+  poetry run python -m cognivault.agents.refiner.main --query "AI and society" --debug
+  poetry run python -m cognivault.agents.refiner.main  # Interactive mode
         """.strip(),
     )
 

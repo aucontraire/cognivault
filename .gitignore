@@ -19,6 +19,7 @@ venv/
 src/cognivault/logs/
 *.log
 .coverage
+coverage.json
 /src/cognivault/notes/*.md
 
 # System files

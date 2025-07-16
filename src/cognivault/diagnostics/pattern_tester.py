@@ -9,7 +9,7 @@ import asyncio
 import time
 import json
 import uuid
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,8 +28,19 @@ from rich.progress import (
 )
 
 from cognivault.context import AgentContext
-from cognivault.orchestration.orchestrator import LangGraphOrchestrator
-from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
+
+# Import for runtime use and testing
+try:
+    from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
+    from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+except ImportError:
+    # Fallback for environments where LangGraph isn't available
+    if TYPE_CHECKING:
+        from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
+        from cognivault.orchestration.orchestrator import LangGraphOrchestrator
+    else:
+        GraphPattern = None
+        LangGraphOrchestrator = None
 
 
 class PatternTestResult(Enum):
@@ -174,7 +185,7 @@ class PatternTestRunner:
         self.console = Console()
         self.active_sessions: Dict[str, PatternTestSession] = {}
         self.test_registry: Dict[str, PatternTestCase] = {}
-        self.pattern_cache: Dict[str, GraphPattern] = {}
+        self.pattern_cache: Dict[str, "GraphPattern"] = {}
 
     def create_app(self) -> typer.Typer:
         """Create the pattern testing CLI application."""
@@ -1009,6 +1020,9 @@ class PatternTestRunner:
 
         try:
             # Create orchestrator (simplified for demo)
+            if LangGraphOrchestrator is None:
+                raise ImportError("LangGraphOrchestrator not available")
+
             orchestrator = LangGraphOrchestrator(agents_to_run=test_case.agents)
 
             # Execute with timeout
