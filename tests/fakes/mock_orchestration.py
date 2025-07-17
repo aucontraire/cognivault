@@ -11,7 +11,7 @@ import asyncio
 from datetime import datetime, timezone
 from cognivault.api.external import OrchestrationAPI
 from cognivault.api.models import WorkflowRequest, WorkflowResponse, StatusResponse
-from cognivault.api.events import emit_workflow_started, emit_workflow_completed
+from cognivault.events import emit_workflow_started, emit_workflow_completed
 from .base_mock import BaseMockAPI
 
 

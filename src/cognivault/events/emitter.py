@@ -338,3 +338,222 @@ async def emit_routing_decision_from_object(
     )
 
     await emitter.emit(event)
+
+
+async def emit_health_check_performed(
+    component_name: str,
+    status: str,
+    response_time_ms: Optional[float] = None,
+    details: Optional[Dict[str, Any]] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit health check performed event.
+
+    Parameters
+    ----------
+    component_name : str
+        Name of the component being health checked (e.g., "api", "orchestrator", "llm_gateway")
+    status : str
+        Health check status ("healthy", "degraded", "unhealthy", "unknown")
+    response_time_ms : Optional[float]
+        Response time for the health check in milliseconds
+    details : Optional[Dict[str, Any]]
+        Additional health check details (e.g., resource usage, error messages)
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    # Generate a unique workflow_id for health check events
+    import uuid
+
+    workflow_id = f"health_check_{uuid.uuid4().hex[:8]}"
+
+    event = WorkflowEvent(
+        event_type=EventType.HEALTH_CHECK_PERFORMED,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        data={
+            "component_name": component_name,
+            "status": status,
+            "response_time_ms": response_time_ms,
+            "details": details or {},
+        },
+        metadata={
+            "event_category": "monitoring",
+            "component_type": "system",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)
+
+
+async def emit_api_request_received(
+    workflow_id: str,
+    endpoint: str,
+    request_size_bytes: Optional[int] = None,
+    client_info: Optional[Dict[str, Any]] = None,
+    request_data: Optional[Dict[str, Any]] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit API request received event.
+
+    Parameters
+    ----------
+    workflow_id : str
+        Workflow identifier for the API request
+    endpoint : str
+        The API endpoint that received the request (e.g., "execute_workflow", "health_check")
+    request_size_bytes : Optional[int]
+        Size of the request payload in bytes
+    client_info : Optional[Dict[str, Any]]
+        Information about the client making the request (e.g., user_agent, ip_address)
+    request_data : Optional[Dict[str, Any]]
+        Summary of request data (avoid including sensitive information)
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    event = WorkflowEvent(
+        event_type=EventType.API_REQUEST_RECEIVED,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        data={
+            "endpoint": endpoint,
+            "request_size_bytes": request_size_bytes,
+            "client_info": client_info or {},
+            "request_data": request_data or {},
+        },
+        metadata={
+            "event_category": "api",
+            "component_type": "api_gateway",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)
+
+
+async def emit_api_response_sent(
+    workflow_id: str,
+    status: str,
+    response_size_bytes: Optional[int] = None,
+    execution_time_ms: Optional[float] = None,
+    response_data: Optional[Dict[str, Any]] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit API response sent event.
+
+    Parameters
+    ----------
+    workflow_id : str
+        Workflow identifier for the API response
+    status : str
+        Response status ("success", "error", "timeout", "partial_success")
+    response_size_bytes : Optional[int]
+        Size of the response payload in bytes
+    execution_time_ms : Optional[float]
+        Total execution time for the API request in milliseconds
+    response_data : Optional[Dict[str, Any]]
+        Summary of response data (avoid including sensitive information)
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    event = WorkflowEvent(
+        event_type=EventType.API_RESPONSE_SENT,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        execution_time_ms=execution_time_ms,
+        data={
+            "status": status,
+            "response_size_bytes": response_size_bytes,
+            "execution_time_ms": execution_time_ms,
+            "response_data": response_data or {},
+        },
+        metadata={
+            "event_category": "api",
+            "component_type": "api_gateway",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)
+
+
+async def emit_service_boundary_crossed(
+    workflow_id: str,
+    source_service: str,
+    target_service: str,
+    operation: str,
+    boundary_type: str = "internal",
+    payload_size_bytes: Optional[int] = None,
+    operation_data: Optional[Dict[str, Any]] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit service boundary crossed event.
+
+    Parameters
+    ----------
+    workflow_id : str
+        Workflow identifier for the boundary crossing
+    source_service : str
+        Name of the service initiating the call (e.g., "orchestrator", "api_gateway")
+    target_service : str
+        Name of the service being called (e.g., "llm_gateway", "diagnostics", "external_api")
+    operation : str
+        The operation being performed (e.g., "complete", "health_check", "execute")
+    boundary_type : str
+        Type of boundary crossing ("internal", "external", "microservice")
+    payload_size_bytes : Optional[int]
+        Size of the data being transmitted across the boundary
+    operation_data : Optional[Dict[str, Any]]
+        Summary of operation data (avoid including sensitive information)
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    event = WorkflowEvent(
+        event_type=EventType.SERVICE_BOUNDARY_CROSSED,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        data={
+            "source_service": source_service,
+            "target_service": target_service,
+            "operation": operation,
+            "boundary_type": boundary_type,
+            "payload_size_bytes": payload_size_bytes,
+            "operation_data": operation_data or {},
+        },
+        metadata={
+            "event_category": "service_interaction",
+            "component_type": "boundary",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)

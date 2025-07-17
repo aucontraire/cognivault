@@ -24,6 +24,10 @@ from .emitter import (
     emit_agent_execution_completed,
     emit_routing_decision,
     emit_routing_decision_from_object,
+    emit_health_check_performed,
+    emit_api_request_received,
+    emit_api_response_sent,
+    emit_service_boundary_crossed,
 )
 from .sinks import (
     EventSink,
@@ -50,6 +54,10 @@ __all__ = [
     "emit_agent_execution_completed",
     "emit_routing_decision",
     "emit_routing_decision_from_object",
+    "emit_health_check_performed",
+    "emit_api_request_received",
+    "emit_api_response_sent",
+    "emit_service_boundary_crossed",
     # Event sinks
     "EventSink",
     "FileEventSink",

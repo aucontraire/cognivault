@@ -159,8 +159,8 @@ class TestCLIRunModes:
             patch("cognivault.cli.initialize_api") as mock_init_api,
             patch("cognivault.cli.shutdown_api") as mock_shutdown_api,
             patch("cognivault.cli.get_api_mode", return_value="mock"),
-            patch("cognivault.api.events.emit_workflow_started"),
-            patch("cognivault.api.events.emit_workflow_completed"),
+            patch("cognivault.events.emit_workflow_started"),
+            patch("cognivault.events.emit_workflow_completed"),
         ):
             # Mock API
             mock_api = AsyncMock()
