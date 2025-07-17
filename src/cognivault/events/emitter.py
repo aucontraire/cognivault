@@ -557,3 +557,229 @@ async def emit_service_boundary_crossed(
     )
 
     await emitter.emit(event)
+
+
+async def emit_decision_made(
+    workflow_id: str,
+    decision_criteria: List[str],
+    selected_path: str,
+    confidence_score: float,
+    alternative_paths: Optional[List[str]] = None,
+    reasoning: Optional[Dict[str, Any]] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit decision made event for DECISION nodes.
+
+    Parameters
+    ----------
+    workflow_id : str
+        Workflow identifier for the decision
+    decision_criteria : List[str]
+        List of criteria used to make the decision
+    selected_path : str
+        The path that was selected based on the decision
+    confidence_score : float
+        Confidence score for the decision (0.0 to 1.0)
+    alternative_paths : Optional[List[str]]
+        Other paths that were considered but not selected
+    reasoning : Optional[Dict[str, Any]]
+        Detailed reasoning for the decision
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    event = WorkflowEvent(
+        event_type=EventType.DECISION_MADE,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        data={
+            "decision_criteria": decision_criteria,
+            "selected_path": selected_path,
+            "confidence_score": confidence_score,
+            "alternative_paths": alternative_paths or [],
+            "reasoning": reasoning or {},
+        },
+        metadata={
+            "event_category": "node_execution",
+            "node_type": "decision",
+            "execution_pattern": "decision",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)
+
+
+async def emit_aggregation_completed(
+    workflow_id: str,
+    aggregation_strategy: str,
+    input_sources: List[str],
+    output_quality_score: float,
+    conflicts_resolved: int = 0,
+    aggregation_time_ms: Optional[float] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit aggregation completed event for AGGREGATOR nodes.
+
+    Parameters
+    ----------
+    workflow_id : str
+        Workflow identifier for the aggregation
+    aggregation_strategy : str
+        Strategy used for aggregation (e.g., "consensus", "weighted", "hierarchical")
+    input_sources : List[str]
+        List of input sources that were aggregated
+    output_quality_score : float
+        Quality score of the aggregated output (0.0 to 1.0)
+    conflicts_resolved : int
+        Number of conflicts resolved during aggregation
+    aggregation_time_ms : Optional[float]
+        Time taken for aggregation in milliseconds
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    event = WorkflowEvent(
+        event_type=EventType.AGGREGATION_COMPLETED,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        execution_time_ms=aggregation_time_ms,
+        data={
+            "aggregation_strategy": aggregation_strategy,
+            "input_sources": input_sources,
+            "output_quality_score": output_quality_score,
+            "conflicts_resolved": conflicts_resolved,
+            "aggregation_time_ms": aggregation_time_ms,
+        },
+        metadata={
+            "event_category": "node_execution",
+            "node_type": "aggregator",
+            "execution_pattern": "aggregator",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)
+
+
+async def emit_validation_completed(
+    workflow_id: str,
+    validation_result: str,  # "pass", "fail", "warning"
+    quality_score: float,
+    validation_criteria: List[str],
+    recommendations: Optional[List[str]] = None,
+    validation_time_ms: Optional[float] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit validation completed event for VALIDATOR nodes.
+
+    Parameters
+    ----------
+    workflow_id : str
+        Workflow identifier for the validation
+    validation_result : str
+        Result of the validation ("pass", "fail", "warning")
+    quality_score : float
+        Quality score from the validation (0.0 to 1.0)
+    validation_criteria : List[str]
+        List of criteria that were validated
+    recommendations : Optional[List[str]]
+        List of recommendations based on validation results
+    validation_time_ms : Optional[float]
+        Time taken for validation in milliseconds
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    event = WorkflowEvent(
+        event_type=EventType.VALIDATION_COMPLETED,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        execution_time_ms=validation_time_ms,
+        data={
+            "validation_result": validation_result,
+            "quality_score": quality_score,
+            "validation_criteria": validation_criteria,
+            "recommendations": recommendations or [],
+            "validation_time_ms": validation_time_ms,
+        },
+        metadata={
+            "event_category": "node_execution",
+            "node_type": "validator",
+            "execution_pattern": "validator",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)
+
+
+async def emit_termination_triggered(
+    workflow_id: str,
+    termination_reason: str,
+    confidence_score: Optional[float] = None,
+    threshold: Optional[float] = None,
+    resources_saved: Optional[Dict[str, Any]] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    Emit termination triggered event for TERMINATOR nodes.
+
+    Parameters
+    ----------
+    workflow_id : str
+        Workflow identifier for the termination
+    termination_reason : str
+        Reason for early termination (e.g., "confidence_threshold_met", "quality_gate_passed", "resource_limit")
+    confidence_score : Optional[float]
+        Confidence score that triggered termination (0.0 to 1.0)
+    threshold : Optional[float]
+        Threshold value that was met/exceeded
+    resources_saved : Optional[Dict[str, Any]]
+        Resources saved by early termination (e.g., time_ms, compute_units, tokens)
+    correlation_id : Optional[str]
+        Correlation identifier
+    metadata : Optional[Dict[str, Any]]
+        Additional metadata
+    """
+    emitter = get_global_event_emitter()
+
+    event = WorkflowEvent(
+        event_type=EventType.TERMINATION_TRIGGERED,
+        workflow_id=workflow_id,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
+        data={
+            "termination_reason": termination_reason,
+            "confidence_score": confidence_score,
+            "threshold": threshold,
+            "resources_saved": resources_saved or {},
+        },
+        metadata={
+            "event_category": "node_execution",
+            "node_type": "terminator",
+            "execution_pattern": "terminator",
+            **(metadata or {}),
+        },
+    )
+
+    await emitter.emit(event)

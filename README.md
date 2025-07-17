@@ -7,7 +7,18 @@
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
 
-CogniVault is a modular, CLI-based multi-agent assistant designed to help you reflect, refine, and organize your thoughts through structured dialogue and cumulative insight. It simulates a memory-augmented thinking partner, enabling long-term knowledge building across multiple agent perspectives.
+CogniVault is a **composable DAG execution engine** built for multi-agent systems, combining LangGraph-style orchestration with rich cognitive classification, capability-based routing, and structured observability.
+
+## 🧠 **Core Innovation**: Multi-Axis Classification & Advanced Node Types
+
+CogniVault evolved from a simple agent pipeline to a sophisticated orchestration platform using a 6-axis classification system that enables intelligent workflow composition:
+
+- **System 1/2 Cognitive Mapping**: Fast utility vs deep analytical processing
+- **Advanced Node Types**: PROCESSOR, DECISION, AGGREGATOR, VALIDATOR, TERMINATOR
+- **Event-Driven Architecture**: Rich observability across complex workflow execution
+- **LangGraph Compatibility**: Extends existing mental models with cognitive intelligence
+
+**Status**: Phase 3B.1 Complete - Multi-axis classification foundation ready. See `ARCHITECTURE_STATUS.md` for implementation roadmap.
 
 ## 📋 Requirements
 

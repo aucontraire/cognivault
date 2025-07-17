@@ -46,6 +46,9 @@ class AgentMetadata:
     cognitive_speed: Literal["fast", "slow", "adaptive"] = "adaptive"
     cognitive_depth: Literal["shallow", "deep", "variable"] = "variable"
     processing_pattern: Literal["atomic", "composite", "chain"] = "atomic"
+    execution_pattern: Literal[
+        "processor", "decision", "aggregator", "validator", "terminator"
+    ] = "processor"
     primary_capability: str = ""  # "critical_analysis", "translation", "summarization"
     secondary_capabilities: List[str] = field(default_factory=list)
     pipeline_role: Literal["entry", "intermediate", "terminal", "standalone"] = (
@@ -216,6 +219,7 @@ class AgentMetadata:
             "cognitive_speed": self.cognitive_speed,
             "cognitive_depth": self.cognitive_depth,
             "processing_pattern": self.processing_pattern,
+            "execution_pattern": self.execution_pattern,
             "primary_capability": self.primary_capability,
             "secondary_capabilities": self.secondary_capabilities,
             "pipeline_role": self.pipeline_role,
@@ -280,6 +284,7 @@ class AgentMetadata:
             cognitive_speed=data.get("cognitive_speed", "adaptive"),
             cognitive_depth=data.get("cognitive_depth", "variable"),
             processing_pattern=data.get("processing_pattern", "atomic"),
+            execution_pattern=data.get("execution_pattern", "processor"),
             primary_capability=data.get("primary_capability", ""),
             secondary_capabilities=data.get("secondary_capabilities", []),
             pipeline_role=data.get("pipeline_role", "standalone"),

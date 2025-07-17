@@ -44,6 +44,14 @@ class EventType(Enum):
     API_RESPONSE_SENT = "api.response.sent"
     SERVICE_BOUNDARY_CROSSED = "service.boundary.crossed"
 
+    # Advanced node type events
+    DECISION_MADE = "node.decision.made"
+    AGGREGATION_COMPLETED = "node.aggregation.completed"
+    VALIDATION_COMPLETED = "node.validation.completed"
+    TERMINATION_TRIGGERED = "node.termination.triggered"
+    NODE_EXECUTION_STARTED = "node.execution.started"
+    NODE_EXECUTION_COMPLETED = "node.execution.completed"
+
 
 @dataclass
 class WorkflowEvent:
