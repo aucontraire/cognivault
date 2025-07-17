@@ -28,6 +28,10 @@ from .emitter import (
     emit_api_request_received,
     emit_api_response_sent,
     emit_service_boundary_crossed,
+    emit_decision_made,
+    emit_aggregation_completed,
+    emit_validation_completed,
+    emit_termination_triggered,
 )
 from .sinks import (
     EventSink,
@@ -58,6 +62,10 @@ __all__ = [
     "emit_api_request_received",
     "emit_api_response_sent",
     "emit_service_boundary_crossed",
+    "emit_decision_made",
+    "emit_aggregation_completed",
+    "emit_validation_completed",
+    "emit_termination_triggered",
     # Event sinks
     "EventSink",
     "FileEventSink",

@@ -99,6 +99,7 @@ class NodeType(Enum):
     DECISION = "decision"  # Decision/routing node
     TERMINATOR = "terminator"  # End/output node
     AGGREGATOR = "aggregator"  # Combines multiple inputs
+    VALIDATOR = "validator"  # Quality assurance checkpoint
 
 
 @dataclass
