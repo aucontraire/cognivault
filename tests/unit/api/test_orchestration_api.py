@@ -148,10 +148,8 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
 
         # Mock event functions to prevent actual event emission during test
         with (
-            patch("cognivault.api.events.emit_workflow_started") as mock_emit_started,
-            patch(
-                "cognivault.api.events.emit_workflow_completed"
-            ) as mock_emit_completed,
+            patch("cognivault.events.emit_workflow_started") as mock_emit_started,
+            patch("cognivault.events.emit_workflow_completed") as mock_emit_completed,
         ):
             response = await api.execute_workflow(request)
 
@@ -203,8 +201,8 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
 
         # Mock event functions to prevent actual event emission during test
         with (
-            patch("cognivault.api.events.emit_workflow_started"),
-            patch("cognivault.api.events.emit_workflow_completed"),
+            patch("cognivault.events.emit_workflow_started"),
+            patch("cognivault.events.emit_workflow_completed"),
         ):
             response = await api.execute_workflow(request)
 
@@ -589,8 +587,8 @@ class TestLangGraphOrchestrationAPIErrorHandling:
             ]
 
             with (
-                patch("cognivault.api.events.emit_workflow_started"),
-                patch("cognivault.api.events.emit_workflow_completed"),
+                patch("cognivault.events.emit_workflow_started"),
+                patch("cognivault.events.emit_workflow_completed"),
             ):
                 responses = await asyncio.gather(
                     *[api.execute_workflow(req) for req in requests]
@@ -630,11 +628,11 @@ class TestLangGraphOrchestrationAPIErrorHandling:
             # Make event emission fail
             with (
                 patch(
-                    "cognivault.api.events.emit_workflow_started",
+                    "cognivault.events.emit_workflow_started",
                     side_effect=Exception("Event failed"),
                 ),
                 patch(
-                    "cognivault.api.events.emit_workflow_completed",
+                    "cognivault.events.emit_workflow_completed",
                     side_effect=Exception("Event failed"),
                 ),
             ):

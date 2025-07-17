@@ -18,11 +18,9 @@ from cognivault.api.factory import (
 )
 from cognivault.api.models import WorkflowRequest, WorkflowResponse
 from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
-from cognivault.api.events import (
-    event_emitter,
+from cognivault.events import (
+    get_global_event_emitter,
     InMemoryEventSink,
-    enable_events,
-    disable_events,
 )
 from tests.fakes.mock_orchestration import MockOrchestrationAPI
 
@@ -33,12 +31,16 @@ class TestAPIFactoryIntegration:
     def setup_method(self):
         """Reset API cache before each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     def teardown_method(self):
         """Clean up after each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     def test_factory_singleton_caching(self):
         """Test that factory returns the same instance on multiple calls."""
@@ -94,12 +96,16 @@ class TestEndToEndAPIFlow:
     def setup_method(self):
         """Setup for each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     def teardown_method(self):
         """Cleanup after each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     @pytest.mark.asyncio
     async def test_mock_api_workflow_execution(self):
@@ -219,20 +225,25 @@ class TestEventSystemIntegration:
     def setup_method(self):
         """Setup for each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     def teardown_method(self):
         """Cleanup after each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     @pytest.mark.asyncio
     async def test_event_emission_during_workflow(self):
         """Test that events are emitted during workflow execution."""
         # Enable events with in-memory sink
-        enable_events()
+        emitter = get_global_event_emitter()
+        emitter.enabled = True
         memory_sink = InMemoryEventSink(max_events=100)
-        event_emitter.add_sink(memory_sink)
+        emitter.add_sink(memory_sink)
 
         try:
             with temporary_api_mode("mock"):
@@ -254,14 +265,14 @@ class TestEventSystemIntegration:
                 events = memory_sink.get_events()
 
                 # Should have at least workflow_started and workflow_completed events
-                event_types = [event.event_type for event in events]
-                assert "workflow_started" in event_types
-                assert "workflow_completed" in event_types
+                event_types = [event.event_type.value for event in events]
+                assert "workflow.started" in event_types
+                assert "workflow.completed" in event_types
 
                 # Validate event content
-                started_events = memory_sink.get_events(event_type="workflow_started")
+                started_events = memory_sink.get_events(event_type="workflow.started")
                 completed_events = memory_sink.get_events(
-                    event_type="workflow_completed"
+                    event_type="workflow.completed"
                 )
 
                 assert len(started_events) >= 1
@@ -279,7 +290,9 @@ class TestEventSystemIntegration:
 
         finally:
             await shutdown_api()
-            disable_events()
+            # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
 
 class TestCLIAPIIntegration:
@@ -288,12 +301,16 @@ class TestCLIAPIIntegration:
     def setup_method(self):
         """Setup for each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     def teardown_method(self):
         """Cleanup after each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     @pytest.mark.asyncio
     async def test_cli_api_flag_integration(self):
@@ -374,12 +391,16 @@ class TestPerformanceAndCompatibility:
     def setup_method(self):
         """Setup for each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     def teardown_method(self):
         """Cleanup after each test."""
         reset_api_cache()
-        disable_events()
+        # Disable events for cleaner testing
+        emitter = get_global_event_emitter()
+        emitter.enabled = False
 
     @pytest.mark.asyncio
     async def test_api_vs_direct_output_compatibility(self):
@@ -486,10 +507,12 @@ class TestPerformanceAndCompatibility:
 def clean_api_state():
     """Ensure clean API state for each test."""
     reset_api_cache()
-    disable_events()
+    emitter = get_global_event_emitter()
+    emitter.enabled = False
     yield
     reset_api_cache()
-    disable_events()
+    emitter = get_global_event_emitter()
+    emitter.enabled = False
 
 
 @pytest.fixture(scope="function")
@@ -502,13 +525,15 @@ def mock_api_mode():
 @pytest.fixture(scope="function")
 def event_tracking():
     """Enable event tracking for tests that need it."""
-    enable_events()
+    emitter = get_global_event_emitter()
+    emitter.enabled = True
     memory_sink = InMemoryEventSink(max_events=100)
-    event_emitter.add_sink(memory_sink)
+    emitter.add_sink(memory_sink)
 
     yield memory_sink
 
-    disable_events()
+    emitter = get_global_event_emitter()
+    emitter.enabled = False
 
 
 # Test that can be run independently

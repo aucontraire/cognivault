@@ -17,7 +17,7 @@ from cognivault.api.base import HealthStatus, APIStatus
 from cognivault.api.decorators import ensure_initialized
 from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.observability import get_logger
-from cognivault.api.events import emit_workflow_started, emit_workflow_completed
+from cognivault.events import emit_workflow_started, emit_workflow_completed
 
 logger = get_logger(__name__)
 
