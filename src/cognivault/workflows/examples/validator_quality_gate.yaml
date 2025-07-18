@@ -1,0 +1,153 @@
+name: "Quality Validation Gateway"
+version: "1.0.0"
+workflow_id: "validator-quality-gate-test"
+created_by: "cognivault-manual-testing"
+created_at: "2025-01-17T18:00:00Z"
+description: "Manual test workflow focusing on ValidatorNode factory method functionality with comprehensive quality gating"
+tags: ["manual-test", "validator", "quality-gate", "factory-method"]
+workflow_schema_version: "1.0.0"
+
+nodes:
+  - node_id: "content_processor"
+    node_type: "refiner"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "refiner"
+      processing_mode: "enhanced"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "entry"
+      bounded_context: "transformation"
+
+  - node_id: "strict_validator"
+    node_type: "validator"
+    category: "ADVANCED"
+    execution_pattern: "validator"
+    config:
+      validation_criteria:
+        - name: "content_quality"
+          threshold: 0.8
+          weight: 1.0
+          required: true
+        - name: "completeness"
+          threshold: 0.9
+          weight: 0.8
+          required: true
+        - name: "coherence"
+          threshold: 0.7
+          weight: 0.6
+          required: false
+      quality_threshold: 0.8
+      required_criteria_pass_rate: 1.0
+      allow_warnings: false
+      strict_mode: true
+      validation_timeout: 10
+      retry_on_failure: true
+      max_retries: 2
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "validator"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  - node_id: "permissive_validator"
+    node_type: "validator"
+    category: "ADVANCED"
+    execution_pattern: "validator"
+    config:
+      validation_criteria:
+        - name: "basic_quality"
+          threshold: 0.6
+          weight: 1.0
+          required: true
+        - name: "length_check"
+          threshold: 0.5
+          weight: 0.5
+          required: false
+      quality_threshold: 0.6
+      required_criteria_pass_rate: 0.7
+      allow_warnings: true
+      strict_mode: false
+      validation_timeout: 5
+      retry_on_failure: false
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "validator"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  - node_id: "final_synthesis"
+    node_type: "synthesis"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "synthesis"
+      synthesis_mode: "comprehensive"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "processor"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+flow:
+  entry_point: "content_processor"
+  edges:
+    - from_node: "content_processor"
+      to_node: "strict_validator"
+      edge_type: "sequential"
+      condition: null
+      next_node_if: "permissive_validator"
+      failover_node: "permissive_validator"
+      metadata:
+        validation_flow: "primary_path"
+
+    - from_node: "strict_validator"
+      to_node: "final_synthesis"
+      edge_type: "conditional"
+      condition: "validation_passed"
+      next_node_if: "final_synthesis"
+      failover_node: "permissive_validator"
+      metadata:
+        success_condition: "strict_validation_passed"
+
+    - from_node: "permissive_validator"
+      to_node: "final_synthesis"
+      edge_type: "sequential"
+      condition: null
+      metadata:
+        fallback_path: "permissive_validation"
+
+  terminal_nodes: ["final_synthesis"]
+  conditional_routing:
+    validation_strategy:
+      strict_first: "attempt strict validation, fallback to permissive"
+      success_condition: "any_validator_passes"
+
+metadata:
+  test_type: "validator_factory_method"
+  complexity_level: "intermediate"
+  estimated_execution_time: "8-12 seconds"
+  use_cases: ["quality_assurance", "factory_testing", "validation_strategy"]
+  validator_configurations:
+    strict_validator:
+      criteria_count: 3
+      strict_mode: true
+      retry_enabled: true
+    permissive_validator:
+      criteria_count: 2
+      strict_mode: false
+      warnings_allowed: true
+  testing_scenarios:
+    - "High quality input should pass strict validation"
+    - "Medium quality input should pass permissive validation"
+    - "Low quality input should trigger fallback paths"

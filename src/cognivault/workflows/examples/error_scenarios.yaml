@@ -1,0 +1,313 @@
+name: "Error Scenario Testing Suite"
+version: "1.0.0"
+workflow_id: "error-scenarios-test"
+created_by: "cognivault-manual-testing"
+created_at: "2025-01-17T18:00:00Z"
+description: "Manual test workflow designed to test error handling, edge cases, and robustness of factory methods and node implementations"
+tags: ["manual-test", "error-handling", "edge-cases", "robustness", "factory-testing"]
+workflow_schema_version: "1.0.0"
+
+nodes:
+  # Node with missing required configuration (should test factory error handling)
+  - node_id: "misconfigured_validator"
+    node_type: "validator"
+    category: "ADVANCED"
+    execution_pattern: "validator"
+    config:
+      # Missing required validation_criteria field - should trigger factory error
+      quality_threshold: 0.8
+      strict_mode: true
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "validator"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  # Node with invalid configuration values (should test validation)
+  - node_id: "invalid_terminator"
+    node_type: "terminator"
+    category: "ADVANCED"
+    execution_pattern: "terminator"
+    config:
+      termination_criteria:
+        - name: "invalid_threshold"
+          threshold: -1.5  # Invalid negative threshold
+          weight: 2.0      # Invalid weight > 1.0
+          required: "maybe" # Invalid boolean value
+      termination_strategy: "nonexistent_strategy"  # Invalid strategy
+      check_interval: -5    # Invalid negative interval
+      force_termination_after: "never"  # Invalid type
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "terminator"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  # Node with extreme configuration values (boundary testing)
+  - node_id: "extreme_aggregator"
+    node_type: "aggregator"
+    category: "ADVANCED"
+    execution_pattern: "aggregator"
+    config:
+      aggregation_strategy: "consensus"
+      input_weights:
+        nonexistent_node: 1.0  # Reference to non-existent node
+      consensus_threshold: 1.1  # Invalid threshold > 1.0
+      timeout: 0  # Zero timeout
+      require_all_inputs: true
+      min_input_count: 999  # Impossibly high minimum
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "aggregator"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  # Node with conflicting configuration (logical inconsistencies)
+  - node_id: "conflicting_decision"
+    node_type: "decision"
+    category: "ADVANCED"
+    execution_pattern: "decision"
+    config:
+      decision_criteria:
+        - name: "impossible_criteria"
+          threshold: "high"
+          weight: 0.0  # Zero weight makes criteria meaningless
+      routing_strategy: "deterministic"
+      confidence_threshold: 0.0  # Contradicts need for decision logic
+      default_route: null  # No default fallback
+      decision_timeout: 0  # No time for decision
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "decision"
+      pipeline_role: "entry"
+      bounded_context: "transformation"
+
+  # Valid fallback nodes for testing error recovery
+  - node_id: "error_recovery_processor"
+    node_type: "refiner"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "refiner"
+      error_handling: "graceful"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  # Minimal valid configuration (boundary testing)
+  - node_id: "minimal_validator"
+    node_type: "validator"
+    category: "ADVANCED"
+    execution_pattern: "validator"
+    config:
+      validation_criteria:
+        - name: "basic_check"
+          threshold: 0.0  # Minimum threshold
+          weight: 0.1     # Minimum weight
+          required: false # Not required
+      quality_threshold: 0.0
+      required_criteria_pass_rate: 0.0
+      allow_warnings: true
+      strict_mode: false
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "validator"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  # Emergency synthesis fallback
+  - node_id: "emergency_synthesis"
+    node_type: "synthesis"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "synthesis"
+      synthesis_mode: "emergency"
+      error_tolerance: "high"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+flow:
+  entry_point: "misconfigured_validator"  # Start with problematic node
+  edges:
+    # Primary error flow (should trigger factory errors)
+    - from_node: "misconfigured_validator"
+      to_node: "invalid_terminator"
+      edge_type: "sequential"
+      condition: null
+      next_node_if: "extreme_aggregator"
+      failover_node: "error_recovery_processor"
+      metadata:
+        error_test: "misconfigured_to_invalid"
+
+    - from_node: "invalid_terminator"
+      to_node: "extreme_aggregator"
+      edge_type: "sequential"
+      condition: null
+      next_node_if: "conflicting_decision"
+      failover_node: "error_recovery_processor"
+      metadata:
+        error_test: "invalid_to_extreme"
+
+    - from_node: "extreme_aggregator"
+      to_node: "conflicting_decision"
+      edge_type: "sequential"
+      condition: null
+      next_node_if: "minimal_validator"
+      failover_node: "error_recovery_processor"
+      metadata:
+        error_test: "extreme_to_conflicting"
+
+    # Recovery flows (should handle errors gracefully)
+    - from_node: "misconfigured_validator"
+      to_node: "error_recovery_processor"
+      edge_type: "sequential"
+      condition: "error_fallback"
+      next_node_if: "minimal_validator"
+      failover_node: "emergency_synthesis"
+      metadata:
+        recovery_path: "misconfigured_recovery"
+
+    - from_node: "invalid_terminator"
+      to_node: "error_recovery_processor"
+      edge_type: "sequential"
+      condition: "error_fallback"
+      next_node_if: "minimal_validator"
+      failover_node: "emergency_synthesis"
+      metadata:
+        recovery_path: "invalid_recovery"
+
+    - from_node: "extreme_aggregator"
+      to_node: "error_recovery_processor"
+      edge_type: "sequential"
+      condition: "error_fallback"
+      next_node_if: "minimal_validator"
+      failover_node: "emergency_synthesis"
+      metadata:
+        recovery_path: "extreme_recovery"
+
+    - from_node: "conflicting_decision"
+      to_node: "error_recovery_processor"
+      edge_type: "sequential"
+      condition: "error_fallback"
+      next_node_if: "minimal_validator"
+      failover_node: "emergency_synthesis"
+      metadata:
+        recovery_path: "conflicting_recovery"
+
+    # Validation of minimal configuration
+    - from_node: "error_recovery_processor"
+      to_node: "minimal_validator"
+      edge_type: "sequential"
+      condition: null
+      next_node_if: "emergency_synthesis"
+      failover_node: "emergency_synthesis"
+      metadata:
+        validation_test: "minimal_config"
+
+    - from_node: "minimal_validator"
+      to_node: "emergency_synthesis"
+      edge_type: "sequential"
+      condition: null
+      metadata:
+        final_recovery: "emergency_synthesis"
+
+    # Invalid edge (references non-existent node)
+    - from_node: "nonexistent_source"
+      to_node: "emergency_synthesis"
+      edge_type: "sequential"
+      condition: null
+      metadata:
+        error_test: "invalid_edge_source"
+
+    - from_node: "error_recovery_processor"
+      to_node: "nonexistent_target"
+      edge_type: "sequential"
+      condition: null
+      failover_node: "emergency_synthesis"
+      metadata:
+        error_test: "invalid_edge_target"
+
+  terminal_nodes: ["emergency_synthesis"]
+  conditional_routing:
+    error_handling:
+      error_fallback: "node_instantiation_failed OR configuration_invalid"
+      recovery_required: "factory_error OR validation_error"
+      emergency_route: "all_primary_paths_failed"
+
+metadata:
+  test_type: "error_scenario_comprehensive"
+  complexity_level: "error_testing"
+  estimated_execution_time: "5-15 seconds"
+  use_cases: ["error_handling", "robustness_testing", "factory_validation", "edge_case_coverage"]
+  
+  error_scenarios_tested:
+    configuration_errors:
+      - "Missing required configuration fields"
+      - "Invalid data types in configuration"
+      - "Out-of-bounds threshold values"
+      - "Conflicting configuration parameters"
+    
+    factory_method_errors:
+      - "Invalid node type instantiation"
+      - "Configuration validation failures"
+      - "Parameter boundary violations"
+      - "Logical consistency checks"
+    
+    workflow_definition_errors:
+      - "References to non-existent nodes"
+      - "Circular dependencies"
+      - "Invalid edge configurations"
+      - "Missing terminal nodes"
+    
+    runtime_errors:
+      - "Node execution failures"
+      - "Timeout scenarios"
+      - "Resource exhaustion"
+      - "State corruption"
+  
+  expected_behaviors:
+    factory_instantiation:
+      - "misconfigured_validator should fail during factory instantiation"
+      - "invalid_terminator should fail with validation errors"
+      - "extreme_aggregator should fail with boundary violations"
+      - "conflicting_decision should fail with logical inconsistency"
+      - "minimal_validator should succeed with boundary values"
+    
+    error_recovery:
+      - "All factory failures should trigger graceful fallback"
+      - "Error recovery processor should handle failed node states"
+      - "Emergency synthesis should always be reachable"
+      - "Workflow should complete despite multiple node failures"
+    
+    validation_checks:
+      - "Workflow validation should detect invalid node references"
+      - "Edge validation should catch non-existent targets"
+      - "Configuration validation should reject invalid parameters"
+      - "Type checking should prevent incompatible assignments"
+  
+  robustness_requirements:
+    - "System must handle factory instantiation failures gracefully"
+    - "Invalid configurations must be detected before execution"
+    - "Error messages must be clear and actionable"
+    - "Fallback mechanisms must ensure workflow completion"
+    - "No crashes or system instability under error conditions"
