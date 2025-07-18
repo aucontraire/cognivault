@@ -44,12 +44,8 @@ except ImportError:
         pass
 
 
-app = typer.Typer()
-
-# Add diagnostics subcommands
-app.add_typer(
-    diagnostics_app, name="diagnostics", help="System diagnostics and monitoring"
-)
+# This module now contains the core orchestration logic
+# The main CLI app is defined in __init__.py
 
 
 def create_llm_instance() -> LLMInterface:
@@ -340,115 +336,7 @@ async def run(
             print(f"🎯 Suggested domain: {suggested_domain}")
 
 
-@app.command()
-def main(
-    query: str,
-    agents: str = typer.Option(
-        None,
-        help="Comma-separated list of agents to run (e.g., 'refiner,critic,historian,synthesis')",
-    ),
-    log_level: str = typer.Option(
-        "INFO", help="Logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)"
-    ),
-    export_md: bool = typer.Option(
-        False, "--export-md", help="Export the agent outputs to a markdown file"
-    ),
-    trace: bool = typer.Option(
-        False, "--trace", help="Show detailed execution trace with timing and metadata"
-    ),
-    health_check: bool = typer.Option(
-        False,
-        "--health-check",
-        help="Run agent health checks without executing pipeline",
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Validate pipeline configuration without execution"
-    ),
-    export_trace: str = typer.Option(
-        None, "--export-trace", help="Export detailed execution trace to JSON file"
-    ),
-    execution_mode: str = typer.Option(
-        "langgraph-real",
-        "--execution-mode",
-        help="Execution mode: 'langgraph-real' for production LangGraph integration (default), 'langgraph' for intermediate DAG execution, 'legacy' for legacy orchestrator (DEPRECATED - will be removed in 2-3 weeks)",
-    ),
-    compare_modes: bool = typer.Option(
-        False,
-        "--compare-modes",
-        help="Run both langgraph and langgraph-real modes side-by-side for performance comparison and validation",
-    ),
-    benchmark_runs: int = typer.Option(
-        1,
-        "--benchmark-runs",
-        help="Number of runs for benchmarking (used with --compare-modes for statistical accuracy)",
-    ),
-    visualize_dag: str = typer.Option(
-        None,
-        "--visualize-dag",
-        help="Visualize the DAG structure: 'stdout' for console output, or filepath (e.g., 'dag.md') for file output",
-    ),
-    enable_checkpoints: bool = typer.Option(
-        False,
-        "--enable-checkpoints",
-        help="Enable LangGraph checkpointing for conversation persistence and rollback (default: off)",
-    ),
-    thread_id: str = typer.Option(
-        None,
-        "--thread-id",
-        help="Thread ID for conversation scoping (auto-generated if not provided)",
-    ),
-    rollback_last_checkpoint: bool = typer.Option(
-        False,
-        "--rollback-last-checkpoint",
-        help="Rollback to the latest checkpoint for the thread (requires --enable-checkpoints)",
-    ),
-    use_api: bool = typer.Option(
-        False,
-        "--use-api",
-        help="Use API layer instead of direct orchestrator (enables API boundary testing)",
-    ),
-    api_mode: str = typer.Option(
-        None,
-        "--api-mode",
-        help="API mode: 'real' (production) or 'mock' (testing). Overrides COGNIVAULT_API_MODE environment variable",
-    ),
-):
-    """
-    Run Cognivault agents based on the provided query and options.
-
-    Parameters
-    ----------
-    query : str
-        The query string to be processed by the agents.
-    agents : str, optional
-        Comma-separated list of agents to run (e.g., 'refiner,critic,historian,synthesis'). If None, all agents are run.
-    log_level : str, optional
-        Logging level to use (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL). Default is 'INFO'.
-    export_md : bool, optional
-        Whether to export the agent outputs to a markdown file. Default is False.
-    """
-
-    asyncio.run(
-        run(
-            query,
-            agents,
-            log_level,
-            export_md,
-            trace,
-            health_check,
-            dry_run,
-            export_trace,
-            execution_mode,
-            compare_modes,
-            benchmark_runs,
-            visualize_dag,
-            enable_checkpoints,
-            thread_id,
-            rollback_last_checkpoint,
-            use_api,
-            api_mode,
-        )
-    )
+# Main command is now handled in __init__.py for proper CLI structure
 
 
 async def _run_with_api(
@@ -863,5 +751,5 @@ async def _run_rollback_mode(orchestrator, console, thread_id):
         console.print(f"[red]❌ Rollback failed: {e}[/red]")
 
 
-if __name__ == "__main__":  # pragma: no cover
-    app()
+# Module contains shared functions for CLI operations
+# Entry point is now in __init__.py

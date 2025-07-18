@@ -1,0 +1,349 @@
+name: "Complete Advanced Node Pipeline"
+version: "1.0.0"
+workflow_id: "full-advanced-pipeline-test"
+created_by: "cognivault-manual-testing"
+created_at: "2025-01-17T18:00:00Z"
+description: "Comprehensive manual test workflow demonstrating all 4 advanced node types (Decision, Aggregator, Validator, Terminator) working together with factory methods"
+tags: ["manual-test", "comprehensive", "all-advanced-nodes", "factory-methods", "integration"]
+workflow_schema_version: "1.0.0"
+
+nodes:
+  # Entry Decision Node
+  - node_id: "complexity_router"
+    node_type: "decision"
+    category: "ADVANCED"
+    execution_pattern: "decision"
+    config:
+      decision_criteria:
+        - name: "query_complexity"
+          threshold: "medium"
+          weight: 1.0
+        - name: "domain_expertise"
+          threshold: "required"
+          weight: 0.8
+      routing_strategy: "adaptive"
+      confidence_threshold: 0.7
+      default_route: "simple_path"
+      decision_timeout: 5
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "decision"
+      pipeline_role: "entry"
+      bounded_context: "transformation"
+
+  # Simple Path Nodes
+  - node_id: "simple_refiner"
+    node_type: "refiner"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "refiner"
+      refinement_level: "basic"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  # Complex Path Nodes
+  - node_id: "parallel_historian"
+    node_type: "historian"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "historian"
+      search_depth: "comprehensive"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "retrieval"
+
+  - node_id: "parallel_critic"
+    node_type: "critic"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "critic"
+      analysis_mode: "detailed"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  # Advanced Aggregator Node
+  - node_id: "intelligent_aggregator"
+    node_type: "aggregator"
+    category: "ADVANCED"
+    execution_pattern: "aggregator"
+    config:
+      aggregation_strategy: "weighted_consensus"
+      input_weights:
+        parallel_historian: 0.6
+        parallel_critic: 0.4
+      consensus_threshold: 0.75
+      conflict_resolution: "expert_priority"
+      timeout: 10
+      require_all_inputs: false
+      min_input_count: 1
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "aggregator"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  # Confidence Terminator
+  - node_id: "confidence_gate"
+    node_type: "terminator"
+    category: "ADVANCED"
+    execution_pattern: "terminator"
+    config:
+      termination_criteria:
+        - name: "high_confidence"
+          threshold: 0.9
+          weight: 1.0
+          required: true
+        - name: "quality_score"
+          threshold: 0.85
+          weight: 0.8
+          required: true
+      termination_strategy: "confidence_based"
+      check_interval: 1
+      grace_period: 2
+      force_termination_after: 20
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "terminator"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  # Quality Validator
+  - node_id: "comprehensive_validator"
+    node_type: "validator"
+    category: "ADVANCED"
+    execution_pattern: "validator"
+    config:
+      validation_criteria:
+        - name: "content_completeness"
+          threshold: 0.9
+          weight: 1.0
+          required: true
+        - name: "logical_consistency"
+          threshold: 0.8
+          weight: 0.9
+          required: true
+        - name: "factual_accuracy"
+          threshold: 0.85
+          weight: 0.8
+          required: true
+        - name: "clarity_score"
+          threshold: 0.7
+          weight: 0.6
+          required: false
+      quality_threshold: 0.8
+      required_criteria_pass_rate: 0.85
+      allow_warnings: true
+      strict_mode: false
+      validation_timeout: 8
+      retry_on_failure: true
+      max_retries: 1
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "validator"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  # Final Synthesis
+  - node_id: "final_synthesis"
+    node_type: "synthesis"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "synthesis"
+      synthesis_mode: "comprehensive"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "processor"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+  # Emergency Fallback
+  - node_id: "emergency_fallback"
+    node_type: "synthesis"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "synthesis"
+      synthesis_mode: "basic"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+flow:
+  entry_point: "complexity_router"
+  edges:
+    # Decision routing
+    - from_node: "complexity_router"
+      to_node: "simple_refiner"
+      edge_type: "conditional"
+      condition: "simple_query"
+      next_node_if: "confidence_gate"
+      failover_node: "parallel_historian"
+      metadata:
+        decision_route: "simple_path"
+
+    - from_node: "complexity_router"
+      to_node: "parallel_historian"
+      edge_type: "conditional"
+      condition: "complex_query"
+      metadata:
+        decision_route: "complex_parallel_path"
+
+    - from_node: "complexity_router"
+      to_node: "parallel_critic"
+      edge_type: "conditional"
+      condition: "complex_query"
+      metadata:
+        decision_route: "complex_parallel_path"
+
+    # Simple path continuation
+    - from_node: "simple_refiner"
+      to_node: "confidence_gate"
+      edge_type: "sequential"
+      next_node_if: "final_synthesis"
+      failover_node: "comprehensive_validator"
+      metadata:
+        path_type: "simple_validation"
+
+    # Parallel aggregation
+    - from_node: "parallel_historian"
+      to_node: "intelligent_aggregator"
+      edge_type: "parallel"
+      condition: "completion"
+      metadata:
+        aggregation_input: "historian_analysis"
+
+    - from_node: "parallel_critic"
+      to_node: "intelligent_aggregator"
+      edge_type: "parallel"
+      condition: "completion"
+      metadata:
+        aggregation_input: "critic_analysis"
+
+    # Post-aggregation termination check
+    - from_node: "intelligent_aggregator"
+      to_node: "confidence_gate"
+      edge_type: "sequential"
+      next_node_if: "final_synthesis"
+      failover_node: "comprehensive_validator"
+      metadata:
+        confidence_check: "post_aggregation"
+
+    # Validation flow
+    - from_node: "confidence_gate"
+      to_node: "comprehensive_validator"
+      edge_type: "conditional"
+      condition: "continue_processing"
+      next_node_if: "final_synthesis"
+      failover_node: "emergency_fallback"
+      metadata:
+        validation_trigger: "confidence_insufficient"
+
+    - from_node: "comprehensive_validator"
+      to_node: "final_synthesis"
+      edge_type: "conditional"
+      condition: "validation_passed"
+      next_node_if: "final_synthesis"
+      failover_node: "emergency_fallback"
+      metadata:
+        validation_result: "quality_approved"
+
+    # Emergency routes
+    - from_node: "confidence_gate"
+      to_node: "emergency_fallback"
+      edge_type: "conditional"
+      condition: "emergency_termination"
+      metadata:
+        termination_reason: "confidence_threshold_met"
+
+    - from_node: "comprehensive_validator"
+      to_node: "emergency_fallback"
+      edge_type: "conditional"
+      condition: "validation_failed"
+      metadata:
+        fallback_reason: "quality_validation_failed"
+
+  terminal_nodes: ["final_synthesis", "emergency_fallback"]
+  conditional_routing:
+    complexity_router:
+      simple_query: "query_complexity == 'low' and domain_expertise != 'required'"
+      complex_query: "query_complexity in ['medium', 'high'] or domain_expertise == 'required'"
+    
+    parallel_execution:
+      wait_for_both: "parallel_historian AND parallel_critic"
+      success_condition: "at_least_one_completed"
+    
+    confidence_evaluation:
+      high_confidence: "confidence >= 0.9 and quality >= 0.85"
+      continue_processing: "confidence < 0.9 or quality < 0.85"
+      emergency_termination: "confidence >= 0.95 and quality >= 0.9"
+    
+    validation_logic:
+      validation_passed: "all_required_criteria_met and overall_score >= 0.8"
+      validation_failed: "required_criteria_failed or retry_exceeded"
+
+metadata:
+  test_type: "comprehensive_advanced_nodes"
+  complexity_level: "expert"
+  estimated_execution_time: "20-45 seconds"
+  use_cases: ["comprehensive_testing", "factory_method_validation", "advanced_node_integration", "end_to_end_workflow"]
+  
+  advanced_nodes_tested:
+    decision_node:
+      factory_config: "adaptive routing with confidence thresholds"
+      test_scenarios: ["simple_query_routing", "complex_query_routing"]
+    
+    aggregator_node:
+      factory_config: "weighted consensus with conflict resolution"
+      test_scenarios: ["parallel_input_aggregation", "weighted_combination"]
+    
+    validator_node:
+      factory_config: "comprehensive criteria with retry logic"
+      test_scenarios: ["multi_criteria_validation", "quality_gating"]
+    
+    terminator_node:
+      factory_config: "confidence-based early termination"
+      test_scenarios: ["high_confidence_termination", "processing_continuation"]
+  
+  factory_method_coverage:
+    - "All 4 advanced node types instantiated via factory methods"
+    - "Complex configuration parameter combinations"
+    - "Error handling and fallback mechanisms"
+    - "Inter-node communication and state propagation"
+  
+  test_execution_paths:
+    - "simple_path: router → simple_refiner → confidence_gate → final_synthesis"
+    - "complex_path: router → [historian + critic] → aggregator → confidence_gate → validator → final_synthesis"
+    - "emergency_path: any_node → confidence_gate → emergency_fallback"
+    - "validation_failure_path: validator → emergency_fallback"

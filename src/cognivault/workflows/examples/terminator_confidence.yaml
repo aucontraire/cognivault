@@ -1,0 +1,229 @@
+name: "Confidence-Based Early Termination"
+version: "1.0.0"
+workflow_id: "terminator-confidence-test"
+created_by: "cognivault-manual-testing"
+created_at: "2025-01-17T18:00:00Z"
+description: "Manual test workflow focusing on TerminatorNode factory method functionality with various termination criteria"
+tags: ["manual-test", "terminator", "early-termination", "factory-method", "confidence"]
+workflow_schema_version: "1.0.0"
+
+nodes:
+  - node_id: "initial_analysis"
+    node_type: "historian"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "historian"
+      analysis_depth: "comprehensive"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "entry"
+      bounded_context: "retrieval"
+
+  - node_id: "confidence_terminator"
+    node_type: "terminator"
+    category: "ADVANCED"
+    execution_pattern: "terminator"
+    config:
+      termination_criteria:
+        - name: "confidence_threshold"
+          threshold: 0.85
+          weight: 1.0
+          required: true
+        - name: "quality_threshold"
+          threshold: 0.8
+          weight: 0.8
+          required: true
+        - name: "execution_time"
+          threshold: 15.0
+          weight: 0.6
+          required: false
+      termination_strategy: "early_success"
+      check_interval: 2
+      grace_period: 1
+      force_termination_after: 30
+      emit_events: true
+      preserve_state: true
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "terminator"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  - node_id: "resource_terminator"
+    node_type: "terminator"
+    category: "ADVANCED"
+    execution_pattern: "terminator"
+    config:
+      termination_criteria:
+        - name: "resource_usage"
+          threshold: 0.9
+          weight: 1.0
+          required: true
+        - name: "memory_limit"
+          threshold: 0.8
+          weight: 0.7
+          required: false
+        - name: "cpu_usage"
+          threshold: 0.85
+          weight: 0.6
+          required: false
+      termination_strategy: "resource_based"
+      check_interval: 1
+      grace_period: 0.5
+      force_termination_after: 20
+      emit_events: true
+      preserve_state: false
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "terminator"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+
+  - node_id: "critical_analysis"
+    node_type: "critic"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "critic"
+      criticism_level: "thorough"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  - node_id: "completion_terminator"
+    node_type: "terminator"
+    category: "ADVANCED"
+    execution_pattern: "terminator"
+    config:
+      termination_criteria:
+        - name: "completion_criteria"
+          threshold: 1.0
+          weight: 1.0
+          required: true
+        - name: "satisfaction_score"
+          threshold: 0.9
+          weight: 0.9
+          required: true
+      termination_strategy: "completion_based"
+      check_interval: 0.5
+      grace_period: 2
+      force_termination_after: 25
+      emit_events: true
+      preserve_state: true
+      final_check: true
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "terminator"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+  - node_id: "fallback_synthesis"
+    node_type: "synthesis"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      agent_type: "synthesis"
+      synthesis_mode: "emergency"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "composite"
+      execution_pattern: "processor"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+flow:
+  entry_point: "initial_analysis"
+  edges:
+    - from_node: "initial_analysis"
+      to_node: "confidence_terminator"
+      edge_type: "sequential"
+      condition: null
+      next_node_if: "critical_analysis"
+      failover_node: "fallback_synthesis"
+      metadata:
+        termination_check: "confidence_based"
+
+    - from_node: "confidence_terminator"
+      to_node: "critical_analysis"
+      edge_type: "conditional"
+      condition: "continue_execution"
+      next_node_if: "resource_terminator"
+      failover_node: "fallback_synthesis"
+      metadata:
+        flow_continuation: "confidence_passed"
+
+    - from_node: "critical_analysis"
+      to_node: "resource_terminator"
+      edge_type: "sequential"
+      condition: null
+      next_node_if: "completion_terminator"
+      failover_node: "fallback_synthesis"
+      metadata:
+        termination_check: "resource_based"
+
+    - from_node: "resource_terminator"
+      to_node: "completion_terminator"
+      edge_type: "conditional"
+      condition: "continue_execution"
+      next_node_if: "completion_terminator"
+      failover_node: "fallback_synthesis"
+      metadata:
+        final_termination_check: "completion_based"
+
+    - from_node: "completion_terminator"
+      to_node: "fallback_synthesis"
+      edge_type: "conditional"
+      condition: "terminate_workflow"
+      metadata:
+        termination_result: "early_termination_or_completion"
+
+  terminal_nodes: ["completion_terminator", "fallback_synthesis"]
+  conditional_routing:
+    termination_logic:
+      confidence_check: "confidence >= 0.85 and quality >= 0.8"
+      resource_check: "resource_usage < 0.9 and memory_usage < 0.8"
+      completion_check: "all_criteria_met and satisfaction >= 0.9"
+      early_termination: "any_terminator_triggers OR time_limit_exceeded"
+
+metadata:
+  test_type: "terminator_factory_method"
+  complexity_level: "advanced"
+  estimated_execution_time: "10-30 seconds"
+  use_cases: ["early_termination", "factory_testing", "resource_management", "confidence_tracking"]
+  terminator_configurations:
+    confidence_terminator:
+      criteria_count: 3
+      strategy: "early_success"
+      check_interval: 2
+    resource_terminator:
+      criteria_count: 3
+      strategy: "resource_based"
+      check_interval: 1
+    completion_terminator:
+      criteria_count: 2
+      strategy: "completion_based"
+      final_check: true
+  testing_scenarios:
+    - "High confidence input should trigger early termination"
+    - "Resource-constrained execution should trigger resource terminator"
+    - "Complete workflow should reach completion terminator"
+    - "Failed termination conditions should route to fallback"
+  termination_strategies:
+    - "early_success: Terminate when confidence and quality thresholds met"
+    - "resource_based: Terminate when resource limits approached"
+    - "completion_based: Terminate when all completion criteria satisfied"

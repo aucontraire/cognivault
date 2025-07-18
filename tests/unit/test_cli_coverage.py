@@ -11,7 +11,7 @@ import json
 from unittest.mock import patch, Mock, AsyncMock
 from rich.console import Console
 
-from cognivault.cli import (
+from cognivault.cli.main_commands import (
     create_llm_instance,
     _validate_langgraph_runtime,
     _run_with_api,
@@ -31,8 +31,8 @@ class TestCLIUtilityFunctions:
     def test_create_llm_instance(self):
         """Test LLM instance creation."""
         with (
-            patch("cognivault.cli.OpenAIConfig") as mock_config_class,
-            patch("cognivault.cli.OpenAIChatLLM") as mock_llm_class,
+            patch("cognivault.cli.main_commands.OpenAIConfig") as mock_config_class,
+            patch("cognivault.cli.main_commands.OpenAIChatLLM") as mock_llm_class,
         ):
             mock_config = Mock()
             mock_config.api_key = "test-key"
@@ -156,9 +156,9 @@ class TestCLIRunModes:
         console = Console()
 
         with (
-            patch("cognivault.cli.initialize_api") as mock_init_api,
-            patch("cognivault.cli.shutdown_api") as mock_shutdown_api,
-            patch("cognivault.cli.get_api_mode", return_value="mock"),
+            patch("cognivault.cli.main_commands.initialize_api") as mock_init_api,
+            patch("cognivault.cli.main_commands.shutdown_api") as mock_shutdown_api,
+            patch("cognivault.cli.main_commands.get_api_mode", return_value="mock"),
             patch("cognivault.events.emit_workflow_started"),
             patch("cognivault.events.emit_workflow_completed"),
         ):
@@ -195,7 +195,7 @@ class TestCLIRunModes:
             assert "refiner" in result.agent_outputs
             assert "critic" in result.agent_outputs
             assert hasattr(result, "metadata")
-            assert result.metadata["workflow_id"] == "test-123"
+            assert "workflow_id" in result.metadata  # UUID generated dynamically
             assert result.metadata["api_mode"] == "mock"
 
             mock_init_api.assert_called_once()
@@ -207,9 +207,9 @@ class TestCLIRunModes:
         console = Console()
 
         with (
-            patch("cognivault.cli.initialize_api") as mock_init_api,
-            patch("cognivault.cli.shutdown_api") as mock_shutdown_api,
-            patch("cognivault.cli.get_api_mode", return_value="mock"),
+            patch("cognivault.cli.main_commands.initialize_api") as mock_init_api,
+            patch("cognivault.cli.main_commands.shutdown_api") as mock_shutdown_api,
+            patch("cognivault.cli.main_commands.get_api_mode", return_value="mock"),
         ):
             # Mock API that raises an exception
             mock_api = AsyncMock()
@@ -239,9 +239,9 @@ class TestCLIRunModes:
         console = Console()
 
         with (
-            patch("cognivault.cli.initialize_api") as mock_init_api,
-            patch("cognivault.cli.shutdown_api") as mock_shutdown_api,
-            patch("cognivault.cli.get_api_mode", return_value="mock"),
+            patch("cognivault.cli.main_commands.initialize_api") as mock_init_api,
+            patch("cognivault.cli.main_commands.shutdown_api") as mock_shutdown_api,
+            patch("cognivault.cli.main_commands.get_api_mode", return_value="mock"),
         ):
             mock_api = AsyncMock()
             mock_init_api.return_value = mock_api
@@ -368,7 +368,9 @@ class TestCLIRunModes:
         mock_orchestrator.agents = [mock_agent1, mock_agent2]
 
         with (
-            patch("cognivault.cli._run_health_check") as mock_health_check,
+            patch(
+                "cognivault.cli.main_commands._run_health_check"
+            ) as mock_health_check,
             patch.object(console, "print") as mock_print,
         ):
             await _run_dry_run(mock_orchestrator, console, query, agents_to_run)

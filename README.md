@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Poetry](https://img.shields.io/badge/poetry-managed-blue)
-![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
@@ -18,7 +18,7 @@ CogniVault evolved from a simple agent pipeline to a sophisticated orchestration
 - **Event-Driven Architecture**: Rich observability across complex workflow execution
 - **LangGraph Compatibility**: Extends existing mental models with cognitive intelligence
 
-**Status**: Phase 3B.1 Complete - Multi-axis classification foundation ready. See `ARCHITECTURE_STATUS.md` for implementation roadmap.
+**Status**: Full declarative DAG workflow orchestration platform with advanced node types, CLI integration, and ecosystem-ready foundation.
 
 ## 📋 Requirements
 
@@ -134,6 +134,48 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 📈 **Performance metrics**: Real-time collection of execution statistics, token usage, and success rates
 - 🖥️ **Machine-readable output**: Multiple export formats (JSON, CSV) for monitoring integration
 - 🔗 **LangGraph compatibility**: Complete DAG-ready architecture with node interfaces and graph builders
+
+### 🧠 **Declarative DAG Workflows** (Phase 3B.3 COMPLETE)
+*Enterprise-grade declarative workflow orchestration*
+
+- 📝 **Declarative Workflow Definition**: Define complex workflows in YAML/JSON with ecosystem metadata
+- 🏗️ **Advanced Node Types**: DecisionNode, AggregatorNode, ValidatorNode, TerminatorNode for sophisticated routing
+- 🔀 **Conditional Routing**: Metadata-aware edges with success/failure paths and classification filters
+- ⚙️ **Configuration-Driven**: Complete factory pattern for node instantiation with complex parameter validation
+- 🔄 **Workflow Validation**: Comprehensive validation with schema checking and error reporting
+- 📊 **Export/Import**: Multi-format workflow sharing (YAML, JSON) with version compatibility
+- 🌐 **Ecosystem Ready**: Workflow attribution, versioning, and plugin architecture foundation
+- 🎯 **CLI Integration**: Full workflow commands - `cognivault workflow run`, `validate`, `show`, `list`
+
+**Example Declarative Workflow**:
+```yaml
+workflow:
+  name: "Intelligent Analysis with Quality Gates"
+  description: "Multi-agent analysis with decision routing and validation"
+  
+  nodes:
+    - id: "complexity_router"
+      category: "advanced"
+      type: "decision"
+      config:
+        criteria: ["query_complexity", "time_constraints"]
+        
+    - id: "parallel_analysis"
+      category: "base"
+      type: "processor"
+      config:
+        agents: ["historian", "critic"]
+        
+    - id: "quality_validator"
+      category: "advanced"
+      type: "validator"
+      config:
+        validation_criteria: 
+          - {name: "content_quality", threshold: 0.8, weight: 1.0}
+        strict_mode: true
+```
+
+CogniVault enables declarative, shareable, and extensible multi-agent orchestration with enterprise-grade reliability and ecosystem foundation.
 
 ---
 
