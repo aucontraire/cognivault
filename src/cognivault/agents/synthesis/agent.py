@@ -302,7 +302,18 @@ class SynthesisAgent(BaseAgent):
             ]
         )
 
-        return f"""As an expert analyst, perform thematic analysis of multiple agent outputs for synthesis.
+        # Try to load prompt template from prompts.py
+        try:
+            from cognivault.agents.synthesis.prompts import (
+                SYNTHESIS_ANALYSIS_PROMPT_TEMPLATE,
+            )
+
+            return SYNTHESIS_ANALYSIS_PROMPT_TEMPLATE.format(
+                query=query, outputs_text=outputs_text
+            )
+        except ImportError:
+            # Fallback to embedded prompt
+            return f"""As an expert analyst, perform thematic analysis of multiple agent outputs for synthesis.
 
 ORIGINAL QUERY: {query}
 
@@ -414,7 +425,22 @@ Provide your analysis in the exact format above."""
         conflicts_text = ", ".join(analysis.get("conflicts", ["None identified"]))
         topics_text = ", ".join(analysis.get("key_topics", []))
 
-        return f"""As a knowledge synthesis expert, create a comprehensive, wiki-ready synthesis of multiple expert analyses.
+        # Try to load prompt template from prompts.py
+        try:
+            from cognivault.agents.synthesis.prompts import (
+                SYNTHESIS_COMPOSITION_PROMPT_TEMPLATE,
+            )
+
+            return SYNTHESIS_COMPOSITION_PROMPT_TEMPLATE.format(
+                query=query,
+                themes_text=themes_text,
+                topics_text=topics_text,
+                conflicts_text=conflicts_text,
+                outputs_text=outputs_text,
+            )
+        except ImportError:
+            # Fallback to embedded prompt
+            return f"""As a knowledge synthesis expert, create a comprehensive, wiki-ready synthesis of multiple expert analyses.
 
 ORIGINAL QUERY: {query}
 

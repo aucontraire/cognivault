@@ -10,7 +10,7 @@ import asyncio
 import uuid
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
+from typing import Dict, List, Any, Optional, Callable, TYPE_CHECKING
 from datetime import datetime, timezone
 
 from cognivault.context import AgentContext
@@ -103,18 +103,43 @@ class WorkflowResult:
         return {
             "workflow_id": self.workflow_id,
             "execution_id": self.execution_id,
-            "execution_metadata": self.execution_metadata,
+            "execution_metadata": self._clean_strings_for_json(self.execution_metadata),
             "node_execution_order": self.node_execution_order,
             "execution_time_seconds": self.execution_time_seconds,
             "success": self.success,
             "error_message": self.error_message,
             "event_correlation_id": self.event_correlation_id,
+            "agent_outputs": self._clean_strings_for_json(
+                dict(self.final_context.agent_outputs)
+            ),
             "final_context_summary": {
                 "original_query": self.final_context.query,
                 "agent_outputs_count": len(self.final_context.agent_outputs),
                 "execution_state_keys": list(self.final_context.execution_state.keys()),
             },
         }
+
+    def _clean_strings_for_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Clean strings to ensure JSON serialization works properly."""
+
+        def clean_value(value):
+            if isinstance(value, str):
+                # Replace actual newlines with escaped newlines for JSON
+                return (
+                    value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+                )
+            elif isinstance(value, dict):
+                return {k: clean_value(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [clean_value(v) for v in value]
+            else:
+                return value
+
+        return clean_value(data)
+
+    def _clean_metadata_for_json(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Clean metadata to ensure JSON serialization works properly."""
+        return self._clean_strings_for_json(metadata)
 
 
 class WorkflowExecutor:
@@ -134,6 +159,7 @@ class WorkflowExecutor:
         except ImportError:
             self.event_emitter = None  # type: ignore  # type: ignore
         self.execution_context: Optional[Any] = None
+        self._current_workflow: Optional["WorkflowDefinition"] = None
 
     async def execute_workflow(
         self,
@@ -314,13 +340,18 @@ class WorkflowExecutor:
                 pass
 
         try:
+            # Store the workflow definition for use in _execute_state_graph
+            # Need to get workflow definition from execution context
+            if not hasattr(self, "_current_workflow"):
+                raise RuntimeError("Workflow definition not set for execution")
+
             # Execute the compiled LangGraph
             current_context = initial_context
             current_context.execution_state["workflow_id"] = workflow_id
             current_context.execution_state["execution_id"] = execution_id
             current_context.execution_state["correlation_id"] = correlation_id
 
-            # Simulate LangGraph execution (would use actual LangGraph in production)
+            # Execute actual LangGraph (not simulation!)
             final_context = await self._execute_state_graph(current_context)
 
             # Calculate execution time
@@ -414,77 +445,191 @@ class WorkflowExecutor:
 
     async def _execute_state_graph(self, context: AgentContext) -> AgentContext:
         """
-        Execute the LangGraph StateGraph with event emission.
+        Execute the LangGraph StateGraph with comprehensive event emission and observability.
 
-        This is a simulation of LangGraph execution. In production, this would
-        use the actual compiled LangGraph.
+        This replaces simulation with actual LangGraph execution while preserving
+        all rich metadata tracking and event emission capabilities.
         """
-        current_context = context
+        if self.execution_context is None:
+            raise RuntimeError("Execution context is not initialized")
 
-        # Simulate execution of each node in the graph
-        for node_id, node in self.composition_result.node_mapping.items():
-            if self.execution_context is None:
-                raise RuntimeError("Execution context is not initialized")
+        # Get the workflow from the execution context
+        workflow_id = self.execution_context.workflow_id
 
-            # Emit node execution started event
+        # We need the workflow definition to compose the LangGraph
+        if not hasattr(self, "_current_workflow") or self._current_workflow is None:
+            raise RuntimeError(
+                "Workflow definition not available for LangGraph composition"
+            )
+
+        workflow_def = self._current_workflow
+
+        try:
+            # Import and compose workflow to LangGraph (like legacy method)
+            from cognivault.workflows.composer import DagComposer
+
+            composer = DagComposer()
+            graph = composer.compose_workflow(workflow_def)
+
+            # Prepare initial state for LangGraph execution
+            initial_state = {
+                "query": context.query,
+                "successful_agents": [],
+                "failed_agents": [],
+                "errors": [],
+                "execution_metadata": {
+                    "workflow_id": workflow_id,
+                    "correlation_id": self.execution_context.correlation_id,
+                    "start_time": context.execution_state.get("start_time"),
+                },
+            }
+
+            # Emit workflow execution started event
             if self.event_emitter:
                 try:
                     from cognivault.events import WorkflowEvent, EventType
 
                     await self.event_emitter.emit(
                         WorkflowEvent(
-                            event_type=EventType.AGENT_EXECUTION_STARTED,
-                            workflow_id=self.execution_context.workflow_id,
+                            event_type=EventType.WORKFLOW_STARTED,
+                            workflow_id=workflow_id,
                             correlation_id=self.execution_context.correlation_id,
-                            agent_metadata=getattr(node, "_metadata", None),
                             data={
-                                "node_id": node_id,
-                                "node_type": type(node).__name__,
-                                "input_size": len(current_context.query),
+                                "initial_query": context.query,
+                                "node_count": len(workflow_def.nodes),
+                                "execution_mode": "langgraph_real",
                             },
                         )
                     )
                 except ImportError:
                     pass
 
-            # Execute the node
-            if hasattr(node, "execute"):
-                # Advanced node execution - execute returns Dict[str, Any], not AgentContext
-                result = await node.execute(self.execution_context)
-                # Store result in agent_outputs
-                current_context.agent_outputs[node_id] = result
-            elif hasattr(node, "invoke"):
-                # Base agent execution
-                current_context = await node.invoke(current_context)
+            # Compile and execute the LangGraph (the real execution!)
+            compiled_graph = graph.compile()
 
-            # Track execution
-            self.execution_context.execution_path.append(node_id)
+            # Execute the actual LangGraph with real LLM calls
+            final_state = await compiled_graph.ainvoke(initial_state)  # type: ignore
 
-            # Emit node execution completed event
+            # Convert LangGraph state back to AgentContext
+            final_context = self._convert_state_to_context(final_state, context.query)
+
+            # Preserve execution state from initial context
+            final_context.execution_state.update(context.execution_state)
+
+            # Update execution path with the agents that actually executed
+            if hasattr(final_state, "keys"):
+                executed_agents = [
+                    key
+                    for key in final_state.keys()
+                    if key
+                    not in [
+                        "query",
+                        "successful_agents",
+                        "failed_agents",
+                        "errors",
+                        "execution_metadata",
+                    ]
+                ]
+                self.execution_context.execution_path.extend(executed_agents)
+
+            # Emit workflow execution completed event
             if self.event_emitter:
                 try:
-                    from cognivault.events import WorkflowEvent, EventType
-
                     await self.event_emitter.emit(
                         WorkflowEvent(
-                            event_type=EventType.AGENT_EXECUTION_COMPLETED,
-                            workflow_id=self.execution_context.workflow_id,
+                            event_type=EventType.WORKFLOW_COMPLETED,
+                            workflow_id=workflow_id,
                             correlation_id=self.execution_context.correlation_id,
-                            agent_metadata=getattr(node, "_metadata", None),
                             data={
-                                "node_id": node_id,
-                                "node_type": type(node).__name__,
-                                "output_size": len(
-                                    str(current_context.agent_outputs.get(node_id, ""))
+                                "agents_executed": len(final_context.agent_outputs),
+                                "successful_agents": len(
+                                    final_context.successful_agents
                                 ),
-                                "execution_time_ms": 100,  # Simulated
+                                "failed_agents": len(final_context.failed_agents),
+                                "execution_mode": "langgraph_real",
                             },
                         )
                     )
                 except ImportError:
                     pass
 
-        return current_context
+            return final_context
+
+        except Exception as e:
+            # Emit workflow execution failed event
+            if self.event_emitter:
+                try:
+                    from cognivault.events import WorkflowEvent, EventType
+
+                    await self.event_emitter.emit(
+                        WorkflowEvent(
+                            event_type=EventType.WORKFLOW_FAILED,
+                            workflow_id=workflow_id,
+                            correlation_id=self.execution_context.correlation_id,
+                            data={
+                                "error_message": str(e),
+                                "error_type": type(e).__name__,
+                                "execution_mode": "langgraph_real",
+                            },
+                        )
+                    )
+                except ImportError:
+                    pass
+
+            # Create a failed context
+            failed_context = context
+            failed_context.add_agent_output(
+                "error", f"Workflow execution failed: {str(e)}"
+            )
+            failed_context.failed_agents.add("workflow")
+
+            raise WorkflowExecutionError(
+                f"LangGraph execution failed: {e}", workflow_id
+            )
+
+    async def _execute_node_with_prompts(
+        self, node_func: Callable, node_id: str, context: AgentContext
+    ) -> Any:
+        """
+        Execute a node function with prompt configuration support.
+
+        This method attempts to apply custom prompts from the composition metadata
+        if available, then falls back to the standard node execution.
+        """
+        try:
+            # Check if we have composition metadata with prompt configuration
+            node_metadata = self.composition_result.metadata.get("nodes", {}).get(
+                node_id, {}
+            )
+            prompt_config = node_metadata.get("prompt_config", {})
+
+            if prompt_config:
+                # Apply prompt configuration
+                from cognivault.workflows.prompt_loader import (
+                    apply_prompt_configuration,
+                )
+
+                # Extract agent type from node metadata
+                agent_type = node_metadata.get("agent_type", node_id)
+                configured_prompts = apply_prompt_configuration(
+                    agent_type, prompt_config
+                )
+
+                # Create enhanced state with prompt configuration
+                enhanced_state = {
+                    "query": context.query,
+                    "context": context,
+                    "prompt_config": configured_prompts,
+                }
+
+                return await node_func(enhanced_state)
+            else:
+                # Standard execution without custom prompts
+                return await node_func({"query": context.query, "context": context})
+
+        except Exception as e:
+            # If prompt configuration fails, fall back to basic execution
+            return await node_func({"query": context.query})
 
 
 class DeclarativeOrchestrator:
@@ -593,6 +738,8 @@ class DeclarativeOrchestrator:
 
         # Create executor and run workflow
         executor = WorkflowExecutor(composition_result)
+        # Store workflow definition in executor for LangGraph execution
+        executor._current_workflow = workflow
         return await executor.execute(
             initial_context=initial_context,
             workflow_id=workflow.workflow_id,

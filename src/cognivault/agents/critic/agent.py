@@ -55,7 +55,7 @@ class CriticAgent(BaseAgent):
         """
         self.logger.info(f"[{self.name}] Processing query: {context.query}")
 
-        refined_output = context.agent_outputs.get("Refiner", "")
+        refined_output = context.agent_outputs.get("refiner", "")
         if not refined_output:
             critique = "No refined output available from RefinerAgent to critique."
             self.logger.warning(

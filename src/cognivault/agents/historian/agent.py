@@ -254,7 +254,18 @@ class HistorianAgent(BaseAgent):
             ]
         )
 
-        return f"""As a historian analyzing relevance, determine which historical notes are most relevant to the current query.
+        # Try to load prompt template from prompts.py
+        try:
+            from cognivault.agents.historian.prompts import (
+                HISTORIAN_RELEVANCE_PROMPT_TEMPLATE,
+            )
+
+            return HISTORIAN_RELEVANCE_PROMPT_TEMPLATE.format(
+                query=query, results_text=results_text
+            )
+        except ImportError:
+            # Fallback to embedded prompt
+            return f"""As a historian analyzing relevance, determine which historical notes are most relevant to the current query.
 
 QUERY: {query}
 
@@ -302,7 +313,18 @@ RELEVANT INDICES:"""
             ]
         )
 
-        return f"""As a historian, synthesize the following historical context to inform the current query.
+        # Try to load prompt template from prompts.py
+        try:
+            from cognivault.agents.historian.prompts import (
+                HISTORIAN_SYNTHESIS_PROMPT_TEMPLATE,
+            )
+
+            return HISTORIAN_SYNTHESIS_PROMPT_TEMPLATE.format(
+                query=query, results_context=results_context
+            )
+        except ImportError:
+            # Fallback to embedded prompt
+            return f"""As a historian, synthesize the following historical context to inform the current query.
 
 CURRENT QUERY: {query}
 

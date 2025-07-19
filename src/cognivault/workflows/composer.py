@@ -87,14 +87,17 @@ class WorkflowCompositionError(Exception):
 
 def get_agent_class(agent_type: str):
     """Get agent class by type name."""
-    # This is a placeholder function for the tests
+    # Import all agent classes for real execution
     from cognivault.agents.refiner.agent import RefinerAgent
+    from cognivault.agents.critic.agent import CriticAgent
+    from cognivault.agents.historian.agent import HistorianAgent
+    from cognivault.agents.synthesis.agent import SynthesisAgent
 
     agent_map = {
         "refiner": RefinerAgent,
-        "critic": None,  # Would be imported as needed
-        "historian": None,
-        "synthesis": None,
+        "critic": CriticAgent,
+        "historian": HistorianAgent,
+        "synthesis": SynthesisAgent,
     }
     return agent_map.get(agent_type, RefinerAgent)
 
@@ -123,12 +126,93 @@ class NodeFactory:
             )
 
     def _create_base_node(self, node_config: "NodeConfiguration") -> Callable:
-        """Create BASE agent node."""
+        """Create BASE agent node with actual LLM execution."""
         agent_class = get_agent_class(node_config.node_type)
 
+        if agent_class is None:
+            raise WorkflowCompositionError(
+                f"Agent class not found for type: {node_config.node_type}"
+            )
+
         async def node_func(state):
-            # Placeholder implementation
-            return {"output": f"Output from {node_config.node_id}"}
+            try:
+                # Import required modules
+                from cognivault.llm.openai import OpenAIChatLLM
+                from cognivault.config.openai_config import OpenAIConfig
+                from cognivault.context import AgentContext
+                from cognivault.workflows.prompt_loader import (
+                    apply_prompt_configuration,
+                )
+
+                # Create LLM instance
+                config = OpenAIConfig.load()
+                llm = OpenAIChatLLM(
+                    api_key=config.api_key, model=config.model, base_url=config.base_url
+                )
+
+                # Create agent instance with LLM
+                agent = agent_class(llm)
+
+                # Convert LangGraph state to AgentContext
+                context = AgentContext(query=state.get("query", ""))
+
+                # Copy any existing agent outputs from state
+                for key, value in state.items():
+                    if key not in [
+                        "query",
+                        "successful_agents",
+                        "failed_agents",
+                        "errors",
+                        "execution_metadata",
+                    ]:
+                        if isinstance(value, dict) and "output" in value:
+                            context.add_agent_output(key, value["output"])
+                        elif isinstance(value, str):
+                            context.add_agent_output(key, value)
+
+                # Apply custom prompts if configured
+                if node_config.config and "prompts" in node_config.config:
+                    try:
+                        configured_prompts = apply_prompt_configuration(
+                            node_config.node_type, node_config.config
+                        )
+                        # Update agent's system prompt if custom prompt is provided
+                        if "system_prompt" in configured_prompts:
+                            agent.system_prompt = configured_prompts["system_prompt"]
+                    except Exception as e:
+                        # Log warning but continue with default prompts
+                        print(
+                            f"Warning: Failed to apply custom prompts for {node_config.node_id}: {e}"
+                        )
+
+                # Execute the real agent with LLM calls
+                result_context = await agent.run(context)
+
+                # Extract the agent's output
+                agent_output = result_context.agent_outputs.get(agent.name, "")
+                if not agent_output:
+                    # Fallback to last output if agent name not found
+                    agent_outputs = list(result_context.agent_outputs.values())
+                    agent_output = (
+                        agent_outputs[-1]
+                        if agent_outputs
+                        else f"No output from {node_config.node_id}"
+                    )
+
+                # Return only the agent's output to avoid state conflicts
+                # LangGraph will merge this with the existing state
+                return {node_config.node_id: {"output": agent_output}}
+
+            except Exception as e:
+                # Handle execution failures gracefully
+                print(f"Error executing agent {node_config.node_id}: {e}")
+
+                # Return fallback output only for this node
+                return {
+                    node_config.node_id: {
+                        "output": f"Fallback output from {node_config.node_id} (error: {str(e)})"
+                    }
+                }
 
         return node_func
 
@@ -556,9 +640,22 @@ class DagComposer:
 
             # Create node mapping
             node_mapping = {}
+            node_metadata = {}
             for node_config in workflow_def.nodes:
                 node_func = self.node_factory.create_node(node_config)
                 node_mapping[node_config.node_id] = node_func
+
+                # Store node metadata for prompt configuration
+                node_metadata[node_config.node_id] = {
+                    "agent_type": node_config.node_type,
+                    "category": node_config.category,
+                    "prompt_config": (
+                        node_config.config.get("prompts", {})
+                        if node_config.config
+                        else {}
+                    ),
+                    "node_config": node_config.config or {},
+                }
 
             # Create edge mapping
             edge_mapping = {}
@@ -569,7 +666,10 @@ class DagComposer:
             return CompositionResult(
                 node_mapping=node_mapping,
                 edge_mapping=edge_mapping,
-                metadata={"workflow_id": workflow_def.workflow_id},
+                metadata={
+                    "workflow_id": workflow_def.workflow_id,
+                    "nodes": node_metadata,
+                },
                 validation_errors=[],
             )
 
@@ -607,6 +707,13 @@ class DagComposer:
                 if edge_def.edge_type == "sequential":
                     graph.add_edge(edge_def.from_node, edge_def.to_node)
                 # Handle other edge types as needed
+
+            # Add terminal nodes to END using LangGraph's END constant
+            if workflow_def.flow.terminal_nodes:
+                from langgraph.graph import END
+
+                for terminal_node in workflow_def.flow.terminal_nodes:
+                    graph.add_edge(terminal_node, END)
 
             # Set entry point
             graph.set_entry_point(workflow_def.flow.entry_point)

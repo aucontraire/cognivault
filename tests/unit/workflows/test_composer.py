@@ -269,8 +269,10 @@ class TestDagComposer:
             mock_graph.add_node.assert_any_call("refiner", mock_node_func)
             mock_graph.add_node.assert_any_call("critic", mock_node_func)
 
-            # Verify edges were added
-            mock_graph.add_edge.assert_called_once_with("refiner", "critic")
+            # Verify edges were added (workflow edge + terminal END edge)
+            assert mock_graph.add_edge.call_count == 2
+            mock_graph.add_edge.assert_any_call("refiner", "critic")
+            mock_graph.add_edge.assert_any_call("critic", "__end__")
 
             # Verify entry point was set
             mock_graph.set_entry_point.assert_called_once_with("refiner")

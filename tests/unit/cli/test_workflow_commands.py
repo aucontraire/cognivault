@@ -20,6 +20,7 @@ from cognivault.cli.workflow_commands import (
     list_workflows_test_helper,
     show_workflow_test_helper,
     export_workflow_test_helper,
+    _run_workflow_async,
 )
 from cognivault.workflows.definition import (
     WorkflowDefinition,
@@ -674,3 +675,432 @@ class TestWorkflowCLIIntegration:
 
             # Should exit with error code
             assert result.exit_code != 0
+
+
+class TestWorkflowMarkdownExport:
+    """Test workflow CLI markdown export functionality."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.runner = CliRunner()
+
+        # Create a sample workflow result
+        from cognivault.workflows.executor import WorkflowResult
+        from cognivault.context import AgentContext
+
+        context = AgentContext(query="test export query")
+        context.add_agent_output("refiner", "refined output for export")
+        context.add_agent_output("critic", "critical analysis for export")
+
+        self.sample_result = WorkflowResult(
+            workflow_id="export-test-123",
+            execution_id="exec-456",
+            final_context=context,
+            execution_metadata={"test": True},
+            node_execution_order=["refiner", "critic"],
+            execution_time_seconds=2.5,
+            success=True,
+            event_correlation_id="corr-789",
+        )
+
+        # Sample workflow definition
+        self.sample_workflow = WorkflowDefinition(
+            name="export_test_workflow",
+            version="1.0.0",
+            workflow_id="export-test-123",
+            created_by="test_user",
+            created_at=datetime.now(),
+            description="Test workflow for markdown export",
+            tags=["test", "export"],
+            nodes=[
+                NodeConfiguration(
+                    node_id="refiner",
+                    node_type="refiner",
+                    category="BASE",
+                    execution_pattern="processor",
+                    metadata={},
+                )
+            ],
+            flow=FlowDefinition(
+                entry_point="refiner", edges=[], terminal_nodes=["refiner"]
+            ),
+            metadata={"test": True},
+        )
+
+    @pytest.mark.asyncio
+    async def test_markdown_export_flag_passed_through(self):
+        """Test that --export-md flag is passed through the call chain."""
+        with (
+            patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
+            patch(
+                "cognivault.cli.workflow_commands.DeclarativeOrchestrator"
+            ) as mock_orch,
+            patch("cognivault.cli.workflow_commands.OpenAIChatLLM") as mock_llm,
+            patch("cognivault.cli.workflow_commands.TopicManager") as mock_topic_mgr,
+            patch("cognivault.cli.workflow_commands.MarkdownExporter") as mock_exporter,
+        ):
+            # Setup mocks
+            mock_load.return_value = self.sample_workflow
+            mock_orchestrator = AsyncMock()
+            mock_orchestrator.execute_workflow.return_value = self.sample_result
+            mock_orch.return_value = mock_orchestrator
+
+            mock_llm_instance = Mock()
+            mock_llm.return_value = mock_llm_instance
+
+            mock_topic_manager = AsyncMock()
+            mock_topic_analysis = Mock()
+            mock_topic_analysis.suggested_topics = [
+                Mock(topic="test"),
+                Mock(topic="export"),
+            ]
+            mock_topic_analysis.suggested_domain = "testing"
+            mock_topic_manager.analyze_and_suggest_topics.return_value = (
+                mock_topic_analysis
+            )
+            mock_topic_mgr.return_value = mock_topic_manager
+
+            mock_exporter_instance = Mock()
+            mock_exporter_instance.export.return_value = "/tmp/test_export.md"
+            mock_exporter.return_value = mock_exporter_instance
+
+            # Test the async function directly with export_md=True
+            await _run_workflow_async(
+                workflow_file="test.yaml",
+                query="test export query",
+                output_format="table",
+                save_result=None,
+                export_md=True,
+                verbose=True,
+            )
+
+            # Verify markdown export was called
+            mock_exporter.assert_called_once()
+            mock_exporter_instance.export.assert_called_once()
+
+            # Verify enhanced metadata was added
+            call_args = mock_exporter_instance.export.call_args
+            agent_outputs = call_args[1]["agent_outputs"]
+            assert "workflow_metadata" in agent_outputs
+            # The metadata is now a formatted string, so check it contains the key information
+            metadata_str = agent_outputs["workflow_metadata"]
+            assert "export-test-123" in metadata_str
+            assert "exec-456" in metadata_str
+
+    @pytest.mark.asyncio
+    async def test_markdown_export_with_topic_analysis(self):
+        """Test markdown export with successful topic analysis."""
+        with (
+            patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
+            patch(
+                "cognivault.cli.workflow_commands.DeclarativeOrchestrator"
+            ) as mock_orch,
+            patch("cognivault.cli.workflow_commands.OpenAIConfig") as mock_config_class,
+            patch("cognivault.cli.workflow_commands.OpenAIChatLLM") as mock_llm,
+            patch("cognivault.cli.workflow_commands.TopicManager") as mock_topic_mgr,
+            patch("cognivault.cli.workflow_commands.MarkdownExporter") as mock_exporter,
+        ):
+            # Setup mocks
+            mock_load.return_value = self.sample_workflow
+            mock_orchestrator = AsyncMock()
+            mock_orchestrator.execute_workflow.return_value = self.sample_result
+            mock_orch.return_value = mock_orchestrator
+
+            # Mock OpenAI config
+            mock_config = Mock()
+            mock_config.api_key = "test-key"
+            mock_config.model = "gpt-4"
+            mock_config.base_url = None
+            mock_config_class.load.return_value = mock_config
+
+            mock_llm_instance = Mock()
+            mock_llm.return_value = mock_llm_instance
+
+            # Mock topic analysis with specific topics
+            mock_topic_manager = AsyncMock()
+            mock_topic_analysis = Mock()
+            mock_topic_analysis.suggested_topics = [
+                Mock(topic="workflow"),
+                Mock(topic="testing"),
+                Mock(topic="automation"),
+            ]
+            mock_topic_analysis.suggested_domain = "software_engineering"
+            mock_topic_manager.analyze_and_suggest_topics.return_value = (
+                mock_topic_analysis
+            )
+            mock_topic_mgr.return_value = mock_topic_manager
+
+            mock_exporter_instance = Mock()
+            mock_exporter_instance.export.return_value = "/tmp/workflow_export.md"
+            mock_exporter.return_value = mock_exporter_instance
+
+            await _run_workflow_async(
+                workflow_file="test.yaml",
+                query="analyze workflow patterns",
+                output_format="table",
+                save_result=None,
+                export_md=True,
+                verbose=True,
+            )
+
+            # Verify topic analysis was called
+            mock_topic_manager.analyze_and_suggest_topics.assert_called_once_with(
+                query="analyze workflow patterns",
+                agent_outputs=self.sample_result.final_context.agent_outputs,
+            )
+
+            # Verify export was called with topics
+            call_args = mock_exporter_instance.export.call_args
+            assert call_args[1]["topics"] == ["workflow", "testing", "automation"]
+            assert call_args[1]["domain"] == "software_engineering"
+
+    @pytest.mark.asyncio
+    async def test_markdown_export_topic_analysis_failure(self):
+        """Test markdown export when topic analysis fails."""
+        with (
+            patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
+            patch(
+                "cognivault.cli.workflow_commands.DeclarativeOrchestrator"
+            ) as mock_orch,
+            patch("cognivault.cli.workflow_commands.OpenAIConfig") as mock_config_class,
+            patch("cognivault.cli.workflow_commands.OpenAIChatLLM") as mock_llm,
+            patch("cognivault.cli.workflow_commands.TopicManager") as mock_topic_mgr,
+            patch("cognivault.cli.workflow_commands.MarkdownExporter") as mock_exporter,
+        ):
+            # Setup mocks
+            mock_load.return_value = self.sample_workflow
+            mock_orchestrator = AsyncMock()
+            mock_orchestrator.execute_workflow.return_value = self.sample_result
+            mock_orch.return_value = mock_orchestrator
+
+            mock_config = Mock()
+            mock_config.api_key = "test-key"
+            mock_config.model = "gpt-4"
+            mock_config.base_url = None
+            mock_config_class.load.return_value = mock_config
+
+            mock_llm_instance = Mock()
+            mock_llm.return_value = mock_llm_instance
+
+            # Mock topic analysis failure
+            mock_topic_manager = AsyncMock()
+            mock_topic_manager.analyze_and_suggest_topics.side_effect = Exception(
+                "API rate limit exceeded"
+            )
+            mock_topic_mgr.return_value = mock_topic_manager
+
+            mock_exporter_instance = Mock()
+            mock_exporter_instance.export.return_value = "/tmp/fallback_export.md"
+            mock_exporter.return_value = mock_exporter_instance
+
+            await _run_workflow_async(
+                workflow_file="test.yaml",
+                query="test topic failure",
+                output_format="table",
+                save_result=None,
+                export_md=True,
+                verbose=True,
+            )
+
+            # Should still export with empty topics
+            call_args = mock_exporter_instance.export.call_args
+            assert call_args[1]["topics"] == []
+            assert call_args[1]["domain"] is None
+            mock_exporter_instance.export.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_markdown_export_enhanced_workflow_metadata(self):
+        """Test that enhanced workflow metadata is properly added."""
+        with (
+            patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
+            patch(
+                "cognivault.cli.workflow_commands.DeclarativeOrchestrator"
+            ) as mock_orch,
+            patch("cognivault.cli.workflow_commands.OpenAIConfig") as mock_config_class,
+            patch("cognivault.cli.workflow_commands.OpenAIChatLLM") as mock_llm,
+            patch("cognivault.cli.workflow_commands.TopicManager") as mock_topic_mgr,
+            patch("cognivault.cli.workflow_commands.MarkdownExporter") as mock_exporter,
+        ):
+            # Setup mocks
+            mock_load.return_value = self.sample_workflow
+            mock_orchestrator = AsyncMock()
+            mock_orchestrator.execute_workflow.return_value = self.sample_result
+            mock_orch.return_value = mock_orchestrator
+
+            mock_config = Mock()
+            mock_config.api_key = "test-key"
+            mock_config.model = "gpt-4"
+            mock_config.base_url = None
+            mock_config_class.load.return_value = mock_config
+
+            mock_llm_instance = Mock()
+            mock_llm.return_value = mock_llm_instance
+
+            mock_topic_manager = AsyncMock()
+            mock_topic_analysis = Mock()
+            mock_topic_analysis.suggested_topics = []
+            mock_topic_analysis.suggested_domain = None
+            mock_topic_manager.analyze_and_suggest_topics.return_value = (
+                mock_topic_analysis
+            )
+            mock_topic_mgr.return_value = mock_topic_manager
+
+            mock_exporter_instance = Mock()
+            mock_exporter_instance.export.return_value = "/tmp/metadata_test.md"
+            mock_exporter.return_value = mock_exporter_instance
+
+            await _run_workflow_async(
+                workflow_file="test.yaml",
+                query="metadata test",
+                output_format="table",
+                save_result=None,
+                export_md=True,
+                verbose=False,
+            )
+
+            # Verify enhanced metadata structure
+            call_args = mock_exporter_instance.export.call_args
+            agent_outputs = call_args[1]["agent_outputs"]
+
+            # Check workflow metadata (now a formatted string)
+            assert "workflow_metadata" in agent_outputs
+            metadata_str = agent_outputs["workflow_metadata"]
+            assert "export-test-123" in metadata_str
+            assert "exec-456" in metadata_str
+            assert "2.50 seconds" in metadata_str
+            assert "True" in metadata_str
+            assert "refiner, critic" in metadata_str
+            assert "corr-789" in metadata_str
+
+            # Check original agent outputs are preserved
+            assert "refiner" in agent_outputs
+            assert "critic" in agent_outputs
+            assert agent_outputs["refiner"] == "refined output for export"
+            assert agent_outputs["critic"] == "critical analysis for export"
+
+    @pytest.mark.asyncio
+    async def test_markdown_export_json_output_format(self):
+        """Test markdown export with JSON output format (should suppress verbose output)."""
+        with (
+            patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
+            patch(
+                "cognivault.cli.workflow_commands.DeclarativeOrchestrator"
+            ) as mock_orch,
+            patch("cognivault.cli.workflow_commands.OpenAIConfig") as mock_config_class,
+            patch("cognivault.cli.workflow_commands.OpenAIChatLLM") as mock_llm,
+            patch("cognivault.cli.workflow_commands.TopicManager") as mock_topic_mgr,
+            patch("cognivault.cli.workflow_commands.MarkdownExporter") as mock_exporter,
+            patch("cognivault.cli.workflow_commands.console") as mock_console,
+        ):
+            # Setup mocks
+            mock_load.return_value = self.sample_workflow
+            mock_orchestrator = AsyncMock()
+            mock_orchestrator.execute_workflow.return_value = self.sample_result
+            mock_orch.return_value = mock_orchestrator
+
+            mock_config = Mock()
+            mock_config.api_key = "test-key"
+            mock_config.model = "gpt-4"
+            mock_config.base_url = None
+            mock_config_class.load.return_value = mock_config
+
+            mock_llm_instance = Mock()
+            mock_llm.return_value = mock_llm_instance
+
+            mock_topic_manager = AsyncMock()
+            mock_topic_analysis = Mock()
+            mock_topic_analysis.suggested_topics = [Mock(topic="json")]
+            mock_topic_analysis.suggested_domain = "data"
+            mock_topic_manager.analyze_and_suggest_topics.return_value = (
+                mock_topic_analysis
+            )
+            mock_topic_mgr.return_value = mock_topic_manager
+
+            mock_exporter_instance = Mock()
+            mock_exporter_instance.export.return_value = "/tmp/json_test.md"
+            mock_exporter.return_value = mock_exporter_instance
+
+            await _run_workflow_async(
+                workflow_file="test.yaml",
+                query="json output test",
+                output_format="json",  # JSON format should suppress console output
+                save_result=None,
+                export_md=True,
+                verbose=True,  # Even with verbose=True, JSON format should suppress
+            )
+
+            # Verify export still works
+            mock_exporter_instance.export.assert_called_once()
+
+            # With JSON format, console.print should not be called for export messages
+            # (only the JSON result should be printed via print())
+            export_calls = [
+                call
+                for call in mock_console.print.call_args_list
+                if any("Markdown exported" in str(arg) for arg in call[0])
+            ]
+            assert len(export_calls) == 0  # No console output for JSON format
+
+    def test_cli_runner_with_export_md_flag(self):
+        """Test workflow run command with --export-md flag via CLI runner."""
+        runner = CliRunner()
+
+        with (
+            patch(
+                "cognivault.cli.workflow_commands._run_workflow_async"
+            ) as mock_run_async,
+            patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
+        ):
+            mock_run_async.return_value = None
+            mock_load.return_value = Mock()
+
+            result = runner.invoke(
+                workflow_app,
+                [
+                    "run",
+                    "test_workflow.yaml",
+                    "--query",
+                    "test export via CLI",
+                    "--export-md",
+                    "--verbose",
+                ],
+            )
+
+            # Command should complete successfully
+            assert result.exit_code == 0
+
+            # Verify --export-md flag was passed
+            mock_run_async.assert_called_once()
+            call_args = mock_run_async.call_args[0]  # positional args
+            # Args: workflow_file, query, output_format, save_result, export_md, verbose
+            assert call_args[4] is True  # export_md is the 5th positional argument
+
+    def test_cli_runner_export_md_flag_default_false(self):
+        """Test that --export-md flag defaults to False."""
+        runner = CliRunner()
+
+        with (
+            patch(
+                "cognivault.cli.workflow_commands._run_workflow_async"
+            ) as mock_run_async,
+            patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
+        ):
+            mock_run_async.return_value = None
+            mock_load.return_value = Mock()
+
+            result = runner.invoke(
+                workflow_app,
+                [
+                    "run",
+                    "test_workflow.yaml",
+                    "--query",
+                    "test without export",
+                ],
+            )
+
+            assert result.exit_code == 0
+
+            # Verify --export-md defaults to False
+            call_args = mock_run_async.call_args[0]  # positional args
+            # Args: workflow_file, query, output_format, save_result, export_md, verbose
+            assert call_args[4] is False  # export_md is the 5th positional argument
