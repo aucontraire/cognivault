@@ -32,7 +32,7 @@ async def test_critic_with_refiner_output():
     context = AgentContext(
         query="Was the election fair?",
         agent_outputs={
-            "Refiner": "Was the 2020 presidential election conducted fairly according to established democratic standards?"
+            "refiner": "Was the 2020 presidential election conducted fairly according to established democratic standards?"
         },
     )
 
@@ -75,7 +75,7 @@ async def test_critic_with_empty_refiner_output():
     """Test CriticAgent when RefinerAgent output is empty string."""
     mock_llm = create_mock_llm("This should not be called")
 
-    context = AgentContext(query="Empty query test", agent_outputs={"Refiner": ""})
+    context = AgentContext(query="Empty query test", agent_outputs={"refiner": ""})
 
     agent = CriticAgent(llm=mock_llm)
     updated_context = await agent.run(context)
@@ -102,7 +102,7 @@ async def test_critic_complex_query_analysis():
     context = AgentContext(
         query="How has democracy evolved?",
         agent_outputs={
-            "Refiner": "How has the structure and function of democratic institutions evolved since the Cold War?"
+            "refiner": "How has the structure and function of democratic institutions evolved since the Cold War?"
         },
     )
 
@@ -134,7 +134,7 @@ async def test_critic_well_scoped_query():
     context = AgentContext(
         query="Research question",
         agent_outputs={
-            "Refiner": "What are the documented economic effects of minimum wage increases on employment rates in peer-reviewed studies from 2010-2020?"
+            "refiner": "What are the documented economic effects of minimum wage increases on employment rates in peer-reviewed studies from 2010-2020?"
         },
     )
 
@@ -155,7 +155,7 @@ async def test_critic_logging_behavior():
     mock_llm = create_mock_llm("Test critique output")
 
     context = AgentContext(
-        query="Test query", agent_outputs={"Refiner": "Test refined query"}
+        query="Test query", agent_outputs={"refiner": "Test refined query"}
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -171,7 +171,7 @@ async def test_critic_context_tracing():
     mock_llm = create_mock_llm("Test critique for tracing")
 
     context = AgentContext(
-        query="Trace test", agent_outputs={"Refiner": "Refined query for tracing"}
+        query="Trace test", agent_outputs={"refiner": "Refined query for tracing"}
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -189,7 +189,7 @@ async def test_critic_system_prompt_usage():
 
     context = AgentContext(
         query="System prompt test",
-        agent_outputs={"Refiner": "Test query for system prompt verification"},
+        agent_outputs={"refiner": "Test query for system prompt verification"},
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -217,7 +217,7 @@ async def test_critic_response_stripping():
 
     context = AgentContext(
         query="Whitespace test",
-        agent_outputs={"Refiner": "Test query with whitespace response"},
+        agent_outputs={"refiner": "Test query with whitespace response"},
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -237,7 +237,7 @@ async def test_critic_non_text_response():
 
     context = AgentContext(
         query="Fallback test",
-        agent_outputs={"Refiner": "This query triggers a fallback."},
+        agent_outputs={"refiner": "This query triggers a fallback."},
     )
 
     agent = CriticAgent(llm=mock_llm)

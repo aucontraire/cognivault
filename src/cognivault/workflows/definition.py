@@ -128,6 +128,45 @@ class NodeConfiguration:
 
 
 @dataclass
+class ExecutionConfiguration:
+    """Configuration for workflow execution settings."""
+
+    mode: str = "langgraph"
+    enable_checkpoints: bool = False
+    enable_simulation_delay: bool = False
+    parallel_execution: bool = True
+
+
+@dataclass
+class OutputConfiguration:
+    """Configuration for workflow output formatting."""
+
+    format: str = "markdown"
+    include_metadata: bool = False
+    include_execution_time: bool = True
+    include_sources: bool = False
+    sections: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class QualityGates:
+    """Quality gates and validation criteria for workflow execution."""
+
+    min_confidence: float = 0.7
+    max_execution_time: str = "5m"
+    required_sections: List[str] = field(default_factory=list)
+
+
+@dataclass
+class ResourceLimits:
+    """Resource limits for workflow execution."""
+
+    timeout: str = "10m"
+    max_llm_calls: int = 20
+    max_context_size: str = "8k"
+
+
+@dataclass
 class WorkflowDefinition:
     """
     Ecosystem-ready workflow definition with versioning, attribution, and sharing contracts.
@@ -135,19 +174,36 @@ class WorkflowDefinition:
     This is the core schema for declarative DAG workflows, designed for the
     "Kubernetes of intelligent DAG workflows" ecosystem with plugin architecture
     foundation and reproducible workflow sharing capabilities.
+
+    Supports both simple workflows and rich configuration options including:
+    - Execution configuration (checkpoints, parallelization)
+    - Output formatting (format, sections, metadata)
+    - Quality gates (confidence thresholds, time limits)
+    - Resource limits (timeouts, LLM calls, context size)
     """
 
     name: str
     version: str
     workflow_id: str  # Unique identifier for ecosystem
-    created_by: str  # Creator attribution
-    created_at: datetime  # Creation timestamp
     nodes: List[NodeConfiguration]
     flow: FlowDefinition
+    # Optional fields with defaults for backward compatibility
+    created_by: str = "unknown"  # Creator attribution
+    created_at: Optional[datetime] = None  # Creation timestamp
     description: Optional[str] = None  # Human-readable description
     tags: List[str] = field(default_factory=list)  # Categorization
     workflow_schema_version: str = "1.0.0"  # Forward compatibility
     metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
+    # Rich configuration options
+    execution: Optional[ExecutionConfiguration] = None
+    output: Optional[OutputConfiguration] = None
+    quality_gates: Optional[QualityGates] = None
+    resources: Optional[ResourceLimits] = None
+
+    def __post_init__(self):
+        """Set default created_at if not provided."""
+        if self.created_at is None:
+            self.created_at = datetime.now(timezone.utc)
 
     @classmethod
     def create(
@@ -215,7 +271,7 @@ class WorkflowDefinition:
             "version": self.version,
             "workflow_id": self.workflow_id,
             "created_by": self.created_by,
-            "created_at": self.created_at.isoformat(),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
             "description": self.description,
             "tags": self.tags,
             "workflow_schema_version": self.workflow_schema_version,
@@ -273,6 +329,8 @@ class WorkflowDefinition:
         """
         Deserialize workflow definition from JSON snapshot.
 
+        Supports both new format (with flow structure) and legacy format (with edges array).
+
         Parameters
         ----------
         data : Dict[str, Any]
@@ -283,13 +341,15 @@ class WorkflowDefinition:
         WorkflowDefinition
             Deserialized workflow definition
         """
-        # Parse nodes
+        # Parse nodes - support legacy format missing category
         nodes = []
         for node_data in data["nodes"]:
             node = NodeConfiguration(
                 node_id=node_data["node_id"],
                 node_type=node_data["node_type"],
-                category=node_data["category"],
+                category=node_data.get(
+                    "category", "BASE"
+                ),  # Default to BASE for legacy
                 execution_pattern=node_data.get("execution_pattern", "processor"),
                 config=node_data.get("config", {}),
                 metadata=node_data.get("metadata", {}),
@@ -297,40 +357,139 @@ class WorkflowDefinition:
             )
             nodes.append(node)
 
-        # Parse flow
-        edges = []
-        for edge_data in data["flow"]["edges"]:
-            edge = EdgeDefinition(
-                from_node=edge_data["from_node"],
-                to_node=edge_data["to_node"],
-                edge_type=edge_data.get("edge_type", "sequential"),
-                condition=edge_data.get("condition"),
-                next_node_if=edge_data.get("next_node_if"),
-                failover_node=edge_data.get("failover_node"),
-                metadata=edge_data.get("metadata", {}),
-                metadata_filters=edge_data.get("metadata_filters"),
-            )
-            edges.append(edge)
+        # Parse flow - support both new and legacy formats
+        if "flow" in data:
+            # New format with flow structure
+            edges = []
+            for edge_data in data["flow"]["edges"]:
+                edge = EdgeDefinition(
+                    from_node=edge_data["from_node"],
+                    to_node=edge_data["to_node"],
+                    edge_type=edge_data.get("edge_type", "sequential"),
+                    condition=edge_data.get("condition"),
+                    next_node_if=edge_data.get("next_node_if"),
+                    failover_node=edge_data.get("failover_node"),
+                    metadata=edge_data.get("metadata", {}),
+                    metadata_filters=edge_data.get("metadata_filters"),
+                )
+                edges.append(edge)
 
-        flow = FlowDefinition(
-            entry_point=data["flow"]["entry_point"],
-            edges=edges,
-            terminal_nodes=data["flow"].get("terminal_nodes", []),
-            conditional_routing=data["flow"].get("conditional_routing"),
-        )
+            flow = FlowDefinition(
+                entry_point=data["flow"]["entry_point"],
+                edges=edges,
+                terminal_nodes=data["flow"].get("terminal_nodes", []),
+                conditional_routing=data["flow"].get("conditional_routing"),
+            )
+        elif "edges" in data:
+            # Legacy format with edges array
+            edges = []
+            entry_point = None
+            terminal_nodes = []
+
+            for edge_data in data["edges"]:
+                # Convert legacy edge format to new format
+                from_node = edge_data.get("from", edge_data.get("from_node"))
+                to_node = edge_data.get("to", edge_data.get("to_node"))
+
+                # Handle START and END special nodes
+                if from_node == "START":
+                    entry_point = to_node
+                    continue
+                elif to_node == "END":
+                    terminal_nodes.append(from_node)
+                    continue
+
+                edge = EdgeDefinition(
+                    from_node=from_node,
+                    to_node=to_node,
+                    edge_type="sequential",
+                    condition=edge_data.get("condition"),
+                    metadata=edge_data.get("metadata", {}),
+                )
+                edges.append(edge)
+
+            # If no entry point found, use first node
+            if entry_point is None and nodes:
+                entry_point = nodes[0].node_id
+
+            flow = FlowDefinition(
+                entry_point=entry_point or "unknown",
+                edges=edges,
+                terminal_nodes=terminal_nodes,
+            )
+        else:
+            raise ValueError(
+                "Workflow must contain either 'flow' or 'edges' definition"
+            )
+
+        # Parse rich configuration options
+        execution = None
+        if "execution" in data:
+            exec_data = data["execution"]
+            execution = ExecutionConfiguration(
+                mode=exec_data.get("mode", "langgraph"),
+                enable_checkpoints=exec_data.get("enable_checkpoints", False),
+                enable_simulation_delay=exec_data.get("enable_simulation_delay", False),
+                parallel_execution=exec_data.get("parallel_execution", True),
+            )
+
+        output = None
+        if "output" in data:
+            output_data = data["output"]
+            output = OutputConfiguration(
+                format=output_data.get("format", "markdown"),
+                include_metadata=output_data.get("include_metadata", False),
+                include_execution_time=output_data.get("include_execution_time", True),
+                include_sources=output_data.get("include_sources", False),
+                sections=output_data.get("sections", {}),
+            )
+
+        quality_gates = None
+        if "quality_gates" in data:
+            qg_data = data["quality_gates"]
+            quality_gates = QualityGates(
+                min_confidence=qg_data.get("min_confidence", 0.7),
+                max_execution_time=qg_data.get("max_execution_time", "5m"),
+                required_sections=qg_data.get("required_sections", []),
+            )
+
+        resources = None
+        if "resources" in data:
+            res_data = data["resources"]
+            resources = ResourceLimits(
+                timeout=res_data.get("timeout", "10m"),
+                max_llm_calls=res_data.get("max_llm_calls", 20),
+                max_context_size=res_data.get("max_context_size", "8k"),
+            )
+
+        # Handle optional fields with defaults
+        created_by = data.get("created_by", "unknown")
+        created_at_str = data.get("created_at")
+        created_at = None
+        if created_at_str:
+            try:
+                created_at = datetime.fromisoformat(
+                    created_at_str.replace("Z", "+00:00")
+                )
+            except (ValueError, AttributeError):
+                created_at = datetime.now(timezone.utc)
 
         return cls(
             name=data["name"],
-            version=data["version"],
-            workflow_id=data["workflow_id"],
-            created_by=data["created_by"],
-            created_at=datetime.fromisoformat(data["created_at"]),
+            version=data.get("version", "1.0"),
+            workflow_id=data.get("workflow_id", str(uuid.uuid4())),
+            created_by=created_by,
+            created_at=created_at,
             description=data.get("description"),
             tags=data.get("tags", []),
             workflow_schema_version=data.get("workflow_schema_version", "1.0.0"),
             nodes=nodes,
             flow=flow,
             metadata=data.get("metadata", {}),
+            execution=execution,
+            output=output,
+            quality_gates=quality_gates,
+            resources=resources,
         )
 
     @classmethod

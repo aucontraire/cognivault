@@ -23,6 +23,10 @@ from rich.syntax import Syntax
 from cognivault.context import AgentContext
 from cognivault.workflows import WorkflowDefinition
 from cognivault.workflows.executor import DeclarativeOrchestrator
+from cognivault.store.wiki_adapter import MarkdownExporter
+from cognivault.store.topic_manager import TopicManager
+from cognivault.config.openai_config import OpenAIConfig
+from cognivault.llm.openai import OpenAIChatLLM
 
 
 # Initialize CLI components
@@ -40,6 +44,9 @@ def run_workflow(
     save_result: Optional[str] = typer.Option(
         None, "--save", "-s", help="Save result to file"
     ),
+    export_md: bool = typer.Option(
+        False, "--export-md", help="Export to markdown with rich frontmatter"
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """
@@ -54,7 +61,7 @@ def run_workflow(
 
         asyncio.run(
             _run_workflow_async(
-                workflow_file, query, output_format, save_result, verbose
+                workflow_file, query, output_format, save_result, export_md, verbose
             )
         )
     except RuntimeError as e:
@@ -65,7 +72,7 @@ def run_workflow(
             loop = asyncio.get_event_loop()
             loop.run_until_complete(
                 _run_workflow_async(
-                    workflow_file, query, output_format, save_result, verbose
+                    workflow_file, query, output_format, save_result, export_md, verbose
                 )
             )
         else:
@@ -77,17 +84,24 @@ async def _run_workflow_async(
     query: str,
     output_format: str,
     save_result: Optional[str],
+    export_md: bool,
     verbose: bool,
 ):
     """Async implementation of workflow execution."""
     try:
+        # For JSON output, suppress logging to avoid interfering with JSON
+        if output_format == "json":
+            import logging
+
+            logging.getLogger().setLevel(logging.CRITICAL)
+
         # Load workflow definition
-        if verbose:
+        if verbose and output_format != "json":
             console.print(f"[blue]Loading workflow from: {workflow_file}[/blue]")
 
         workflow = _load_workflow_file(workflow_file)
 
-        if verbose:
+        if verbose and output_format != "json":
             console.print(
                 f"[green]Loaded workflow: {workflow.name} v{workflow.version}[/green]"
             )
@@ -102,14 +116,18 @@ async def _run_workflow_async(
         # Execute workflow
         orchestrator = DeclarativeOrchestrator()
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Executing workflow...", total=None)
+        # For JSON output, disable progress spinner to avoid interfering with JSON
+        if output_format == "json":
             result = await orchestrator.execute_workflow(workflow, initial_context)
-            progress.update(task, description="Workflow completed!")
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Executing workflow...", total=None)
+                result = await orchestrator.execute_workflow(workflow, initial_context)
+                progress.update(task, description="Workflow completed!")
 
         # Display results
         _display_workflow_result(result, output_format, verbose)
@@ -118,6 +136,88 @@ async def _run_workflow_async(
         if save_result:
             _save_workflow_result(result, save_result, output_format)
             console.print(f"[green]Result saved to: {save_result}[/green]")
+
+        # Export to markdown if requested
+        if export_md:
+            # Create shared LLM instance for topic analysis
+            llm = OpenAIChatLLM(
+                api_key=OpenAIConfig.load().api_key,
+                model=OpenAIConfig.load().model,
+                base_url=OpenAIConfig.load().base_url,
+            )
+
+            # Initialize topic manager for auto-tagging
+            topic_manager = TopicManager(llm=llm)
+
+            # Analyze and suggest topics
+            try:
+                if verbose and output_format != "json":
+                    console.print("[blue]Analyzing topics for auto-tagging...[/blue]")
+
+                topic_analysis = await topic_manager.analyze_and_suggest_topics(
+                    query=query, agent_outputs=result.final_context.agent_outputs
+                )
+
+                # Extract suggested topics and domain
+                suggested_topics = [s.topic for s in topic_analysis.suggested_topics]
+                suggested_domain = topic_analysis.suggested_domain
+
+                if verbose and output_format != "json":
+                    console.print(
+                        f"[green]Suggested topics: {suggested_topics}[/green]"
+                    )
+                    if suggested_domain:
+                        console.print(
+                            f"[green]Suggested domain: {suggested_domain}[/green]"
+                        )
+
+            except Exception as e:
+                if verbose and output_format != "json":
+                    console.print(f"[yellow]Topic analysis failed: {e}[/yellow]")
+                suggested_topics = []
+                suggested_domain = None
+
+            # Export with enhanced workflow metadata
+            exporter = MarkdownExporter()
+
+            # Create enhanced frontmatter with workflow-specific metadata
+            # Filter agent outputs to only include string values (actual agent responses)
+            filtered_agent_outputs = {}
+            for key, value in result.final_context.agent_outputs.items():
+                if isinstance(value, str):
+                    filtered_agent_outputs[key] = value
+                else:
+                    # Convert non-string values to string representation
+                    filtered_agent_outputs[key] = str(value)
+
+            # Add workflow metadata as a formatted string
+            workflow_metadata_str = f"""Workflow Execution Details:
+- Workflow ID: {result.workflow_id}
+- Execution ID: {result.execution_id}
+- Execution Time: {result.execution_time_seconds:.2f} seconds
+- Success: {result.success}
+- Nodes Executed: {", ".join(result.node_execution_order)}
+- Event Correlation ID: {result.event_correlation_id}"""
+
+            filtered_agent_outputs["workflow_metadata"] = workflow_metadata_str
+
+            md_path = exporter.export(
+                agent_outputs=filtered_agent_outputs,
+                question=query,
+                topics=suggested_topics,
+                domain=suggested_domain,
+            )
+
+            if output_format != "json":
+                console.print(f"[green]Markdown exported to: {md_path}[/green]")
+
+                # Display topic suggestions to user
+                if suggested_topics:
+                    console.print(
+                        f"[cyan]Suggested topics: {', '.join(suggested_topics[:5])}[/cyan]"
+                    )
+                if suggested_domain:
+                    console.print(f"[cyan]Suggested domain: {suggested_domain}[/cyan]")
 
     except Exception as e:
         console.print(f"[red]Error executing workflow: {str(e)}[/red]")
@@ -430,7 +530,10 @@ def _display_workflows_json(workflows: List[dict]):
 def _display_workflow_result(result, output_format: str, verbose: bool):
     """Display workflow execution result."""
     if output_format == "json":
-        console.print(json.dumps(result.to_dict(), indent=2))
+        # Ensure proper JSON encoding with escaped characters
+        json_output = json.dumps(result.to_dict(), indent=2, ensure_ascii=False)
+        # Use regular print() instead of console.print() to avoid Rich formatting that breaks JSON
+        print(json_output)
     elif output_format == "table":
         _display_result_table(result, verbose)
     else:
