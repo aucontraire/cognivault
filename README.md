@@ -7,18 +7,19 @@
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
 
-CogniVault is a **composable DAG execution engine** built for multi-agent systems, combining LangGraph-style orchestration with rich cognitive classification, capability-based routing, and structured observability.
+CogniVault is a **production-ready multi-agent workflow platform** that combines real LLM integration with LangGraph-based DAG orchestration, advanced node types, and comprehensive observability for intelligent agent coordination.
 
-## 🧠 **Core Innovation**: Multi-Axis Classification & Advanced Node Types
+## 🧠 **Core Innovation**: Multi-Agent DAG Platform
 
-CogniVault evolved from a simple agent pipeline to a sophisticated orchestration platform using a 6-axis classification system that enables intelligent workflow composition:
+CogniVault provides a sophisticated orchestration platform with:
 
-- **System 1/2 Cognitive Mapping**: Fast utility vs deep analytical processing
-- **Advanced Node Types**: PROCESSOR, DECISION, AGGREGATOR, VALIDATOR, TERMINATOR
-- **Event-Driven Architecture**: Rich observability across complex workflow execution
-- **LangGraph Compatibility**: Extends existing mental models with cognitive intelligence
+- **4-Agent Pipeline**: Refiner, Critic, Historian, Synthesis agents with real LLM integration
+- **LangGraph Orchestration**: StateGraph-based DAG execution with parallel processing
+- **Advanced Node Types**: Decision, Aggregator, Validator, Terminator nodes for complex workflows
+- **Event-Driven Architecture**: Comprehensive observability with correlation tracking
+- **Multi-Axis Classification**: 6-axis metadata system for intelligent routing
 
-**Status**: Full declarative DAG workflow orchestration platform with advanced node types, CLI integration, and ecosystem-ready foundation.
+**Status**: V1 production-ready system with complete multi-agent workflows, advanced orchestration, and comprehensive CLI tooling.
 
 ## 📋 Requirements
 
@@ -135,47 +136,52 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🖥️ **Machine-readable output**: Multiple export formats (JSON, CSV) for monitoring integration
 - 🔗 **LangGraph compatibility**: Complete DAG-ready architecture with node interfaces and graph builders
 
-### 🧠 **Declarative DAG Workflows** (Phase 3B.3 COMPLETE)
-*Enterprise-grade declarative workflow orchestration*
+### 🧠 **Multi-Agent Workflow Orchestration** 
+*Production-ready agent coordination and execution*
 
-- 📝 **Declarative Workflow Definition**: Define complex workflows in YAML/JSON with ecosystem metadata
-- 🏗️ **Advanced Node Types**: DecisionNode, AggregatorNode, ValidatorNode, TerminatorNode for sophisticated routing
-- 🔀 **Conditional Routing**: Metadata-aware edges with success/failure paths and classification filters
-- ⚙️ **Configuration-Driven**: Complete factory pattern for node instantiation with complex parameter validation
-- 🔄 **Workflow Validation**: Comprehensive validation with schema checking and error reporting
-- 📊 **Export/Import**: Multi-format workflow sharing (YAML, JSON) with version compatibility
-- 🌐 **Ecosystem Ready**: Workflow attribution, versioning, and plugin architecture foundation
-- 🎯 **CLI Integration**: Full workflow commands - `cognivault workflow run`, `validate`, `show`, `list`
+- 🤖 **4-Agent Pipeline**: Complete Refiner → Critic → Historian → Synthesis workflow with real LLM integration
+- 🏗️ **Advanced Node Types**: Decision, Aggregator, Validator, Terminator nodes for sophisticated routing
+- 🔀 **LangGraph Orchestration**: StateGraph-based DAG execution with parallel processing capabilities
+- ⚙️ **Event-Driven Architecture**: Comprehensive observability with correlation tracking and metadata
+- 🔄 **Circuit Breaker Patterns**: Robust error handling and resilience throughout the system
+- 📊 **Performance Monitoring**: Real-time metrics collection and execution statistics
+- 🌐 **Production Ready**: Complete CLI tooling and diagnostic capabilities
+- 🎯 **CLI Integration**: Full command suite - `cognivault main`, `diagnostics`, comprehensive options
 
-**Example Declarative Workflow**:
-```yaml
-workflow:
-  name: "Intelligent Analysis with Quality Gates"
-  description: "Multi-agent analysis with decision routing and validation"
-  
-  nodes:
-    - id: "complexity_router"
-      category: "advanced"
-      type: "decision"
-      config:
-        criteria: ["query_complexity", "time_constraints"]
-        
-    - id: "parallel_analysis"
-      category: "base"
-      type: "processor"
-      config:
-        agents: ["historian", "critic"]
-        
-    - id: "quality_validator"
-      category: "advanced"
-      type: "validator"
-      config:
-        validation_criteria: 
-          - {name: "content_quality", threshold: 0.8, weight: 1.0}
-        strict_mode: true
+**Example Multi-Agent Execution**:
+```bash
+# Run complete 4-agent workflow
+make run QUESTION="What are the implications of AI governance?"
+
+# Execute specific agents with observability
+cognivault main "Your question" --agents refiner,critic --trace --export-md
+
+# Health check and system diagnostics
+cognivault diagnostics health
+cognivault diagnostics full --format json
 ```
 
-CogniVault enables declarative, shareable, and extensible multi-agent orchestration with enterprise-grade reliability and ecosystem foundation.
+**Advanced Node Configuration Example**:
+```yaml
+# Advanced workflow with decision and validation nodes
+nodes:
+  - node_id: "complexity_router"
+    node_type: "decision"
+    execution_pattern: "decision"
+    config:
+      criteria: ["query_complexity", "confidence_score"]
+      
+  - node_id: "quality_validator"
+    node_type: "validator" 
+    execution_pattern: "validator"
+    config:
+      validation_criteria:
+        - name: "content_quality"
+          threshold: 0.8
+          weight: 1.0
+```
+
+CogniVault provides production-ready multi-agent orchestration with comprehensive observability, advanced node types, and enterprise-grade reliability.
 
 ---
 
@@ -183,17 +189,14 @@ CogniVault enables declarative, shareable, and extensible multi-agent orchestrat
 
 CogniVault is organized into focused modules:
 
-- **`agents/`** - Core AI agents with specialized roles (Refiner, Historian, Critic, Synthesis)
-- **`orchestration/`** - LangGraph orchestration, DAG execution, and state management
-- **`routing/`** - Enhanced intelligent routing system with performance optimization
-- **`events/`** - Event-driven architecture with workflow tracking and observability
-- **`langgraph_backend/`** - Graph building, compilation, and pattern management
-- **`api/`** - External/internal API boundaries for service extraction
-- **`diagnostics/`** - Rich CLI tools, observability framework, and pattern validation
-- **`config/`** - Centralized configuration management with environment variables
-- **`exceptions/`** - Comprehensive exception hierarchy with agent isolation
-- **`llm/`** - Swappable LLM backend abstraction (OpenAI, stubs)
-- **`observability/`** - Structured logging, metrics, and correlation tracking
+- **`agents/`** - Complete 4-agent system (Refiner, Critic, Historian, Synthesis) with real LLM integration
+- **`langgraph_backend/`** - LangGraph StateGraph orchestration with DAG execution and parallel processing
+- **`events/`** - Comprehensive event-driven architecture with correlation tracking and multi-sink support
+- **`config/`** - Centralized configuration management with environment variables and validation
+- **`diagnostics/`** - Rich CLI diagnostic tools, health checks, and system observability
+- **`llm/`** - LLM abstraction layer (OpenAI integration with fallback modes)
+- **`context/`** - Advanced context management with snapshots and memory optimization
+- **`cli/`** - Full-featured command-line interface with comprehensive options
 
 ---
 
@@ -229,6 +232,8 @@ from cognivault.events import (
 # Events are automatically emitted during workflow execution
 # Custom event sinks can be configured for monitoring integration
 ```
+
+Events include comprehensive metadata from the 6-axis classification system and are essential for observability in production deployments.
 
 ---
 
@@ -1059,7 +1064,7 @@ CogniVault supports multiple execution modes with comprehensive performance comp
 
 #### Execution Modes
 
-**LangGraph Mode (default)**: Uses production `RealLangGraphOrchestrator` with real LangGraph 0.5.1 StateGraph integration
+**LangGraph Mode (default)**: Uses production `LangGraphOrchestrator` with real LangGraph 0.5.1 StateGraph integration
 ```bash
 # Default execution - no flag needed
 make run QUESTION="Your question"

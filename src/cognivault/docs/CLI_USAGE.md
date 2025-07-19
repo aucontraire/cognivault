@@ -1,6 +1,6 @@
 # CogniVault CLI Usage Guide
 
-This comprehensive guide explains how to use the `cognivault` command-line interface for all CogniVault functionality, from basic agent execution to advanced diagnostics and observability.
+This comprehensive guide explains how to use the `cognivault` command-line interface for the production-ready CogniVault multi-agent workflow platform. The CLI provides complete access to the 4-agent pipeline, advanced orchestration features, and comprehensive diagnostic capabilities.
 
 ## Table of Contents
 
@@ -61,13 +61,36 @@ cognivault diagnostics [COMMAND] [OPTIONS]
 ### Basic Agent Execution
 
 #### Run Full Pipeline
+
+**Standard Agent Pipeline:**
 ```bash
-# Run all agents (default: refiner → historian + critic → synthesis)
+# Run complete 4-agent workflow with real LLM integration
 cognivault main "What are the implications of AI governance?"
 
-# Equivalent using make (for complex queries)
+# Equivalent using make (for complex queries with environment variables)
 make run QUESTION="What are the implications of AI governance?"
 ```
+
+**Declarative Workflow Execution:**
+```bash
+# Run using predefined YAML workflow definitions
+cognivault workflow run examples/workflows/enhanced_prompts_example.yaml --query "What is the most complete protein?" --format json --export-md
+
+```
+
+**Workflow Management:**
+```bash
+# List available workflows
+cognivault workflow list
+
+# Validate workflow definition
+cognivault workflow validate examples/workflows/my_custom_workflow.yaml
+
+# Show workflow structure and node details
+cognivault workflow show examples/workflows/enhanced_prompts_example.yaml
+```
+
+The full pipeline executes: **Refiner** → **Critic** + **Historian** (parallel) → **Synthesis** with ~25-30 second execution time using real OpenAI integration. Declarative workflows support advanced node types (Decision, Aggregator, Validator, Terminator) with custom routing and composition logic.
 
 #### Run Specific Agents
 ```bash
@@ -109,26 +132,16 @@ cognivault main "Your question" --trace --export-md --export-trace /tmp/trace.js
 
 CogniVault supports multiple execution modes for different use cases:
 
-#### LangGraph Real Mode (Default - Production)
+#### LangGraph Mode (Default - Production)
 ```bash
-# Default execution mode
+# Default execution mode (LangGraph StateGraph orchestration)
 cognivault main "Your question"
 
 # Explicit specification
 cognivault main "Your question" --execution-mode langgraph-real
 ```
 
-#### LangGraph DAG Mode (Intermediate)
-```bash
-# Uses intermediate DAG-based execution
-cognivault main "Your question" --execution-mode langgraph
-```
-
-#### Legacy Mode (DEPRECATED - Will be removed)
-```bash
-# NOT RECOMMENDED - scheduled for removal
-cognivault main "Your question" --execution-mode legacy
-```
+**Note**: CogniVault V1 uses LangGraph StateGraph orchestration as the primary execution mode. The system provides backward compatibility but defaults to the production-ready LangGraph implementation.
 
 #### Performance Comparison
 ```bash
