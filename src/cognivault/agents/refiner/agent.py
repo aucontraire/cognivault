@@ -9,6 +9,11 @@ from cognivault.llm.llm_interface import LLMInterface
 from cognivault.config.app_config import get_config
 from .prompts import REFINER_SYSTEM_PROMPT
 
+# Configuration system imports
+from typing import Optional
+from cognivault.config.agent_configs import RefinerConfig
+from cognivault.workflows.prompt_composer import PromptComposer
+
 import logging
 import asyncio
 from typing import Dict, Any
@@ -26,9 +31,69 @@ class RefinerAgent(BaseAgent):
     downstream agents can process the query effectively.
     """
 
-    def __init__(self, llm: LLMInterface):
+    def __init__(self, llm: LLMInterface, config: Optional[RefinerConfig] = None):
+        """
+        Initialize the RefinerAgent with LLM interface and optional configuration.
+
+        Parameters
+        ----------
+        llm : LLMInterface
+            The language model interface for generating responses
+        config : Optional[RefinerConfig]
+            Configuration for agent behavior. If None, uses default configuration.
+            Maintains backward compatibility - existing code continues to work.
+        """
         super().__init__("Refiner")
         self.llm: LLMInterface = llm
+
+        # Configuration system - backward compatible
+        self.config = config if config is not None else RefinerConfig()
+        self._prompt_composer = PromptComposer()
+        self._composed_prompt = None
+
+        # Compose the prompt on initialization for performance
+        self._update_composed_prompt()
+
+    def _update_composed_prompt(self):
+        """Update the composed prompt based on current configuration."""
+        try:
+            self._composed_prompt = self._prompt_composer.compose_refiner_prompt(
+                self.config
+            )
+            logger.debug(
+                f"[{self.name}] Prompt composed with config: {self.config.refinement_level}"
+            )
+        except Exception as e:
+            logger.warning(
+                f"[{self.name}] Failed to compose prompt, using default: {e}"
+            )
+            self._composed_prompt = None
+
+    def _get_system_prompt(self) -> str:
+        """Get the system prompt, using composed prompt if available, otherwise default."""
+        if self._composed_prompt and self._prompt_composer.validate_composition(
+            self._composed_prompt
+        ):
+            return self._composed_prompt.system_prompt
+        else:
+            # Fallback to default prompt for backward compatibility
+            logger.debug(f"[{self.name}] Using default system prompt (fallback)")
+            return REFINER_SYSTEM_PROMPT
+
+    def update_config(self, config: RefinerConfig):
+        """
+        Update the agent configuration and recompose prompts.
+
+        Parameters
+        ----------
+        config : RefinerConfig
+            New configuration to apply
+        """
+        self.config = config
+        self._update_composed_prompt()
+        logger.info(
+            f"[{self.name}] Configuration updated: {config.refinement_level} refinement"
+        )
 
     async def run(self, context: AgentContext) -> AgentContext:
         """
@@ -54,8 +119,9 @@ class RefinerAgent(BaseAgent):
         query = context.query.strip()
         logger.info(f"[{self.name}] Processing query: {query}")
 
-        # Generate refined query using system prompt
-        response = self.llm.generate(prompt=query, system_prompt=REFINER_SYSTEM_PROMPT)
+        # Generate refined query using configured system prompt
+        system_prompt = self._get_system_prompt()
+        response = self.llm.generate(prompt=query, system_prompt=system_prompt)
 
         if not hasattr(response, "text"):
             raise ValueError("LLMResponse missing 'text' field")

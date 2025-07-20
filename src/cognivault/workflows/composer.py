@@ -102,6 +102,116 @@ def get_agent_class(agent_type: str):
     return agent_map.get(agent_type, RefinerAgent)
 
 
+def create_agent_config(agent_type: str, config_dict: Optional[Dict[str, Any]] = None):
+    """
+    Create agent configuration object from workflow node configuration.
+
+    Supports both new Pydantic-based configurations and legacy prompt configurations
+    for backward compatibility.
+
+    Parameters
+    ----------
+    agent_type : str
+        The type of agent (refiner, critic, historian, synthesis)
+    config_dict : Optional[Dict[str, Any]]
+        Configuration dictionary from workflow definition
+
+    Returns
+    -------
+    AgentConfigType
+        Properly typed agent configuration object
+    """
+    from cognivault.config.agent_configs import (
+        RefinerConfig,
+        CriticConfig,
+        HistorianConfig,
+        SynthesisConfig,
+        PromptConfig,
+        BehavioralConfig,
+    )
+
+    if not config_dict:
+        # Return default configuration for backward compatibility
+        config_classes = {
+            "refiner": RefinerConfig,
+            "critic": CriticConfig,
+            "historian": HistorianConfig,
+            "synthesis": SynthesisConfig,
+        }
+        config_class = config_classes.get(agent_type, RefinerConfig)
+        return config_class()
+
+    # Extract configuration components
+    prompt_config_data = {}
+    behavioral_config_data = {}
+    agent_specific_data = {}
+
+    # Handle legacy prompt configuration format
+    if "prompts" in config_dict:
+        prompt_data = config_dict["prompts"]
+        if "system_prompt" in prompt_data:
+            prompt_config_data["custom_system_prompt"] = prompt_data["system_prompt"]
+        if "templates" in prompt_data:
+            prompt_config_data["custom_templates"] = prompt_data["templates"]
+
+    # Handle behavioral constraints
+    if "custom_constraints" in config_dict:
+        behavioral_config_data["custom_constraints"] = config_dict["custom_constraints"]
+    if "fallback_mode" in config_dict:
+        behavioral_config_data["fallback_mode"] = config_dict["fallback_mode"]
+
+    # Extract agent-specific configurations
+    agent_specific_fields = {
+        "refiner": ["refinement_level", "behavioral_mode", "output_format"],
+        "critic": [
+            "analysis_depth",
+            "confidence_reporting",
+            "bias_detection",
+            "scoring_criteria",
+        ],
+        "historian": [
+            "search_depth",
+            "relevance_threshold",
+            "context_expansion",
+            "memory_scope",
+        ],
+        "synthesis": [
+            "synthesis_strategy",
+            "thematic_focus",
+            "meta_analysis",
+            "integration_mode",
+        ],
+    }
+
+    if agent_type in agent_specific_fields:
+        for field in agent_specific_fields[agent_type]:
+            if field in config_dict:
+                agent_specific_data[field] = config_dict[field]
+
+    # Build nested configuration objects
+    prompt_config = PromptConfig(**prompt_config_data)
+    behavioral_config = BehavioralConfig(**behavioral_config_data)
+
+    # Create the appropriate agent configuration
+    config_classes = {
+        "refiner": RefinerConfig,
+        "critic": CriticConfig,
+        "historian": HistorianConfig,
+        "synthesis": SynthesisConfig,
+    }
+
+    config_class = config_classes.get(agent_type, RefinerConfig)
+
+    # Combine all configuration data
+    full_config_data = {
+        **agent_specific_data,
+        "prompt_config": prompt_config,
+        "behavioral_config": behavioral_config,
+    }
+
+    return config_class(**full_config_data)
+
+
 class NodeFactory:
     """
     Factory for creating node instances with plugin architecture preparation.
@@ -150,8 +260,24 @@ class NodeFactory:
                     api_key=config.api_key, model=config.model, base_url=config.base_url
                 )
 
-                # Create agent instance with LLM
-                agent = agent_class(llm)
+                # Create agent configuration from workflow node configuration
+                agent_config = create_agent_config(
+                    node_config.node_type, node_config.config
+                )
+
+                # Create agent instance with backward compatibility check
+                import inspect
+
+                signature = inspect.signature(agent_class.__init__)
+                params = list(signature.parameters.keys())
+
+                # Check if agent constructor accepts config parameter (beyond self, llm)
+                if len(params) >= 3 and "config" in params:
+                    # New agent with configuration support
+                    agent = agent_class(llm, agent_config)
+                else:
+                    # Legacy agent - only pass LLM
+                    agent = agent_class(llm)
 
                 # Convert LangGraph state to AgentContext
                 context = AgentContext(query=state.get("query", ""))
@@ -170,19 +296,22 @@ class NodeFactory:
                         elif isinstance(value, str):
                             context.add_agent_output(key, value)
 
-                # Apply custom prompts if configured
+                # Legacy prompt configuration support for backward compatibility
                 if node_config.config and "prompts" in node_config.config:
                     try:
                         configured_prompts = apply_prompt_configuration(
                             node_config.node_type, node_config.config
                         )
                         # Update agent's system prompt if custom prompt is provided
-                        if "system_prompt" in configured_prompts:
+                        # This provides fallback for agents that don't support the new config system
+                        if "system_prompt" in configured_prompts and hasattr(
+                            agent, "system_prompt"
+                        ):
                             agent.system_prompt = configured_prompts["system_prompt"]
                     except Exception as e:
                         # Log warning but continue with default prompts
                         print(
-                            f"Warning: Failed to apply custom prompts for {node_config.node_id}: {e}"
+                            f"Warning: Failed to apply legacy prompt configuration for {node_config.node_id}: {e}"
                         )
 
                 # Execute the real agent with LLM calls
