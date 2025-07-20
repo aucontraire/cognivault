@@ -493,3 +493,78 @@ class TestWorkflowExecutionIntegration:
             assert (
                 call_args[0][1].query == "configured query"
             )  # initial_context argument
+
+
+class TestWorkflowResult:
+    """Test WorkflowResult functionality for comprehensive result tracking."""
+
+    def test_workflow_result_creation(self):
+        """Test creating workflow result with all fields."""
+        context = AgentContext(query="test query")
+        context.add_agent_output("agent1", "output1")
+        context.execution_state["key"] = "value"
+
+        from cognivault.workflows.executor import WorkflowResult
+
+        result = WorkflowResult(
+            workflow_id="test-workflow",
+            execution_id="test-execution",
+            final_context=context,
+            execution_metadata={"meta": "data"},
+            node_execution_order=["node1", "node2"],
+            execution_time_seconds=2.5,
+            success=True,
+            error_message=None,
+            event_correlation_id="correlation-123",
+        )
+
+        assert result.workflow_id == "test-workflow"
+        assert result.execution_id == "test-execution"
+        assert result.final_context == context
+        assert result.execution_time_seconds == 2.5
+        assert result.success is True
+        assert result.event_correlation_id == "correlation-123"
+
+    def test_workflow_result_to_dict(self):
+        """Test converting workflow result to dictionary."""
+        context = AgentContext(query="test query with\nnewlines")
+        context.add_agent_output("agent1", "output with\ttabs and\nnewlines")
+        context.execution_state["state_key"] = "state_value"
+
+        from cognivault.workflows.executor import WorkflowResult
+
+        result = WorkflowResult(
+            workflow_id="test-workflow",
+            execution_id="test-execution",
+            final_context=context,
+            execution_metadata={"meta_key": "meta\nvalue"},
+            node_execution_order=["node1", "node2"],
+            execution_time_seconds=2.5,
+            success=True,
+            event_correlation_id="correlation-123",
+        )
+
+        result_dict = result.to_dict()
+
+        # Verify all fields are present
+        assert result_dict["workflow_id"] == "test-workflow"
+        assert result_dict["execution_id"] == "test-execution"
+        assert result_dict["execution_time_seconds"] == 2.5
+        assert result_dict["success"] is True
+        assert result_dict["event_correlation_id"] == "correlation-123"
+        assert result_dict["node_execution_order"] == ["node1", "node2"]
+
+        # Verify string cleaning for JSON
+        assert "\\n" in result_dict["agent_outputs"]["agent1"]
+        assert "\\t" in result_dict["agent_outputs"]["agent1"]
+        assert result_dict["execution_metadata"]["meta_key"] == "meta\\nvalue"
+
+        # Verify final context summary (original_query is not cleaned in final_context_summary)
+        assert (
+            result_dict["final_context_summary"]["original_query"]
+            == "test query with\nnewlines"
+        )
+        assert result_dict["final_context_summary"]["agent_outputs_count"] == 1
+        assert (
+            "state_key" in result_dict["final_context_summary"]["execution_state_keys"]
+        )

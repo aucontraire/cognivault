@@ -1,0 +1,166 @@
+name: "Agent Configuration Integration Test Workflow"
+version: "1.0.0"
+workflow_id: "agent-config-integration-test"
+created_by: "claude-code"
+created_at: "2025-01-19T00:00:00Z"
+description: "Test workflow demonstrating configurable prompt composition architecture with agent-specific configurations"
+tags: ["integration", "configuration", "test", "prompt-composition"]
+workflow_schema_version: "1.0.0"
+
+nodes:
+  - node_id: "configured_refiner"
+    node_type: "refiner"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      # New agent configuration format
+      refinement_level: "comprehensive"
+      behavioral_mode: "active"
+      output_format: "structured"
+      # Behavioral constraints
+      custom_constraints:
+        - "preserve_technical_terminology"
+        - "maintain_academic_tone"
+        - "ensure_clarity"
+      fallback_mode: "adaptive"
+      # Prompt configuration
+      prompts:
+        system_prompt: |
+          You are an advanced query refinement specialist. Your role is to transform
+          raw user queries into well-structured, comprehensive prompts that maximize
+          the effectiveness of downstream analysis agents.
+        templates:
+          refinement_template: |
+            Original query: {original_query}
+            Refinement focus: {refinement_focus}
+            Enhanced query: {enhanced_query}
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "processor"
+      pipeline_role: "entry"
+      bounded_context: "transformation"
+
+  - node_id: "configured_historian"
+    node_type: "historian"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      # Historian-specific configuration
+      search_depth: "exhaustive"
+      relevance_threshold: 0.8
+      context_expansion: true
+      memory_scope: "full"
+      # Behavioral configuration
+      custom_constraints:
+        - "prioritize_recent_sources"
+        - "include_diverse_perspectives"
+      fallback_mode: "graceful"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "retrieval"
+
+  - node_id: "configured_critic"
+    node_type: "critic"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      # Critic-specific configuration
+      analysis_depth: "deep"
+      confidence_reporting: true
+      bias_detection: true
+      scoring_criteria:
+        - "accuracy"
+        - "completeness"
+        - "objectivity"
+        - "methodology"
+      # Custom prompts for specialized analysis
+      prompts:
+        system_prompt: |
+          You are a rigorous analytical critic with expertise in evaluating
+          research quality, methodological soundness, and argumentation structure.
+          Apply the highest standards of academic scrutiny.
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+
+  - node_id: "configured_synthesis"
+    node_type: "synthesis"
+    category: "BASE"
+    execution_pattern: "aggregator"
+    config:
+      # Synthesis-specific configuration
+      synthesis_strategy: "comprehensive"
+      thematic_focus: "methodological_rigor"
+      meta_analysis: true
+      integration_mode: "hierarchical"
+      # Behavioral configuration
+      custom_constraints:
+        - "maintain_logical_flow"
+        - "highlight_key_insights"
+        - "provide_actionable_conclusions"
+    metadata:
+      cognitive_speed: "adaptive"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "aggregator"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+  - node_id: "legacy_refiner"
+    node_type: "refiner"
+    category: "BASE"
+    execution_pattern: "processor"
+    config:
+      # Legacy prompt configuration format for backward compatibility
+      prompts:
+        system_prompt: "You are a legacy query refiner. Process queries using the traditional format."
+      # Mixed configuration - should work with new system
+      refinement_level: "standard"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "entry"
+      bounded_context: "transformation"
+
+flow:
+  entry_point: "configured_refiner"
+  edges:
+    - from_node: "configured_refiner"
+      to_node: "configured_historian"
+      edge_type: "sequential"
+    - from_node: "configured_historian"
+      to_node: "configured_critic"
+      edge_type: "sequential"
+    - from_node: "configured_critic"
+      to_node: "configured_synthesis"
+      edge_type: "sequential"
+  terminal_nodes: ["configured_synthesis"]
+
+metadata:
+  test_purpose: "Validate agent configuration integration"
+  expected_outputs:
+    - "Comprehensive query refinement with custom constraints"
+    - "Exhaustive historical context with high relevance threshold"
+    - "Deep critical analysis with confidence scores and bias detection"
+    - "Hierarchical synthesis with meta-analysis and thematic focus"
+  validation_criteria:
+    - "All agents should use configured parameters"
+    - "Custom prompts should be applied correctly"
+    - "Behavioral constraints should influence output"
+    - "Legacy configuration should maintain backward compatibility"
+  quality_gates:
+    min_confidence: 0.7
+    max_execution_time: "5m"
+    required_sections: ["refined_query", "context", "analysis", "synthesis"]
