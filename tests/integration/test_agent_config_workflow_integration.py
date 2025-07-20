@@ -343,16 +343,20 @@ class TestAgentConfigWorkflowIntegration:
         assert "configured_synthesis" in flow.terminal_nodes
 
     def test_configuration_error_handling(self):
-        """Test that configuration errors are handled with Pydantic validation."""
-        # Test with invalid configuration - Pydantic should raise validation errors
+        """Test that configuration errors are handled gracefully with ConfigMapper fallbacks."""
+        # Test with invalid configuration - ConfigMapper should gracefully fall back to defaults
         invalid_config = {
             "refinement_level": "invalid_level",  # Should be one of predefined values
             "behavioral_mode": "unknown_mode",
         }
 
-        # Should raise ValidationError due to strict Pydantic validation
-        with pytest.raises(Exception):  # ValidationError from Pydantic
-            create_agent_config("refiner", invalid_config)
+        # ConfigMapper provides graceful fallbacks instead of strict validation
+        # Should return default config when invalid values are provided
+        config = create_agent_config("refiner", invalid_config)
+        assert isinstance(config, RefinerConfig)
+        # Should fall back to default values due to invalid input
+        assert config.refinement_level == "standard"  # Default fallback
+        assert config.behavioral_mode == "adaptive"  # Default fallback
 
         # Test with partially valid configuration
         partially_valid_config = {

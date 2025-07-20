@@ -469,10 +469,10 @@ class TestHistorianNodeEdgeCases:
         return set_agent_output(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
-    async def test_empty_query_handling(self, initial_state):
-        """Test handling of empty queries."""
-        # Modify state to have empty query
-        initial_state["query"] = ""
+    async def test_minimal_query_handling(self, initial_state):
+        """Test handling of minimal but valid queries."""
+        # Modify state to have minimal valid query (empty queries are now rejected by validation)
+        initial_state["query"] = "?"
 
         success_agent = ControlledHistorianAgent(behavior="success")
 
@@ -486,7 +486,7 @@ class TestHistorianNodeEdgeCases:
             assert result_state["historian"] is not None
             assert (
                 result_state["historian"]["historical_summary"]
-                == "Historical context for: "
+                == "Historical context for: ?"
             )
 
     @pytest.mark.asyncio

@@ -8,11 +8,12 @@ including execution timing, resource usage, token consumption, and success rates
 import time
 import threading
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Any, Deque
 import statistics
+
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class MetricType(Enum):
@@ -24,16 +25,19 @@ class MetricType(Enum):
     TIMER = "timer"
 
 
-@dataclass
-class MetricEntry:
+class MetricEntry(BaseModel):
     """Individual metric entry with timestamp."""
 
-    value: float
-    timestamp: datetime
-    labels: Dict[str, str] = field(default_factory=dict)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    value: float = Field(..., description="Metric value")
+    timestamp: datetime = Field(..., description="Timestamp when metric was recorded")
+    labels: Dict[str, str] = Field(
+        default_factory=dict, description="Labels/tags associated with this metric"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
+        """Convert to dictionary representation for backward compatibility."""
         return {
             "value": self.value,
             "timestamp": self.timestamp.isoformat(),
@@ -41,49 +45,104 @@ class MetricEntry:
         }
 
 
-@dataclass
-class PerformanceMetrics:
+class PerformanceMetrics(BaseModel):
     """Aggregated performance metrics for analysis and reporting."""
 
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
     # Execution metrics
-    total_executions: int = 0
-    successful_executions: int = 0
-    failed_executions: int = 0
-    success_rate: float = 0.0
+    total_executions: int = Field(
+        default=0, ge=0, description="Total number of executions"
+    )
+    successful_executions: int = Field(
+        default=0, ge=0, description="Number of successful executions"
+    )
+    failed_executions: int = Field(
+        default=0, ge=0, description="Number of failed executions"
+    )
+    success_rate: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Success rate (0.0-1.0)"
+    )
 
     # Timing metrics
-    total_execution_time_ms: float = 0.0
-    average_execution_time_ms: float = 0.0
-    min_execution_time_ms: float = 0.0
-    max_execution_time_ms: float = 0.0
-    p50_execution_time_ms: float = 0.0
-    p95_execution_time_ms: float = 0.0
-    p99_execution_time_ms: float = 0.0
+    total_execution_time_ms: float = Field(
+        default=0.0, ge=0.0, description="Total execution time in milliseconds"
+    )
+    average_execution_time_ms: float = Field(
+        default=0.0, ge=0.0, description="Average execution time in milliseconds"
+    )
+    min_execution_time_ms: float = Field(
+        default=0.0, ge=0.0, description="Minimum execution time in milliseconds"
+    )
+    max_execution_time_ms: float = Field(
+        default=0.0, ge=0.0, description="Maximum execution time in milliseconds"
+    )
+    p50_execution_time_ms: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="50th percentile execution time in milliseconds",
+    )
+    p95_execution_time_ms: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="95th percentile execution time in milliseconds",
+    )
+    p99_execution_time_ms: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="99th percentile execution time in milliseconds",
+    )
 
     # Agent-specific metrics
-    agent_metrics: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    agent_metrics: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, description="Per-agent performance metrics"
+    )
 
     # Resource metrics
-    peak_memory_usage_bytes: int = 0
-    total_tokens_consumed: int = 0
-    total_tokens_generated: int = 0
-    llm_api_calls: int = 0
+    peak_memory_usage_bytes: int = Field(
+        default=0, ge=0, description="Peak memory usage in bytes"
+    )
+    total_tokens_consumed: int = Field(
+        default=0, ge=0, description="Total tokens consumed"
+    )
+    total_tokens_generated: int = Field(
+        default=0, ge=0, description="Total tokens generated"
+    )
+    llm_api_calls: int = Field(default=0, ge=0, description="Total LLM API calls made")
 
     # LLM metrics
-    successful_llm_calls: int = 0
-    failed_llm_calls: int = 0
-    average_agent_duration: float = 0.0
-    average_llm_duration: float = 0.0
-    pipeline_duration: float = 0.0
+    successful_llm_calls: int = Field(
+        default=0, ge=0, description="Number of successful LLM calls"
+    )
+    failed_llm_calls: int = Field(
+        default=0, ge=0, description="Number of failed LLM calls"
+    )
+    average_agent_duration: float = Field(
+        default=0.0, ge=0.0, description="Average agent execution duration"
+    )
+    average_llm_duration: float = Field(
+        default=0.0, ge=0.0, description="Average LLM call duration"
+    )
+    pipeline_duration: float = Field(
+        default=0.0, ge=0.0, description="Pipeline execution duration"
+    )
 
     # Error metrics
-    error_breakdown: Dict[str, int] = field(default_factory=dict)
-    circuit_breaker_trips: int = 0
-    retry_attempts: int = 0
+    error_breakdown: Dict[str, int] = Field(
+        default_factory=dict, description="Breakdown of errors by type"
+    )
+    circuit_breaker_trips: int = Field(
+        default=0, ge=0, description="Number of circuit breaker trips"
+    )
+    retry_attempts: int = Field(default=0, ge=0, description="Number of retry attempts")
 
     # Time window
-    collection_start: Optional[datetime] = None
-    collection_end: Optional[datetime] = None
+    collection_start: Optional[datetime] = Field(
+        None, description="Start of metrics collection period"
+    )
+    collection_end: Optional[datetime] = Field(
+        None, description="End of metrics collection period"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""

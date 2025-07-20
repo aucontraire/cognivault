@@ -101,8 +101,12 @@ class TestPatternValidationReport:
     def test_validation_report_creation(self):
         """Test PatternValidationReport creation."""
         issues = [
-            ValidationIssue(ValidationResult.WARN, "test", "warning"),
-            ValidationIssue(ValidationResult.FAIL, "test", "error"),
+            ValidationIssue(
+                level=ValidationResult.WARN, category="test", message="warning"
+            ),
+            ValidationIssue(
+                level=ValidationResult.FAIL, category="test", message="error"
+            ),
         ]
 
         report = PatternValidationReport(
@@ -547,7 +551,9 @@ class TestPatternValidationFramework:
         """Test comprehensive validation with issues."""
         # Create pattern that will fail validation
         pattern = Mock()
-        # Missing required methods
+        pattern.get_pattern_name.return_value = "test_pattern"
+        # Remove required methods to trigger validation failures
+        del pattern.build_graph
 
         report = framework._validate_pattern_comprehensive(
             pattern, ValidationLevel.BASIC
@@ -604,9 +610,14 @@ class TestPatternValidationFramework:
         """Test validation report display with issues."""
         issues = [
             ValidationIssue(
-                ValidationResult.WARN, "test", "warning message", suggestion="fix it"
+                level=ValidationResult.WARN,
+                category="test",
+                message="warning message",
+                suggestion="fix it",
             ),
-            ValidationIssue(ValidationResult.FAIL, "test", "error message"),
+            ValidationIssue(
+                level=ValidationResult.FAIL, category="test", message="error message"
+            ),
         ]
 
         report = PatternValidationReport(
@@ -827,7 +838,9 @@ class TestPatternValidationFrameworkIntegration:
         custom_validator = Mock()
         custom_validator.validate.return_value = [
             ValidationIssue(
-                ValidationResult.WARN, "custom", "Custom validation warning"
+                level=ValidationResult.WARN,
+                category="custom",
+                message="Custom validation warning",
             )
         ]
         custom_validator.validator_name = "Custom Validator"
@@ -910,6 +923,7 @@ class TestPatternValidationFrameworkErrorHandling:
     def test_validate_pattern_missing_methods(self, framework):
         """Test validation of pattern missing required methods."""
         pattern = Mock()
+        pattern.get_pattern_name.return_value = "test_pattern"
         # Remove all methods
 
         report = framework._validate_pattern_comprehensive(
@@ -923,7 +937,11 @@ class TestPatternValidationFrameworkErrorHandling:
     def test_format_report_with_unicode(self, framework):
         """Test report formatting with unicode characters."""
         issues = [
-            ValidationIssue(ValidationResult.WARN, "test", "Unicode message: 测试")
+            ValidationIssue(
+                level=ValidationResult.WARN,
+                category="test",
+                message="Unicode message: 测试",
+            )
         ]
         report = PatternValidationReport(
             pattern_name="test_pattern",

@@ -1,0 +1,188 @@
+name: "Legal Analysis Pipeline"
+version: "1.0.0"
+workflow_id: "legal-analysis-config-demo"
+created_by: "cognivault-phase2"
+description: "Demonstrates configurable agent behavior for legal document analysis and compliance assessment"
+tags: ["legal", "compliance", "analysis", "configuration", "domain-specific"]
+workflow_schema_version: "1.0.0"
+
+nodes:
+  - node_id: "legal_refiner"
+    category: "BASE"
+    node_type: "refiner"
+    execution_pattern: "processor"
+    config:
+      agent_type: "refiner"
+      # RefinerConfig demonstration for legal context
+      refinement_level: "comprehensive"
+      behavioral_mode: "active"
+      output_format: "structured"
+      prompt_config:
+        custom_system_prompt: "You are an expert legal analyst specializing in contract review, compliance assessment, and legal risk evaluation. Your role is to refine legal questions and document requests with precision, ensuring all relevant legal considerations are addressed."
+        template_variables:
+          domain: "legal_analysis"
+          methodology: "legal_reasoning"
+          jurisdiction: "federal_and_state"
+      behavioral_config:
+        custom_constraints:
+          - "ensure_legal_precision"
+          - "cite_relevant_statutes"
+          - "identify_jurisdiction_requirements"
+          - "maintain_legal_terminology"
+          - "consider_regulatory_context"
+        fallback_mode: "strict"
+      output_config:
+        format_preference: "legal_structured"
+        include_confidence: true
+        metadata_inclusion: "comprehensive"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "entry"
+      bounded_context: "transformation"
+    
+  - node_id: "legal_historian"
+    category: "BASE"
+    node_type: "historian"
+    execution_pattern: "processor"
+    config:
+      agent_type: "historian"
+      # HistorianConfig demonstration for legal research
+      search_depth: "comprehensive"
+      relevance_threshold: 0.85
+      context_expansion: "broad"
+      memory_scope: "legal_domain"
+      prompt_config:
+        custom_system_prompt: "You are a legal research specialist with expertise in case law, statutory interpretation, and regulatory compliance. Retrieve relevant legal precedents, applicable statutes, and regulatory frameworks that inform the legal analysis."
+      behavioral_config:
+        custom_constraints:
+          - "prioritize_binding_precedents"
+          - "include_recent_case_developments"
+          - "cite_applicable_statutes"
+          - "reference_regulatory_guidance"
+          - "consider_jurisdictional_variations"
+        fallback_mode: "comprehensive"
+      execution_config:
+        timeout_seconds: 60
+        retry_count: 3
+        cache_results: true
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "retrieval"
+    
+  - node_id: "legal_critic"
+    category: "BASE"
+    node_type: "critic"
+    execution_pattern: "processor"
+    config:
+      agent_type: "critic"
+      # CriticConfig demonstration for legal assessment
+      analysis_depth: "deep"
+      confidence_reporting: true
+      bias_detection: true
+      scoring_criteria: 
+        - "legal_accuracy"
+        - "precedent_alignment"
+        - "compliance_assessment"
+        - "risk_analysis"
+        - "regulatory_adherence"
+      prompt_config:
+        custom_system_prompt: "You are a senior legal reviewer and compliance officer with expertise in legal risk assessment and regulatory compliance. Evaluate legal analysis for accuracy, completeness, and compliance with applicable legal standards."
+      behavioral_config:
+        custom_constraints:
+          - "verify_legal_citations"
+          - "assess_compliance_gaps"
+          - "identify_legal_risks"
+          - "evaluate_precedent_strength"
+          - "ensure_regulatory_alignment"
+        fallback_mode: "strict"
+      output_config:
+        format_preference: "legal_assessment"
+        include_confidence: true
+        include_improvement_suggestions: true
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+    
+  - node_id: "legal_synthesis"
+    category: "BASE"
+    node_type: "synthesis"
+    execution_pattern: "processor"
+    config:
+      agent_type: "synthesis"
+      # SynthesisConfig demonstration for legal opinion
+      synthesis_strategy: "legal_integration"
+      thematic_focus: "compliance_and_risk"
+      meta_analysis: true
+      integration_mode: "legal_synthesis"
+      prompt_config:
+        custom_system_prompt: "You are a senior legal counsel who synthesizes complex legal analysis into comprehensive legal opinions and compliance recommendations. Your synthesis should provide clear legal guidance with supporting precedents and risk assessments."
+      behavioral_config:
+        custom_constraints:
+          - "maintain_legal_precision"
+          - "provide_clear_legal_conclusions"
+          - "include_risk_mitigation"
+          - "cite_supporting_authority"
+          - "offer_compliance_recommendations"
+          - "identify_legal_alternatives"
+        fallback_mode: "comprehensive"
+      output_config:
+        format_preference: "legal_opinion"
+        include_confidence: true
+        include_citations: true
+        metadata_inclusion: "full_legal"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "processor"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+flow:
+  entry_point: "legal_refiner"
+  terminal_nodes: ["legal_synthesis"]
+  edges:
+    - from_node: "legal_refiner"
+      to_node: "legal_historian"
+      condition: "refinement_complete"
+      
+    - from_node: "legal_historian"
+      to_node: "legal_critic"
+      condition: "context_retrieved"
+      
+    - from_node: "legal_critic"
+      to_node: "legal_synthesis"
+      condition: "analysis_complete"
+
+metadata:
+  domain: "legal_analysis"
+  complexity_level: "high"
+  estimated_execution_time: "60-90 seconds"
+  use_cases: 
+    - "contract_review"
+    - "compliance_assessment"
+    - "legal_risk_evaluation"
+    - "regulatory_analysis"
+    - "due_diligence_support"
+  configuration_features:
+    - "legal_precision_prompts"
+    - "regulatory_compliance_focus"
+    - "precedent_based_analysis"
+    - "risk_assessment_integration"
+    - "citation_accuracy"
+  agent_behaviors:
+    refiner: "legal_precision_refinement"
+    historian: "legal_research_retrieval"
+    critic: "compliance_risk_assessment"
+    synthesis: "legal_opinion_integration"

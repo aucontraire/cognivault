@@ -423,21 +423,33 @@ class TestAgentContextStateBridge:
             len(AgentContextStateBridge.RESERVED_KEYS) > 10
         )  # Should have many reserved keys
 
-    def test_edge_case_empty_context(self):
-        """Test conversion with minimal/empty context."""
-        # Arrange
-        context = AgentContext(query="", context_id="empty-123")
+    def test_edge_case_minimal_context(self):
+        """Test conversion with minimal but valid context."""
+        # Arrange - use minimal valid query (empty queries are now rejected by validation)
+        context = AgentContext(query="?", context_id="minimal-123")
 
         # Act
         state = AgentContextStateBridge.to_langgraph_state(context)
         restored_context = AgentContextStateBridge.from_langgraph_state(state)
 
         # Assert
-        assert restored_context.context_id == "empty-123"
-        assert restored_context.query == ""
+        assert restored_context.context_id == "minimal-123"
+        assert restored_context.query == "?"
         assert len(restored_context.agent_outputs) == 0
         assert len(restored_context.successful_agents) == 0
         assert len(restored_context.failed_agents) == 0
+
+    def test_empty_query_validation(self):
+        """Test that AgentContext properly validates empty queries."""
+        from pydantic import ValidationError
+
+        # Empty queries should be rejected at validation level
+        with pytest.raises(ValidationError, match="Query cannot be empty"):
+            AgentContext(query="")
+
+        # Whitespace-only queries should also be rejected
+        with pytest.raises(ValidationError, match="Query cannot be empty"):
+            AgentContext(query="   ")
 
     def test_edge_case_large_context(self):
         """Test conversion with large context data."""
@@ -494,6 +506,13 @@ class TestAgentContextStateBridge:
         # Assert
         assert len(errors) == 0
         assert len(results) == 10
-        for i, result in enumerate(results):
-            assert result.query == f"Query {i}"
-            assert result.context_id == f"thread-{i}"
+
+        # Check that all expected results are present (order doesn't matter in threaded execution)
+        result_queries = {result.query for result in results}
+        result_context_ids = {result.context_id for result in results}
+
+        expected_queries = {f"Query {i}" for i in range(10)}
+        expected_context_ids = {f"thread-{i}" for i in range(10)}
+
+        assert result_queries == expected_queries
+        assert result_context_ids == expected_context_ids

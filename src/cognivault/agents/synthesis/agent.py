@@ -10,6 +10,10 @@ from cognivault.agents.base_agent import (
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
 
+# Configuration system imports
+from cognivault.config.agent_configs import SynthesisConfig
+from cognivault.workflows.prompt_composer import PromptComposer
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,14 +27,30 @@ class SynthesisAgent(BaseAgent):
 
     Parameters
     ----------
-    name : str
-        The name of the agent, set to 'Synthesis'.
     llm : LLMInterface, optional
         LLM interface for synthesis analysis. If None, uses default OpenAI setup.
+    config : Optional[SynthesisConfig], optional
+        Configuration for agent behavior. If None, uses default configuration.
+        Maintains backward compatibility - existing code continues to work.
+
+    Attributes
+    ----------
+    config : SynthesisConfig
+        Configuration for agent behavior and prompt composition.
     """
 
-    def __init__(self, llm: Optional[Union[LLMInterface, str]] = "default"):
+    def __init__(
+        self,
+        llm: Optional[Union[LLMInterface, str]] = "default",
+        config: Optional[SynthesisConfig] = None,
+    ):
         super().__init__("Synthesis")
+
+        # Configuration system - backward compatible
+        self.config = config if config is not None else SynthesisConfig()
+        self._prompt_composer = PromptComposer()
+        self._composed_prompt = None
+
         # Use sentinel value to distinguish between None (explicit) and default
         if llm == "default":
             self.llm: Optional[LLMInterface] = self._create_default_llm()
@@ -42,6 +62,9 @@ class SynthesisAgent(BaseAgent):
                 self.llm = llm  # type: ignore[assignment]
             else:
                 self.llm = None
+
+        # Compose the prompt on initialization for performance
+        self._update_composed_prompt()
 
     def _create_default_llm(self) -> Optional[LLMInterface]:
         """Create default LLM interface using OpenAI configuration."""
@@ -61,6 +84,57 @@ class SynthesisAgent(BaseAgent):
                 f"Failed to create OpenAI LLM: {e}. Using fallback synthesis."
             )
             return None
+
+    def _update_composed_prompt(self):
+        """Update the composed prompt based on current configuration."""
+        try:
+            self._composed_prompt = self._prompt_composer.compose_synthesis_prompt(
+                self.config
+            )
+            logger.debug(
+                f"[{self.name}] Prompt composed with config: {self.config.synthesis_strategy}"
+            )
+        except Exception as e:
+            logger.warning(
+                f"[{self.name}] Failed to compose prompt, using default: {e}"
+            )
+            self._composed_prompt = None
+
+    def _get_system_prompt(self) -> str:
+        """Get the system prompt, using composed prompt if available, otherwise fallback."""
+        if self._composed_prompt and self._prompt_composer.validate_composition(
+            self._composed_prompt
+        ):
+            return self._composed_prompt.system_prompt
+        else:
+            # Fallback to embedded prompt for backward compatibility
+            logger.debug(f"[{self.name}] Using default system prompt (fallback)")
+            return self._get_default_system_prompt()
+
+    def _get_default_system_prompt(self) -> str:
+        """Get default system prompt for fallback compatibility."""
+        try:
+            from cognivault.agents.synthesis.prompts import SYNTHESIS_SYSTEM_PROMPT
+
+            return SYNTHESIS_SYSTEM_PROMPT
+        except ImportError:
+            # Fallback to basic embedded prompt
+            return """As a synthesis agent, analyze and integrate multiple agent outputs to create comprehensive, coherent responses that combine all perspectives."""
+
+    def update_config(self, config: SynthesisConfig):
+        """
+        Update the agent configuration and recompose prompts.
+
+        Parameters
+        ----------
+        config : SynthesisConfig
+            New configuration to apply
+        """
+        self.config = config
+        self._update_composed_prompt()
+        logger.info(
+            f"[{self.name}] Configuration updated: {config.synthesis_strategy} strategy"
+        )
 
     async def run(self, context: AgentContext) -> AgentContext:
         """
@@ -302,6 +376,17 @@ class SynthesisAgent(BaseAgent):
             ]
         )
 
+        # Try to use composed prompt from PromptComposer first
+        if self._composed_prompt and hasattr(self._composed_prompt, "analysis_prompt"):
+            try:
+                return self._composed_prompt.analysis_prompt.format(
+                    query=query, outputs_text=outputs_text
+                )
+            except Exception as e:
+                logger.debug(
+                    f"[{self.name}] Failed to use composed analysis prompt: {e}"
+                )
+
         # Try to load prompt template from prompts.py
         try:
             from cognivault.agents.synthesis.prompts import (
@@ -424,6 +509,21 @@ Provide your analysis in the exact format above."""
         themes_text = ", ".join(analysis.get("themes", []))
         conflicts_text = ", ".join(analysis.get("conflicts", ["None identified"]))
         topics_text = ", ".join(analysis.get("key_topics", []))
+
+        # Try to use composed prompt from PromptComposer first
+        if self._composed_prompt and hasattr(self._composed_prompt, "synthesis_prompt"):
+            try:
+                return self._composed_prompt.synthesis_prompt.format(
+                    query=query,
+                    themes_text=themes_text,
+                    topics_text=topics_text,
+                    conflicts_text=conflicts_text,
+                    outputs_text=outputs_text,
+                )
+            except Exception as e:
+                logger.debug(
+                    f"[{self.name}] Failed to use composed synthesis prompt: {e}"
+                )
 
         # Try to load prompt template from prompts.py
         try:

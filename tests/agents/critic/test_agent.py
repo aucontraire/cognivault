@@ -40,9 +40,16 @@ async def test_critic_with_refiner_output():
     updated_context = await agent.run(context)
 
     # Verify LLM was called with correct parameters
-    mock_llm.generate.assert_called_once_with(
-        prompt="Was the 2020 presidential election conducted fairly according to established democratic standards?",
-        system_prompt=CRITIC_SYSTEM_PROMPT,
+    # Note: CriticAgent now uses dynamic PromptComposer prompts instead of static CRITIC_SYSTEM_PROMPT
+    call_args = mock_llm.generate.call_args
+    assert (
+        call_args[1]["prompt"]
+        == "Was the 2020 presidential election conducted fairly according to established democratic standards?"
+    )
+    # System prompt should be dynamically composed (contains original CRITIC_SYSTEM_PROMPT as base)
+    assert (
+        "CriticAgent, the second stage in a cognitive reflection pipeline"
+        in call_args[1]["system_prompt"]
     )
 
     # Verify output was added to context
@@ -110,9 +117,16 @@ async def test_critic_complex_query_analysis():
     updated_context = await agent.run(context)
 
     # Verify LLM was called correctly
-    mock_llm.generate.assert_called_once_with(
-        prompt="How has the structure and function of democratic institutions evolved since the Cold War?",
-        system_prompt=CRITIC_SYSTEM_PROMPT,
+    # Note: CriticAgent now uses dynamic PromptComposer prompts instead of static CRITIC_SYSTEM_PROMPT
+    call_args = mock_llm.generate.call_args
+    assert (
+        call_args[1]["prompt"]
+        == "How has the structure and function of democratic institutions evolved since the Cold War?"
+    )
+    # System prompt should be dynamically composed (contains original CRITIC_SYSTEM_PROMPT as base)
+    assert (
+        "CriticAgent, the second stage in a cognitive reflection pipeline"
+        in call_args[1]["system_prompt"]
     )
 
     # Verify structured output
@@ -196,10 +210,14 @@ async def test_critic_system_prompt_usage():
     await agent.run(context)
 
     # Verify the system prompt was used
+    # Note: CriticAgent now uses dynamic PromptComposer prompts instead of static CRITIC_SYSTEM_PROMPT
     call_args = mock_llm.generate.call_args
-    assert call_args[1]["system_prompt"] == CRITIC_SYSTEM_PROMPT
-    assert "CriticAgent" in call_args[1]["system_prompt"]
-    assert "second stage" in call_args[1]["system_prompt"]
+    system_prompt = call_args[1]["system_prompt"]
+    # Should contain the base CRITIC_SYSTEM_PROMPT content plus configuration additions
+    assert "CriticAgent" in system_prompt
+    assert "second stage" in system_prompt
+    # The composed prompt should include configuration-driven additions
+    assert "cognitive reflection pipeline" in system_prompt
 
 
 @pytest.mark.asyncio

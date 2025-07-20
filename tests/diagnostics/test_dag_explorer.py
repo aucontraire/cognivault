@@ -12,8 +12,8 @@ from rich.console import Console
 from cognivault.diagnostics.dag_explorer import (
     InteractiveDAGExplorer,
     ExplorationMode,
-    DAGNode,
-    DAGExecution,
+    NodeInfo,
+    ExplorerState,
 )
 from cognivault.context import AgentContext
 
@@ -51,7 +51,7 @@ class TestInteractiveDAGExplorer:
     @pytest.fixture
     def sample_dag_execution(self):
         """Sample DAG execution for testing."""
-        return DAGExecution(
+        return ExplorerState(
             execution_id="test_exec_123",
             nodes_executed=["start", "refiner", "critic", "end"],
             execution_path=[
@@ -203,7 +203,7 @@ class TestInteractiveDAGExplorer:
         mock_orchestrator_instance = Mock()
         mock_orchestrator.return_value = mock_orchestrator_instance
 
-        # Mock DAGExecution object
+        # Mock ExplorerState object
         mock_execution = Mock()
         mock_asyncio.return_value = mock_execution
 
@@ -348,7 +348,7 @@ class TestInteractiveDAGExplorer:
 
             result = await explorer._execute_and_trace(mock_orchestrator, "test query")
 
-            assert isinstance(result, DAGExecution)
+            assert isinstance(result, ExplorerState)
             assert result.execution_id.startswith("exec_")
             assert result.success is True
 
@@ -415,12 +415,12 @@ class TestInteractiveDAGExplorer:
             mock_print.assert_called()
 
 
-class TestDAGNode:
-    """Test suite for DAGNode dataclass."""
+class TestNodeInfo:
+    """Test suite for NodeInfo dataclass."""
 
     def test_dag_node_creation(self):
         """Test DAG node creation."""
-        node = DAGNode(
+        node = NodeInfo(
             name="test_node",
             type="agent",
             agent_class="refiner",
@@ -435,12 +435,12 @@ class TestDAGNode:
         assert node.execution_time == 1.5
 
 
-class TestDAGExecution:
-    """Test suite for DAGExecution dataclass."""
+class TestExplorerState:
+    """Test suite for ExplorerState dataclass."""
 
     def test_dag_execution_creation(self):
         """Test DAG execution creation."""
-        execution = DAGExecution(
+        execution = ExplorerState(
             execution_id="test_123",
             nodes_executed=["start", "end"],
             execution_path=[("start", "end")],
@@ -457,7 +457,7 @@ class TestDAGExecution:
 
     def test_dag_execution_with_error(self):
         """Test DAG execution with error details."""
-        execution = DAGExecution(
+        execution = ExplorerState(
             execution_id="error_123",
             nodes_executed=["start"],
             execution_path=[],

@@ -11,8 +11,8 @@ from rich.console import Console
 from cognivault.diagnostics.dag_explorer import (
     InteractiveDAGExplorer,
     ExplorationMode,
-    DAGNode,
-    DAGExecution,
+    NodeInfo,
+    ExplorerState,
 )
 
 
@@ -41,7 +41,7 @@ class TestDAGExplorer:
 
     def test_dag_node_creation(self):
         """Test DAG node creation."""
-        node = DAGNode(
+        node = NodeInfo(
             name="test_node",
             type="agent",
             agent_class="refiner",
@@ -57,7 +57,7 @@ class TestDAGExplorer:
 
     def test_dag_execution_creation(self):
         """Test DAG execution creation."""
-        execution = DAGExecution(
+        execution = ExplorerState(
             execution_id="test_123",
             nodes_executed=["start", "end"],
             execution_path=[("start", "end")],

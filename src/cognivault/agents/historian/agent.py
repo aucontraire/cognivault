@@ -13,6 +13,10 @@ from cognivault.config.app_config import get_config
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.historian.search import SearchFactory, SearchResult
 
+# Configuration system imports
+from cognivault.config.agent_configs import HistorianConfig
+from cognivault.workflows.prompt_composer import PromptComposer
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,12 +30,18 @@ class HistorianAgent(BaseAgent):
 
     Parameters
     ----------
-    name : str
-        The name of the agent. Defaults to "Historian".
     llm : LLMInterface, optional
         LLM interface for relevance analysis. If None, uses default OpenAI setup.
     search_type : str, optional
         Type of search strategy to use. Defaults to "hybrid".
+    config : Optional[HistorianConfig], optional
+        Configuration for agent behavior. If None, uses default configuration.
+        Maintains backward compatibility - existing code continues to work.
+
+    Attributes
+    ----------
+    config : HistorianConfig
+        Configuration for agent behavior and prompt composition.
     """
 
     logger = logging.getLogger(__name__)
@@ -40,8 +50,15 @@ class HistorianAgent(BaseAgent):
         self,
         llm: Optional[Union[LLMInterface, str]] = "default",
         search_type: str = "hybrid",
+        config: Optional[HistorianConfig] = None,
     ):
         super().__init__("Historian")
+
+        # Configuration system - backward compatible
+        self.config = config if config is not None else HistorianConfig()
+        self._prompt_composer = PromptComposer()
+        self._composed_prompt = None
+
         # Use sentinel value to distinguish between None (explicit) and default
         if llm == "default":
             self.llm: Optional[LLMInterface] = self._create_default_llm()
@@ -55,6 +72,9 @@ class HistorianAgent(BaseAgent):
                 self.llm = None
         self.search_engine = SearchFactory.create_search(search_type)
         self.search_type = search_type
+
+        # Compose the prompt on initialization for performance
+        self._update_composed_prompt()
 
     def _create_default_llm(self) -> Optional[LLMInterface]:
         """Create default LLM interface using OpenAI configuration."""
@@ -72,6 +92,57 @@ class HistorianAgent(BaseAgent):
         except Exception as e:
             logger.warning(f"Failed to create OpenAI LLM: {e}. Using mock LLM.")
             return None
+
+    def _update_composed_prompt(self):
+        """Update the composed prompt based on current configuration."""
+        try:
+            self._composed_prompt = self._prompt_composer.compose_historian_prompt(
+                self.config
+            )
+            self.logger.debug(
+                f"[{self.name}] Prompt composed with config: {self.config.search_depth}"
+            )
+        except Exception as e:
+            self.logger.warning(
+                f"[{self.name}] Failed to compose prompt, using default: {e}"
+            )
+            self._composed_prompt = None
+
+    def _get_system_prompt(self) -> str:
+        """Get the system prompt, using composed prompt if available, otherwise fallback."""
+        if self._composed_prompt and self._prompt_composer.validate_composition(
+            self._composed_prompt
+        ):
+            return self._composed_prompt.system_prompt
+        else:
+            # Fallback to embedded prompt for backward compatibility
+            self.logger.debug(f"[{self.name}] Using default system prompt (fallback)")
+            return self._get_default_system_prompt()
+
+    def _get_default_system_prompt(self) -> str:
+        """Get default system prompt for fallback compatibility."""
+        try:
+            from cognivault.agents.historian.prompts import HISTORIAN_SYSTEM_PROMPT
+
+            return HISTORIAN_SYSTEM_PROMPT
+        except ImportError:
+            # Fallback to basic embedded prompt
+            return """As a historian agent, analyze queries and provide relevant historical context using available search results and historical information."""
+
+    def update_config(self, config: HistorianConfig):
+        """
+        Update the agent configuration and recompose prompts.
+
+        Parameters
+        ----------
+        config : HistorianConfig
+            New configuration to apply
+        """
+        self.config = config
+        self._update_composed_prompt()
+        self.logger.info(
+            f"[{self.name}] Configuration updated: {config.search_depth} search depth"
+        )
 
     async def run(self, context: AgentContext) -> AgentContext:
         """

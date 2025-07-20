@@ -1,111 +1,109 @@
-workflow:
-  name: "Parallel Analysis with Consensus"
-  version: "1.0.0"
-  workflow_id: "parallel-aggregation-demo"
-  created_by: "cognivault-team"
-  description: "Demonstrates parallel agent execution with consensus aggregation"
-  tags: ["demo", "parallel-processing", "aggregation", "consensus"]
-  workflow_schema_version: "1.0.0"
-  
-  nodes:
-    - id: "historian_analysis"
-      category: "base"
-      type: "processor"
-      config:
-        agent_type: "historian"
-      metadata:
-        cognitive_speed: "slow"
-        cognitive_depth: "deep"
-        processing_pattern: "atomic"
-        execution_pattern: "processor"
-        pipeline_role: "intermediate"
-        bounded_context: "retrieval"
-    
-    - id: "critic_analysis"
-      category: "base"
-      type: "processor"
-      config:
-        agent_type: "critic"
-      metadata:
-        cognitive_speed: "slow"
-        cognitive_depth: "deep"
-        processing_pattern: "atomic"
-        execution_pattern: "processor"
-        pipeline_role: "intermediate"
-        bounded_context: "reflection"
-    
-    - id: "consensus_aggregator"
-      category: "advanced"
-      type: "aggregator"
-      config:
-        strategy: "consensus"
-        threshold: 0.8
-        combine_methods: ["semantic_similarity", "content_overlap"]
-        conflict_resolution: "weighted_average"
-      metadata:
-        cognitive_speed: "slow"
-        cognitive_depth: "deep"
-        processing_pattern: "composite"
-        execution_pattern: "aggregator"
-        pipeline_role: "terminal"
-        bounded_context: "transformation"
-    
-    - id: "quality_validator"
-      category: "advanced"
-      type: "validator"
-      config:
-        criteria: ["content_quality", "completeness"]
-        quality_thresholds:
-          content_quality: 0.7
-          completeness: 0.8
-        validation_mode: "strict"
-      metadata:
-        cognitive_speed: "fast"
-        cognitive_depth: "shallow"
-        processing_pattern: "atomic"
-        execution_pattern: "validator"
-        pipeline_role: "terminal"
-        bounded_context: "reflection"
-  
-  flow:
-    start_node: "parallel_start"
-    edges:
-      # Parallel execution start
-      - from_node: "parallel_start"
-        to_node: "historian_analysis"
-        condition: "parallel_branch"
-      
-      - from_node: "parallel_start"
-        to_node: "critic_analysis"
-        condition: "parallel_branch"
-      
-      # Aggregation
-      - from_node: "historian_analysis"
-        to_node: "consensus_aggregator"
-        condition: "completion"
-      
-      - from_node: "critic_analysis"
-        to_node: "consensus_aggregator"
-        condition: "completion"
-      
-      # Quality validation
-      - from_node: "consensus_aggregator"
-        to_node: "quality_validator"
-        condition: "success"
-        next_node_if: "quality_validator"
-        failover_node: "consensus_aggregator"
-    
-    end_conditions: ["quality_validator"]
-    
-    conditional_routing:
-      parallel_execution:
-        wait_for_all: "historian_analysis AND critic_analysis"
-        success_threshold: "both_completed"
-  
+name: Parallel Analysis with Consensus
+version: 1.0.0
+workflow_id: parallel-aggregation-demo
+created_by: cognivault-team
+description: Demonstrates parallel agent execution with consensus aggregation
+tags:
+- demo
+- parallel-processing
+- aggregation
+- consensus
+workflow_schema_version: 1.0.0
+nodes:
+- category: BASE
+  config:
+    agent_type: historian
   metadata:
-    example_type: "parallel_aggregation"
-    complexity_level: "intermediate"
-    estimated_execution_time: "10-15 seconds"
-    use_cases: ["multi_perspective_analysis", "consensus_building", "quality_assurance"]
-    parallel_nodes: ["historian_analysis", "critic_analysis"]
-    aggregation_strategy: "consensus"
+    cognitive_speed: slow
+    cognitive_depth: deep
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: intermediate
+    bounded_context: retrieval
+  node_id: historian_analysis
+  node_type: processor
+- category: BASE
+  config:
+    agent_type: critic
+  metadata:
+    cognitive_speed: slow
+    cognitive_depth: deep
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: intermediate
+    bounded_context: reflection
+  node_id: critic_analysis
+  node_type: processor
+- category: ADVANCED
+  config:
+    strategy: consensus
+    threshold: 0.8
+    combine_methods:
+    - semantic_similarity
+    - content_overlap
+    conflict_resolution: weighted_average
+  metadata:
+    cognitive_speed: slow
+    cognitive_depth: deep
+    processing_pattern: composite
+    execution_pattern: aggregator
+    pipeline_role: terminal
+    bounded_context: transformation
+  node_id: consensus_aggregator
+  node_type: aggregator
+- category: ADVANCED
+  config:
+    criteria:
+    - content_quality
+    - completeness
+    quality_thresholds:
+      content_quality: 0.7
+      completeness: 0.8
+    validation_mode: strict
+  metadata:
+    cognitive_speed: fast
+    cognitive_depth: shallow
+    processing_pattern: atomic
+    execution_pattern: validator
+    pipeline_role: terminal
+    bounded_context: reflection
+  node_id: quality_validator
+  node_type: validator
+flow:
+  edges:
+  - from_node: parallel_start
+    to_node: historian_analysis
+    condition: parallel_branch
+  - from_node: parallel_start
+    to_node: critic_analysis
+    condition: parallel_branch
+  - from_node: historian_analysis
+    to_node: consensus_aggregator
+    condition: completion
+  - from_node: critic_analysis
+    to_node: consensus_aggregator
+    condition: completion
+  - from_node: consensus_aggregator
+    to_node: quality_validator
+    condition: success
+    next_node_if: quality_validator
+    failover_node: consensus_aggregator
+  conditional_routing:
+    parallel_execution:
+      wait_for_all: historian_analysis AND critic_analysis
+      success_threshold: both_completed
+  entry_point: parallel_start
+  terminal_nodes:
+  - quality_validator
+metadata:
+  example_type: parallel_aggregation
+  complexity_level: intermediate
+  estimated_execution_time: 10-15 seconds
+  use_cases:
+  - multi_perspective_analysis
+  - consensus_building
+  - quality_assurance
+  parallel_nodes:
+  - historian_analysis
+  - critic_analysis
+  aggregation_strategy: consensus

@@ -15,9 +15,9 @@ Features:
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, ConfigDict
 
 from cognivault.orchestration.node_wrappers import get_node_dependencies
 from cognivault.orchestration.error_policies import (
@@ -29,33 +29,49 @@ from cognivault.observability import get_logger
 logger = get_logger(__name__)
 
 
-@dataclass
-class DAGVisualizationConfig:
+class DAGVisualizationConfig(BaseModel):
     """Configuration for DAG visualization."""
 
-    version: str = "Phase 2.2"
-    """Version annotation for the DAG."""
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
-    show_state_flow: bool = True
-    """Whether to show state flow information."""
+    version: str = Field(
+        default="Phase 2.2", description="Version annotation for the DAG"
+    )
+    show_state_flow: bool = Field(
+        default=True, description="Whether to show state flow information"
+    )
+    show_node_details: bool = Field(
+        default=True, description="Whether to show node details in the diagram"
+    )
+    include_metadata: bool = Field(
+        default=True, description="Whether to include metadata in the diagram"
+    )
+    show_checkpoints: bool = Field(
+        default=True, description="Whether to show checkpoint information for nodes"
+    )
+    show_error_policies: bool = Field(
+        default=True, description="Whether to show error policy information"
+    )
+    show_fallback_routes: bool = Field(
+        default=True, description="Whether to show fallback routes and error handling"
+    )
+    checkpoints_enabled: bool = Field(
+        default=False,
+        description="Whether checkpointing is enabled in the current session",
+    )
 
-    show_node_details: bool = True
-    """Whether to show node details in the diagram."""
-
-    include_metadata: bool = True
-    """Whether to include metadata in the diagram."""
-
-    show_checkpoints: bool = True
-    """Whether to show checkpoint information for nodes."""
-
-    show_error_policies: bool = True
-    """Whether to show error policy information."""
-
-    show_fallback_routes: bool = True
-    """Whether to show fallback routes and error handling."""
-
-    checkpoints_enabled: bool = False
-    """Whether checkpointing is enabled in the current session."""
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "version": self.version,
+            "show_state_flow": self.show_state_flow,
+            "show_node_details": self.show_node_details,
+            "include_metadata": self.include_metadata,
+            "show_checkpoints": self.show_checkpoints,
+            "show_error_policies": self.show_error_policies,
+            "show_fallback_routes": self.show_fallback_routes,
+            "checkpoints_enabled": self.checkpoints_enabled,
+        }
 
 
 class DAGVisualizer:

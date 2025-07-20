@@ -494,14 +494,16 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
         orchestrator.dag_composer = None
 
-        # Mock the workflow's to_json_snapshot method
+        # Mock the workflow's to_json_snapshot method using patch at the class level
+        # since Pydantic models don't allow patching individual instances easily
         mock_snapshot = {
             "workflow_id": "advanced-test-workflow-123",
             "name": "advanced_test_workflow",
         }
 
-        with patch.object(
-            self.workflow_def, "to_json_snapshot", return_value=mock_snapshot
+        with patch(
+            "cognivault.workflows.definition.WorkflowDefinition.to_json_snapshot",
+            return_value=mock_snapshot,
         ):
             result = await orchestrator.export_workflow_snapshot(self.workflow_def)
 

@@ -9,10 +9,10 @@ state management.
 import asyncio
 import uuid
 import time
-from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Callable, TYPE_CHECKING
 from datetime import datetime, timezone
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
 
 # Forward imports to resolve circular dependencies
@@ -48,17 +48,36 @@ class WorkflowExecutionError(Exception):
         self.workflow_id = workflow_id
 
 
-@dataclass
-class ExecutionContext:
-    """Context for workflow execution tracking."""
+class ExecutionContext(BaseModel):
+    """Context for workflow execution tracking.
 
-    workflow_id: str
-    workflow_definition: "WorkflowDefinition"
-    query: str
-    execution_config: Dict[str, Any]
-    start_time: float = field(default_factory=time.time)
-    status: str = "pending"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    Provides comprehensive execution state management with validation
+    and automatic serialization for workflow orchestration.
+    """
+
+    workflow_id: str = Field(description="Unique identifier for the workflow execution")
+    workflow_definition: "WorkflowDefinition" = Field(
+        description="Workflow definition being executed"
+    )
+    query: str = Field(description="Query being processed by the workflow")
+    execution_config: Dict[str, Any] = Field(
+        default_factory=dict, description="Configuration parameters for execution"
+    )
+    start_time: float = Field(
+        default_factory=time.time, description="Execution start timestamp"
+    )
+    status: str = Field(
+        default="pending",
+        description="Current execution status (pending, running, completed, failed)",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional execution metadata and tracking information",
+    )
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )  # Allow WorkflowDefinition type
 
     def update_status(self, status: str) -> None:
         """Update execution status."""
@@ -69,18 +88,34 @@ class ExecutionContext:
         self.metadata[key] = value
 
 
-@dataclass
-class CompositionResult:
-    """Result of DAG composition process."""
+class CompositionResult(BaseModel):
+    """Result of DAG composition process.
 
-    node_mapping: Dict[str, Any] = field(default_factory=dict)
-    edge_mapping: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    validation_errors: List[str] = field(default_factory=list)
+    Contains the complete mapping of workflow definition to executable
+    DAG structure with validation results and metadata.
+    """
+
+    node_mapping: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Mapping of workflow nodes to executable node instances",
+    )
+    edge_mapping: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Mapping of workflow edges to executable graph connections",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Composition metadata including timing and configuration",
+    )
+    validation_errors: List[str] = Field(
+        default_factory=list,
+        description="List of validation errors encountered during composition",
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # Allow complex node types
 
 
-@dataclass
-class WorkflowResult:
+class WorkflowResult(BaseModel):
     """
     Comprehensive result of workflow execution with metadata and tracing.
 
@@ -88,58 +123,104 @@ class WorkflowResult:
     event correlation, and node execution details for analytics and debugging.
     """
 
-    workflow_id: str
-    execution_id: str
-    final_context: AgentContext
-    execution_metadata: Dict[str, Any] = field(default_factory=dict)
-    node_execution_order: List[str] = field(default_factory=list)
-    execution_time_seconds: float = 0.0
-    success: bool = True
-    error_message: Optional[str] = None
-    event_correlation_id: str = ""
+    workflow_id: str = Field(description="Unique identifier for the workflow")
+    execution_id: str = Field(
+        description="Unique identifier for this execution instance"
+    )
+    final_context: AgentContext = Field(
+        description="Final agent context after execution"
+    )
+    execution_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Execution metadata including performance metrics and configuration",
+    )
+    node_execution_order: List[str] = Field(
+        default_factory=list,
+        description="Order in which nodes were executed for debugging and analytics",
+    )
+    execution_time_seconds: float = Field(
+        default=0.0, ge=0, description="Total execution time in seconds"
+    )
+    success: bool = Field(
+        default=True,
+        description="Whether the workflow execution completed successfully",
+    )
+    error_message: Optional[str] = Field(
+        default=None, description="Error message if execution failed"
+    )
+    event_correlation_id: str = Field(
+        default="",
+        description="Correlation ID for event tracking and distributed tracing",
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # Allow AgentContext type
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        return {
-            "workflow_id": self.workflow_id,
-            "execution_id": self.execution_id,
-            "execution_metadata": self._clean_strings_for_json(self.execution_metadata),
-            "node_execution_order": self.node_execution_order,
-            "execution_time_seconds": self.execution_time_seconds,
-            "success": self.success,
-            "error_message": self.error_message,
-            "event_correlation_id": self.event_correlation_id,
-            "agent_outputs": self._clean_strings_for_json(
-                dict(self.final_context.agent_outputs)
+        """Convert WorkflowResult to dictionary with JSON-safe string escaping."""
+        # Use Pydantic's model_dump for base serialization
+        result_dict = self.model_dump()
+
+        # Clean strings for JSON serialization
+        if result_dict.get("execution_metadata"):
+            result_dict["execution_metadata"] = self._clean_strings_for_json(
+                result_dict["execution_metadata"]
+            )
+
+        # Add agent outputs from final_context if available
+        if hasattr(self.final_context, "agent_outputs"):
+            agent_outputs = dict(self.final_context.agent_outputs)
+            result_dict["agent_outputs"] = self._clean_strings_for_json(agent_outputs)
+
+        # Add final context summary for backward compatibility
+        result_dict["final_context_summary"] = {
+            "original_query": self.final_context.query,  # Keep original newlines in summary
+            "agent_outputs_count": (
+                len(self.final_context.agent_outputs)
+                if hasattr(self.final_context, "agent_outputs")
+                else 0
             ),
-            "final_context_summary": {
-                "original_query": self.final_context.query,
-                "agent_outputs_count": len(self.final_context.agent_outputs),
-                "execution_state_keys": list(self.final_context.execution_state.keys()),
-            },
+            "execution_state_keys": (
+                list(self.final_context.execution_state.keys())
+                if hasattr(self.final_context, "execution_state")
+                else []
+            ),
         }
 
-    def _clean_strings_for_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Clean strings to ensure JSON serialization works properly."""
+        # Convert sets to lists for JSON serialization
+        result_dict = self._convert_sets_to_lists(result_dict)
 
-        def clean_value(value):
-            if isinstance(value, str):
-                # Replace actual newlines with escaped newlines for JSON
-                return (
-                    value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-                )
-            elif isinstance(value, dict):
-                return {k: clean_value(v) for k, v in value.items()}
-            elif isinstance(value, list):
-                return [clean_value(v) for v in value]
-            else:
-                return value
+        return result_dict
 
-        return clean_value(data)
+    def _clean_strings_for_json(self, data: Any) -> Any:
+        """Recursively clean strings in data structure for JSON serialization."""
+        if isinstance(data, str):
+            # Escape newlines and other problematic characters for JSON
+            return data.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+        elif isinstance(data, dict):
+            return {
+                key: self._clean_strings_for_json(value) for key, value in data.items()
+            }
+        elif isinstance(data, list):
+            return [self._clean_strings_for_json(item) for item in data]
+        else:
+            return data
 
     def _clean_metadata_for_json(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Clean metadata to ensure JSON serialization works properly."""
+        """Clean metadata for JSON serialization (alias for _clean_strings_for_json)."""
         return self._clean_strings_for_json(metadata)
+
+    def _convert_sets_to_lists(self, data: Any) -> Any:
+        """Recursively convert sets to lists for JSON serialization."""
+        if isinstance(data, set):
+            return list(data)
+        elif isinstance(data, dict):
+            return {
+                key: self._convert_sets_to_lists(value) for key, value in data.items()
+            }
+        elif isinstance(data, list):
+            return [self._convert_sets_to_lists(item) for item in data]
+        else:
+            return data
 
 
 class WorkflowExecutor:

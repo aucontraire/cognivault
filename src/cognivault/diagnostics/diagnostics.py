@@ -7,38 +7,57 @@ to provide comprehensive observability for CogniVault operations.
 
 import platform
 import sys
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+
+from pydantic import BaseModel, Field, ConfigDict
 
 from .health import HealthChecker, ComponentHealth, HealthStatus
 from .metrics import PerformanceMetrics, get_metrics_collector
 from cognivault.config.app_config import get_config
 
 
-@dataclass
-class SystemDiagnostics:
+class SystemDiagnostics(BaseModel):
     """Complete system diagnostic information."""
 
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+    )
+
     # System information
-    timestamp: datetime
-    system_info: Dict[str, Any]
+    timestamp: datetime = Field(
+        ..., description="Timestamp when diagnostics were collected"
+    )
+    system_info: Dict[str, Any] = Field(
+        ..., description="System platform and environment information"
+    )
 
     # Health status
-    overall_health: HealthStatus
-    component_healths: Dict[str, ComponentHealth]
+    overall_health: HealthStatus = Field(
+        ..., description="Overall system health status"
+    )
+    component_healths: Dict[str, ComponentHealth] = Field(
+        ..., description="Individual component health statuses"
+    )
 
     # Performance metrics
-    performance_metrics: PerformanceMetrics
+    performance_metrics: PerformanceMetrics = Field(
+        ..., description="Aggregated performance metrics"
+    )
 
     # Configuration status
-    configuration_status: Dict[str, Any]
+    configuration_status: Dict[str, Any] = Field(
+        ..., description="Current configuration state"
+    )
 
     # Environment information
-    environment_info: Dict[str, Any]
+    environment_info: Dict[str, Any] = Field(
+        ..., description="Environment variables and paths"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
+        """Convert to dictionary representation for backward compatibility."""
         return {
             "timestamp": self.timestamp.isoformat(),
             "system_info": self.system_info,

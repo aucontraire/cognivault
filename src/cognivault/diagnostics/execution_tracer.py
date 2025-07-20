@@ -10,10 +10,11 @@ import time
 import json
 import threading
 from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 import uuid
+
+from pydantic import BaseModel, Field, ConfigDict
 
 import typer
 from rich.console import Console
@@ -57,53 +58,144 @@ class ExecutionState(Enum):
     TIMEOUT = "timeout"
 
 
-@dataclass
-class TraceEvent:
+class TraceEvent(BaseModel):
     """Individual trace event."""
 
-    event_id: str
-    timestamp: datetime
-    event_type: str
-    node_name: str
-    agent_name: Optional[str]
-    state: ExecutionState
-    duration: Optional[float] = None
-    input_data: Optional[Dict[str, Any]] = None
-    output_data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+    )
+
+    event_id: str = Field(..., description="Unique identifier for this trace event")
+    timestamp: datetime = Field(..., description="Timestamp when event occurred")
+    event_type: str = Field(..., description="Type/category of the event")
+    node_name: str = Field(..., description="Name of the execution node")
+    agent_name: Optional[str] = Field(
+        None, description="Name of the agent if applicable"
+    )
+    state: ExecutionState = Field(..., description="Current execution state")
+    duration: Optional[float] = Field(
+        None, ge=0.0, description="Event duration in seconds"
+    )
+    input_data: Optional[Dict[str, Any]] = Field(
+        None, description="Input data for the event"
+    )
+    output_data: Optional[Dict[str, Any]] = Field(
+        None, description="Output data from the event"
+    )
+    error: Optional[str] = Field(None, description="Error message if event failed")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata for the event"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "event_type": self.event_type,
+            "node_name": self.node_name,
+            "agent_name": self.agent_name,
+            "state": self.state.value,
+            "duration": self.duration,
+            "input_data": self.input_data,
+            "output_data": self.output_data,
+            "error": self.error,
+            "metadata": self.metadata,
+        }
 
 
-@dataclass
-class ExecutionTrace:
+class ExecutionTrace(BaseModel):
     """Complete execution trace."""
 
-    trace_id: str
-    query: str
-    start_time: datetime
-    end_time: Optional[datetime] = None
-    total_duration: float = 0.0
-    events: List[TraceEvent] = field(default_factory=list)
-    execution_path: List[str] = field(default_factory=list)
-    agent_stats: Dict[str, Any] = field(default_factory=dict)
-    performance_metrics: Dict[str, Any] = field(default_factory=dict)
-    success: bool = True
-    error_details: Optional[str] = None
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+    )
+
+    trace_id: str = Field(..., description="Unique identifier for this execution trace")
+    query: str = Field(..., description="The query that was executed")
+    start_time: datetime = Field(..., description="Timestamp when execution started")
+    end_time: Optional[datetime] = Field(
+        None, description="Timestamp when execution ended"
+    )
+    total_duration: float = Field(
+        default=0.0, ge=0.0, description="Total execution duration in seconds"
+    )
+    events: List[TraceEvent] = Field(
+        default_factory=list, description="List of trace events during execution"
+    )
+    execution_path: List[str] = Field(
+        default_factory=list, description="Ordered list of execution steps"
+    )
+    agent_stats: Dict[str, Any] = Field(
+        default_factory=dict, description="Statistics for each agent"
+    )
+    performance_metrics: Dict[str, Any] = Field(
+        default_factory=dict, description="Performance metrics for the execution"
+    )
+    success: bool = Field(
+        default=True, description="Whether execution completed successfully"
+    )
+    error_details: Optional[str] = Field(
+        None, description="Error details if execution failed"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "trace_id": self.trace_id,
+            "query": self.query,
+            "start_time": self.start_time.isoformat(),
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "total_duration": self.total_duration,
+            "events": [event.to_dict() for event in self.events],
+            "execution_path": self.execution_path,
+            "agent_stats": self.agent_stats,
+            "performance_metrics": self.performance_metrics,
+            "success": self.success,
+            "error_details": self.error_details,
+        }
 
 
-@dataclass
-class TracingSession:
+class TracingSession(BaseModel):
     """Tracing session configuration."""
 
-    session_id: str
-    trace_level: TraceLevel
-    real_time: bool
-    capture_io: bool
-    capture_timing: bool
-    capture_memory: bool
-    filter_agents: Optional[List[str]] = None
-    breakpoints: List[str] = field(default_factory=list)
-    max_events: int = 10000
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    session_id: str = Field(
+        ..., description="Unique identifier for this tracing session"
+    )
+    trace_level: TraceLevel = Field(..., description="Level of detail for tracing")
+    real_time: bool = Field(..., description="Whether to enable real-time tracing")
+    capture_io: bool = Field(..., description="Whether to capture input/output data")
+    capture_timing: bool = Field(
+        ..., description="Whether to capture timing information"
+    )
+    capture_memory: bool = Field(..., description="Whether to capture memory usage")
+    filter_agents: Optional[List[str]] = Field(
+        None, description="List of agents to filter for (None = all agents)"
+    )
+    breakpoints: List[str] = Field(
+        default_factory=list, description="List of breakpoint locations"
+    )
+    max_events: int = Field(
+        default=10000, gt=0, description="Maximum number of events to capture"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "session_id": self.session_id,
+            "trace_level": self.trace_level.value,
+            "real_time": self.real_time,
+            "capture_io": self.capture_io,
+            "capture_timing": self.capture_timing,
+            "capture_memory": self.capture_memory,
+            "filter_agents": self.filter_agents,
+            "breakpoints": self.breakpoints,
+            "max_events": self.max_events,
+        }
 
 
 class ExecutionTracer:
@@ -167,14 +259,31 @@ class ExecutionTracer:
 
         agent_list = [a.strip() for a in agents.split(",")] if agents else None
 
+        # Extract actual values from typer.Option objects if needed
+        capture_io_value = (
+            getattr(capture_io, "default", capture_io)
+            if hasattr(capture_io, "default")
+            else capture_io
+        )
+        capture_timing_value = (
+            getattr(capture_timing, "default", capture_timing)
+            if hasattr(capture_timing, "default")
+            else capture_timing
+        )
+        capture_memory_value = (
+            getattr(capture_memory, "default", capture_memory)
+            if hasattr(capture_memory, "default")
+            else capture_memory
+        )
+
         # Create tracing session
         session = TracingSession(
             session_id=str(uuid.uuid4()),
             trace_level=trace_level,
             real_time=False,
-            capture_io=capture_io,
-            capture_timing=capture_timing,
-            capture_memory=capture_memory,
+            capture_io=capture_io_value,
+            capture_timing=capture_timing_value,
+            capture_memory=capture_memory_value,
             filter_agents=agent_list,
         )
 

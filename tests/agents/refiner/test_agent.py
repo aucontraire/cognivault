@@ -75,17 +75,15 @@ async def test_refiner_agent_raises_without_text_field():
 
 
 @pytest.mark.asyncio
-async def test_refiner_handles_blank_or_nonsense_query():
-    """Test that RefinerAgent handles blank, malformed, or nonsense queries with appropriate fallbacks."""
+async def test_refiner_handles_nonsense_query():
+    """Test that RefinerAgent handles malformed or unclear queries with appropriate fallbacks."""
     from cognivault.llm.llm_interface import LLMResponse
 
     mock_llm = MagicMock()
     agent = RefinerAgent(llm=mock_llm)
 
-    # Test cases: input -> expected fallback response
+    # Test cases: input -> expected fallback response (removed empty strings - validation should reject them)
     test_cases = [
-        ("", "What topic would you like to explore or discuss?"),
-        ("   ", "What topic would you like to explore or discuss?"),
         (
             "???",
             "What specific question or topic are you interested in learning about?",
@@ -93,6 +91,10 @@ async def test_refiner_handles_blank_or_nonsense_query():
         (
             "How do?",
             "What specific question or topic are you interested in learning about?",
+        ),
+        (
+            "huh",
+            "What topic would you like to explore or discuss?",
         ),
     ]
 
@@ -117,6 +119,20 @@ async def test_refiner_handles_blank_or_nonsense_query():
         call_args = mock_llm.generate.call_args
         assert call_args[1]["system_prompt"] is not None
         assert "FALLBACK MODE" in call_args[1]["system_prompt"]
+
+
+@pytest.mark.asyncio
+async def test_refiner_rejects_empty_query():
+    """Test that AgentContext validation properly rejects empty queries."""
+    from pydantic import ValidationError
+
+    # Empty queries should be rejected at validation level
+    with pytest.raises(ValidationError, match="Query cannot be empty"):
+        AgentContext(query="")
+
+    # Whitespace-only queries should also be rejected
+    with pytest.raises(ValidationError, match="Query cannot be empty"):
+        AgentContext(query="   ")
 
 
 @pytest.mark.asyncio

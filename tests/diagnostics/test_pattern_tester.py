@@ -431,7 +431,7 @@ class TestPatternTestRunner:
     ):
         """Test successful single test execution."""
         mock_context = AgentContext(query="test")
-        mock_context.failed_agents = []
+        mock_context.failed_agents = set()
         mock_context.agent_outputs = {"refiner": "output"}
         mock_wait_for.return_value = mock_context
         mock_asyncio.return_value = mock_context
@@ -477,7 +477,7 @@ class TestPatternTestRunner:
     def test_evaluate_test_result_success(self, runner):
         """Test evaluating successful test result."""
         context = AgentContext(query="test")
-        context.failed_agents = []
+        context.failed_agents = set()
         context.agent_outputs = {"refiner": "output"}
 
         expected = {"success": True}
@@ -499,7 +499,7 @@ class TestPatternTestRunner:
     def test_evaluate_test_result_min_agents_fail(self, runner):
         """Test evaluating test with insufficient agents."""
         context = AgentContext(query="test")
-        context.failed_agents = []
+        context.failed_agents = set()
         context.agent_outputs = {"refiner": "output"}
 
         expected = {"min_agents": 2}
@@ -780,9 +780,21 @@ class TestPatternTestRunnerIntegration:
 
     def test_full_testing_workflow(self, runner):
         """Test complete testing workflow."""
+        # Create a simple test case inline since sample_test_case fixture is not available in this class
+        test_case = PatternTestCase(
+            test_id="workflow_test",
+            name="Workflow Test",
+            description="Test workflow case",
+            test_type=PatternTestType.UNIT,
+            pattern_name="workflow_pattern",
+            agents=["refiner"],
+            test_query="Workflow query",
+            expected_outcome={"success": True},
+        )
+
         with patch.object(runner, "_execute_single_test") as mock_execute:
             mock_execute.return_value = PatternTestExecution(
-                test_case=Mock(), result=PatternTestResult.PASS, duration=1.0
+                test_case=test_case, result=PatternTestResult.PASS, duration=1.0
             )
 
             # Should not raise exceptions
@@ -860,9 +872,19 @@ class TestPatternTestRunnerPerformance:
         # Create many test executions
         executions = []
         for i in range(100):
+            test_case = PatternTestCase(
+                test_id=f"perf_test_{i}",
+                name=f"Performance Test {i}",
+                description="Performance test case",
+                test_type=PatternTestType.PERFORMANCE,
+                pattern_name="perf_pattern",
+                agents=["refiner"],
+                test_query="Performance query",
+                expected_outcome={"success": True},
+            )
             executions.append(
                 PatternTestExecution(
-                    test_case=Mock(),
+                    test_case=test_case,
                     result=(
                         PatternTestResult.PASS if i % 2 == 0 else PatternTestResult.FAIL
                     ),

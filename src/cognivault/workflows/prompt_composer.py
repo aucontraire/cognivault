@@ -14,7 +14,8 @@ Architecture:
 
 import logging
 from typing import Dict, Any, Optional, List, Union, Callable, TypedDict, get_type_hints
-from dataclasses import dataclass
+
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from cognivault.config.agent_configs import (
     RefinerConfig,
@@ -79,14 +80,58 @@ class TemplateVariables(TypedDict, total=False):
     integration_mode: str
 
 
-@dataclass
-class ComposedPrompt:
-    """Container for a composed prompt with metadata."""
+class ComposedPrompt(BaseModel):
+    """Container for a composed prompt with metadata.
 
-    system_prompt: str
-    templates: Dict[str, str]
-    variables: TemplateVariables
-    metadata: Dict[str, Any]
+    Provides structured prompt composition with template management,
+    variable substitution, and comprehensive metadata tracking for
+    agent behavior configuration.
+    """
+
+    system_prompt: str = Field(
+        description="The main system prompt that defines agent behavior and instructions"
+    )
+    templates: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Named templates for specific prompt components or patterns",
+    )
+    variables: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Template variables for prompt customization and substitution",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Composition metadata including agent type, version, and configuration details",
+    )
+
+    @field_validator("system_prompt")
+    @classmethod
+    def validate_system_prompt_not_empty(cls, v):
+        """Ensure system prompt is not empty."""
+        if not v or not v.strip():
+            raise ValueError("system_prompt cannot be empty or whitespace-only")
+        return v.strip()
+
+    @field_validator("templates")
+    @classmethod
+    def validate_template_names(cls, v):
+        """Ensure template names are valid identifiers."""
+        import re
+
+        for template_name in v.keys():
+            if not template_name:
+                raise ValueError("Template name cannot be empty")
+            # Check for valid identifier: letters, digits, underscores, but not starting with digit
+            if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", template_name):
+                raise ValueError(
+                    f'Template name "{template_name}" must be a valid identifier (alphanumeric with underscores only)'
+                )
+        return v
+
+    model_config = ConfigDict(
+        extra="forbid",  # Catch typos in field names
+        str_strip_whitespace=True,  # Automatically strip whitespace from string fields
+    )
 
     def get_template(self, template_name: str) -> Optional[str]:
         """Get a specific template by name."""
@@ -162,7 +207,7 @@ class PromptComposer:
         }
 
         # Cast to TemplateVariables - this is safe because we've filtered the keys
-        return filtered_variables  # type: ignore
+        return filtered_variables  # type: ignore[return-value]
 
     def compose_refiner_prompt(self, config: RefinerConfig) -> ComposedPrompt:
         """

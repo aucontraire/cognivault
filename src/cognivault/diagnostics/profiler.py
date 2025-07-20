@@ -12,7 +12,7 @@ import json
 import psutil
 import threading
 from typing import Dict, List, Optional, Any, TYPE_CHECKING
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,50 +40,122 @@ except ImportError:
         LangGraphOrchestrator = None
 
 
-@dataclass
-class PerformanceMetric:
+class PerformanceMetric(BaseModel):
     """Individual performance metric measurement."""
 
-    name: str
-    value: float
-    unit: str
-    timestamp: datetime
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    name: str = Field(..., description="Name of the performance metric")
+    value: float = Field(..., description="Numeric value of the metric")
+    unit: str = Field(..., description="Unit of measurement")
+    timestamp: datetime = Field(..., description="When the metric was recorded")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata for the metric"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "name": self.name,
+            "value": self.value,
+            "unit": self.unit,
+            "timestamp": self.timestamp.isoformat(),
+            "metadata": self.metadata,
+        }
 
 
-@dataclass
-class ExecutionProfile:
+class ExecutionProfile(BaseModel):
     """Detailed execution profile for a single run."""
 
-    execution_id: str
-    query: str
-    execution_mode: str
-    agents: List[str]
-    total_duration: float
-    agent_durations: Dict[str, float]
-    memory_usage: Dict[str, float]  # peak, average, final
-    cpu_usage: Dict[str, float]
-    token_usage: Dict[str, int]
-    success: bool
-    error: Optional[str] = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    context_size: int = 0
-    llm_calls: int = 0
-    cache_hits: int = 0
-    cache_misses: int = 0
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    execution_id: str = Field(..., description="Unique identifier for this execution")
+    query: str = Field(..., description="Query that was executed")
+    execution_mode: str = Field(
+        ..., description="Mode of execution (e.g., langgraph-real)"
+    )
+    agents: List[str] = Field(..., description="List of agents that participated")
+    total_duration: float = Field(
+        ..., ge=0.0, description="Total execution duration in seconds"
+    )
+    agent_durations: Dict[str, float] = Field(
+        ..., description="Per-agent execution durations"
+    )
+    memory_usage: Dict[str, float] = Field(
+        ..., description="Memory usage statistics (peak, average, final)"
+    )
+    cpu_usage: Dict[str, float] = Field(
+        ..., description="CPU usage statistics (peak, average, final)"
+    )
+    token_usage: Dict[str, int] = Field(
+        ..., description="Token usage statistics (total, input, output)"
+    )
+    success: bool = Field(..., description="Whether execution was successful")
+    error: Optional[str] = Field(None, description="Error message if execution failed")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this profile was created",
+    )
+    context_size: int = Field(default=0, ge=0, description="Size of execution context")
+    llm_calls: int = Field(default=0, ge=0, description="Number of LLM API calls made")
+    cache_hits: int = Field(default=0, ge=0, description="Number of cache hits")
+    cache_misses: int = Field(default=0, ge=0, description="Number of cache misses")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "execution_id": self.execution_id,
+            "query": self.query,
+            "execution_mode": self.execution_mode,
+            "agents": self.agents,
+            "total_duration": self.total_duration,
+            "agent_durations": self.agent_durations,
+            "memory_usage": self.memory_usage,
+            "cpu_usage": self.cpu_usage,
+            "token_usage": self.token_usage,
+            "success": self.success,
+            "error": self.error,
+            "timestamp": self.timestamp.isoformat(),
+            "context_size": self.context_size,
+            "llm_calls": self.llm_calls,
+            "cache_hits": self.cache_hits,
+            "cache_misses": self.cache_misses,
+        }
 
 
-@dataclass
-class BenchmarkSuite:
+class BenchmarkSuite(BaseModel):
     """Comprehensive benchmark suite results."""
 
-    suite_name: str
-    total_runs: int
-    execution_modes: List[str]
-    queries: List[str]
-    profiles: List[ExecutionProfile]
-    summary_stats: Dict[str, Any]
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    suite_name: str = Field(..., description="Name of the benchmark suite")
+    total_runs: int = Field(..., ge=0, description="Total number of benchmark runs")
+    execution_modes: List[str] = Field(
+        ..., description="List of execution modes tested"
+    )
+    queries: List[str] = Field(..., description="List of queries used in benchmarking")
+    profiles: List[ExecutionProfile] = Field(
+        ..., description="Collection of execution profiles from benchmark runs"
+    )
+    summary_stats: Dict[str, Any] = Field(
+        ..., description="Aggregated statistics from the benchmark suite"
+    )
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this benchmark suite was created",
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "suite_name": self.suite_name,
+            "total_runs": self.total_runs,
+            "execution_modes": self.execution_modes,
+            "queries": self.queries,
+            "profiles": [profile.to_dict() for profile in self.profiles],
+            "summary_stats": self.summary_stats,
+            "timestamp": self.timestamp.isoformat(),
+        }
 
 
 class PerformanceProfiler:

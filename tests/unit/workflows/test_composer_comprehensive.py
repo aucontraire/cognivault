@@ -751,7 +751,9 @@ class TestDagComposerValidation:
             metadata={},
         )
 
-        with pytest.raises(WorkflowCompositionError, match="Entry point is required"):
+        with pytest.raises(
+            WorkflowCompositionError, match="Flow must have an entry point"
+        ):
             self.composer._validate_workflow(workflow_def)
 
     def test_validate_workflow_entry_point_not_in_nodes(self):
@@ -781,7 +783,7 @@ class TestDagComposerValidation:
 
         with pytest.raises(
             WorkflowCompositionError,
-            match="Entry point 'nonexistent_node' not found in nodes",
+            match="Entry point 'nonexistent_node' references non-existent node",
         ):
             self.composer._validate_workflow(workflow_def)
 
@@ -818,7 +820,7 @@ class TestDagComposerValidation:
         )
 
         with pytest.raises(
-            WorkflowCompositionError, match="Edge references non-existent node"
+            WorkflowCompositionError, match="Edge .* references non-existent.*"
         ):
             self.composer._validate_workflow(workflow_def)
 
@@ -944,7 +946,7 @@ class TestDagComposerWorkflowComposition:
 
         assert isinstance(result, CompositionResult)
         assert len(result.validation_errors) > 0
-        assert "Entry point is required" in result.validation_errors[0]
+        assert "Flow must have an entry point" in result.validation_errors[0]
 
 
 class TestDagComposerFileOperations:

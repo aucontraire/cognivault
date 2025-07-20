@@ -7,10 +7,11 @@ configuration validity, and system dependencies.
 
 import asyncio
 import time
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Any, TYPE_CHECKING
+
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.agents.registry import get_agent_registry
 from cognivault.config.app_config import get_config
 
@@ -42,19 +43,31 @@ class HealthStatus(Enum):
     UNKNOWN = "unknown"
 
 
-@dataclass
-class ComponentHealth:
+class ComponentHealth(BaseModel):
     """Health information for a system component."""
 
-    name: str
-    status: HealthStatus
-    message: str
-    details: Dict[str, Any]
-    check_time: datetime
-    response_time_ms: Optional[float] = None
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+    )
+
+    name: str = Field(..., description="Component name identifier")
+    status: HealthStatus = Field(
+        ..., description="Current health status of the component"
+    )
+    message: str = Field(..., description="Human-readable status message")
+    details: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional diagnostic details and metadata"
+    )
+    check_time: datetime = Field(
+        ..., description="Timestamp when health check was performed"
+    )
+    response_time_ms: Optional[float] = Field(
+        None, ge=0.0, description="Health check response time in milliseconds"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
+        """Convert to dictionary representation for backward compatibility."""
         return {
             "name": self.name,
             "status": self.status.value,
