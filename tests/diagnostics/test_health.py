@@ -410,10 +410,18 @@ class TestHealthChecker:
         """Test overall status when all components are healthy."""
         components = {
             "comp1": ComponentHealth(
-                "comp1", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="comp1",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
             "comp2": ComponentHealth(
-                "comp2", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="comp2",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
         }
 
@@ -425,10 +433,18 @@ class TestHealthChecker:
         """Test overall status when some components are degraded."""
         components = {
             "comp1": ComponentHealth(
-                "comp1", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="comp1",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
             "comp2": ComponentHealth(
-                "comp2", HealthStatus.DEGRADED, "Issues", {}, datetime.now()
+                name="comp2",
+                status=HealthStatus.DEGRADED,
+                message="Issues",
+                details={},
+                check_time=datetime.now(),
             ),
         }
 
@@ -440,10 +456,18 @@ class TestHealthChecker:
         """Test overall status when some components are unhealthy."""
         components = {
             "comp1": ComponentHealth(
-                "comp1", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="comp1",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
             "comp2": ComponentHealth(
-                "comp2", HealthStatus.UNHEALTHY, "Failed", {}, datetime.now()
+                name="comp2",
+                status=HealthStatus.UNHEALTHY,
+                message="Failed",
+                details={},
+                check_time=datetime.now(),
             ),
         }
 
@@ -594,13 +618,25 @@ class TestHealthChecker:
         # Test all combinations to ensure unhealthy takes precedence
         components = {
             "healthy": ComponentHealth(
-                "healthy", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="healthy",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
             "degraded": ComponentHealth(
-                "degraded", HealthStatus.DEGRADED, "Issues", {}, datetime.now()
+                name="degraded",
+                status=HealthStatus.DEGRADED,
+                message="Issues",
+                details={},
+                check_time=datetime.now(),
             ),
             "unhealthy": ComponentHealth(
-                "unhealthy", HealthStatus.UNHEALTHY, "Failed", {}, datetime.now()
+                name="unhealthy",
+                status=HealthStatus.UNHEALTHY,
+                message="Failed",
+                details={},
+                check_time=datetime.now(),
             ),
         }
 
@@ -610,10 +646,18 @@ class TestHealthChecker:
         # Test degraded + healthy
         components_degraded = {
             "healthy": ComponentHealth(
-                "healthy", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="healthy",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
             "degraded": ComponentHealth(
-                "degraded", HealthStatus.DEGRADED, "Issues", {}, datetime.now()
+                name="degraded",
+                status=HealthStatus.DEGRADED,
+                message="Issues",
+                details={},
+                check_time=datetime.now(),
             ),
         }
 

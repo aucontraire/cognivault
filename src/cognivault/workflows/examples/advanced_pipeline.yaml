@@ -1,217 +1,223 @@
-workflow:
-  name: "Advanced Multi-Node Pipeline"
-  version: "1.0.0"
-  workflow_id: "advanced-pipeline-demo"
-  created_by: "cognivault-team"
-  description: "Comprehensive workflow demonstrating all 4 advanced node types with sophisticated routing"
-  tags: ["demo", "comprehensive", "advanced", "all-node-types"]
-  workflow_schema_version: "1.0.0"
+name: "Advanced Multi-Node Pipeline"
+version: "1.0.0"
+workflow_id: "advanced-pipeline-demo"
+created_by: "cognivault-team"
+description: "Comprehensive workflow demonstrating all 4 advanced node types with sophisticated routing"
+tags: ["demo", "comprehensive", "advanced", "all-node-types"]
+workflow_schema_version: "1.0.0"
+
+nodes:
+  - node_id: "entry_decision"
+    category: "ADVANCED"
+    node_type: "decision"
+    execution_pattern: "decision"
+    config:
+      criteria: ["query_complexity", "domain_expertise_required"]
+      thresholds:
+        query_complexity: "medium"
+        domain_expertise: "high"
+      decision_logic: "adaptive"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "decision"
+      pipeline_role: "entry"
+      bounded_context: "transformation"
   
-  nodes:
-    - id: "entry_decision"
-      category: "advanced"
-      type: "decision"
-      config:
-        criteria: ["query_complexity", "domain_expertise_required"]
-        thresholds:
-          query_complexity: "medium"
-          domain_expertise: "high"
-        decision_logic: "adaptive"
-      metadata:
-        cognitive_speed: "fast"
-        cognitive_depth: "shallow"
-        processing_pattern: "atomic"
-        execution_pattern: "decision"
-        pipeline_role: "entry"
-        bounded_context: "transformation"
-    
-    - id: "refiner_prep"
-      category: "base"
-      type: "processor"
-      config:
-        agent_type: "refiner"
-      metadata:
-        cognitive_speed: "fast"
-        cognitive_depth: "shallow"
-        processing_pattern: "atomic"
-        execution_pattern: "processor"
-        pipeline_role: "intermediate"
-        bounded_context: "transformation"
-    
-    - id: "parallel_historian"
-      category: "base"
-      type: "processor"
-      config:
-        agent_type: "historian"
-      metadata:
-        cognitive_speed: "slow"
-        cognitive_depth: "deep"
-        processing_pattern: "atomic"
-        execution_pattern: "processor"
-        pipeline_role: "intermediate"
-        bounded_context: "retrieval"
-    
-    - id: "parallel_critic"
-      category: "base"
-      type: "processor"
-      config:
-        agent_type: "critic"
-      metadata:
-        cognitive_speed: "slow"
-        cognitive_depth: "deep"
-        processing_pattern: "atomic"
-        execution_pattern: "processor"
-        pipeline_role: "intermediate"
-        bounded_context: "reflection"
-    
-    - id: "intelligent_aggregator"
-      category: "advanced"
-      type: "aggregator"
-      config:
-        strategy: "weighted_consensus"
-        weights:
-          historian: 0.4
-          critic: 0.6
-        threshold: 0.75
-        conflict_resolution: "expert_priority"
-      metadata:
-        cognitive_speed: "slow"
-        cognitive_depth: "deep"
-        processing_pattern: "composite"
-        execution_pattern: "aggregator"
-        pipeline_role: "intermediate"
-        bounded_context: "transformation"
-    
-    - id: "quality_gate"
-      category: "advanced"
-      type: "validator"
-      config:
-        criteria: ["content_quality", "completeness", "coherence"]
-        quality_thresholds:
-          content_quality: 0.8
-          completeness: 0.9
-          coherence: 0.7
-        validation_mode: "comprehensive"
-        retry_on_failure: true
-        max_retries: 2
-      metadata:
-        cognitive_speed: "fast"
-        cognitive_depth: "shallow"
-        processing_pattern: "atomic"
-        execution_pattern: "validator"
-        pipeline_role: "intermediate"
-        bounded_context: "reflection"
-    
-    - id: "confidence_terminator"
-      category: "advanced"
-      type: "terminator"
-      config:
-        criteria: ["confidence_threshold", "quality_gate", "resource_limits"]
-        thresholds:
-          confidence_threshold: 0.85
-          max_execution_time: 30
-          resource_usage: 0.8
-        termination_strategy: "early_success"
-      metadata:
-        cognitive_speed: "fast"
-        cognitive_depth: "shallow"
-        processing_pattern: "atomic"
-        execution_pattern: "terminator"
-        pipeline_role: "terminal"
-        bounded_context: "transformation"
-    
-    - id: "synthesis_fallback"
-      category: "base"
-      type: "processor"
-      config:
-        agent_type: "synthesis"
-      metadata:
-        cognitive_speed: "slow"
-        cognitive_depth: "deep"
-        processing_pattern: "composite"
-        execution_pattern: "processor"
-        pipeline_role: "terminal"
-        bounded_context: "transformation"
+  - node_id: "refiner_prep"
+    category: "BASE"
+    node_type: "refiner"
+    execution_pattern: "processor"
+    config:
+      agent_type: "refiner"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
   
-  flow:
-    start_node: "entry_decision"
-    edges:
-      # Entry decision routing
-      - from_node: "entry_decision"
-        to_node: "refiner_prep"
-        condition: "simple_query"
-        metadata_filters:
-          query_complexity: "low"
-      
-      - from_node: "entry_decision"
-        to_node: "parallel_historian"
-        condition: "complex_query"
-        metadata_filters:
-          query_complexity: "high"
-          domain_expertise: "required"
-      
-      # Parallel processing branch
-      - from_node: "refiner_prep"
-        to_node: "parallel_historian"
-        condition: "refined_ready"
-      
-      - from_node: "refiner_prep"
-        to_node: "parallel_critic"
-        condition: "refined_ready"
-      
-      # Aggregation
-      - from_node: "parallel_historian"
-        to_node: "intelligent_aggregator"
-        condition: "completion"
-      
-      - from_node: "parallel_critic"
-        to_node: "intelligent_aggregator"
-        condition: "completion"
-      
-      # Quality validation
-      - from_node: "intelligent_aggregator"
-        to_node: "quality_gate"
-        condition: "aggregation_success"
-        next_node_if: "confidence_terminator"
-        failover_node: "synthesis_fallback"
-      
-      # Early termination or fallback
-      - from_node: "quality_gate"
-        to_node: "confidence_terminator"
-        condition: "quality_passed"
-        next_node_if: "confidence_terminator"
-        failover_node: "synthesis_fallback"
-      
-      - from_node: "quality_gate"
-        to_node: "synthesis_fallback"
-        condition: "quality_failed"
-        metadata_filters:
-          retry_count: "exceeded"
-    
-    end_conditions: ["confidence_terminator", "synthesis_fallback"]
-    
-    conditional_routing:
-      entry_decision:
-        simple_query: "query_complexity == 'low' and domain_expertise != 'required'"
-        complex_query: "query_complexity in ['medium', 'high'] or domain_expertise == 'required'"
-      
-      parallel_execution:
-        wait_for_all: "parallel_historian AND parallel_critic"
-        success_condition: "both_completed_successfully"
-      
-      quality_validation:
-        quality_passed: "all_criteria_met and confidence > 0.8"
-        quality_failed: "any_criteria_failed or retry_count > max_retries"
-      
-      termination_logic:
-        early_success: "confidence > 0.85 and quality_score > 0.8"
-        fallback_required: "confidence < 0.7 or quality_failed"
+  - node_id: "parallel_historian"
+    category: "BASE"
+    node_type: "historian"
+    execution_pattern: "processor"
+    config:
+      agent_type: "historian"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "retrieval"
   
-  metadata:
-    example_type: "comprehensive_advanced"
-    complexity_level: "advanced"
-    estimated_execution_time: "15-30 seconds"
-    use_cases: ["comprehensive_analysis", "quality_assured_output", "adaptive_processing"]
-    features: ["decision_routing", "parallel_processing", "quality_gates", "early_termination"]
-    node_types_used: ["decision", "aggregator", "validator", "terminator", "processor"]
-    routing_complexity: "high"
+  - node_id: "parallel_critic"
+    category: "BASE"
+    node_type: "critic"
+    execution_pattern: "processor"
+    config:
+      agent_type: "critic"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "atomic"
+      execution_pattern: "processor"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+  
+  - node_id: "intelligent_aggregator"
+    category: "ADVANCED"
+    node_type: "aggregator"
+    execution_pattern: "aggregator"
+    config:
+      strategy: "weighted_consensus"
+      weights:
+        historian: 0.4
+        critic: 0.6
+      threshold: 0.75
+      conflict_resolution: "expert_priority"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "aggregator"
+      pipeline_role: "intermediate"
+      bounded_context: "transformation"
+  
+  - node_id: "quality_gate"
+    category: "ADVANCED"
+    node_type: "validator"
+    execution_pattern: "validator"
+    config:
+      criteria: ["content_quality", "completeness", "coherence"]
+      quality_thresholds:
+        content_quality: 0.8
+        completeness: 0.9
+        coherence: 0.7
+      validation_mode: "comprehensive"
+      retry_on_failure: true
+      max_retries: 2
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "validator"
+      pipeline_role: "intermediate"
+      bounded_context: "reflection"
+  
+  - node_id: "confidence_terminator"
+    category: "ADVANCED"
+    node_type: "terminator"
+    execution_pattern: "terminator"
+    config:
+      criteria: ["confidence_threshold", "quality_gate", "resource_limits"]
+      thresholds:
+        confidence_threshold: 0.85
+        max_execution_time: 30
+        resource_usage: 0.8
+      termination_strategy: "early_success"
+    metadata:
+      cognitive_speed: "fast"
+      cognitive_depth: "shallow"
+      processing_pattern: "atomic"
+      execution_pattern: "terminator"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+  
+  - node_id: "synthesis_fallback"
+    category: "BASE"
+    node_type: "synthesis"
+    execution_pattern: "processor"
+    config:
+      agent_type: "synthesis"
+    metadata:
+      cognitive_speed: "slow"
+      cognitive_depth: "deep"
+      processing_pattern: "composite"
+      execution_pattern: "processor"
+      pipeline_role: "terminal"
+      bounded_context: "transformation"
+
+flow:
+  entry_point: "entry_decision"
+  terminal_nodes: ["confidence_terminator", "synthesis_fallback"]
+  edges:
+    # Entry decision routing
+    - from_node: "entry_decision"
+      to_node: "refiner_prep"
+      condition: "simple_query"
+      metadata_filters:
+        query_complexity: "low"
+    
+    - from_node: "entry_decision"
+      to_node: "parallel_historian"
+      condition: "complex_query"
+      metadata_filters:
+        query_complexity: "high"
+        domain_expertise: "required"
+    
+    # Parallel processing branch
+    - from_node: "refiner_prep"
+      to_node: "parallel_historian"
+      condition: "refined_ready"
+    
+    - from_node: "refiner_prep"
+      to_node: "parallel_critic"
+      condition: "refined_ready"
+    
+    # Aggregation
+    - from_node: "parallel_historian"
+      to_node: "intelligent_aggregator"
+      condition: "completion"
+    
+    - from_node: "parallel_critic"
+      to_node: "intelligent_aggregator"
+      condition: "completion"
+    
+    # Quality validation
+    - from_node: "intelligent_aggregator"
+      to_node: "quality_gate"
+      condition: "aggregation_success"
+      next_node_if: "confidence_terminator"
+      failover_node: "synthesis_fallback"
+    
+    # Early termination or fallback
+    - from_node: "quality_gate"
+      to_node: "confidence_terminator"
+      condition: "quality_passed"
+      next_node_if: "confidence_terminator"
+      failover_node: "synthesis_fallback"
+    
+    - from_node: "quality_gate"
+      to_node: "synthesis_fallback"
+      condition: "quality_failed"
+      metadata_filters:
+        retry_count: "exceeded"
+  
+  conditional_routing:
+    entry_decision:
+      simple_query: "query_complexity == 'low' and domain_expertise != 'required'"
+      complex_query: "query_complexity in ['medium', 'high'] or domain_expertise == 'required'"
+    
+    parallel_execution:
+      wait_for_all: "parallel_historian AND parallel_critic"
+      success_condition: "both_completed_successfully"
+    
+    quality_validation:
+      quality_passed: "all_criteria_met and confidence > 0.8"
+      quality_failed: "any_criteria_failed or retry_count > max_retries"
+    
+    termination_logic:
+      early_success: "confidence > 0.85 and quality_score > 0.8"
+      fallback_required: "confidence < 0.7 or quality_failed"
+
+metadata:
+  example_type: "comprehensive_advanced"
+  complexity_level: "advanced"
+  estimated_execution_time: "15-30 seconds"
+  use_cases: ["comprehensive_analysis", "quality_assured_output", "adaptive_processing"]
+  features: ["decision_routing", "parallel_processing", "quality_gates", "early_termination"]
+  node_types_used: ["decision", "aggregator", "validator", "terminator", "processor"]
+  routing_complexity: "high"

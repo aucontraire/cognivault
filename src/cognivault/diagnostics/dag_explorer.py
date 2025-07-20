@@ -9,7 +9,7 @@ import asyncio
 import json
 import time
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 import typer
@@ -44,33 +44,90 @@ class ExplorationMode(Enum):
     PATTERNS = "patterns"
 
 
-@dataclass
-class DAGNode:
+class NodeInfo(BaseModel):
     """Represents a node in the DAG for exploration."""
 
-    name: str
-    type: str
-    agent_class: Optional[str] = None
-    dependencies: List[str] = field(default_factory=list)
-    dependents: List[str] = field(default_factory=list)
-    execution_time: Optional[float] = None
-    success_rate: Optional[float] = None
-    pattern: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    name: str = Field(..., description="Name of the DAG node")
+    type: str = Field(
+        ..., description="Type of node (e.g., agent, decision, aggregator)"
+    )
+    agent_class: Optional[str] = Field(
+        None, description="Associated agent class if applicable"
+    )
+    dependencies: List[str] = Field(
+        default_factory=list, description="List of nodes this node depends on"
+    )
+    dependents: List[str] = Field(
+        default_factory=list, description="List of nodes that depend on this node"
+    )
+    execution_time: Optional[float] = Field(
+        None, ge=0.0, description="Average execution time in seconds"
+    )
+    success_rate: Optional[float] = Field(
+        None, ge=0.0, le=1.0, description="Success rate (0.0-1.0)"
+    )
+    pattern: Optional[str] = Field(
+        None, description="Graph pattern this node belongs to"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata for the node"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "name": self.name,
+            "type": self.type,
+            "agent_class": self.agent_class,
+            "dependencies": self.dependencies,
+            "dependents": self.dependents,
+            "execution_time": self.execution_time,
+            "success_rate": self.success_rate,
+            "pattern": self.pattern,
+            "metadata": self.metadata,
+        }
 
 
-@dataclass
-class DAGExecution:
+class ExplorerState(BaseModel):
     """Represents a DAG execution trace for analysis."""
 
-    execution_id: str
-    nodes_executed: List[str]
-    execution_path: List[Tuple[str, str]]  # (from_node, to_node)
-    timing_data: Dict[str, float]
-    conditional_decisions: Dict[str, Any]
-    total_duration: float
-    success: bool
-    error_node: Optional[str] = None
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    execution_id: str = Field(..., description="Unique identifier for this execution")
+    nodes_executed: List[str] = Field(
+        ..., description="List of nodes that were executed"
+    )
+    execution_path: List[Tuple[str, str]] = Field(
+        ..., description="Execution path as (from_node, to_node) tuples"
+    )
+    timing_data: Dict[str, float] = Field(
+        ..., description="Timing data for each node execution"
+    )
+    conditional_decisions: Dict[str, Any] = Field(
+        ..., description="Conditional routing decisions made during execution"
+    )
+    total_duration: float = Field(
+        ..., ge=0.0, description="Total execution duration in seconds"
+    )
+    success: bool = Field(..., description="Whether execution was successful")
+    error_node: Optional[str] = Field(
+        None, description="Node where error occurred if execution failed"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "execution_id": self.execution_id,
+            "nodes_executed": self.nodes_executed,
+            "execution_path": self.execution_path,
+            "timing_data": self.timing_data,
+            "conditional_decisions": self.conditional_decisions,
+            "total_duration": self.total_duration,
+            "success": self.success,
+            "error_node": self.error_node,
+        }
 
 
 class InteractiveDAGExplorer:
@@ -84,8 +141,8 @@ class InteractiveDAGExplorer:
         else:
             self.graph_factory = None
         self.current_graph = None
-        self.current_nodes: Dict[str, DAGNode] = {}
-        self.execution_history: List[DAGExecution] = []
+        self.current_nodes: Dict[str, NodeInfo] = {}
+        self.execution_history: List[ExplorerState] = []
 
     def create_app(self) -> typer.Typer:
         """Create the DAG explorer CLI application."""
@@ -392,15 +449,33 @@ class InteractiveDAGExplorer:
         # This would need to be implemented based on the actual LangGraph structure
         # For now, create a simplified representation
         self.current_nodes = {
-            "refiner": DAGNode("refiner", "agent", "RefinerAgent", [], ["critic"]),
-            "critic": DAGNode(
-                "critic", "agent", "CriticAgent", ["refiner"], ["synthesis"]
+            "refiner": NodeInfo(
+                name="refiner",
+                type="agent",
+                agent_class="RefinerAgent",
+                dependencies=[],
+                dependents=["critic"],
             ),
-            "historian": DAGNode(
-                "historian", "agent", "HistorianAgent", [], ["synthesis"]
+            "critic": NodeInfo(
+                name="critic",
+                type="agent",
+                agent_class="CriticAgent",
+                dependencies=["refiner"],
+                dependents=["synthesis"],
             ),
-            "synthesis": DAGNode(
-                "synthesis", "agent", "SynthesisAgent", ["critic", "historian"], []
+            "historian": NodeInfo(
+                name="historian",
+                type="agent",
+                agent_class="HistorianAgent",
+                dependencies=[],
+                dependents=["synthesis"],
+            ),
+            "synthesis": NodeInfo(
+                name="synthesis",
+                type="agent",
+                agent_class="SynthesisAgent",
+                dependencies=["critic", "historian"],
+                dependents=[],
             ),
         }
 
@@ -469,7 +544,7 @@ class InteractiveDAGExplorer:
 
     async def _execute_and_trace(
         self, orchestrator: "LangGraphOrchestrator", query: str
-    ) -> DAGExecution:
+    ) -> ExplorerState:
         """Execute query and capture detailed trace."""
         start_time = time.time()
         execution_id = f"exec_{int(start_time)}"
@@ -478,7 +553,7 @@ class InteractiveDAGExplorer:
             # This would need real integration with orchestrator tracing
             context = await orchestrator.run(query)
 
-            execution = DAGExecution(
+            execution = ExplorerState(
                 execution_id=execution_id,
                 nodes_executed=list(context.agent_outputs.keys()),
                 execution_path=[],
@@ -491,7 +566,7 @@ class InteractiveDAGExplorer:
             return execution
 
         except Exception:
-            return DAGExecution(
+            return ExplorerState(
                 execution_id=execution_id,
                 nodes_executed=[],
                 execution_path=[],
@@ -502,7 +577,7 @@ class InteractiveDAGExplorer:
                 error_node="unknown",
             )
 
-    def _display_execution_trace(self, execution: DAGExecution):
+    def _display_execution_trace(self, execution: ExplorerState):
         """Display execution trace results."""
         panel = Panel(
             f"Execution ID: {execution.execution_id}\n"

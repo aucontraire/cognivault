@@ -1,0 +1,184 @@
+name: Academic Research Pipeline
+version: 1.0.0
+workflow_id: academic-research-config-demo
+created_by: cognivault-phase2
+description: Demonstrates configurable agent behavior for academic research workflows
+tags:
+- academic
+- research
+- configuration
+- domain-specific
+workflow_schema_version: 1.0.0
+nodes:
+- category: BASE
+  config:
+    agent_type: refiner
+    refinement_level: detailed
+    behavioral_mode: active
+    output_format: structured
+    prompt_config:
+      custom_system_prompt: You are an expert academic research assistant specializing
+        in scholarly inquiry. Your role is to refine research questions with precision,
+        ensuring they meet academic standards and contribute meaningfully to the field
+        of study.
+      template_variables:
+        domain: academic_research
+        methodology: systematic_inquiry
+    behavioral_config:
+      custom_constraints:
+      - preserve_technical_terminology
+      - maintain_academic_tone
+      - cite_relevant_methodologies
+      - ensure_research_rigor
+      fallback_mode: adaptive
+    output_config:
+      format_preference: structured
+      include_confidence: true
+      metadata_inclusion: comprehensive
+  metadata:
+    cognitive_speed: slow
+    cognitive_depth: deep
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: entry
+    bounded_context: transformation
+  node_id: academic_refiner
+  node_type: processor
+- category: BASE
+  config:
+    agent_type: historian
+    search_depth: comprehensive
+    relevance_threshold: 0.8
+    context_expansion: broad
+    memory_scope: domain_specific
+    prompt_config:
+      custom_system_prompt: You are a scholarly research historian with expertise
+        in academic literature and research methodologies. Your task is to retrieve
+        and contextualize relevant academic sources, prior research, and theoretical
+        frameworks.
+    behavioral_config:
+      custom_constraints:
+      - prioritize_peer_reviewed_sources
+      - include_theoretical_frameworks
+      - maintain_citation_standards
+      - cross_reference_methodologies
+      fallback_mode: comprehensive
+    execution_config:
+      timeout_seconds: 45
+      retry_count: 3
+      cache_results: true
+  metadata:
+    cognitive_speed: slow
+    cognitive_depth: deep
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: intermediate
+    bounded_context: retrieval
+  node_id: research_historian
+  node_type: processor
+- category: BASE
+  config:
+    agent_type: critic
+    analysis_depth: deep
+    confidence_reporting: true
+    bias_detection: true
+    scoring_criteria:
+    - academic_rigor
+    - methodological_soundness
+    - theoretical_grounding
+    - empirical_validity
+    - contribution_significance
+    prompt_config:
+      custom_system_prompt: You are a rigorous academic peer reviewer with expertise
+        in research methodology and scholarly evaluation. Assess the academic merit,
+        methodological soundness, and theoretical contributions with the standards
+        expected in peer review.
+    behavioral_config:
+      custom_constraints:
+      - apply_peer_review_standards
+      - evaluate_methodological_rigor
+      - assess_theoretical_contribution
+      - identify_research_gaps
+      - ensure_ethical_considerations
+      fallback_mode: strict
+    output_config:
+      format_preference: detailed_analysis
+      include_confidence: true
+      include_improvement_suggestions: true
+  metadata:
+    cognitive_speed: slow
+    cognitive_depth: deep
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: intermediate
+    bounded_context: reflection
+  node_id: academic_critic
+  node_type: processor
+- category: BASE
+  config:
+    agent_type: synthesis
+    synthesis_strategy: comprehensive_integration
+    thematic_focus: academic_contribution
+    meta_analysis: true
+    integration_mode: scholarly_synthesis
+    prompt_config:
+      custom_system_prompt: You are an expert academic synthesizer who integrates
+        research findings into coherent scholarly contributions. Your synthesis should
+        demonstrate deep understanding of the field while identifying novel insights
+        and research directions.
+    behavioral_config:
+      custom_constraints:
+      - maintain_scholarly_voice
+      - integrate_theoretical_perspectives
+      - identify_research_implications
+      - suggest_future_directions
+      - ensure_academic_formatting
+      fallback_mode: comprehensive
+    output_config:
+      format_preference: academic_paper_style
+      include_confidence: true
+      include_citations: true
+      metadata_inclusion: full
+  metadata:
+    cognitive_speed: slow
+    cognitive_depth: deep
+    processing_pattern: composite
+    execution_pattern: processor
+    pipeline_role: terminal
+    bounded_context: transformation
+  node_id: synthesis_scholar
+  node_type: processor
+flow:
+  edges:
+  - from_node: academic_refiner
+    to_node: research_historian
+    condition: refinement_complete
+  - from_node: research_historian
+    to_node: academic_critic
+    condition: context_retrieved
+  - from_node: academic_critic
+    to_node: synthesis_scholar
+    condition: analysis_complete
+  entry_point: academic_refiner
+  terminal_nodes:
+  - synthesis_scholar
+metadata:
+  domain: academic_research
+  complexity_level: high
+  estimated_execution_time: 45-60 seconds
+  use_cases:
+  - dissertation_research
+  - literature_review
+  - research_proposal_development
+  - grant_application_support
+  configuration_features:
+  - domain_specific_prompts
+  - academic_terminology_preservation
+  - peer_review_standards
+  - scholarly_formatting
+  - comprehensive_analysis_depth
+  agent_behaviors:
+    refiner: detailed_academic_refinement
+    historian: comprehensive_source_retrieval
+    critic: peer_review_evaluation
+    synthesis: scholarly_integration

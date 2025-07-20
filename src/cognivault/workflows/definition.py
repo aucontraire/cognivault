@@ -4,15 +4,18 @@ Declarative workflow definition schema for CogniVault DAG workflows.
 This module provides the core data models for defining sophisticated DAG workflows
 with advanced node types, conditional routing, and ecosystem-ready metadata.
 Supports workflow versioning, attribution, and plugin architecture foundation.
+
+Uses Pydantic for robust validation, automatic serialization, and schema generation.
 """
 
 import json
 import uuid
 import yaml
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union
+
+from pydantic import BaseModel, Field
 
 # from cognivault.agents.metadata import AgentMetadata  # Commented out to avoid circular imports
 
@@ -39,8 +42,7 @@ class BaseNodeType(str, Enum):
     PROCESSOR = "processor"  # Refiner, Historian, Critic, Synthesis agents
 
 
-@dataclass
-class EdgeDefinition:
+class EdgeDefinition(BaseModel):
     """
     Definition of an edge between workflow nodes with sophisticated conditional routing.
 
@@ -50,12 +52,23 @@ class EdgeDefinition:
 
     from_node: str
     to_node: str
-    edge_type: str = "sequential"  # Edge type (sequential, conditional, parallel)
-    condition: Optional[str] = None  # Conditional routing logic expression
-    next_node_if: Optional[str] = None  # Success path routing
-    failover_node: Optional[str] = None  # Failure path routing
-    metadata: Dict[str, Any] = field(default_factory=dict)  # Edge metadata
-    metadata_filters: Optional[Dict[str, Any]] = None  # Classification-based routing
+    edge_type: str = Field(
+        default="sequential",
+        description="Edge type (sequential, conditional, parallel)",
+    )
+    condition: Optional[str] = Field(
+        default=None, description="Conditional routing logic expression"
+    )
+    next_node_if: Optional[str] = Field(
+        default=None, description="Success path routing"
+    )
+    failover_node: Optional[str] = Field(
+        default=None, description="Failure path routing"
+    )
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Edge metadata")
+    metadata_filters: Optional[Dict[str, Any]] = Field(
+        default=None, description="Classification-based routing"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation for serialization."""
@@ -71,8 +84,7 @@ class EdgeDefinition:
         }
 
 
-@dataclass
-class FlowDefinition:
+class FlowDefinition(BaseModel):
     """
     Sophisticated flow definition with conditional routing and metadata awareness.
 
@@ -82,8 +94,10 @@ class FlowDefinition:
 
     entry_point: str
     edges: List[EdgeDefinition]
-    terminal_nodes: List[str] = field(default_factory=list)
-    conditional_routing: Optional[Dict[str, Any]] = None  # Advanced routing logic
+    terminal_nodes: List[str] = Field(default_factory=list)
+    conditional_routing: Optional[Dict[str, Any]] = Field(
+        default=None, description="Advanced routing logic"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation for serialization."""
@@ -95,8 +109,7 @@ class FlowDefinition:
         }
 
 
-@dataclass
-class NodeConfiguration:
+class NodeConfiguration(BaseModel):
     """
     Node configuration with clear taxonomy and classification filters.
 
@@ -105,14 +118,18 @@ class NodeConfiguration:
     """
 
     node_id: str
-    node_type: str  # Node type as string for flexibility
-    category: str  # Category as string ("BASE" or "ADVANCED")
-    execution_pattern: str = "processor"  # Execution pattern
-    config: Dict[str, Any] = field(default_factory=dict)  # Type-specific configuration
-    metadata: Dict[str, Any] = field(
-        default_factory=dict
-    )  # Multi-axis classification metadata
-    classification_filters: Optional[Dict[str, Any]] = None  # Metadata-aware routing
+    node_type: str = Field(description="Node type as string for flexibility")
+    category: str = Field(description="Category as string (BASE or ADVANCED)")
+    execution_pattern: str = Field(default="processor", description="Execution pattern")
+    config: Dict[str, Any] = Field(
+        default_factory=dict, description="Type-specific configuration"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Multi-axis classification metadata"
+    )
+    classification_filters: Optional[Dict[str, Any]] = Field(
+        default=None, description="Metadata-aware routing"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation for serialization."""
@@ -127,47 +144,42 @@ class NodeConfiguration:
         }
 
 
-@dataclass
-class ExecutionConfiguration:
+class ExecutionConfiguration(BaseModel):
     """Configuration for workflow execution settings."""
 
-    mode: str = "langgraph"
-    enable_checkpoints: bool = False
-    enable_simulation_delay: bool = False
-    parallel_execution: bool = True
+    mode: str = Field(default="langgraph")
+    enable_checkpoints: bool = Field(default=False)
+    enable_simulation_delay: bool = Field(default=False)
+    parallel_execution: bool = Field(default=True)
 
 
-@dataclass
-class OutputConfiguration:
+class OutputConfiguration(BaseModel):
     """Configuration for workflow output formatting."""
 
-    format: str = "markdown"
-    include_metadata: bool = False
-    include_execution_time: bool = True
-    include_sources: bool = False
-    sections: Dict[str, Any] = field(default_factory=dict)
+    format: str = Field(default="markdown")
+    include_metadata: bool = Field(default=False)
+    include_execution_time: bool = Field(default=True)
+    include_sources: bool = Field(default=False)
+    sections: Dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass
-class QualityGates:
+class QualityGates(BaseModel):
     """Quality gates and validation criteria for workflow execution."""
 
-    min_confidence: float = 0.7
-    max_execution_time: str = "5m"
-    required_sections: List[str] = field(default_factory=list)
+    min_confidence: float = Field(default=0.7)
+    max_execution_time: str = Field(default="5m")
+    required_sections: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class ResourceLimits:
+class ResourceLimits(BaseModel):
     """Resource limits for workflow execution."""
 
-    timeout: str = "10m"
-    max_llm_calls: int = 20
-    max_context_size: str = "8k"
+    timeout: str = Field(default="10m")
+    max_llm_calls: int = Field(default=20)
+    max_context_size: str = Field(default="8k")
 
 
-@dataclass
-class WorkflowDefinition:
+class WorkflowDefinition(BaseModel):
     """
     Ecosystem-ready workflow definition with versioning, attribution, and sharing contracts.
 
@@ -184,26 +196,30 @@ class WorkflowDefinition:
 
     name: str
     version: str
-    workflow_id: str  # Unique identifier for ecosystem
+    workflow_id: str = Field(description="Unique identifier for ecosystem")
     nodes: List[NodeConfiguration]
     flow: FlowDefinition
     # Optional fields with defaults for backward compatibility
-    created_by: str = "unknown"  # Creator attribution
-    created_at: Optional[datetime] = None  # Creation timestamp
-    description: Optional[str] = None  # Human-readable description
-    tags: List[str] = field(default_factory=list)  # Categorization
-    workflow_schema_version: str = "1.0.0"  # Forward compatibility
-    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
+    created_by: str = Field(default="unknown", description="Creator attribution")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Creation timestamp",
+    )
+    description: Optional[str] = Field(
+        default=None, description="Human-readable description"
+    )
+    tags: List[str] = Field(default_factory=list, description="Categorization")
+    workflow_schema_version: str = Field(
+        default="1.0.0", description="Forward compatibility"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
     # Rich configuration options
-    execution: Optional[ExecutionConfiguration] = None
-    output: Optional[OutputConfiguration] = None
-    quality_gates: Optional[QualityGates] = None
-    resources: Optional[ResourceLimits] = None
-
-    def __post_init__(self):
-        """Set default created_at if not provided."""
-        if self.created_at is None:
-            self.created_at = datetime.now(timezone.utc)
+    execution: Optional[ExecutionConfiguration] = Field(default=None)
+    output: Optional[OutputConfiguration] = Field(default=None)
+    quality_gates: Optional[QualityGates] = Field(default=None)
+    resources: Optional[ResourceLimits] = Field(default=None)
 
     @classmethod
     def create(
@@ -465,7 +481,7 @@ class WorkflowDefinition:
         # Handle optional fields with defaults
         created_by = data.get("created_by", "unknown")
         created_at_str = data.get("created_at")
-        created_at = None
+        created_at = datetime.now(timezone.utc)  # Default to current time
         if created_at_str:
             try:
                 created_at = datetime.fromisoformat(

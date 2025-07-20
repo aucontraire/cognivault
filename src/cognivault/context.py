@@ -5,7 +5,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any, Set
 from copy import deepcopy
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from .config.app_config import get_config
 from .exceptions import StateTransitionError
 
@@ -15,16 +15,42 @@ logger = logging.getLogger(__name__)
 class ContextSnapshot(BaseModel):
     """Immutable snapshot of context state for rollback capabilities."""
 
-    context_id: str
-    timestamp: str
-    query: str
-    agent_outputs: Dict[str, Any]
-    retrieved_notes: Optional[List[str]]
-    user_config: Dict[str, Any]
-    final_synthesis: Optional[str]
-    agent_trace: Dict[str, List[Dict[str, Any]]]
-    size_bytes: int
-    compressed: bool = False
+    context_id: str = Field(
+        description="Context ID this snapshot belongs to", min_length=1
+    )
+    timestamp: str = Field(description="ISO timestamp when snapshot was created")
+    query: str = Field(description="Query at time of snapshot")
+    agent_outputs: Dict[str, Any] = Field(
+        description="Agent outputs at time of snapshot"
+    )
+    retrieved_notes: Optional[List[str]] = Field(
+        default=None, description="Retrieved notes at time of snapshot"
+    )
+    user_config: Dict[str, Any] = Field(
+        description="User configuration at time of snapshot"
+    )
+    final_synthesis: Optional[str] = Field(
+        default=None, description="Final synthesis at time of snapshot"
+    )
+    agent_trace: Dict[str, List[Dict[str, Any]]] = Field(
+        description="Agent trace at time of snapshot"
+    )
+    size_bytes: int = Field(
+        ge=0, description="Size of context in bytes at time of snapshot"
+    )
+    compressed: bool = Field(
+        default=False, description="Whether snapshot data is compressed"
+    )
+
+    @field_validator("timestamp")
+    @classmethod
+    def validate_timestamp_format(cls, v: str) -> str:
+        """Validate timestamp is in ISO format."""
+        try:
+            datetime.fromisoformat(v.replace("Z", "+00:00"))
+            return v
+        except ValueError:
+            raise ValueError(f"Invalid timestamp format: {v}. Must be ISO format.")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert snapshot to dictionary for serialization."""
@@ -78,9 +104,14 @@ class ContextCompressionManager:
         truncated = {}
         for key, value in outputs.items():
             if isinstance(value, str) and len(value) > max_size:
-                truncated[key] = (
-                    value[:max_size] + f"... [truncated {len(value) - max_size} chars]"
-                )
+                # Calculate actual truncated size to account for the message
+                message = f"... [truncated {len(value) - max_size} chars]"
+                actual_content_size = max_size - len(message)
+                if actual_content_size > 0:
+                    truncated[key] = value[:actual_content_size] + message
+                else:
+                    # If max_size is too small, just show the truncation message
+                    truncated[key] = f"[truncated {len(value)} chars]"
             else:
                 truncated[key] = value
         return truncated
@@ -98,51 +129,132 @@ class AgentContext(BaseModel):
     - Success/failure tracking for conditional execution logic
     """
 
-    query: str
-    retrieved_notes: Optional[List[str]] = []
-    agent_outputs: Dict[str, Any] = Field(default_factory=dict)
-    user_config: Dict[str, Any] = Field(default_factory=dict)
-    final_synthesis: Optional[str] = None
-    agent_trace: Dict[str, List[Dict[str, Any]]] = Field(default_factory=dict)
+    query: str = Field(description="The user's query or question to be processed")
+    retrieved_notes: Optional[List[str]] = Field(
+        default_factory=list, description="Notes retrieved from memory or context"
+    )
+    agent_outputs: Dict[str, Any] = Field(
+        default_factory=dict, description="Output from each agent execution"
+    )
+    user_config: Dict[str, Any] = Field(
+        default_factory=dict, description="User-specific configuration settings"
+    )
+    final_synthesis: Optional[str] = Field(
+        default=None, description="Final synthesized result"
+    )
+    agent_trace: Dict[str, List[Dict[str, Any]]] = Field(
+        default_factory=dict, description="Execution trace for each agent"
+    )
 
     # Context management attributes
     context_id: str = Field(
         default_factory=lambda: hashlib.md5(str(datetime.now()).encode()).hexdigest()[
             :8
-        ]
+        ],
+        description="Unique identifier for this context instance",
+        min_length=1,
+        max_length=50,
     )
-    snapshots: List[ContextSnapshot] = Field(default_factory=list)
-    current_size: int = 0
+    snapshots: List[ContextSnapshot] = Field(
+        default_factory=list, description="List of context snapshots for rollback"
+    )
+    current_size: int = Field(
+        default=0, ge=0, description="Current context size in bytes"
+    )
 
     # LangGraph-compatible execution state tracking
-    execution_state: Dict[str, Any] = Field(default_factory=dict)
+    execution_state: Dict[str, Any] = Field(
+        default_factory=dict, description="Dynamic execution state data"
+    )
     agent_execution_status: Dict[str, str] = Field(
-        default_factory=dict
-    )  # pending, running, completed, failed
-    successful_agents: Set[str] = Field(default_factory=set)
-    failed_agents: Set[str] = Field(default_factory=set)
-    agent_dependencies: Dict[str, List[str]] = Field(default_factory=dict)
+        default_factory=dict,
+        description="Agent execution status mapping (pending, running, completed, failed)",
+    )
+    successful_agents: Set[str] = Field(
+        default_factory=set, description="Set of successfully completed agents"
+    )
+    failed_agents: Set[str] = Field(
+        default_factory=set, description="Set of failed agents"
+    )
+    agent_dependencies: Dict[str, List[str]] = Field(
+        default_factory=dict, description="Agent dependency mapping"
+    )
 
     # Execution path tracing for LangGraph DAG edge compatibility
-    execution_edges: List[Dict[str, Any]] = Field(default_factory=list)
-    conditional_routing: Dict[str, Any] = Field(default_factory=dict)
-    path_metadata: Dict[str, Any] = Field(default_factory=dict)
+    execution_edges: List[Dict[str, Any]] = Field(
+        default_factory=list, description="List of execution edges for DAG tracing"
+    )
+    conditional_routing: Dict[str, Any] = Field(
+        default_factory=dict, description="Conditional routing decisions"
+    )
+    path_metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Execution path metadata"
+    )
 
     # General metadata for API integration and tracing
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="General context metadata"
+    )
 
     # Success tracking for artifact export logic
-    success: bool = True
+    success: bool = Field(default=True, description="Overall execution success status")
 
     # Agent isolation tracking
     agent_mutations: Dict[str, List[str]] = Field(
-        default_factory=dict
-    )  # Track which agent modified what
+        default_factory=dict, description="Track which agent modified which fields"
+    )
     locked_fields: Set[str] = Field(
-        default_factory=set
-    )  # Fields that can't be modified
+        default_factory=set,
+        description="Fields that are locked from further modifications",
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @field_validator("query")
+    @classmethod
+    def validate_query_not_empty(cls, v: str) -> str:
+        """Validate that query is not empty or just whitespace."""
+        if not v or not v.strip():
+            raise ValueError("Query cannot be empty or just whitespace")
+        return v.strip()
+
+    @field_validator("agent_execution_status")
+    @classmethod
+    def validate_agent_status_values(cls, v: Dict[str, str]) -> Dict[str, str]:
+        """Validate that agent execution status values are valid."""
+        valid_statuses = {"pending", "running", "completed", "failed"}
+        for agent_name, status in v.items():
+            if status not in valid_statuses:
+                raise ValueError(
+                    f"Invalid agent status '{status}' for agent '{agent_name}'. Must be one of: {valid_statuses}"
+                )
+        return v
+
+    @model_validator(mode="after")
+    def validate_agent_sets_consistency(self) -> "AgentContext":
+        """Validate that successful and failed agent sets don't overlap."""
+        overlap = self.successful_agents & self.failed_agents
+        if overlap:
+            raise ValueError(f"Agents cannot be both successful and failed: {overlap}")
+
+        # Validate that agent execution status is consistent with success/failure sets
+        for agent in self.successful_agents:
+            if agent in self.agent_execution_status and self.agent_execution_status[
+                agent
+            ] not in {"completed"}:
+                raise ValueError(
+                    f"Agent '{agent}' is in successful_agents but has status '{self.agent_execution_status[agent]}'"
+                )
+
+        for agent in self.failed_agents:
+            if agent in self.agent_execution_status and self.agent_execution_status[
+                agent
+            ] not in {"failed"}:
+                raise ValueError(
+                    f"Agent '{agent}' is in failed_agents but has status '{self.agent_execution_status[agent]}'"
+                )
+
+        return self
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -438,6 +550,23 @@ class AgentContext(BaseModel):
         logger.debug(f"Cloned context {self.context_id} to {cloned.context_id}")
         return cloned
 
+    def model_copy(self, *, update=None, deep=False):
+        """Override Pydantic's model_copy to ensure context_id regeneration."""
+        # Create the copy using parent's model_copy
+        copied = super().model_copy(update=update, deep=deep)
+
+        # Always regenerate context_id for copies unless explicitly provided in update
+        if not update or "context_id" not in update:
+            copied.context_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()[
+                :8
+            ]
+
+        # Reinitialize compression manager and update size
+        copied._compression_manager = ContextCompressionManager()
+        copied._update_size()
+
+        return copied
+
     # LangGraph-compatible execution state management
 
     def start_agent_execution(
@@ -649,6 +778,14 @@ class AgentContext(BaseModel):
         if not self._check_field_isolation(agent_name, field_name):
             logger.error(
                 f"Agent '{agent_name}' blocked from modifying its output due to isolation rules"
+            )
+            return False
+
+        # Check if this agent has already modified this field (prevents multiple modifications)
+        agent_mutations = self.agent_mutations.get(agent_name, [])
+        if field_name in agent_mutations:
+            logger.error(
+                f"Agent '{agent_name}' already modified field '{field_name}', multiple modifications not allowed"
             )
             return False
 

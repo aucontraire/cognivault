@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cognivault"
-version = "0.9.0-beta.5"
+version = "0.9.0-beta.6"
 description = "A composable DAG orchestration platform for multi-agent systems with declarative workflows, advanced node types, and intelligent routing"
 authors = ["aucontraire"]
 license = "AGPL-3.0"

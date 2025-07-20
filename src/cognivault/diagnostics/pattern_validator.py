@@ -10,12 +10,13 @@ from typing import Dict, List, Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
-from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 from datetime import datetime
 import json
+
+from pydantic import BaseModel, Field, ConfigDict
 
 import typer
 from rich.console import Console
@@ -45,30 +46,72 @@ class ValidationResult(Enum):
     ERROR = "error"
 
 
-@dataclass
-class ValidationIssue:
+class ValidationIssue(BaseModel):
     """Individual validation issue."""
 
-    level: ValidationResult
-    category: str
-    message: str
-    location: Optional[str] = None
-    suggestion: Optional[str] = None
-    code: Optional[str] = None
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    level: ValidationResult = Field(
+        ..., description="Severity level of the validation issue"
+    )
+    category: str = Field(..., description="Category of the validation issue")
+    message: str = Field(..., description="Detailed message describing the issue")
+    location: Optional[str] = Field(
+        None, description="Location where the issue was found"
+    )
+    suggestion: Optional[str] = Field(None, description="Suggested fix for the issue")
+    code: Optional[str] = Field(None, description="Error/issue code identifier")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "level": self.level.value,
+            "category": self.category,
+            "message": self.message,
+            "location": self.location,
+            "suggestion": self.suggestion,
+            "code": self.code,
+        }
 
 
-@dataclass
-class PatternValidationReport:
+class PatternValidationReport(BaseModel):
     """Comprehensive pattern validation report."""
 
-    pattern_name: str
-    pattern_class: str
-    validation_level: ValidationLevel
-    overall_result: ValidationResult
-    issues: List[ValidationIssue] = field(default_factory=list)
-    metrics: Dict[str, Any] = field(default_factory=dict)
-    recommendations: List[str] = field(default_factory=list)
-    certification_ready: bool = False
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    pattern_name: str = Field(..., description="Name of the pattern being validated")
+    pattern_class: str = Field(..., description="Class name of the pattern")
+    validation_level: ValidationLevel = Field(
+        ..., description="Level of validation performed"
+    )
+    overall_result: ValidationResult = Field(
+        ..., description="Overall validation result"
+    )
+    issues: List[ValidationIssue] = Field(
+        default_factory=list, description="List of validation issues found"
+    )
+    metrics: Dict[str, Any] = Field(
+        default_factory=dict, description="Validation metrics and statistics"
+    )
+    recommendations: List[str] = Field(
+        default_factory=list, description="Recommendations for improvement"
+    )
+    certification_ready: bool = Field(
+        default=False, description="Whether pattern is ready for certification"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "pattern_name": self.pattern_name,
+            "pattern_class": self.pattern_class,
+            "validation_level": self.validation_level.value,
+            "overall_result": self.overall_result.value,
+            "issues": [issue.to_dict() for issue in self.issues],
+            "metrics": self.metrics,
+            "recommendations": self.recommendations,
+            "certification_ready": self.certification_ready,
+        }
 
 
 class PatternValidator(ABC):

@@ -24,15 +24,43 @@ from cognivault.workflows.definition import (
 )
 from cognivault.context import AgentContext
 
+# Resolve forward references for Pydantic models
+try:
+    ExecutionContext.model_rebuild()
+except (ImportError, Exception):
+    # If we can't resolve forward references, tests will need to handle it
+    pass
+
+
+def create_test_workflow():
+    """Create a test WorkflowDefinition for testing."""
+    try:
+        node = NodeConfiguration(
+            node_id="test_node", node_type="processor", category="BASE"
+        )
+        flow = FlowDefinition(entry_point="test_node", edges=[])
+        return WorkflowDefinition(
+            name="Test Workflow",
+            version="1.0.0",
+            workflow_id="test-workflow-123",
+            nodes=[node],
+            flow=flow,
+        )
+    except ImportError:
+        # Fallback to using a mock with required attributes
+        mock_workflow = Mock()
+        mock_workflow.name = "Test Workflow"
+        mock_workflow.version = "1.0.0"
+        mock_workflow.workflow_id = "test-workflow-123"
+        return mock_workflow
+
 
 class TestExecutionContext:
     """Test ExecutionContext functionality."""
 
     def test_create_execution_context(self):
         """Test creating an execution context."""
-        workflow_def = Mock(spec=WorkflowDefinition)
-        workflow_def.workflow_id = "test-workflow-123"
-        workflow_def.name = "test_workflow"
+        workflow_def = create_test_workflow()
 
         context = ExecutionContext(
             workflow_id="exec-123",
@@ -52,7 +80,7 @@ class TestExecutionContext:
         """Test updating execution status."""
         context = ExecutionContext(
             workflow_id="test-123",
-            workflow_definition=Mock(),
+            workflow_definition=create_test_workflow(),
             query="test",
             execution_config={},
         )
@@ -67,7 +95,7 @@ class TestExecutionContext:
         """Test adding execution metadata."""
         context = ExecutionContext(
             workflow_id="test-123",
-            workflow_definition=Mock(),
+            workflow_definition=create_test_workflow(),
             query="test",
             execution_config={},
         )

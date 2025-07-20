@@ -10,11 +10,12 @@ import time
 import json
 import uuid
 from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
+
+from pydantic import BaseModel, Field, ConfigDict
 
 import typer
 from rich.console import Console
@@ -64,64 +65,176 @@ class PatternTestType(Enum):
     COMPATIBILITY = "compatibility"
 
 
-@dataclass
-class PatternTestCase:
+class PatternTestCase(BaseModel):
     """Individual test case definition."""
 
-    test_id: str
-    name: str
-    description: str
-    test_type: PatternTestType
-    pattern_name: str
-    agents: List[str]
-    test_query: str
-    expected_outcome: Dict[str, Any]
-    timeout: float = 30.0
-    retries: int = 0
-    tags: List[str] = field(default_factory=list)
-    prerequisites: List[str] = field(default_factory=list)
-    cleanup_required: bool = False
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+    test_id: str = Field(..., description="Unique identifier for the test case")
+    name: str = Field(..., description="Human-readable test name")
+    description: str = Field(..., description="Detailed description of the test")
+    test_type: PatternTestType = Field(..., description="Type of test being executed")
+    pattern_name: str = Field(..., description="Name of the pattern being tested")
+    agents: List[str] = Field(..., description="List of agents to execute in the test")
+    test_query: str = Field(..., description="Query to execute for the test")
+    expected_outcome: Dict[str, Any] = Field(
+        ..., description="Expected test outcome criteria"
+    )
+    timeout: float = Field(default=30.0, gt=0.0, description="Test timeout in seconds")
+    retries: int = Field(default=0, ge=0, description="Number of retry attempts")
+    tags: List[str] = Field(
+        default_factory=list, description="Tags for test categorization"
+    )
+    prerequisites: List[str] = Field(
+        default_factory=list, description="Prerequisites for test execution"
+    )
+    cleanup_required: bool = Field(
+        default=False, description="Whether cleanup is required after test"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "test_id": self.test_id,
+            "name": self.name,
+            "description": self.description,
+            "test_type": self.test_type.value,
+            "pattern_name": self.pattern_name,
+            "agents": self.agents,
+            "test_query": self.test_query,
+            "expected_outcome": self.expected_outcome,
+            "timeout": self.timeout,
+            "retries": self.retries,
+            "tags": self.tags,
+            "prerequisites": self.prerequisites,
+            "cleanup_required": self.cleanup_required,
+        }
 
 
-@dataclass
-class PatternTestExecution:
+class PatternTestExecution(BaseModel):
     """Test execution result."""
 
-    test_case: PatternTestCase
-    result: PatternTestResult
-    duration: float
-    error_message: Optional[str] = None
-    output_data: Optional[Dict[str, Any]] = None
-    context: Optional[AgentContext] = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    retry_attempt: int = 0
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+        arbitrary_types_allowed=True,  # Allow AgentContext
+    )
+
+    test_case: PatternTestCase = Field(
+        ..., description="The test case that was executed"
+    )
+    result: PatternTestResult = Field(..., description="Result of the test execution")
+    duration: float = Field(..., ge=0.0, description="Execution duration in seconds")
+    error_message: Optional[str] = Field(
+        None, description="Error message if test failed"
+    )
+    output_data: Optional[Dict[str, Any]] = Field(
+        None, description="Output data from test execution"
+    )
+    context: Optional[AgentContext] = Field(
+        None, description="Agent context from execution"
+    )
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Timestamp when test was executed",
+    )
+    retry_attempt: int = Field(default=0, ge=0, description="Retry attempt number")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "test_case": self.test_case.to_dict(),
+            "result": self.result.value,
+            "duration": self.duration,
+            "error_message": self.error_message,
+            "output_data": self.output_data,
+            "context": self.context.model_dump() if self.context else None,
+            "timestamp": self.timestamp.isoformat(),
+            "retry_attempt": self.retry_attempt,
+        }
 
 
-@dataclass
-class PatternTestSuite:
+class PatternTestSuite(BaseModel):
     """Collection of related test cases."""
 
-    suite_id: str
-    name: str
-    description: str
-    test_cases: List[PatternTestCase]
-    setup_hooks: List[Callable] = field(default_factory=list)
-    teardown_hooks: List[Callable] = field(default_factory=list)
-    parallel_execution: bool = True
-    max_workers: int = 4
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+        arbitrary_types_allowed=True,  # Allow Callable types
+    )
+
+    suite_id: str = Field(..., description="Unique identifier for the test suite")
+    name: str = Field(..., description="Human-readable suite name")
+    description: str = Field(..., description="Detailed description of the test suite")
+    test_cases: List[PatternTestCase] = Field(
+        ..., description="List of test cases in the suite"
+    )
+    setup_hooks: List[Callable] = Field(
+        default_factory=list, description="Setup hooks to run before tests"
+    )
+    teardown_hooks: List[Callable] = Field(
+        default_factory=list, description="Teardown hooks to run after tests"
+    )
+    parallel_execution: bool = Field(
+        default=True, description="Whether to run tests in parallel"
+    )
+    max_workers: int = Field(
+        default=4, gt=0, description="Maximum number of parallel workers"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "suite_id": self.suite_id,
+            "name": self.name,
+            "description": self.description,
+            "test_cases": [tc.to_dict() for tc in self.test_cases],
+            "setup_hooks": len(
+                self.setup_hooks
+            ),  # Just count, can't serialize functions
+            "teardown_hooks": len(self.teardown_hooks),
+            "parallel_execution": self.parallel_execution,
+            "max_workers": self.max_workers,
+        }
 
 
-@dataclass
-class PatternTestSession:
+class PatternTestSession(BaseModel):
     """Complete test session results."""
 
-    session_id: str
-    start_time: datetime
-    end_time: Optional[datetime] = None
-    test_suites: List[PatternTestSuite] = field(default_factory=list)
-    executions: List[PatternTestExecution] = field(default_factory=list)
-    summary: Dict[str, Any] = field(default_factory=dict)
-    artifacts: Dict[str, str] = field(default_factory=dict)
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+    )
+
+    session_id: str = Field(..., description="Unique identifier for the test session")
+    start_time: datetime = Field(..., description="Timestamp when session started")
+    end_time: Optional[datetime] = Field(
+        None, description="Timestamp when session ended"
+    )
+    test_suites: List[PatternTestSuite] = Field(
+        default_factory=list, description="List of test suites in the session"
+    )
+    executions: List[PatternTestExecution] = Field(
+        default_factory=list, description="List of test executions in the session"
+    )
+    summary: Dict[str, Any] = Field(
+        default_factory=dict, description="Summary statistics for the session"
+    )
+    artifacts: Dict[str, str] = Field(
+        default_factory=dict, description="Artifacts generated during the session"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation for backward compatibility."""
+        return {
+            "session_id": self.session_id,
+            "start_time": self.start_time.isoformat(),
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "test_suites": [ts.to_dict() for ts in self.test_suites],
+            "executions": [ex.to_dict() for ex in self.executions],
+            "summary": self.summary,
+            "artifacts": self.artifacts,
+        }
 
 
 class TestDataGenerator:

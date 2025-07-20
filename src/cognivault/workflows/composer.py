@@ -106,8 +106,8 @@ def create_agent_config(agent_type: str, config_dict: Optional[Dict[str, Any]] =
     """
     Create agent configuration object from workflow node configuration.
 
-    Supports both new Pydantic-based configurations and legacy prompt configurations
-    for backward compatibility.
+    Uses ConfigMapper to support both flat chart format and nested Pydantic format
+    for seamless backward compatibility and future flexibility.
 
     Parameters
     ----------
@@ -126,9 +126,8 @@ def create_agent_config(agent_type: str, config_dict: Optional[Dict[str, Any]] =
         CriticConfig,
         HistorianConfig,
         SynthesisConfig,
-        PromptConfig,
-        BehavioralConfig,
     )
+    from cognivault.config.config_mapper import ConfigMapper
 
     if not config_dict:
         # Return default configuration for backward compatibility
@@ -141,75 +140,22 @@ def create_agent_config(agent_type: str, config_dict: Optional[Dict[str, Any]] =
         config_class = config_classes.get(agent_type, RefinerConfig)
         return config_class()
 
-    # Extract configuration components
-    prompt_config_data = {}
-    behavioral_config_data = {}
-    agent_specific_data = {}
+    # Use ConfigMapper for dual format support
+    try:
+        return ConfigMapper.validate_and_create_config(config_dict, agent_type)
+    except Exception as e:
+        # Fallback to default configuration if mapping fails
+        print(f"Warning: Failed to create {agent_type} configuration: {e}")
+        print(f"Falling back to default configuration for {agent_type}")
 
-    # Handle legacy prompt configuration format
-    if "prompts" in config_dict:
-        prompt_data = config_dict["prompts"]
-        if "system_prompt" in prompt_data:
-            prompt_config_data["custom_system_prompt"] = prompt_data["system_prompt"]
-        if "templates" in prompt_data:
-            prompt_config_data["custom_templates"] = prompt_data["templates"]
-
-    # Handle behavioral constraints
-    if "custom_constraints" in config_dict:
-        behavioral_config_data["custom_constraints"] = config_dict["custom_constraints"]
-    if "fallback_mode" in config_dict:
-        behavioral_config_data["fallback_mode"] = config_dict["fallback_mode"]
-
-    # Extract agent-specific configurations
-    agent_specific_fields = {
-        "refiner": ["refinement_level", "behavioral_mode", "output_format"],
-        "critic": [
-            "analysis_depth",
-            "confidence_reporting",
-            "bias_detection",
-            "scoring_criteria",
-        ],
-        "historian": [
-            "search_depth",
-            "relevance_threshold",
-            "context_expansion",
-            "memory_scope",
-        ],
-        "synthesis": [
-            "synthesis_strategy",
-            "thematic_focus",
-            "meta_analysis",
-            "integration_mode",
-        ],
-    }
-
-    if agent_type in agent_specific_fields:
-        for field in agent_specific_fields[agent_type]:
-            if field in config_dict:
-                agent_specific_data[field] = config_dict[field]
-
-    # Build nested configuration objects
-    prompt_config = PromptConfig(**prompt_config_data)
-    behavioral_config = BehavioralConfig(**behavioral_config_data)
-
-    # Create the appropriate agent configuration
-    config_classes = {
-        "refiner": RefinerConfig,
-        "critic": CriticConfig,
-        "historian": HistorianConfig,
-        "synthesis": SynthesisConfig,
-    }
-
-    config_class = config_classes.get(agent_type, RefinerConfig)
-
-    # Combine all configuration data
-    full_config_data = {
-        **agent_specific_data,
-        "prompt_config": prompt_config,
-        "behavioral_config": behavioral_config,
-    }
-
-    return config_class(**full_config_data)
+        config_classes = {
+            "refiner": RefinerConfig,
+            "critic": CriticConfig,
+            "historian": HistorianConfig,
+            "synthesis": SynthesisConfig,
+        }
+        config_class = config_classes.get(agent_type, RefinerConfig)
+        return config_class()
 
 
 class NodeFactory:
@@ -860,26 +806,37 @@ class DagComposer:
             )
 
     def _validate_workflow(self, workflow_def: "WorkflowDefinition") -> None:
-        """Validate workflow definition."""
-        if not workflow_def.flow.entry_point:
-            raise WorkflowCompositionError("Entry point is required")
+        """Validate workflow definition using Pydantic-based validation."""
+        from cognivault.workflows.validators import (
+            validate_workflow_standard,
+            ValidationIssueType,
+        )
 
-        # Check entry point exists in nodes
-        node_ids = {node.node_id for node in workflow_def.nodes}
-        if workflow_def.flow.entry_point not in node_ids:
-            raise WorkflowCompositionError(
-                f"Entry point '{workflow_def.flow.entry_point}' not found in nodes"
-            )
+        # Use the new Pydantic-based validation system
+        validation_result = validate_workflow_standard(workflow_def)
 
-        # Check edge references
-        for edge in workflow_def.flow.edges:
-            if edge.from_node not in node_ids:
+        # Raise exception if validation failed
+        if not validation_result.is_valid:
+            error_messages = []
+            for issue in validation_result.get_issues_by_type(
+                ValidationIssueType.ERROR
+            ):
+                error_messages.append(f"{issue.location}: {issue.message}")
+
+            if error_messages:
                 raise WorkflowCompositionError(
-                    f"Edge references non-existent node: {edge.from_node}"
+                    f"Workflow validation failed: {'; '.join(error_messages)}"
                 )
-            if edge.to_node not in node_ids:
-                raise WorkflowCompositionError(
-                    f"Edge references non-existent node: {edge.to_node}"
+
+        # Log warnings if any
+        warnings = validation_result.get_issues_by_type(ValidationIssueType.WARNING)
+        if warnings:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            for warning in warnings:
+                logger.warning(
+                    f"Workflow validation warning: {warning.location}: {warning.message}"
                 )
 
     def export_workflow_snapshot(

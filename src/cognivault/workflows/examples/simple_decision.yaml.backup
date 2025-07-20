@@ -1,0 +1,79 @@
+workflow:
+  name: "Query Complexity Router"
+  version: "1.0.0"
+  workflow_id: "simple-decision-demo"
+  created_by: "cognivault-team"
+  description: "Demonstrates DecisionNode routing based on query complexity"
+  tags: ["demo", "decision-routing", "simple"]
+  workflow_schema_version: "1.0.0"
+  
+  nodes:
+    - id: "complexity_check"
+      category: "advanced"
+      type: "decision"
+      config:
+        criteria: ["query_length", "technical_keywords"]
+        thresholds:
+          query_length: 100
+          technical_keywords: 3
+      metadata:
+        cognitive_speed: "fast"
+        cognitive_depth: "shallow"
+        processing_pattern: "atomic"
+        execution_pattern: "decision"
+        pipeline_role: "entry"
+        bounded_context: "transformation"
+    
+    - id: "simple_processor"
+      category: "base"
+      type: "processor"
+      config:
+        agent_type: "refiner"
+      metadata:
+        cognitive_speed: "fast"
+        cognitive_depth: "shallow"
+        processing_pattern: "atomic"
+        execution_pattern: "processor"
+        pipeline_role: "terminal"
+        bounded_context: "transformation"
+    
+    - id: "complex_processor"
+      category: "base"
+      type: "processor"
+      config:
+        agent_type: "synthesis"
+      metadata:
+        cognitive_speed: "slow"
+        cognitive_depth: "deep"
+        processing_pattern: "composite"
+        execution_pattern: "processor"
+        pipeline_role: "terminal"
+        bounded_context: "transformation"
+  
+  flow:
+    start_node: "complexity_check"
+    edges:
+      - from_node: "complexity_check"
+        to_node: "simple_processor"
+        condition: "simple_query"
+        metadata_filters:
+          query_complexity: "low"
+      
+      - from_node: "complexity_check"
+        to_node: "complex_processor"
+        condition: "complex_query"
+        metadata_filters:
+          query_complexity: "high"
+    
+    end_conditions: ["simple_processor", "complex_processor"]
+    
+    conditional_routing:
+      complexity_check:
+        simple_query: "len(query) < 100 and technical_keywords < 3"
+        complex_query: "len(query) >= 100 or technical_keywords >= 3"
+  
+  metadata:
+    example_type: "decision_routing"
+    complexity_level: "beginner"
+    estimated_execution_time: "2-5 seconds"
+    use_cases: ["query_triage", "adaptive_processing", "resource_optimization"]

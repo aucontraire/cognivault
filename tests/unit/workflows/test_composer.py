@@ -326,7 +326,9 @@ class TestDagComposer:
         invalid_workflow = self.workflow_def
         invalid_workflow.flow.entry_point = ""
 
-        with pytest.raises(WorkflowCompositionError, match="Entry point is required"):
+        with pytest.raises(
+            WorkflowCompositionError, match="Flow must have an entry point"
+        ):
             composer._validate_workflow(invalid_workflow)
 
     def test_validate_workflow_entry_point_not_in_nodes(self):
@@ -337,7 +339,8 @@ class TestDagComposer:
         invalid_workflow.flow.entry_point = "nonexistent_node"
 
         with pytest.raises(
-            WorkflowCompositionError, match="Entry point .* not found in nodes"
+            WorkflowCompositionError,
+            match="Entry point .* references non-existent node",
         ):
             composer._validate_workflow(invalid_workflow)
 
@@ -349,7 +352,7 @@ class TestDagComposer:
         invalid_workflow.flow.edges[0].to_node = "nonexistent_node"
 
         with pytest.raises(
-            WorkflowCompositionError, match="Edge references non-existent node"
+            WorkflowCompositionError, match="Edge .* references non-existent"
         ):
             composer._validate_workflow(invalid_workflow)
 

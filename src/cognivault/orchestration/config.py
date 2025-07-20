@@ -3,14 +3,16 @@ Configuration system for LangGraph integration.
 
 This module provides configuration classes and validation for
 LangGraph-compatible DAG execution in CogniVault.
+
+Migrated to Pydantic for enhanced validation, type safety, and automatic serialization.
 """
 
 import os
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Literal
 from enum import Enum
 from pathlib import Path
 
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from cognivault.config.app_config import get_config
 
 
@@ -38,117 +40,151 @@ class FailurePolicy(Enum):
     GRACEFUL_DEGRADATION = "graceful_degradation"
 
 
-@dataclass
-class NodeExecutionConfig:
-    """Configuration for individual node execution."""
+class NodeExecutionConfig(BaseModel):
+    """Configuration for individual node execution.
 
-    timeout_seconds: float = 30.0
-    retry_enabled: bool = True
-    max_retries: int = 3
-    retry_delay_seconds: float = 1.0
-    enable_circuit_breaker: bool = True
-    circuit_breaker_threshold: int = 5
-    circuit_breaker_recovery_time: float = 300.0
-    custom_config: Dict[str, Any] = field(default_factory=dict)
+    Provides fine-grained control over node-level execution parameters
+    including timeouts, retry logic, and circuit breaker patterns.
+    """
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "timeout_seconds": self.timeout_seconds,
-            "retry_enabled": self.retry_enabled,
-            "max_retries": self.max_retries,
-            "retry_delay_seconds": self.retry_delay_seconds,
-            "enable_circuit_breaker": self.enable_circuit_breaker,
-            "circuit_breaker_threshold": self.circuit_breaker_threshold,
-            "circuit_breaker_recovery_time": self.circuit_breaker_recovery_time,
-            "custom_config": self.custom_config,
-        }
+    timeout_seconds: float = Field(
+        default=30.0, gt=0, description="Maximum execution time for the node in seconds"
+    )
+    retry_enabled: bool = Field(
+        default=True, description="Whether to enable retry logic for failed executions"
+    )
+    max_retries: int = Field(
+        default=3, ge=0, le=10, description="Maximum number of retry attempts (0-10)"
+    )
+    retry_delay_seconds: float = Field(
+        default=1.0, ge=0, description="Delay between retry attempts in seconds"
+    )
+    enable_circuit_breaker: bool = Field(
+        default=True,
+        description="Whether to enable circuit breaker pattern for fault tolerance",
+    )
+    circuit_breaker_threshold: int = Field(
+        default=5, ge=1, description="Number of failures before circuit breaker opens"
+    )
+    circuit_breaker_recovery_time: float = Field(
+        default=300.0,
+        gt=0,
+        description="Recovery time in seconds before circuit breaker attempts to close",
+    )
+    custom_config: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional custom configuration parameters"
+    )
 
+    @field_validator("timeout_seconds")
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "NodeExecutionConfig":
-        """Create from dictionary representation."""
-        return cls(
-            timeout_seconds=data.get("timeout_seconds", 30.0),
-            retry_enabled=data.get("retry_enabled", True),
-            max_retries=data.get("max_retries", 3),
-            retry_delay_seconds=data.get("retry_delay_seconds", 1.0),
-            enable_circuit_breaker=data.get("enable_circuit_breaker", True),
-            circuit_breaker_threshold=data.get("circuit_breaker_threshold", 5),
-            circuit_breaker_recovery_time=data.get(
-                "circuit_breaker_recovery_time", 300.0
-            ),
-            custom_config=data.get("custom_config", {}),
-        )
+    def validate_timeout_positive(cls, v):
+        """Ensure timeout is positive."""
+        if v <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        return v
+
+    @field_validator("retry_delay_seconds")
+    @classmethod
+    def validate_retry_delay_non_negative(cls, v):
+        """Ensure retry delay is non-negative."""
+        if v < 0:
+            raise ValueError("retry_delay_seconds must be non-negative")
+        return v
+
+    model_config = ConfigDict(extra="forbid")  # Catch typos in configuration
 
 
-@dataclass
-class DAGExecutionConfig:
-    """Configuration for DAG execution."""
+class DAGExecutionConfig(BaseModel):
+    """Configuration for DAG execution.
 
-    execution_mode: ExecutionMode = ExecutionMode.SEQUENTIAL
-    validation_level: ValidationLevel = ValidationLevel.BASIC
-    failure_policy: FailurePolicy = FailurePolicy.FAIL_FAST
-    max_execution_time_seconds: float = 300.0
-    enable_observability: bool = True
-    enable_tracing: bool = True
-    enable_metrics_collection: bool = True
-    enable_state_snapshots: bool = True
-    snapshot_interval_seconds: float = 60.0
-    max_snapshots: int = 10
+    Controls high-level orchestration behavior, observability features,
+    and global execution policies for the entire workflow.
+    """
+
+    execution_mode: ExecutionMode = Field(
+        default=ExecutionMode.SEQUENTIAL,
+        description="Execution strategy for the DAG (sequential, parallel, or hybrid)",
+    )
+    validation_level: ValidationLevel = Field(
+        default=ValidationLevel.BASIC,
+        description="Level of validation to apply during execution",
+    )
+    failure_policy: FailurePolicy = Field(
+        default=FailurePolicy.FAIL_FAST,
+        description="How to handle failures during execution",
+    )
+    max_execution_time_seconds: float = Field(
+        default=300.0,
+        gt=0,
+        description="Maximum total execution time for the entire DAG in seconds",
+    )
+    enable_observability: bool = Field(
+        default=True,
+        description="Whether to enable comprehensive observability features",
+    )
+    enable_tracing: bool = Field(
+        default=True, description="Whether to enable execution tracing for debugging"
+    )
+    enable_metrics_collection: bool = Field(
+        default=True, description="Whether to collect performance and execution metrics"
+    )
+    enable_state_snapshots: bool = Field(
+        default=True,
+        description="Whether to take periodic state snapshots for recovery",
+    )
+    snapshot_interval_seconds: float = Field(
+        default=60.0, gt=0, description="Interval between state snapshots in seconds"
+    )
+    max_snapshots: int = Field(
+        default=10, ge=1, description="Maximum number of snapshots to retain"
+    )
 
     # Node-specific configurations
-    node_configs: Dict[str, NodeExecutionConfig] = field(default_factory=dict)
+    node_configs: Dict[str, NodeExecutionConfig] = Field(
+        default_factory=dict,
+        description="Node-specific execution configurations keyed by node ID",
+    )
 
     # Global overrides
-    global_timeout_seconds: Optional[float] = None
-    global_retry_enabled: Optional[bool] = None
-    global_max_retries: Optional[int] = None
+    global_timeout_seconds: Optional[float] = Field(
+        default=None, gt=0, description="Global timeout override applied to all nodes"
+    )
+    global_retry_enabled: Optional[bool] = Field(
+        default=None, description="Global retry enable/disable override for all nodes"
+    )
+    global_max_retries: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=10,
+        description="Global maximum retries override for all nodes",
+    )
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "execution_mode": self.execution_mode.value,
-            "validation_level": self.validation_level.value,
-            "failure_policy": self.failure_policy.value,
-            "max_execution_time_seconds": self.max_execution_time_seconds,
-            "enable_observability": self.enable_observability,
-            "enable_tracing": self.enable_tracing,
-            "enable_metrics_collection": self.enable_metrics_collection,
-            "enable_state_snapshots": self.enable_state_snapshots,
-            "snapshot_interval_seconds": self.snapshot_interval_seconds,
-            "max_snapshots": self.max_snapshots,
-            "node_configs": {
-                node_id: config.to_dict()
-                for node_id, config in self.node_configs.items()
-            },
-            "global_timeout_seconds": self.global_timeout_seconds,
-            "global_retry_enabled": self.global_retry_enabled,
-            "global_max_retries": self.global_max_retries,
-        }
-
+    @field_validator("max_execution_time_seconds")
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DAGExecutionConfig":
-        """Create from dictionary representation."""
-        node_configs = {}
-        for node_id, config_data in data.get("node_configs", {}).items():
-            node_configs[node_id] = NodeExecutionConfig.from_dict(config_data)
+    def validate_max_execution_time(cls, v):
+        """Ensure maximum execution time is positive."""
+        if v <= 0:
+            raise ValueError("max_execution_time_seconds must be positive")
+        return v
 
-        return cls(
-            execution_mode=ExecutionMode(data.get("execution_mode", "sequential")),
-            validation_level=ValidationLevel(data.get("validation_level", "basic")),
-            failure_policy=FailurePolicy(data.get("failure_policy", "fail_fast")),
-            max_execution_time_seconds=data.get("max_execution_time_seconds", 300.0),
-            enable_observability=data.get("enable_observability", True),
-            enable_tracing=data.get("enable_tracing", True),
-            enable_metrics_collection=data.get("enable_metrics_collection", True),
-            enable_state_snapshots=data.get("enable_state_snapshots", True),
-            snapshot_interval_seconds=data.get("snapshot_interval_seconds", 60.0),
-            max_snapshots=data.get("max_snapshots", 10),
-            node_configs=node_configs,
-            global_timeout_seconds=data.get("global_timeout_seconds"),
-            global_retry_enabled=data.get("global_retry_enabled"),
-            global_max_retries=data.get("global_max_retries"),
-        )
+    @model_validator(mode="after")
+    def validate_snapshot_interval(self):
+        """Ensure snapshot interval is positive when snapshots are enabled."""
+        if self.enable_state_snapshots and self.snapshot_interval_seconds <= 0:
+            raise ValueError(
+                "snapshot_interval_seconds must be positive when snapshots are enabled"
+            )
+        return self
+
+    @field_validator("global_timeout_seconds")
+    @classmethod
+    def validate_global_timeout(cls, v):
+        """Ensure global timeout is positive if specified."""
+        if v is not None and v <= 0:
+            raise ValueError("global_timeout_seconds must be positive")
+        return v
+
+    model_config = ConfigDict(extra="forbid")  # Catch typos in configuration
 
     def get_node_config(self, node_id: str) -> NodeExecutionConfig:
         """Get configuration for a specific node."""
@@ -171,7 +207,7 @@ class DAGExecutionConfig:
         """Set configuration for a specific node."""
         self.node_configs[node_id] = config
 
-    def validate(self) -> List[str]:
+    def validate_config(self) -> List[str]:
         """Validate the configuration and return any issues."""
         issues = []
 
@@ -203,81 +239,93 @@ class DAGExecutionConfig:
         return issues
 
 
-@dataclass
-class LangGraphIntegrationConfig:
-    """Complete LangGraph integration configuration."""
+class LangGraphIntegrationConfig(BaseModel):
+    """Complete LangGraph integration configuration.
+
+    Provides comprehensive configuration for all aspects of LangGraph-based
+    workflow orchestration including execution, validation, routing, and export.
+    """
 
     # DAG execution configuration
-    dag_execution: DAGExecutionConfig = field(default_factory=DAGExecutionConfig)
+    dag_execution: DAGExecutionConfig = Field(
+        default_factory=DAGExecutionConfig,
+        description="DAG-level execution configuration and policies",
+    )
 
     # Graph builder configuration
-    auto_dependency_resolution: bool = True
-    enable_cycle_detection: bool = True
-    allow_conditional_cycles: bool = False
-    max_graph_depth: int = 50
+    auto_dependency_resolution: bool = Field(
+        default=True, description="Whether to automatically resolve node dependencies"
+    )
+    enable_cycle_detection: bool = Field(
+        default=True, description="Whether to detect and prevent cycles in the DAG"
+    )
+    allow_conditional_cycles: bool = Field(
+        default=False,
+        description="Whether to allow cycles that are broken by conditional logic",
+    )
+    max_graph_depth: int = Field(
+        default=50,
+        ge=1,
+        le=1000,
+        description="Maximum allowed depth of the execution graph",
+    )
 
     # Adapter configuration
-    enable_state_validation: bool = True
-    enable_rollback_on_failure: bool = True
-    enable_performance_monitoring: bool = True
+    enable_state_validation: bool = Field(
+        default=True,
+        description="Whether to validate state transitions during execution",
+    )
+    enable_rollback_on_failure: bool = Field(
+        default=True,
+        description="Whether to support rollback operations on execution failure",
+    )
+    enable_performance_monitoring: bool = Field(
+        default=True, description="Whether to monitor and collect performance metrics"
+    )
 
     # Routing configuration
-    default_routing_strategy: str = "success_failure"
-    enable_failure_handling: bool = True
-    max_routing_failures: int = 3
+    default_routing_strategy: Literal[
+        "success_failure", "output_based", "conditional", "dependency"
+    ] = Field(
+        default="success_failure",
+        description="Default strategy for routing between nodes",
+    )
+    enable_failure_handling: bool = Field(
+        default=True,
+        description="Whether to enable sophisticated failure handling and recovery",
+    )
+    max_routing_failures: int = Field(
+        default=3,
+        ge=0,
+        description="Maximum number of routing failures before aborting execution",
+    )
 
     # Export/import configuration
-    export_format: str = "json"
-    export_include_metadata: bool = True
-    export_include_execution_history: bool = False
+    export_format: Literal["json", "yaml", "xml"] = Field(
+        default="json",
+        description="Default format for configuration and workflow exports",
+    )
+    export_include_metadata: bool = Field(
+        default=True,
+        description="Whether to include metadata in exported configurations",
+    )
+    export_include_execution_history: bool = Field(
+        default=False, description="Whether to include execution history in exports"
+    )
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "dag_execution": self.dag_execution.to_dict(),
-            "auto_dependency_resolution": self.auto_dependency_resolution,
-            "enable_cycle_detection": self.enable_cycle_detection,
-            "allow_conditional_cycles": self.allow_conditional_cycles,
-            "max_graph_depth": self.max_graph_depth,
-            "enable_state_validation": self.enable_state_validation,
-            "enable_rollback_on_failure": self.enable_rollback_on_failure,
-            "enable_performance_monitoring": self.enable_performance_monitoring,
-            "default_routing_strategy": self.default_routing_strategy,
-            "enable_failure_handling": self.enable_failure_handling,
-            "max_routing_failures": self.max_routing_failures,
-            "export_format": self.export_format,
-            "export_include_metadata": self.export_include_metadata,
-            "export_include_execution_history": self.export_include_execution_history,
-        }
-
+    @field_validator("max_graph_depth")
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "LangGraphIntegrationConfig":
-        """Create from dictionary representation."""
-        dag_execution_data = data.get("dag_execution", {})
-        dag_execution = DAGExecutionConfig.from_dict(dag_execution_data)
+    def validate_graph_depth(cls, v):
+        """Ensure graph depth is within reasonable bounds."""
+        if v <= 0:
+            raise ValueError("max_graph_depth must be positive")
+        if v > 1000:
+            raise ValueError(
+                "max_graph_depth should not exceed 1000 for performance reasons"
+            )
+        return v
 
-        return cls(
-            dag_execution=dag_execution,
-            auto_dependency_resolution=data.get("auto_dependency_resolution", True),
-            enable_cycle_detection=data.get("enable_cycle_detection", True),
-            allow_conditional_cycles=data.get("allow_conditional_cycles", False),
-            max_graph_depth=data.get("max_graph_depth", 50),
-            enable_state_validation=data.get("enable_state_validation", True),
-            enable_rollback_on_failure=data.get("enable_rollback_on_failure", True),
-            enable_performance_monitoring=data.get(
-                "enable_performance_monitoring", True
-            ),
-            default_routing_strategy=data.get(
-                "default_routing_strategy", "success_failure"
-            ),
-            enable_failure_handling=data.get("enable_failure_handling", True),
-            max_routing_failures=data.get("max_routing_failures", 3),
-            export_format=data.get("export_format", "json"),
-            export_include_metadata=data.get("export_include_metadata", True),
-            export_include_execution_history=data.get(
-                "export_include_execution_history", False
-            ),
-        )
+    model_config = ConfigDict(extra="forbid")  # Catch typos in configuration
 
     @classmethod
     def load_from_file(
@@ -310,7 +358,8 @@ class LangGraphIntegrationConfig:
                     f"Unsupported configuration file format: {config_path.suffix}"
                 )
 
-            return cls.from_dict(data)
+            # Use Pydantic's model_validate for automatic validation
+            return cls.model_validate(data)
 
         except (json.JSONDecodeError, Exception) as e:
             raise ValueError(f"Failed to parse configuration file {config_path}: {e}")
@@ -320,7 +369,8 @@ class LangGraphIntegrationConfig:
         config_path = Path(config_path)
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        data = self.to_dict()
+        # Use Pydantic's built-in serialization with enum serialization
+        data = self.model_dump(mode="json")
 
         try:
             if config_path.suffix.lower() == ".json":
@@ -346,12 +396,12 @@ class LangGraphIntegrationConfig:
         except Exception as e:
             raise ValueError(f"Failed to save configuration file {config_path}: {e}")
 
-    def validate(self) -> List[str]:
+    def validate_config(self) -> List[str]:
         """Validate the entire configuration."""
         issues = []
 
         # Validate DAG execution configuration
-        issues.extend(self.dag_execution.validate())
+        issues.extend(self.dag_execution.validate_config())
 
         # Validate graph configuration
         if self.max_graph_depth <= 0:
@@ -496,7 +546,7 @@ class LangGraphConfigManager:
     @classmethod
     def validate_config(cls, config: LangGraphIntegrationConfig) -> None:
         """Validate a configuration and raise an exception if invalid."""
-        issues = config.validate()
+        issues = config.validate_config()
         if issues:
             raise ValueError(
                 "Configuration validation failed:\n"

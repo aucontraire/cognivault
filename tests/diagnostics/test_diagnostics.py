@@ -350,10 +350,18 @@ class TestDiagnosticsManager:
         # Test all healthy
         health_results = {
             "comp1": ComponentHealth(
-                "comp1", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="comp1",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
             "comp2": ComponentHealth(
-                "comp2", HealthStatus.HEALTHY, "OK", {}, datetime.now()
+                name="comp2",
+                status=HealthStatus.HEALTHY,
+                message="OK",
+                details={},
+                check_time=datetime.now(),
             ),
         }
 
@@ -362,14 +370,22 @@ class TestDiagnosticsManager:
 
         # Test with degraded component
         health_results["comp2"] = ComponentHealth(
-            "comp2", HealthStatus.DEGRADED, "Issues", {}, datetime.now()
+            name="comp2",
+            status=HealthStatus.DEGRADED,
+            message="Issues",
+            details={},
+            check_time=datetime.now(),
         )
         status = self.manager.health_checker.get_overall_status(health_results)
         assert status == HealthStatus.DEGRADED
 
         # Test with unhealthy component
         health_results["comp1"] = ComponentHealth(
-            "comp1", HealthStatus.UNHEALTHY, "Failed", {}, datetime.now()
+            name="comp1",
+            status=HealthStatus.UNHEALTHY,
+            message="Failed",
+            details={},
+            check_time=datetime.now(),
         )
         status = self.manager.health_checker.get_overall_status(health_results)
         assert status == HealthStatus.UNHEALTHY

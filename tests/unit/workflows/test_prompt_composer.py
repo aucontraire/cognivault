@@ -390,11 +390,14 @@ class TestPromptValidation:
 
     def test_validate_composition_empty_system_prompt(self):
         """Test validation fails for empty system prompt."""
-        prompt = ComposedPrompt(
-            system_prompt="", templates={}, variables={}, metadata={}
-        )
+        # Pydantic validation now prevents creating ComposedPrompt with empty system_prompt
+        import pytest
+        from pydantic import ValidationError
 
-        assert self.composer.validate_composition(prompt) is False
+        with pytest.raises(ValidationError) as exc_info:
+            ComposedPrompt(system_prompt="", templates={}, variables={}, metadata={})
+
+        assert "system_prompt cannot be empty" in str(exc_info.value)
 
     def test_validate_composition_invalid_template(self):
         """Test validation fails for template with missing variables."""

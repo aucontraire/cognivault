@@ -1,0 +1,188 @@
+name: Executive Briefing Pipeline
+version: 1.0.0
+workflow_id: executive-briefing-config-demo
+created_by: cognivault-phase2
+description: Demonstrates configurable agent behavior for executive-level business
+  analysis and decision support
+tags:
+- executive
+- business
+- briefing
+- configuration
+- domain-specific
+workflow_schema_version: 1.0.0
+nodes:
+- category: BASE
+  config:
+    agent_type: refiner
+    refinement_level: standard
+    behavioral_mode: passive
+    output_format: structured
+    prompt_config:
+      custom_system_prompt: You are an executive business consultant specializing
+        in strategic analysis and decision support. Your role is to refine business
+        questions and requests into actionable, executive-ready insights that drive
+        strategic decision-making.
+      template_variables:
+        domain: business_strategy
+        methodology: executive_analysis
+    behavioral_config:
+      custom_constraints:
+      - focus_on_business_impact
+      - provide_quantitative_metrics
+      - highlight_strategic_implications
+      - maintain_executive_brevity
+      - emphasize_action_items
+      fallback_mode: efficient
+    output_config:
+      format_preference: executive_summary
+      include_confidence: false
+      metadata_inclusion: minimal
+  metadata:
+    cognitive_speed: fast
+    cognitive_depth: medium
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: entry
+    bounded_context: transformation
+  node_id: executive_refiner
+  node_type: processor
+- category: BASE
+  config:
+    agent_type: historian
+    search_depth: targeted
+    relevance_threshold: 0.7
+    context_expansion: focused
+    memory_scope: business_domain
+    prompt_config:
+      custom_system_prompt: You are a strategic business intelligence analyst with
+        expertise in market trends, competitive analysis, and business performance
+        metrics. Retrieve relevant business context, market data, and strategic precedents.
+    behavioral_config:
+      custom_constraints:
+      - prioritize_recent_market_data
+      - include_competitive_analysis
+      - focus_on_financial_metrics
+      - highlight_industry_trends
+      - provide_actionable_context
+      fallback_mode: efficient
+    execution_config:
+      timeout_seconds: 30
+      retry_count: 2
+      cache_results: true
+  metadata:
+    cognitive_speed: fast
+    cognitive_depth: medium
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: intermediate
+    bounded_context: retrieval
+  node_id: business_historian
+  node_type: processor
+- category: BASE
+  config:
+    agent_type: critic
+    analysis_depth: medium
+    confidence_reporting: true
+    bias_detection: true
+    scoring_criteria:
+    - strategic_alignment
+    - financial_impact
+    - market_opportunity
+    - risk_assessment
+    - implementation_feasibility
+    prompt_config:
+      custom_system_prompt: You are a senior business strategist and risk analyst.
+        Evaluate business proposals, strategies, and decisions through the lens of
+        strategic value, financial impact, and implementation risk.
+    behavioral_config:
+      custom_constraints:
+      - assess_roi_potential
+      - identify_implementation_risks
+      - evaluate_competitive_advantage
+      - consider_market_timing
+      - provide_strategic_recommendations
+      fallback_mode: balanced
+    output_config:
+      format_preference: business_analysis
+      include_confidence: true
+      include_improvement_suggestions: true
+  metadata:
+    cognitive_speed: fast
+    cognitive_depth: medium
+    processing_pattern: atomic
+    execution_pattern: processor
+    pipeline_role: intermediate
+    bounded_context: reflection
+  node_id: business_critic
+  node_type: processor
+- category: BASE
+  config:
+    agent_type: synthesis
+    synthesis_strategy: executive_integration
+    thematic_focus: strategic_decision_support
+    meta_analysis: false
+    integration_mode: business_synthesis
+    prompt_config:
+      custom_system_prompt: You are an executive chief of staff who synthesizes complex
+        business analysis into clear, actionable executive briefings. Your output
+        should enable rapid executive decision-making with key insights and recommended
+        actions.
+    behavioral_config:
+      custom_constraints:
+      - maintain_executive_brevity
+      - lead_with_key_decisions
+      - provide_clear_recommendations
+      - quantify_business_impact
+      - include_next_steps
+      - highlight_critical_risks
+      fallback_mode: efficient
+    output_config:
+      format_preference: executive_briefing
+      include_confidence: false
+      include_citations: false
+      metadata_inclusion: executive_summary
+  metadata:
+    cognitive_speed: fast
+    cognitive_depth: medium
+    processing_pattern: composite
+    execution_pattern: processor
+    pipeline_role: terminal
+    bounded_context: transformation
+  node_id: executive_synthesis
+  node_type: processor
+flow:
+  edges:
+  - from_node: executive_refiner
+    to_node: business_historian
+    condition: refinement_complete
+  - from_node: business_historian
+    to_node: business_critic
+    condition: context_retrieved
+  - from_node: business_critic
+    to_node: executive_synthesis
+    condition: analysis_complete
+  entry_point: executive_refiner
+  terminal_nodes:
+  - executive_synthesis
+metadata:
+  domain: business_strategy
+  complexity_level: medium
+  estimated_execution_time: 25-35 seconds
+  use_cases:
+  - strategic_planning
+  - market_analysis
+  - investment_decisions
+  - competitive_positioning
+  - board_presentations
+  configuration_features:
+  - executive_focused_prompts
+  - business_metric_emphasis
+  - strategic_decision_support
+  - concise_executive_formatting
+  - actionable_recommendations
+  agent_behaviors:
+    refiner: business_strategic_refinement
+    historian: market_intelligence_retrieval
+    critic: business_risk_assessment
+    synthesis: executive_briefing_integration
