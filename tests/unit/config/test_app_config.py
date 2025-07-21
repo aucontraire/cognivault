@@ -324,7 +324,7 @@ class TestApplicationConfig:
     def test_validate_valid_config(self):
         """Test validation of a valid configuration."""
         config = ApplicationConfig()
-        errors = config.validate()
+        errors = config.validate_configuration()
         assert errors == []
 
     def test_validate_invalid_execution_config(self):
@@ -335,7 +335,7 @@ class TestApplicationConfig:
         config.execution.retry_delay_seconds = -0.5
         config.execution.simulation_delay_seconds = -0.1
 
-        errors = config.validate()
+        errors = config.validate_configuration()
         assert "max_retries must be non-negative" in errors
         assert "timeout_seconds must be positive" in errors
         assert "retry_delay_seconds must be non-negative" in errors
@@ -349,7 +349,7 @@ class TestApplicationConfig:
         config.files.max_file_size = 0
         config.files.max_note_files = -10
 
-        errors = config.validate()
+        errors = config.validate_configuration()
         assert "question_truncate_length must be positive" in errors
         assert "hash_length must be positive" in errors
         assert "max_file_size must be positive" in errors
@@ -361,13 +361,13 @@ class TestApplicationConfig:
         config.models.max_tokens_per_request = 0
         config.models.temperature = -0.1
 
-        errors = config.validate()
+        errors = config.validate_configuration()
         assert "max_tokens_per_request must be positive" in errors
         assert "temperature must be between 0 and 2" in errors
 
         # Test temperature upper bound
         config.models.temperature = 2.1
-        errors = config.validate()
+        errors = config.validate_configuration()
         assert "temperature must be between 0 and 2" in errors
 
     def test_validate_invalid_testing_config(self):
@@ -377,13 +377,13 @@ class TestApplicationConfig:
         config.testing.prompt_min_length = -1
         config.testing.prompt_max_length = 100
 
-        errors = config.validate()
+        errors = config.validate_configuration()
         assert "test_timeout_multiplier must be positive" in errors
         assert "prompt_min_length must be non-negative" in errors
 
         # Test case where max < min separately
         config.testing.prompt_min_length = 200  # max < min
-        errors = config.validate()
+        errors = config.validate_configuration()
         assert "prompt_max_length must be greater than prompt_min_length" in errors
 
 

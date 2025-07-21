@@ -1,0 +1,465 @@
+"""
+Comprehensive tests for Pydantic API models migration.
+
+Tests validation, serialization, and backward compatibility of external schemas.
+"""
+
+import pytest
+from pydantic import ValidationError
+
+from cognivault.api.models import (
+    WorkflowRequest,
+    WorkflowResponse,
+    StatusResponse,
+    CompletionRequest,
+    CompletionResponse,
+    LLMProvider,
+)
+
+
+class TestWorkflowRequestValidation:
+    """Test WorkflowRequest Pydantic validation."""
+
+    def test_valid_minimal_request(self):
+        """Test valid minimal request."""
+        request = WorkflowRequest(query="Test query")
+        assert request.query == "Test query"
+        assert request.agents is None
+        assert request.execution_config is None
+        assert request.correlation_id is None
+
+    def test_valid_full_request(self):
+        """Test valid full request."""
+        request = WorkflowRequest(
+            query="Test query",
+            agents=["refiner", "historian"],
+            execution_config={"timeout_seconds": 30},
+            correlation_id="test-123",
+        )
+        assert request.query == "Test query"
+        assert request.agents == ["refiner", "historian"]
+        assert request.execution_config == {"timeout_seconds": 30}
+        assert request.correlation_id == "test-123"
+
+    def test_query_validation(self):
+        """Test query field validation."""
+        # Empty query should fail
+        with pytest.raises(ValidationError, match="at least 1 character"):
+            WorkflowRequest(query="")
+
+        # Very long query should fail
+        with pytest.raises(ValidationError, match="at most 10000 characters"):
+            WorkflowRequest(query="x" * 10001)
+
+    def test_agents_validation(self):
+        """Test agents field validation."""
+        # Empty agents list should fail
+        with pytest.raises(ValidationError, match="agents list cannot be empty"):
+            WorkflowRequest(query="test", agents=[])
+
+        # Invalid agent names should fail
+        with pytest.raises(ValidationError, match="Invalid agents"):
+            WorkflowRequest(query="test", agents=["invalid_agent"])
+
+        # Duplicate agents should fail
+        with pytest.raises(ValidationError, match="Duplicate agents"):
+            WorkflowRequest(query="test", agents=["refiner", "refiner"])
+
+    def test_correlation_id_validation(self):
+        """Test correlation_id pattern validation."""
+        # Invalid pattern should fail
+        with pytest.raises(ValidationError, match="String should match pattern"):
+            WorkflowRequest(query="test", correlation_id="invalid@id")
+
+        # Too long should fail
+        with pytest.raises(ValidationError, match="at most 100 characters"):
+            WorkflowRequest(query="test", correlation_id="x" * 101)
+
+    def test_execution_config_validation(self):
+        """Test execution_config validation."""
+        # Invalid timeout should fail
+        with pytest.raises(
+            ValidationError, match="timeout_seconds must be a positive number"
+        ):
+            WorkflowRequest(query="test", execution_config={"timeout_seconds": -1})
+
+        # Timeout too high should fail
+        with pytest.raises(ValidationError, match="timeout_seconds cannot exceed 600"):
+            WorkflowRequest(query="test", execution_config={"timeout_seconds": 700})
+
+    def test_extra_fields_forbidden(self):
+        """Test that extra fields are forbidden."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            WorkflowRequest(query="test", extra_field="not_allowed")
+
+    def test_to_dict_method(self):
+        """Test backward compatibility to_dict method."""
+        request = WorkflowRequest(query="test", agents=["refiner"])
+        data = request.to_dict()
+        assert isinstance(data, dict)
+        assert data["query"] == "test"
+        assert data["agents"] == ["refiner"]
+
+
+class TestWorkflowResponseValidation:
+    """Test WorkflowResponse Pydantic validation."""
+
+    def test_valid_completed_response(self):
+        """Test valid completed response."""
+        response = WorkflowResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440000",
+            status="completed",
+            agent_outputs={"refiner": "output"},
+            execution_time_seconds=10.5,
+        )
+        assert response.status == "completed"
+        assert response.agent_outputs == {"refiner": "output"}
+
+    def test_valid_failed_response(self):
+        """Test valid failed response."""
+        response = WorkflowResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440000",
+            status="failed",
+            agent_outputs={},
+            execution_time_seconds=5.0,
+            error_message="Test error",
+        )
+        assert response.status == "failed"
+        assert response.error_message == "Test error"
+
+    def test_workflow_id_pattern_validation(self):
+        """Test workflow_id UUID pattern validation."""
+        with pytest.raises(ValidationError, match="String should match pattern"):
+            WorkflowResponse(
+                workflow_id="invalid-uuid",
+                status="completed",
+                agent_outputs={"refiner": "output"},
+                execution_time_seconds=1.0,
+            )
+
+    def test_status_pattern_validation(self):
+        """Test status field validation."""
+        with pytest.raises(ValidationError, match="String should match pattern"):
+            WorkflowResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="invalid_status",
+                agent_outputs={"refiner": "output"},
+                execution_time_seconds=1.0,
+            )
+
+    def test_status_consistency_validation(self):
+        """Test cross-field status validation."""
+        # Failed status without error message should fail
+        with pytest.raises(
+            ValidationError, match="error_message is required when status is 'failed'"
+        ):
+            WorkflowResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="failed",
+                agent_outputs={},
+                execution_time_seconds=1.0,
+            )
+
+        # Completed status with empty outputs should fail
+        with pytest.raises(
+            ValidationError,
+            match="agent_outputs cannot be empty when status is 'completed'",
+        ):
+            WorkflowResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="completed",
+                agent_outputs={},
+                execution_time_seconds=1.0,
+            )
+
+    def test_agent_outputs_validation(self):
+        """Test agent_outputs validation."""
+        # Empty output string should fail
+        with pytest.raises(ValidationError, match="cannot be empty"):
+            WorkflowResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="completed",
+                agent_outputs={"refiner": ""},
+                execution_time_seconds=1.0,
+            )
+
+    def test_execution_time_validation(self):
+        """Test execution_time_seconds validation."""
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            WorkflowResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="completed",
+                agent_outputs={"refiner": "output"},
+                execution_time_seconds=-1.0,
+            )
+
+
+class TestStatusResponseValidation:
+    """Test StatusResponse Pydantic validation."""
+
+    def test_valid_running_status(self):
+        """Test valid running status."""
+        response = StatusResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440000",
+            status="running",
+            progress_percentage=50.0,
+            current_agent="critic",
+            estimated_completion_seconds=30.0,
+        )
+        assert response.status == "running"
+        assert response.current_agent == "critic"
+
+    def test_valid_completed_status(self):
+        """Test valid completed status."""
+        response = StatusResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440000",
+            status="completed",
+            progress_percentage=100.0,
+        )
+        assert response.status == "completed"
+        assert response.progress_percentage == 100.0
+
+    def test_progress_percentage_range(self):
+        """Test progress_percentage range validation."""
+        # Below 0 should fail
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            StatusResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="running",
+                progress_percentage=-1.0,
+            )
+
+        # Above 100 should fail
+        with pytest.raises(ValidationError, match="less than or equal to 100"):
+            StatusResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="running",
+                progress_percentage=101.0,
+            )
+
+    def test_status_consistency_validation(self):
+        """Test status consistency with progress and current_agent."""
+        # Completed status must have 100% progress
+        with pytest.raises(
+            ValidationError,
+            match="progress_percentage must be 100.0 when status is 'completed'",
+        ):
+            StatusResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="completed",
+                progress_percentage=99.0,
+            )
+
+        # Failed status should not have 100% progress
+        with pytest.raises(
+            ValidationError,
+            match="progress_percentage should not be 100.0 when status is 'failed'",
+        ):
+            StatusResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="failed",
+                progress_percentage=100.0,
+            )
+
+
+class TestCompletionRequestValidation:
+    """Test CompletionRequest Pydantic validation."""
+
+    def test_valid_minimal_request(self):
+        """Test valid minimal completion request."""
+        request = CompletionRequest(prompt="Test prompt")
+        assert request.prompt == "Test prompt"
+        assert request.model is None
+
+    def test_prompt_validation(self):
+        """Test prompt field validation."""
+        # Empty prompt should fail
+        with pytest.raises(ValidationError, match="at least 1 character"):
+            CompletionRequest(prompt="")
+
+        # Very long prompt should fail
+        with pytest.raises(ValidationError, match="at most 50000 characters"):
+            CompletionRequest(prompt="x" * 50001)
+
+    def test_max_tokens_validation(self):
+        """Test max_tokens validation."""
+        # Zero tokens should fail
+        with pytest.raises(ValidationError, match="greater than or equal to 1"):
+            CompletionRequest(prompt="test", max_tokens=0)
+
+        # Too many tokens should fail
+        with pytest.raises(ValidationError, match="less than or equal to 32000"):
+            CompletionRequest(prompt="test", max_tokens=50000)
+
+    def test_temperature_validation(self):
+        """Test temperature validation."""
+        # Below 0 should fail
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            CompletionRequest(prompt="test", temperature=-0.1)
+
+        # Above 2.0 should fail
+        with pytest.raises(ValidationError, match="less than or equal to 2"):
+            CompletionRequest(prompt="test", temperature=2.1)
+
+
+class TestCompletionResponseValidation:
+    """Test CompletionResponse Pydantic validation."""
+
+    def test_valid_response(self):
+        """Test valid completion response."""
+        response = CompletionResponse(
+            completion="Test completion",
+            model_used="gpt-4",
+            token_usage={
+                "prompt_tokens": 10,
+                "completion_tokens": 20,
+                "total_tokens": 30,
+            },
+            response_time_ms=1500.0,
+            request_id="550e8400-e29b-41d4-a716-446655440000",
+        )
+        assert response.completion == "Test completion"
+        assert response.token_usage["total_tokens"] == 30
+
+    def test_token_usage_validation(self):
+        """Test token_usage validation."""
+        # Missing required keys should fail
+        with pytest.raises(ValidationError, match="token_usage must contain keys"):
+            CompletionResponse(
+                completion="test",
+                model_used="gpt-4",
+                token_usage={"prompt_tokens": 10},
+                response_time_ms=1000.0,
+                request_id="550e8400-e29b-41d4-a716-446655440000",
+            )
+
+        # Incorrect total calculation should fail
+        with pytest.raises(
+            ValidationError, match="total_tokens must equal prompt_tokens"
+        ):
+            CompletionResponse(
+                completion="test",
+                model_used="gpt-4",
+                token_usage={
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "total_tokens": 25,
+                },
+                response_time_ms=1000.0,
+                request_id="550e8400-e29b-41d4-a716-446655440000",
+            )
+
+    def test_response_time_validation(self):
+        """Test response_time_ms validation."""
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            CompletionResponse(
+                completion="test",
+                model_used="gpt-4",
+                token_usage={
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "total_tokens": 30,
+                },
+                response_time_ms=-1.0,
+                request_id="550e8400-e29b-41d4-a716-446655440000",
+            )
+
+
+class TestLLMProviderValidation:
+    """Test LLMProvider Pydantic validation."""
+
+    def test_valid_provider(self):
+        """Test valid provider."""
+        provider = LLMProvider(
+            name="openai",
+            models=["gpt-4", "gpt-3.5-turbo"],
+            available=True,
+            cost_per_token=0.00003,
+        )
+        assert provider.name == "openai"
+        assert len(provider.models) == 2
+
+    def test_models_validation(self):
+        """Test models field validation."""
+        # Empty models list should fail
+        with pytest.raises(ValidationError, match="at least 1 item"):
+            LLMProvider(
+                name="openai",
+                models=[],
+                available=True,
+            )
+
+        # Duplicate models should fail
+        with pytest.raises(ValidationError, match="Duplicate model names"):
+            LLMProvider(
+                name="openai",
+                models=["gpt-4", "gpt-4"],
+                available=True,
+            )
+
+        # Invalid model name format should fail
+        with pytest.raises(ValidationError, match="Invalid model name format"):
+            LLMProvider(
+                name="openai",
+                models=["gpt@4"],
+                available=True,
+            )
+
+    def test_cost_per_token_validation(self):
+        """Test cost_per_token validation."""
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            LLMProvider(
+                name="openai",
+                models=["gpt-4"],
+                available=True,
+                cost_per_token=-0.1,
+            )
+
+
+class TestBackwardCompatibility:
+    """Test backward compatibility features."""
+
+    def test_all_models_have_to_dict(self):
+        """Test that all external models have to_dict method."""
+        models = [
+            WorkflowRequest(query="test"),
+            WorkflowResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="completed",
+                agent_outputs={"refiner": "output"},
+                execution_time_seconds=1.0,
+            ),
+            StatusResponse(
+                workflow_id="550e8400-e29b-41d4-a716-446655440000",
+                status="completed",
+                progress_percentage=100.0,
+            ),
+            CompletionRequest(prompt="test"),
+            CompletionResponse(
+                completion="test",
+                model_used="gpt-4",
+                token_usage={
+                    "prompt_tokens": 5,
+                    "completion_tokens": 5,
+                    "total_tokens": 10,
+                },
+                response_time_ms=1000.0,
+                request_id="550e8400-e29b-41d4-a716-446655440000",
+            ),
+            LLMProvider(name="openai", models=["gpt-4"], available=True),
+        ]
+
+        for model in models:
+            assert hasattr(model, "to_dict")
+            data = model.to_dict()
+            assert isinstance(data, dict)
+
+    def test_serialization_compatibility(self):
+        """Test JSON serialization works correctly."""
+        request = WorkflowRequest(query="test", agents=["refiner"])
+
+        # Should be able to serialize/deserialize
+        data = request.model_dump()
+        restored = WorkflowRequest(**data)
+        assert restored.query == request.query
+        assert restored.agents == request.agents

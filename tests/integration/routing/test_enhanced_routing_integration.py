@@ -8,6 +8,7 @@ system including query complexity analysis, resource optimization, and event emi
 import pytest
 import time
 from unittest.mock import Mock, patch
+from pydantic import ValidationError
 
 from cognivault.routing.resource_optimizer import (
     ResourceOptimizer,
@@ -114,6 +115,7 @@ class TestResourceOptimizer:
         constraints = ResourceConstraints(
             max_agents=2,
             min_success_rate=0.8,
+            max_failure_rate=0.2,  # Compatible with min_success_rate=0.8
             forbidden_agents={"historian"},
         )
 
@@ -558,38 +560,21 @@ class TestComplexConstraintScenarios:
         assert remaining_agents.issubset(allowed_agents)
 
     def test_conflicting_required_and_forbidden_agents(self):
-        """Test scenario where required agent is also forbidden."""
-        constraints = ResourceConstraints(
-            required_agents={"refiner", "historian"},
-            forbidden_agents={
-                "historian",
-                "analyzer",
-            },  # historian is both required and forbidden
-        )
-
-        decision = self.optimizer.select_optimal_agents(
-            available_agents=self.available_agents,
-            complexity_score=0.5,
-            performance_data=self.performance_data,
-            constraints=constraints,
-            strategy=OptimizationStrategy.BALANCED,
-        )
-
-        # Should handle the conflict gracefully
-        # Required agents take precedence over forbidden
-        assert "refiner" in decision.selected_agents
-
-        # The conflicting agent (historian) should be handled based on implementation
-        # Either included (required wins) or excluded (forbidden wins) with appropriate risk tracking
-        if "historian" in decision.selected_agents:
-            # Should detect both the conflict and the override
-            assert "constraint_conflict" in decision.reasoning.risks_identified
-            assert "required_agent_override" in decision.reasoning.risks_identified
-        else:
-            assert (
-                "constraint_conflict" in decision.reasoning.risks_identified
-                or "required_agents_unavailable" in decision.reasoning.risks_identified
+        """Test that conflicting required and forbidden agents raise ValidationError."""
+        # With Pydantic validation, conflicting constraints should be caught at creation time
+        with pytest.raises(ValidationError) as exc_info:
+            ResourceConstraints(
+                required_agents={"refiner", "historian"},
+                forbidden_agents={
+                    "historian",
+                    "analyzer",
+                },  # historian is both required and forbidden
             )
+
+        # Verify the error message mentions the conflict
+        error_message = str(exc_info.value)
+        assert "both required and forbidden" in error_message
+        assert "historian" in error_message
 
     def test_required_agents_with_min_max_constraints(self):
         """Test required agents with min/max agent constraints."""
@@ -617,44 +602,24 @@ class TestComplexConstraintScenarios:
         assert len(decision.selected_agents) >= 3  # At least the required ones
 
     def test_required_agents_exceed_max_constraint(self):
-        """Test scenario where required agents exceed max_agents."""
-        constraints = ResourceConstraints(
-            required_agents={
-                "refiner",
-                "synthesis",
-                "critic",
-                "historian",
-                "analyzer",
-            },  # 5 required
-            max_agents=3,  # But only 3 allowed
-        )
-
-        decision = self.optimizer.select_optimal_agents(
-            available_agents=self.available_agents,
-            complexity_score=0.5,
-            performance_data=self.performance_data,
-            constraints=constraints,
-            strategy=OptimizationStrategy.BALANCED,
-        )
-
-        # Should handle the impossible constraint
-        assert "impossible_constraints" in decision.reasoning.risks_identified
-        assert (
-            decision.confidence_score < 0.8
-        )  # Reduced confidence due to constraint conflict
-
-        # Should either respect max_agents or prioritize required agents
-        if len(decision.selected_agents) <= 3:
-            # Respects max_agents, selects subset of required
-            required_present = sum(
-                1
-                for agent in {"refiner", "synthesis", "critic", "historian", "analyzer"}
-                if agent in decision.selected_agents
+        """Test that required agents exceeding max_agents raises ValidationError."""
+        # With Pydantic validation, impossible constraints should be caught at creation time
+        with pytest.raises(ValidationError) as exc_info:
+            ResourceConstraints(
+                required_agents={
+                    "refiner",
+                    "synthesis",
+                    "critic",
+                    "historian",
+                    "analyzer",
+                },  # 5 required
+                max_agents=3,  # But only 3 allowed
             )
-            assert required_present > 0  # At least some required agents
-        else:
-            # Prioritizes required agents, exceeds max_agents
-            assert len(decision.selected_agents) >= 3
+
+        # Verify the error message mentions the constraint violation
+        error_message = str(exc_info.value)
+        assert "required agents" in error_message.lower()
+        assert "cannot exceed max_agents" in error_message
 
     def test_forbidden_agents_with_min_constraint(self):
         """Test forbidden agents reducing available agents below min_agents."""
@@ -702,6 +667,7 @@ class TestComplexConstraintScenarios:
         constraints = ResourceConstraints(
             required_agents={"historian"},  # historian has 0.75 success rate
             min_success_rate=0.8,  # But we require 0.8 minimum
+            max_failure_rate=0.2,  # Compatible with min_success_rate=0.8
         )
 
         decision = self.optimizer.select_optimal_agents(
@@ -732,6 +698,7 @@ class TestComplexConstraintScenarios:
             min_agents=3,
             max_agents=5,
             min_success_rate=0.8,
+            max_failure_rate=0.2,  # Compatible with min_success_rate=0.8
             max_execution_time_ms=5000,
         )
 
@@ -966,6 +933,7 @@ class TestComplexConstraintScenarios:
             min_agents=2,
             max_agents=5,
             min_success_rate=0.8,
+            max_failure_rate=0.2,  # Compatible with min_success_rate=0.8
         )
 
         # Measure processing time
@@ -1078,27 +1046,17 @@ class TestResourceOptimizerErrorHandling:
 
     def test_extreme_constraint_scenarios(self):
         """Test handling of extreme constraint scenarios."""
-        # Impossible constraints: min_agents > max_agents
-        impossible_constraints = ResourceConstraints(
-            min_agents=5,
-            max_agents=2,
-            min_success_rate=0.8,
-        )
+        # With enhanced Pydantic validation, impossible constraints are caught at creation time
+        with pytest.raises(ValidationError) as exc_info:
+            ResourceConstraints(
+                min_agents=5,
+                max_agents=2,  # min_agents > max_agents should be caught
+                min_success_rate=0.8,
+            )
 
-        decision = self.optimizer.select_optimal_agents(
-            available_agents=self.available_agents,
-            complexity_score=0.5,
-            performance_data=self.performance_data,
-            constraints=impossible_constraints,
-            strategy=OptimizationStrategy.BALANCED,
-        )
-
-        # Should handle gracefully and provide feedback
-        # The system should respect max_agents constraint despite impossible min_agents
-        assert (
-            len(decision.selected_agents) <= 2 or decision.confidence_score < 0.8
-        )  # Either respects max_agents or has reduced confidence
-        assert "impossible_constraints" in decision.reasoning.risks_identified
+        # Verify the error message mentions the constraint conflict
+        error_message = str(exc_info.value)
+        assert "min_agents" in error_message and "max_agents" in error_message
 
     def test_forbidden_all_agents_scenario(self):
         """Test scenario where all agents are forbidden."""
@@ -2455,15 +2413,15 @@ class TestRoutingDecisionSerializationEdgeCases:
             # Missing required fields: decision_id, timestamp, confidence_level
         }
 
-        # Should raise KeyError for missing required fields
-        with pytest.raises(KeyError):
+        # Should raise ValidationError for missing required fields with Pydantic
+        with pytest.raises(ValidationError):
             RoutingDecision.from_dict(incomplete_dict)
 
     def test_deserialization_with_missing_optional_fields(self):
         """Test deserialization with missing optional fields."""
         # Create minimal dictionary with only required fields
         minimal_dict = {
-            "decision_id": "test-id",
+            "decision_id": "a1b2c3d4e5f6789012345678901234ab",  # 32-char hex string
             "timestamp": "2023-01-01T00:00:00+00:00",
             "selected_agents": ["refiner"],
             "routing_strategy": "test",
@@ -2520,17 +2478,33 @@ class TestRoutingDecisionSerializationEdgeCases:
             RoutingDecision.from_dict(decision_dict)
 
     def test_serialization_with_extreme_values(self):
-        """Test serialization with extreme values."""
+        """Test serialization with extreme values that pass validation."""
+        # Enhanced Pydantic validation prevents truly extreme values, so test with large but valid values
+        with pytest.raises(ValidationError):
+            # This should fail validation due to string length and infinity constraints
+            RoutingDecision(
+                selected_agents=["agent"] * 100,  # Very long list (valid)
+                routing_strategy="x"
+                * 1000,  # Very long string (exceeds max_length=200)
+                confidence_score=1.0,  # Maximum confidence
+                confidence_level=ConfidenceLevel.VERY_HIGH,
+                estimated_total_time_ms=float(
+                    "inf"
+                ),  # Infinity (exceeds max constraint)
+                estimated_success_probability=0.0,  # Minimum probability
+            )
+
+        # Test with large but valid values
         decision = RoutingDecision(
-            selected_agents=["agent"] * 100,  # Very long list
-            routing_strategy="x" * 1000,  # Very long string
+            selected_agents=["agent"] * 100,  # Very long list (valid)
+            routing_strategy="x" * 190,  # Long string within limits
             confidence_score=1.0,  # Maximum confidence
             confidence_level=ConfidenceLevel.VERY_HIGH,
-            estimated_total_time_ms=float("inf"),  # Infinity
+            estimated_total_time_ms=599999.0,  # Just under limit
             estimated_success_probability=0.0,  # Minimum probability
         )
 
-        # Add extreme reasoning data
+        # Add large reasoning data
         decision.reasoning.risks_identified = ["risk"] * 50  # Many risks
         decision.reasoning.complexity_analysis = {
             f"key_{i}": f"value_{i}" for i in range(100)
@@ -2540,11 +2514,11 @@ class TestRoutingDecisionSerializationEdgeCases:
         decision_dict = decision.to_dict()
         restored_decision = RoutingDecision.from_dict(decision_dict)
 
-        # Verify extreme values are preserved
+        # Verify large values are preserved
         assert len(restored_decision.selected_agents) == 100
-        assert len(restored_decision.routing_strategy) == 1000
+        assert len(restored_decision.routing_strategy) == 190
         assert restored_decision.confidence_score == 1.0
-        assert restored_decision.estimated_total_time_ms == float("inf")
+        assert restored_decision.estimated_total_time_ms == 599999.0
         assert restored_decision.estimated_success_probability == 0.0
         assert len(restored_decision.reasoning.risks_identified) == 50
         assert len(restored_decision.reasoning.complexity_analysis) == 100
@@ -2704,19 +2678,14 @@ class TestRoutingDecisionSerializationEdgeCases:
             confidence_level=ConfidenceLevel.MEDIUM,
         )
 
-        # Corrupt reasoning object
-        decision.reasoning = None
+        # Enhanced Pydantic validation prevents setting reasoning to None
+        with pytest.raises(ValidationError):
+            decision.reasoning = None
 
-        # Should raise AttributeError
-        with pytest.raises(AttributeError):
-            decision.to_dict()
-
-        # Test with missing confidence_level
-        decision.confidence_level = None
-
-        # Should raise AttributeError when accessing .value
-        with pytest.raises(AttributeError):
-            decision.to_dict()
+        # Test with attempt to set invalid confidence_level
+        # Enhanced validation prevents setting confidence_level to None
+        with pytest.raises(ValidationError):
+            decision.confidence_level = None
 
 
 if __name__ == "__main__":

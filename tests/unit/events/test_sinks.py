@@ -101,10 +101,10 @@ def sample_failed_agent_event():
         success=False,
         output_context={},
         metadata={"retry_count": 3},
+        error_message="Analysis failed due to timeout",
+        error_type="TimeoutError",
+        execution_time_ms=75.0,
     )
-    # Set error message and execution time manually
-    event.error_message = "Analysis failed due to timeout"
-    event.execution_time_ms = 75.0
     return event
 
 
@@ -686,8 +686,9 @@ class TestEventFilters:
             success=False,
             output_context={},
             metadata={},
+            error_message="Test error message",
+            error_type="TestError",
         )
-        error_event.error_message = "Test error message"
         events_with_error = sample_events + [error_event]
 
         # Filter for events with errors

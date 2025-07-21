@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 from abc import ABC, abstractmethod
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.context import AgentContext
 from cognivault.observability import get_logger
@@ -117,17 +118,67 @@ class AgentMetadata:
         }
 
 
-@dataclass
-class CompositionRule:
-    """Rule for dynamic composition decisions."""
+class CompositionRule(BaseModel):
+    """
+    Rule for dynamic composition decisions.
 
-    rule_id: str
-    name: str
-    condition: Callable[[AgentContext, Dict[str, Any]], bool]
-    action: Callable[[AgentContext, Dict[str, Any]], Dict[str, Any]]
-    priority: int = 0
-    enabled: bool = True
-    description: str = ""
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    rule_id: str = Field(
+        ...,
+        description="Unique identifier for this composition rule",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "high_memory_fallback"},
+    )
+    name: str = Field(
+        ...,
+        description="Human-readable name for this rule",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "High Memory Usage Fallback Rule"},
+    )
+    condition: Callable[[AgentContext, Dict[str, Any]], bool] = Field(
+        ...,
+        description="Function that evaluates whether this rule should be applied",
+    )
+    action: Callable[[AgentContext, Dict[str, Any]], Dict[str, Any]] = Field(
+        ...,
+        description="Function that performs the rule's action when condition is met",
+    )
+
+    # Optional fields with defaults
+    priority: int = Field(
+        0,
+        description="Priority of this rule (higher values = higher priority)",
+        ge=-100,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+    enabled: bool = Field(
+        True,
+        description="Whether this rule is currently enabled",
+        json_schema_extra={"example": True},
+    )
+    description: str = Field(
+        "",
+        description="Description of what this rule does",
+        max_length=500,
+        json_schema_extra={
+            "example": "Switches to memory-efficient agents when memory usage exceeds 80%"
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+        # Allow functions to be serialized (they won't be JSON serializable but that's okay)
+        arbitrary_types_allowed=True,
+    )
 
     def evaluate(self, context: AgentContext, metadata: Dict[str, Any]) -> bool:
         """Evaluate if this rule should be applied."""

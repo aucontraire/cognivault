@@ -9,10 +9,10 @@ agents, and event system for debugging and observability.
 import uuid
 from contextvars import ContextVar
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from typing import Optional, AsyncGenerator, Dict, Any
 from datetime import datetime, timezone
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.observability import get_logger
 
 logger = get_logger(__name__)
@@ -30,52 +30,86 @@ context_trace_metadata: ContextVar[Dict[str, Any]] = ContextVar(
 )
 
 
-@dataclass
-class CorrelationContext:
+class CorrelationContext(BaseModel):
     """
     Correlation context for tracing requests through the system.
+
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
 
     Provides access to correlation information that automatically
     propagates through async execution chains.
     """
 
-    correlation_id: str
-    workflow_id: str
-    parent_span_id: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-    created_at: Optional[datetime] = None
+    # Required fields
+    correlation_id: str = Field(
+        ...,
+        description="Unique correlation identifier for tracing across services",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    workflow_id: str = Field(
+        ...,
+        description="Unique workflow identifier for the current execution",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "wf-abc123-def456"},
+    )
 
-    def __post_init__(self):
-        if self.metadata is None:
-            self.metadata = {}
-        if self.created_at is None:
-            self.created_at = datetime.now(timezone.utc)
+    # Optional fields with defaults
+    parent_span_id: Optional[str] = Field(
+        None,
+        description="Parent span ID for nested operation tracing",
+        max_length=200,
+        json_schema_extra={"example": "span-xyz789"},
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional trace metadata and context information",
+        json_schema_extra={
+            "example": {"service_name": "cognivault", "operation": "agent_execution"}
+        },
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this correlation context was created (UTC)",
+        json_schema_extra={"example": "2024-01-01T12:00:00Z"},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        # Allow timezone-aware datetime objects
+        json_encoders={datetime: lambda dt: dt.isoformat()},
+    )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert correlation context to dictionary for serialization."""
-        return {
-            "correlation_id": self.correlation_id,
-            "workflow_id": self.workflow_id,
-            "parent_span_id": self.parent_span_id,
-            "metadata": self.metadata,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-        }
+        """
+        Convert correlation context to dictionary for serialization.
+
+        Maintained for backward compatibility. Uses Pydantic's model_dump()
+        internally for consistent serialization with datetime handling.
+        """
+        # Use model_dump with mode='json' to properly serialize datetime
+        data = self.model_dump(mode="json")
+
+        # Ensure datetime is serialized as ISO format string for compatibility
+        data["created_at"] = self.created_at.isoformat()
+
+        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CorrelationContext":
-        """Create correlation context from dictionary."""
-        created_at = (
-            datetime.fromisoformat(data["created_at"])
-            if data.get("created_at")
-            else None
-        )
-        return cls(
-            correlation_id=data["correlation_id"],
-            workflow_id=data["workflow_id"],
-            parent_span_id=data.get("parent_span_id"),
-            metadata=data.get("metadata", {}),
-            created_at=created_at or datetime.now(timezone.utc),
-        )
+        """
+        Create correlation context from dictionary.
+
+        Uses Pydantic's model_validate() for cleaner deserialization
+        and automatic type conversion.
+        """
+        # Use Pydantic's model_validate for automatic type conversion
+        return cls.model_validate(data)
 
 
 @asynccontextmanager

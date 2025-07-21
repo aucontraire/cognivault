@@ -7,10 +7,10 @@ routing and observability.
 """
 
 import uuid
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Any, Optional, List
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
 from cognivault.agents.metadata import AgentMetadata, TaskClassification
 
@@ -53,8 +53,7 @@ class EventType(Enum):
     NODE_EXECUTION_COMPLETED = "node.execution.completed"
 
 
-@dataclass
-class WorkflowEvent:
+class WorkflowEvent(BaseModel):
     """
     Enhanced event model with multi-axis agent classification.
 
@@ -64,47 +63,160 @@ class WorkflowEvent:
     """
 
     # Core event identification - required fields first
-    event_type: EventType
-    workflow_id: str
+    event_type: EventType = Field(
+        ...,
+        description="Type of event being recorded",
+        json_schema_extra={"example": "workflow.started"},
+    )
+    workflow_id: str = Field(
+        ...,
+        description="Unique identifier for the workflow execution",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "workflow-12345-abcdef"},
+    )
 
     # Optional fields with defaults
-    event_id: str = field(default_factory=lambda: uuid.uuid4().hex)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    correlation_id: Optional[str] = None
-    parent_span_id: Optional[str] = None
+    event_id: str = Field(
+        default_factory=lambda: uuid.uuid4().hex,
+        description="Unique identifier for this specific event",
+        json_schema_extra={"example": "a1b2c3d4e5f6789012345678901234ab"},
+    )
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When this event occurred (UTC)",
+        json_schema_extra={"example": "2024-01-01T12:00:00Z"},
+    )
+    correlation_id: Optional[str] = Field(
+        None,
+        description="Correlation ID for distributed tracing",
+        max_length=200,
+        json_schema_extra={"example": "trace-abc123"},
+    )
+    parent_span_id: Optional[str] = Field(
+        None,
+        description="Parent span ID for nested event tracking",
+        max_length=200,
+        json_schema_extra={"example": "span-def456"},
+    )
 
     # Multi-axis agent classification (architectural breakthrough)
-    agent_metadata: Optional[AgentMetadata] = None
-    task_classification: Optional[TaskClassification] = None
-    capabilities_used: List[str] = field(default_factory=list)
+    agent_metadata: Optional[AgentMetadata] = Field(
+        None, description="Rich agent metadata with multi-axis classification"
+    )
+    task_classification: Optional[TaskClassification] = Field(
+        None, description="Task classification for semantic routing"
+    )
+    capabilities_used: List[str] = Field(
+        default_factory=list,
+        description="List of capabilities utilized during execution",
+        json_schema_extra={"example": ["critical_analysis", "context_retrieval"]},
+    )
 
     # Event data and context
-    data: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(
+    data: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Event-specific data payload",
+        json_schema_extra={"example": {"query": "test query", "status": "completed"}},
+    )
+    metadata: Dict[str, Any] = Field(
         default_factory=lambda: {
             "schema_version": "2.0.0",
             "agent_taxonomy": "multi_axis",  # Evolved from "cognitive_only"
             "classification_model": "capability_based",
-        }
+        },
+        description="Event system metadata and versioning",
     )
 
     # Performance tracking
-    execution_time_ms: Optional[float] = None
-    memory_usage_mb: Optional[float] = None
+    execution_time_ms: Optional[float] = Field(
+        None,
+        description="Execution time in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 1250.5},
+    )
+    memory_usage_mb: Optional[float] = Field(
+        None,
+        description="Memory usage in megabytes",
+        ge=0.0,
+        json_schema_extra={"example": 128.5},
+    )
 
     # Error information
-    error_message: Optional[str] = None
-    error_type: Optional[str] = None
+    error_message: Optional[str] = Field(
+        None,
+        description="Error message if event represents a failure",
+        max_length=5000,
+        json_schema_extra={"example": "Agent 'critic' failed: timeout exceeded"},
+    )
+    error_type: Optional[str] = Field(
+        None,
+        description="Type of error that occurred",
+        max_length=200,
+        json_schema_extra={"example": "TimeoutError"},
+    )
 
     # Service context (for future service extraction)
-    service_name: str = "cognivault-core"
-    service_version: str = "1.0.0"
+    service_name: str = Field(
+        "cognivault-core",
+        description="Name of the service that generated this event",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "cognivault-core"},
+    )
+    service_version: str = Field(
+        "1.0.0",
+        description="Version of the service that generated this event",
+        pattern=r"^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$",
+        json_schema_extra={"example": "1.0.0"},
+    )
+
+    @field_validator("event_id")
+    @classmethod
+    def validate_event_id(cls, v):
+        """Validate event ID format."""
+        if not isinstance(v, str) or len(v) != 32:
+            raise ValueError("event_id must be a 32-character hex string")
+        try:
+            int(v, 16)  # Verify it's valid hex
+        except ValueError:
+            raise ValueError("event_id must contain only hexadecimal characters")
+        return v
+
+    @field_validator("capabilities_used")
+    @classmethod
+    def validate_capabilities(cls, v):
+        """Validate capabilities list."""
+        if not isinstance(v, list):
+            raise ValueError("capabilities_used must be a list")
+        for cap in v:
+            if not isinstance(cap, str) or len(cap.strip()) == 0:
+                raise ValueError("All capabilities must be non-empty strings")
+        return v
+
+    @model_validator(mode="after")
+    def validate_error_consistency(self):
+        """Validate error field consistency."""
+        has_error_message = bool(self.error_message)
+        has_error_type = bool(self.error_type)
+
+        # If one error field is set, both should be set
+        if has_error_message and not has_error_type:
+            raise ValueError("error_type is required when error_message is provided")
+        if has_error_type and not has_error_message:
+            raise ValueError("error_message is required when error_type is provided")
+
+        return self
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize event for storage and transmission."""
+        """Serialize event for storage and transmission - backward compatibility."""
         return {
             "event_id": self.event_id,
-            "event_type": self.event_type.value,
+            "event_type": (
+                self.event_type.value
+                if hasattr(self.event_type, "value")
+                else self.event_type
+            ),
             "timestamp": self.timestamp.isoformat(),
             "workflow_id": self.workflow_id,
             "correlation_id": self.correlation_id,
@@ -128,7 +240,7 @@ class WorkflowEvent:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "WorkflowEvent":
-        """Deserialize event from storage."""
+        """Deserialize event from storage - backward compatibility."""
         # Handle agent metadata reconstruction
         agent_metadata = None
         if data.get("agent_metadata"):
@@ -161,18 +273,46 @@ class WorkflowEvent:
             service_version=data.get("service_version", "1.0.0"),
         )
 
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects, not string values
+    )
 
-@dataclass
+
 class WorkflowStartedEvent(WorkflowEvent):
     """Workflow execution started event with enhanced metadata."""
 
-    query: str = ""
-    agents_requested: List[str] = field(default_factory=list)
-    execution_config: Dict[str, Any] = field(default_factory=dict)
-    orchestrator_type: str = "langgraph-real"
+    event_type: EventType = Field(
+        default=EventType.WORKFLOW_STARTED,
+        description="Type of event being recorded",
+        json_schema_extra={"example": "workflow.started"},
+    )
+    query: str = Field(
+        "",
+        description="The user query that initiated this workflow",
+        max_length=50000,
+        json_schema_extra={"example": "Analyze the impact of climate change"},
+    )
+    agents_requested: List[str] = Field(
+        default_factory=list,
+        description="List of agent names requested for execution",
+        json_schema_extra={"example": ["refiner", "critic", "historian"]},
+    )
+    execution_config: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Configuration parameters for workflow execution",
+        json_schema_extra={"example": {"timeout_seconds": 300, "parallel": True}},
+    )
+    orchestrator_type: str = Field(
+        "langgraph-real",
+        description="Type of orchestrator handling the workflow",
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        json_schema_extra={"example": "langgraph-real"},
+    )
 
-    def __post_init__(self):
-        self.event_type = EventType.WORKFLOW_STARTED
+    def model_post_init(self, __context) -> None:
+        """Populate data after initialization."""
         self.data.update(
             {
                 "query": (
@@ -186,18 +326,60 @@ class WorkflowStartedEvent(WorkflowEvent):
         )
 
 
-@dataclass
 class WorkflowCompletedEvent(WorkflowEvent):
     """Workflow execution completed event with enhanced metadata."""
 
-    status: str = ""  # "completed", "failed", "cancelled", "partial_failure"
-    execution_time_seconds: float = 0.0
-    agent_outputs: Dict[str, str] = field(default_factory=dict)
-    successful_agents: List[str] = field(default_factory=list)
-    failed_agents: List[str] = field(default_factory=list)
+    event_type: EventType = Field(
+        default=EventType.WORKFLOW_COMPLETED,
+        description="Type of event being recorded",
+        json_schema_extra={"example": "workflow.completed"},
+    )
+    status: str = Field(
+        "",
+        description="Final status of the workflow execution",
+        pattern=r"^(completed|failed|cancelled|partial_failure)$",
+        json_schema_extra={"example": "completed"},
+    )
+    execution_time_seconds: float = Field(
+        0.0,
+        description="Total execution time in seconds",
+        ge=0.0,
+        json_schema_extra={"example": 42.5},
+    )
+    agent_outputs: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Outputs from each executed agent",
+        json_schema_extra={
+            "example": {
+                "refiner": "Refined query output",
+                "critic": "Critical analysis result",
+            }
+        },
+    )
+    successful_agents: List[str] = Field(
+        default_factory=list,
+        description="List of agents that completed successfully",
+        json_schema_extra={"example": ["refiner", "critic"]},
+    )
+    failed_agents: List[str] = Field(
+        default_factory=list,
+        description="List of agents that failed during execution",
+        json_schema_extra={"example": ["historian"]},
+    )
 
-    def __post_init__(self):
-        self.event_type = EventType.WORKFLOW_COMPLETED
+    @field_validator("agent_outputs")
+    @classmethod
+    def validate_agent_outputs(cls, v):
+        """Validate agent outputs structure."""
+        for agent_name, output in v.items():
+            if not isinstance(agent_name, str) or len(agent_name.strip()) == 0:
+                raise ValueError("Agent names must be non-empty strings")
+            if not isinstance(output, str):
+                raise ValueError(f"Output for agent '{agent_name}' must be a string")
+        return v
+
+    def model_post_init(self, __context) -> None:
+        """Populate data after initialization."""
         self.execution_time_ms = self.execution_time_seconds * 1000
         self.data.update(
             {
@@ -212,15 +394,35 @@ class WorkflowCompletedEvent(WorkflowEvent):
         )
 
 
-@dataclass
 class AgentExecutionStartedEvent(WorkflowEvent):
     """Agent execution started event with multi-axis classification."""
 
-    agent_name: str = ""
-    input_context: Dict[str, Any] = field(default_factory=dict)
+    event_type: EventType = Field(
+        default=EventType.AGENT_EXECUTION_STARTED,
+        description="Type of event being recorded",
+        json_schema_extra={"example": "agent.execution.started"},
+    )
+    agent_name: str = Field(
+        "",
+        description="Name of the agent starting execution",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "critic"},
+    )
+    input_context: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Input context provided to the agent",
+        json_schema_extra={
+            "example": {
+                "query": "test query",
+                "previous_outputs": {},
+                "input_tokens": 150,
+            }
+        },
+    )
 
-    def __post_init__(self):
-        self.event_type = EventType.AGENT_EXECUTION_STARTED
+    def model_post_init(self, __context) -> None:
+        """Populate data after initialization."""
         self.data.update(
             {
                 "agent_name": self.agent_name,
@@ -230,16 +432,40 @@ class AgentExecutionStartedEvent(WorkflowEvent):
         )
 
 
-@dataclass
 class AgentExecutionCompletedEvent(WorkflowEvent):
     """Agent execution completed event with performance metrics."""
 
-    agent_name: str = ""
-    success: bool = True
-    output_context: Dict[str, Any] = field(default_factory=dict)
+    event_type: EventType = Field(
+        default=EventType.AGENT_EXECUTION_COMPLETED,
+        description="Type of event being recorded",
+        json_schema_extra={"example": "agent.execution.completed"},
+    )
+    agent_name: str = Field(
+        "",
+        description="Name of the agent that completed execution",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "critic"},
+    )
+    success: bool = Field(
+        True,
+        description="Whether the agent execution was successful",
+        json_schema_extra={"example": True},
+    )
+    output_context: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Output context generated by the agent",
+        json_schema_extra={
+            "example": {
+                "result": "Critical analysis complete",
+                "confidence": 0.85,
+                "output_tokens": 200,
+            }
+        },
+    )
 
-    def __post_init__(self):
-        self.event_type = EventType.AGENT_EXECUTION_COMPLETED
+    def model_post_init(self, __context) -> None:
+        """Populate data after initialization."""
         self.data.update(
             {
                 "agent_name": self.agent_name,
@@ -250,17 +476,54 @@ class AgentExecutionCompletedEvent(WorkflowEvent):
         )
 
 
-@dataclass
 class RoutingDecisionEvent(WorkflowEvent):
     """Routing decision event for analytics and optimization."""
 
-    selected_agents: List[str] = field(default_factory=list)
-    routing_strategy: str = ""
-    confidence_score: float = 0.0
-    reasoning: Dict[str, Any] = field(default_factory=dict)
+    event_type: EventType = Field(
+        default=EventType.ROUTING_DECISION_MADE,
+        description="Type of event being recorded",
+        json_schema_extra={"example": "routing.decision.made"},
+    )
+    selected_agents: List[str] = Field(
+        default_factory=list,
+        description="List of agents selected for execution",
+        json_schema_extra={"example": ["refiner", "critic", "historian"]},
+    )
+    routing_strategy: str = Field(
+        "",
+        description="Strategy used for agent selection",
+        max_length=200,
+        json_schema_extra={"example": "capability_based"},
+    )
+    confidence_score: float = Field(
+        0.0,
+        description="Confidence in the routing decision (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+    reasoning: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Reasoning behind the routing decision",
+        json_schema_extra={
+            "example": {
+                "criteria": ["task_complexity", "domain_expertise"],
+                "explanation": "Selected agents based on query analysis",
+            }
+        },
+    )
 
-    def __post_init__(self):
-        self.event_type = EventType.ROUTING_DECISION_MADE
+    @field_validator("selected_agents")
+    @classmethod
+    def validate_selected_agents(cls, v):
+        """Validate selected agents list."""
+        for agent in v:
+            if not isinstance(agent, str) or len(agent.strip()) == 0:
+                raise ValueError("All agent names must be non-empty strings")
+        return v
+
+    def model_post_init(self, __context) -> None:
+        """Populate data after initialization."""
         self.data.update(
             {
                 "selected_agents": self.selected_agents,
@@ -273,19 +536,66 @@ class RoutingDecisionEvent(WorkflowEvent):
 
 
 # Event filtering and statistics
-@dataclass
-class EventFilters:
-    """Filters for querying events."""
+class EventFilters(BaseModel):
+    """Filters for querying events with comprehensive validation."""
 
-    event_type: Optional[EventType] = None
-    workflow_id: Optional[str] = None
-    correlation_id: Optional[str] = None
-    agent_name: Optional[str] = None
-    capability: Optional[str] = None
-    bounded_context: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    has_errors: Optional[bool] = None
+    event_type: Optional[EventType] = Field(
+        None,
+        description="Filter by specific event type",
+        json_schema_extra={"example": "workflow.started"},
+    )
+    workflow_id: Optional[str] = Field(
+        None,
+        description="Filter by workflow identifier",
+        max_length=200,
+        json_schema_extra={"example": "workflow-12345"},
+    )
+    correlation_id: Optional[str] = Field(
+        None,
+        description="Filter by correlation identifier",
+        max_length=200,
+        json_schema_extra={"example": "trace-abc123"},
+    )
+    agent_name: Optional[str] = Field(
+        None,
+        description="Filter by agent name",
+        max_length=100,
+        json_schema_extra={"example": "critic"},
+    )
+    capability: Optional[str] = Field(
+        None,
+        description="Filter by capability used",
+        max_length=100,
+        json_schema_extra={"example": "critical_analysis"},
+    )
+    bounded_context: Optional[str] = Field(
+        None,
+        description="Filter by bounded context",
+        pattern=r"^(reflection|transformation|retrieval)$",
+        json_schema_extra={"example": "reflection"},
+    )
+    start_time: Optional[datetime] = Field(
+        None,
+        description="Filter events after this timestamp",
+        json_schema_extra={"example": "2024-01-01T00:00:00Z"},
+    )
+    end_time: Optional[datetime] = Field(
+        None,
+        description="Filter events before this timestamp",
+        json_schema_extra={"example": "2024-01-01T23:59:59Z"},
+    )
+    has_errors: Optional[bool] = Field(
+        None,
+        description="Filter by presence of errors",
+        json_schema_extra={"example": False},
+    )
+
+    @model_validator(mode="after")
+    def validate_time_range(self):
+        """Validate that start_time is before end_time."""
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            raise ValueError("start_time must be before end_time")
+        return self
 
     def matches(self, event: WorkflowEvent) -> bool:
         """Check if an event matches these filters."""
@@ -315,17 +625,69 @@ class EventFilters:
                 return False
         return True
 
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
-@dataclass
-class EventStatistics:
-    """Statistics about processed events."""
 
-    total_events: int = 0
-    events_by_type: Dict[str, int] = field(default_factory=dict)
-    events_by_agent: Dict[str, int] = field(default_factory=dict)
-    events_by_capability: Dict[str, int] = field(default_factory=dict)
-    average_execution_time_ms: float = 0.0
-    error_rate: float = 0.0
+class EventStatistics(BaseModel):
+    """Statistics about processed events with validation."""
+
+    total_events: int = Field(
+        0,
+        description="Total number of events processed",
+        ge=0,
+        json_schema_extra={"example": 1250},
+    )
+    events_by_type: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Count of events by event type",
+        json_schema_extra={
+            "example": {
+                "workflow.started": 100,
+                "workflow.completed": 95,
+                "agent.execution.completed": 380,
+            }
+        },
+    )
+    events_by_agent: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Count of events by agent name",
+        json_schema_extra={
+            "example": {"refiner": 95, "critic": 95, "historian": 90, "synthesis": 95}
+        },
+    )
+    events_by_capability: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Count of events by capability used",
+        json_schema_extra={
+            "example": {
+                "critical_analysis": 95,
+                "context_retrieval": 90,
+                "multi_perspective_synthesis": 95,
+            }
+        },
+    )
+    average_execution_time_ms: float = Field(
+        0.0,
+        description="Average execution time in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 1250.5},
+    )
+    error_rate: float = Field(
+        0.0,
+        description="Error rate as a percentage (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.05},
+    )
+
+    @field_validator("events_by_type", "events_by_agent", "events_by_capability")
+    @classmethod
+    def validate_event_counts(cls, v):
+        """Validate that all counts are non-negative."""
+        for key, count in v.items():
+            if not isinstance(count, int) or count < 0:
+                raise ValueError(f"Count for '{key}' must be a non-negative integer")
+        return v
 
     def update_with_event(self, event: WorkflowEvent):
         """Update statistics with a new event."""
@@ -361,3 +723,5 @@ class EventStatistics:
                 1 for events in self.events_by_type.values() if events > 0
             )
             self.error_rate = error_count / self.total_events
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)

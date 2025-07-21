@@ -390,8 +390,11 @@ class TestResourcePool:
         # Wait long enough for grace period to pass
         time.sleep(0.01)
 
-        # Mock the get_age_ms to return a large value
-        with patch.object(allocation, "get_age_ms", return_value=40000):  # 40 seconds
+        # Mock the get_age_ms method on the class, not the instance
+        with patch(
+            "cognivault.dependencies.resource_scheduler.ResourceAllocation.get_age_ms",
+            return_value=40000,
+        ):  # 40 seconds
             cleaned_count = pool.cleanup_expired_allocations()
 
         assert cleaned_count == 1
@@ -415,9 +418,24 @@ class TestPriorityQueue:
         queue = PriorityQueue(policy=SchedulingPolicy.FIFO)
 
         # Add requests in order
-        request1 = ResourceRequest("agent_a", ResourceType.CPU, 10.0, "percentage")
-        request2 = ResourceRequest("agent_b", ResourceType.CPU, 20.0, "percentage")
-        request3 = ResourceRequest("agent_c", ResourceType.CPU, 30.0, "percentage")
+        request1 = ResourceRequest(
+            agent_id="agent_a",
+            resource_type=ResourceType.CPU,
+            amount=10.0,
+            units="percentage",
+        )
+        request2 = ResourceRequest(
+            agent_id="agent_b",
+            resource_type=ResourceType.CPU,
+            amount=20.0,
+            units="percentage",
+        )
+        request3 = ResourceRequest(
+            agent_id="agent_c",
+            resource_type=ResourceType.CPU,
+            amount=30.0,
+            units="percentage",
+        )
 
         queue.enqueue(request1)
         queue.enqueue(request2)
@@ -434,17 +452,25 @@ class TestPriorityQueue:
 
         # Add requests with different priorities
         request1 = ResourceRequest(
-            "agent_low", ResourceType.CPU, 10.0, "percentage", ExecutionPriority.LOW
+            agent_id="agent_low",
+            resource_type=ResourceType.CPU,
+            amount=10.0,
+            units="percentage",
+            priority=ExecutionPriority.LOW,
         )
         request2 = ResourceRequest(
-            "agent_high", ResourceType.CPU, 20.0, "percentage", ExecutionPriority.HIGH
+            agent_id="agent_high",
+            resource_type=ResourceType.CPU,
+            amount=20.0,
+            units="percentage",
+            priority=ExecutionPriority.HIGH,
         )
         request3 = ResourceRequest(
-            "agent_critical",
-            ResourceType.CPU,
-            30.0,
-            "percentage",
-            ExecutionPriority.CRITICAL,
+            agent_id="agent_critical",
+            resource_type=ResourceType.CPU,
+            amount=30.0,
+            units="percentage",
+            priority=ExecutionPriority.CRITICAL,
         )
 
         # Add in random order
@@ -463,24 +489,24 @@ class TestPriorityQueue:
 
         # Add requests with different durations
         request1 = ResourceRequest(
-            "agent_long",
-            ResourceType.CPU,
-            10.0,
-            "percentage",
+            agent_id="agent_long",
+            resource_type=ResourceType.CPU,
+            amount=10.0,
+            units="percentage",
             estimated_duration_ms=10000,
         )
         request2 = ResourceRequest(
-            "agent_short",
-            ResourceType.CPU,
-            20.0,
-            "percentage",
+            agent_id="agent_short",
+            resource_type=ResourceType.CPU,
+            amount=20.0,
+            units="percentage",
             estimated_duration_ms=1000,
         )
         request3 = ResourceRequest(
-            "agent_medium",
-            ResourceType.CPU,
-            30.0,
-            "percentage",
+            agent_id="agent_medium",
+            resource_type=ResourceType.CPU,
+            amount=30.0,
+            units="percentage",
             estimated_duration_ms=5000,
         )
 
@@ -501,24 +527,24 @@ class TestPriorityQueue:
 
         # Add requests with different deadlines
         request1 = ResourceRequest(
-            "agent_late",
-            ResourceType.CPU,
-            10.0,
-            "percentage",
+            agent_id="agent_late",
+            resource_type=ResourceType.CPU,
+            amount=10.0,
+            units="percentage",
             deadline=current_time + 100,
         )
         request2 = ResourceRequest(
-            "agent_urgent",
-            ResourceType.CPU,
-            20.0,
-            "percentage",
+            agent_id="agent_urgent",
+            resource_type=ResourceType.CPU,
+            amount=20.0,
+            units="percentage",
             deadline=current_time + 10,
         )
         request3 = ResourceRequest(
-            "agent_medium",
-            ResourceType.CPU,
-            30.0,
-            "percentage",
+            agent_id="agent_medium",
+            resource_type=ResourceType.CPU,
+            amount=30.0,
+            units="percentage",
             deadline=current_time + 50,
         )
 
@@ -539,7 +565,12 @@ class TestPriorityQueue:
         assert queue.peek() is None
 
         # Add request
-        request = ResourceRequest("agent_a", ResourceType.CPU, 10.0, "percentage")
+        request = ResourceRequest(
+            agent_id="agent_a",
+            resource_type=ResourceType.CPU,
+            amount=10.0,
+            units="percentage",
+        )
         queue.enqueue(request)
 
         # Should peek at first request without removing it
@@ -552,8 +583,18 @@ class TestPriorityQueue:
         """Test removing specific request from queue."""
         queue = PriorityQueue(policy=SchedulingPolicy.FIFO)
 
-        request1 = ResourceRequest("agent_a", ResourceType.CPU, 10.0, "percentage")
-        request2 = ResourceRequest("agent_b", ResourceType.CPU, 20.0, "percentage")
+        request1 = ResourceRequest(
+            agent_id="agent_a",
+            resource_type=ResourceType.CPU,
+            amount=10.0,
+            units="percentage",
+        )
+        request2 = ResourceRequest(
+            agent_id="agent_b",
+            resource_type=ResourceType.CPU,
+            amount=20.0,
+            units="percentage",
+        )
 
         queue.enqueue(request1)
         queue.enqueue(request2)
@@ -573,13 +614,18 @@ class TestPriorityQueue:
 
         # Add expired request
         request1 = ResourceRequest(
-            "agent_expired",
-            ResourceType.CPU,
-            10.0,
-            "percentage",
+            agent_id="agent_expired",
+            resource_type=ResourceType.CPU,
+            amount=10.0,
+            units="percentage",
             max_wait_time_ms=1,  # Very short wait time
         )
-        request2 = ResourceRequest("agent_valid", ResourceType.CPU, 20.0, "percentage")
+        request2 = ResourceRequest(
+            agent_id="agent_valid",
+            resource_type=ResourceType.CPU,
+            amount=20.0,
+            units="percentage",
+        )
 
         queue.enqueue(request1)
         time.sleep(0.002)  # Wait for expiration
@@ -646,8 +692,8 @@ class TestResourceScheduler:
 
         # Create resource constraints
         constraints = [
-            ResourceConstraint("cpu", 20.0, 50.0, "percentage"),
-            ResourceConstraint("memory", 100.0, 512.0, "MB"),
+            ResourceConstraint(resource_type="cpu", max_usage=50.0, units="percentage"),
+            ResourceConstraint(resource_type="memory", max_usage=512.0, units="MB"),
         ]
 
         # Request resources
@@ -676,7 +722,9 @@ class TestResourceScheduler:
         scheduler.add_resource_pool(small_pool)
 
         # Create resource constraints that will cause queueing
-        constraints = [ResourceConstraint("cpu", 15.0, 15.0, "percentage")]
+        constraints = [
+            ResourceConstraint(resource_type="cpu", max_usage=15.0, units="percentage")
+        ]
 
         # First request should succeed (15.0 <= 20.0)
         request_ids1 = await scheduler.request_resources(
@@ -702,7 +750,9 @@ class TestResourceScheduler:
         scheduler.create_standard_pools()
 
         # Request resources
-        constraints = [ResourceConstraint("cpu", 50.0, 50.0, "percentage")]
+        constraints = [
+            ResourceConstraint(resource_type="cpu", max_usage=50.0, units="percentage")
+        ]
         request_ids = await scheduler.request_resources("agent_a", constraints)
 
         # Release resources
@@ -722,8 +772,8 @@ class TestResourceScheduler:
 
         # Request resources
         constraints = [
-            ResourceConstraint("cpu", 30.0, 30.0, "percentage"),
-            ResourceConstraint("memory", 100.0, 100.0, "MB"),
+            ResourceConstraint(resource_type="cpu", max_usage=30.0, units="percentage"),
+            ResourceConstraint(resource_type="memory", max_usage=100.0, units="MB"),
         ]
         request_ids = await scheduler.request_resources("agent_a", constraints)
 
@@ -808,30 +858,60 @@ class TestResourceScheduler:
 
         # Test different constraint mappings
         test_cases = [
-            (ResourceConstraint("cpu", 10, 50, "percent"), ResourceType.CPU),
-            (ResourceConstraint("processor", 10, 50, "percent"), ResourceType.CPU),
-            (ResourceConstraint("memory", 100, 500, "MB"), ResourceType.MEMORY),
-            (ResourceConstraint("ram", 100, 500, "MB"), ResourceType.MEMORY),
             (
-                ResourceConstraint("llm_tokens", 1000, 5000, "tokens"),
+                ResourceConstraint(resource_type="cpu", max_usage=50, units="percent"),
+                ResourceType.CPU,
+            ),
+            (
+                ResourceConstraint(
+                    resource_type="processor", max_usage=50, units="percent"
+                ),
+                ResourceType.CPU,
+            ),
+            (
+                ResourceConstraint(resource_type="memory", max_usage=500, units="MB"),
+                ResourceType.MEMORY,
+            ),
+            (
+                ResourceConstraint(resource_type="ram", max_usage=500, units="MB"),
+                ResourceType.MEMORY,
+            ),
+            (
+                ResourceConstraint(
+                    resource_type="llm_tokens", max_usage=5000, units="tokens"
+                ),
                 ResourceType.LLM_TOKENS,
             ),
             (
-                ResourceConstraint("tokens", 1000, 5000, "tokens"),
+                ResourceConstraint(
+                    resource_type="tokens", max_usage=5000, units="tokens"
+                ),
                 ResourceType.LLM_TOKENS,
             ),
             (
-                ResourceConstraint("network", 10, 100, "Mbps"),
+                ResourceConstraint(
+                    resource_type="network", max_usage=100, units="Mbps"
+                ),
                 ResourceType.NETWORK_BANDWIDTH,
             ),
             (
-                ResourceConstraint("bandwidth", 10, 100, "Mbps"),
+                ResourceConstraint(
+                    resource_type="bandwidth", max_usage=100, units="Mbps"
+                ),
                 ResourceType.NETWORK_BANDWIDTH,
             ),
-            (ResourceConstraint("disk", 100, 1000, "IOPS"), ResourceType.DISK_IO),
-            (ResourceConstraint("io", 100, 1000, "IOPS"), ResourceType.DISK_IO),
             (
-                ResourceConstraint("custom_resource", 1, 10, "units"),
+                ResourceConstraint(resource_type="disk", max_usage=1000, units="IOPS"),
+                ResourceType.DISK_IO,
+            ),
+            (
+                ResourceConstraint(resource_type="io", max_usage=1000, units="IOPS"),
+                ResourceType.DISK_IO,
+            ),
+            (
+                ResourceConstraint(
+                    resource_type="custom_resource", max_usage=10, units="units"
+                ),
                 ResourceType.CUSTOM,
             ),
         ]
@@ -852,8 +932,8 @@ class TestIntegration:
 
         # Agent A requests high-priority resources
         constraints_a = [
-            ResourceConstraint("cpu", 30.0, 70.0, "percentage"),
-            ResourceConstraint("memory", 512.0, 1024.0, "MB"),
+            ResourceConstraint(resource_type="cpu", max_usage=70.0, units="percentage"),
+            ResourceConstraint(resource_type="memory", max_usage=1024.0, units="MB"),
         ]
 
         request_ids_a = await scheduler.request_resources(
@@ -865,8 +945,8 @@ class TestIntegration:
 
         # Agent B requests normal priority resources
         constraints_b = [
-            ResourceConstraint("cpu", 50.0, 80.0, "percentage"),
-            ResourceConstraint("memory", 1024.0, 2048.0, "MB"),
+            ResourceConstraint(resource_type="cpu", max_usage=80.0, units="percentage"),
+            ResourceConstraint(resource_type="memory", max_usage=2048.0, units="MB"),
         ]
 
         request_ids_b = await scheduler.request_resources(
@@ -919,7 +999,9 @@ class TestIntegration:
         scheduler.add_resource_pool(limited_pool)
 
         # Request resources with different priorities
-        constraints = [ResourceConstraint("cpu", 40.0, 40.0, "percentage")]
+        constraints = [
+            ResourceConstraint(resource_type="cpu", max_usage=40.0, units="percentage")
+        ]
 
         # Low priority request
         await scheduler.request_resources(
@@ -966,7 +1048,9 @@ class TestIntegration:
         scheduler.add_resource_pool(memory_pool)
 
         # Multiple agents request large amounts of memory
-        large_constraint = [ResourceConstraint("memory", 800.0, 800.0, "MB")]
+        large_constraint = [
+            ResourceConstraint(resource_type="memory", max_usage=800.0, units="MB")
+        ]
 
         agents = ["agent_1", "agent_2", "agent_3", "agent_4"]
         request_tasks = []
@@ -1021,7 +1105,9 @@ class TestIntegration:
         scheduler.add_resource_pool(cpu_pool)
 
         current_time = time.time()
-        constraints = [ResourceConstraint("cpu", 25.0, 25.0, "percentage")]
+        constraints = [
+            ResourceConstraint(resource_type="cpu", max_usage=25.0, units="percentage")
+        ]
 
         # Request with far deadline
         await scheduler.request_resources(

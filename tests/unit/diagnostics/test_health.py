@@ -306,11 +306,15 @@ class TestHealthChecker:
     async def test_check_configuration_valid(self):
         """Test configuration check when configuration is valid."""
         with (
-            patch.object(self.health_checker.config, "validate") as mock_validate,
-            patch.object(self.health_checker.config.execution, "timeout_seconds", 30),
+            patch.object(self.health_checker, "config") as mock_config,
             patch("os.path.exists") as mock_exists,
         ):
-            mock_validate.return_value = []  # No validation errors
+            # Setup mock config
+            mock_config.validate_configuration.return_value = []  # No validation errors
+            mock_config.execution.timeout_seconds = 30
+            mock_config.files.notes_directory = "/test/notes"
+            mock_config.files.logs_directory = "/test/logs"
+            mock_config.environment.value = "testing"
             mock_exists.return_value = True  # Directories exist
 
             result = await self.health_checker._check_configuration()
@@ -322,8 +326,13 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_check_configuration_validation_errors(self):
         """Test configuration check with validation errors."""
-        with patch.object(self.health_checker.config, "validate") as mock_validate:
-            mock_validate.return_value = ["Invalid timeout", "Missing directory"]
+        with patch.object(self.health_checker, "config") as mock_config:
+            # Setup mock config with validation errors
+            mock_config.validate_configuration.return_value = [
+                "Invalid timeout",
+                "Missing directory",
+            ]
+            mock_config.environment.value = "testing"
 
             result = await self.health_checker._check_configuration()
 
@@ -689,10 +698,15 @@ class TestHealthChecker:
     async def test_check_configuration_missing_directories(self):
         """Test configuration check when directories are missing."""
         with (
-            patch.object(self.health_checker.config, "validate") as mock_validate,
+            patch.object(self.health_checker, "config") as mock_config,
             patch("os.path.exists") as mock_exists,
         ):
-            mock_validate.return_value = []  # No validation errors
+            # Setup mock config
+            mock_config.validate_configuration.return_value = []  # No validation errors
+            mock_config.execution.timeout_seconds = 30
+            mock_config.files.notes_directory = "/test/notes"
+            mock_config.files.logs_directory = "/test/logs"
+            mock_config.environment.value = "testing"
             mock_exists.return_value = False  # Directories don't exist
 
             result = await self.health_checker._check_configuration()

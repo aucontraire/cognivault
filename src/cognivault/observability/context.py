@@ -7,25 +7,67 @@ and observability metadata throughout the request lifecycle.
 
 import threading
 import uuid
-from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 
+from pydantic import BaseModel, Field, ConfigDict
 
-@dataclass
-class ObservabilityContext:
+
+class ObservabilityContext(BaseModel):
     """
     Observability context for tracking execution state.
+
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
 
     Contains correlation information and metadata that flows
     through the entire execution pipeline.
     """
 
-    correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    agent_name: Optional[str] = None
-    step_id: Optional[str] = None
-    pipeline_id: Optional[str] = None
-    execution_phase: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    # Fields with defaults - UUID generation and optional fields
+    correlation_id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique correlation identifier for tracing requests",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    agent_name: Optional[str] = Field(
+        None,
+        description="Name of the agent currently executing",
+        max_length=100,
+        json_schema_extra={"example": "critic"},
+    )
+    step_id: Optional[str] = Field(
+        None,
+        description="Identifier for the current execution step",
+        max_length=100,
+        json_schema_extra={"example": "step_001_analyze"},
+    )
+    pipeline_id: Optional[str] = Field(
+        None,
+        description="Identifier for the execution pipeline",
+        max_length=100,
+        json_schema_extra={"example": "pipeline_main"},
+    )
+    execution_phase: Optional[str] = Field(
+        None,
+        description="Current phase of execution",
+        max_length=50,
+        json_schema_extra={"example": "analysis"},
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional observability metadata",
+        json_schema_extra={
+            "example": {"source": "api", "version": "1.0", "trace_level": "debug"}
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
 
     def with_agent(
         self, agent_name: str, step_id: Optional[str] = None

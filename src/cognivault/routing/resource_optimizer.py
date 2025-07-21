@@ -6,9 +6,10 @@ agent selection, considering performance, cost, and resource constraints.
 """
 
 import time
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Set, Tuple, Any
+
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
 from cognivault.observability import get_logger
 from .routing_decision import RoutingDecision, ConfidenceLevel
@@ -27,31 +28,185 @@ class OptimizationStrategy(Enum):
     MINIMAL = "minimal"  # Use minimal agents
 
 
-@dataclass
-class ResourceConstraints:
-    """Resource constraints for optimization decisions."""
+class ResourceConstraints(BaseModel):
+    """
+    Resource constraints for optimization decisions.
+
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    type safety, and integration with the CogniVault Pydantic ecosystem.
+    """
 
     # Time constraints
-    max_execution_time_ms: Optional[float] = None
-    max_agent_time_ms: Optional[float] = None
+    max_execution_time_ms: Optional[float] = Field(
+        None,
+        description="Maximum allowed execution time in milliseconds",
+        ge=0.0,
+        le=3600000.0,  # 1 hour max
+        json_schema_extra={"example": 30000.0},
+    )
+    max_agent_time_ms: Optional[float] = Field(
+        None,
+        description="Maximum allowed time per agent in milliseconds",
+        ge=0.0,
+        le=600000.0,  # 10 minutes max per agent
+        json_schema_extra={"example": 5000.0},
+    )
 
     # Agent constraints
-    max_agents: Optional[int] = None
-    min_agents: Optional[int] = None
-    required_agents: Set[str] = field(default_factory=set)
-    forbidden_agents: Set[str] = field(default_factory=set)
+    max_agents: Optional[int] = Field(
+        None,
+        description="Maximum number of agents to select",
+        ge=1,
+        le=10,  # Reasonable upper limit
+        json_schema_extra={"example": 4},
+    )
+    min_agents: Optional[int] = Field(
+        None,
+        description="Minimum number of agents to select",
+        ge=1,
+        le=10,
+        json_schema_extra={"example": 2},
+    )
+    required_agents: Set[str] = Field(
+        default_factory=set,
+        description="Set of agent names that must be included",
+        json_schema_extra={"example": ["refiner", "synthesis"]},
+    )
+    forbidden_agents: Set[str] = Field(
+        default_factory=set,
+        description="Set of agent names that must be excluded",
+        json_schema_extra={"example": ["legacy_agent"]},
+    )
 
     # Performance constraints
-    min_success_rate: float = 0.7
-    max_failure_rate: float = 0.3
+    min_success_rate: float = Field(
+        0.7,
+        description="Minimum required success rate for agent selection (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+    max_failure_rate: float = Field(
+        0.3,
+        description="Maximum allowed failure rate for agent selection (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.15},
+    )
 
     # Cost constraints (future extensibility)
-    max_cost_per_request: Optional[float] = None
-    cost_per_agent: Dict[str, float] = field(default_factory=dict)
+    max_cost_per_request: Optional[float] = Field(
+        None,
+        description="Maximum cost allowed per request (future feature)",
+        ge=0.0,
+        json_schema_extra={"example": 5.00},
+    )
+    cost_per_agent: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Cost mapping per agent (future feature)",
+        json_schema_extra={
+            "example": {"refiner": 0.5, "critic": 0.3, "historian": 0.4}
+        },
+    )
 
     # Quality constraints
-    min_quality_score: float = 0.6
-    quality_weights: Dict[str, float] = field(default_factory=dict)
+    min_quality_score: float = Field(
+        0.6,
+        description="Minimum quality score required for agent selection (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.75},
+    )
+    quality_weights: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Quality weight mapping per agent",
+        json_schema_extra={
+            "example": {"refiner": 0.9, "critic": 0.8, "historian": 0.7}
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    @field_validator("cost_per_agent", "quality_weights")
+    @classmethod
+    def validate_agent_mappings(cls, v: Dict[str, float]) -> Dict[str, float]:
+        """Validate that agent mapping values are within valid ranges."""
+        for agent_name, value in v.items():
+            if not isinstance(value, (int, float)):
+                raise ValueError(
+                    f"Agent mapping value for '{agent_name}' must be numeric"
+                )
+            if value < 0.0:
+                raise ValueError(
+                    f"Agent mapping value for '{agent_name}' cannot be negative"
+                )
+            # Quality weights should be between 0 and 1
+            if "quality" in str(cls) and value > 1.0:
+                raise ValueError(f"Quality weight for '{agent_name}' cannot exceed 1.0")
+        return v
+
+    @field_validator("required_agents", "forbidden_agents")
+    @classmethod
+    def validate_agent_sets(cls, v: Set[str]) -> Set[str]:
+        """Validate that agent names are non-empty strings."""
+        if not isinstance(v, set):
+            raise ValueError("Agent sets must be sets of strings")
+
+        validated_agents = set()
+        for agent in v:
+            if not isinstance(agent, str):
+                raise ValueError("Agent names must be strings")
+            agent_clean = agent.strip()
+            if not agent_clean:
+                raise ValueError("Agent names cannot be empty")
+            validated_agents.add(agent_clean)
+
+        return validated_agents
+
+    @model_validator(mode="after")
+    def validate_constraint_consistency(self) -> "ResourceConstraints":
+        """Validate that constraints are internally consistent."""
+        # Check min/max agent constraints
+        if self.min_agents is not None and self.max_agents is not None:
+            if self.min_agents > self.max_agents:
+                raise ValueError(
+                    f"min_agents ({self.min_agents}) cannot exceed max_agents ({self.max_agents})"
+                )
+
+        # Check that required agents don't exceed max_agents
+        if self.required_agents and self.max_agents is not None:
+            if len(self.required_agents) > self.max_agents:
+                raise ValueError(
+                    f"Number of required agents ({len(self.required_agents)}) cannot exceed max_agents ({self.max_agents})"
+                )
+
+        # Check for conflicts between required and forbidden agents
+        if self.required_agents and self.forbidden_agents:
+            conflicts = self.required_agents.intersection(self.forbidden_agents)
+            if conflicts:
+                raise ValueError(
+                    f"Agents cannot be both required and forbidden: {conflicts}"
+                )
+
+        # Check success/failure rate consistency
+        if self.min_success_rate + self.max_failure_rate > 1.0:
+            raise ValueError(
+                f"min_success_rate ({self.min_success_rate}) + max_failure_rate ({self.max_failure_rate}) cannot exceed 1.0"
+            )
+
+        # Validate time constraints
+        if (
+            self.max_execution_time_ms is not None
+            and self.max_agent_time_ms is not None
+            and self.max_agent_time_ms > self.max_execution_time_ms
+        ):
+            raise ValueError("max_agent_time_ms cannot exceed max_execution_time_ms")
+
+        return self
 
     def is_agent_allowed(self, agent: str, strict_required: bool = True) -> bool:
         """Check if an agent is allowed by constraints.
@@ -79,6 +234,23 @@ class ResourceConstraints:
         if self.max_agents and count > self.max_agents:
             return False
         return True
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert to dictionary for serialization.
+
+        Maintained for backward compatibility. Uses Pydantic's model_dump()
+        internally for consistent serialization with set handling.
+        """
+        data = self.model_dump(mode="json")
+
+        # Convert sets to lists for JSON serialization compatibility
+        if isinstance(data.get("required_agents"), list):
+            data["required_agents"] = list(self.required_agents)
+        if isinstance(data.get("forbidden_agents"), list):
+            data["forbidden_agents"] = list(self.forbidden_agents)
+
+        return data
 
 
 class ResourceOptimizer:

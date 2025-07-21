@@ -156,21 +156,27 @@ class TestExecutionStage:
     def test_is_parallel(self):
         """Test parallel stage detection."""
         # Parallel type
-        stage1 = ExecutionStage("s1", StageType.PARALLEL)
+        stage1 = ExecutionStage(stage_id="s1", stage_type=StageType.PARALLEL)
         assert stage1.is_parallel()
 
         # Has parallel groups
         stage2 = ExecutionStage(
-            "s2", StageType.SEQUENTIAL, parallel_groups=[ParallelGroup(["a", "b"])]
+            stage_id="s2",
+            stage_type=StageType.SEQUENTIAL,
+            parallel_groups=[ParallelGroup(agents=["a", "b"])],
         )
         assert stage2.is_parallel()
 
         # Multiple agents in stage
-        stage3 = ExecutionStage("s3", StageType.SEQUENTIAL, agents=["a", "b"])
+        stage3 = ExecutionStage(
+            stage_id="s3", stage_type=StageType.SEQUENTIAL, agents=["a", "b"]
+        )
         assert stage3.is_parallel()
 
         # Single agent, sequential
-        stage4 = ExecutionStage("s4", StageType.SEQUENTIAL, agents=["a"])
+        stage4 = ExecutionStage(
+            stage_id="s4", stage_type=StageType.SEQUENTIAL, agents=["a"]
+        )
         assert not stage4.is_parallel()
 
 
@@ -180,8 +186,14 @@ class TestExecutionPlan:
     def test_plan_creation(self):
         """Test creating an execution plan."""
         stages = [
-            ExecutionStage("stage1", StageType.SEQUENTIAL, agents=["agent_a"]),
-            ExecutionStage("stage2", StageType.PARALLEL, agents=["agent_b", "agent_c"]),
+            ExecutionStage(
+                stage_id="stage1", stage_type=StageType.SEQUENTIAL, agents=["agent_a"]
+            ),
+            ExecutionStage(
+                stage_id="stage2",
+                stage_type=StageType.PARALLEL,
+                agents=["agent_b", "agent_c"],
+            ),
         ]
 
         plan = ExecutionPlan(
@@ -202,12 +214,17 @@ class TestExecutionPlan:
     def test_plan_navigation(self):
         """Test navigating through plan stages."""
         stages = [
-            ExecutionStage("stage1", StageType.SEQUENTIAL),
-            ExecutionStage("stage2", StageType.PARALLEL),
-            ExecutionStage("stage3", StageType.SEQUENTIAL),
+            ExecutionStage(stage_id="stage1", stage_type=StageType.SEQUENTIAL),
+            ExecutionStage(stage_id="stage2", stage_type=StageType.PARALLEL),
+            ExecutionStage(stage_id="stage3", stage_type=StageType.SEQUENTIAL),
         ]
 
-        plan = ExecutionPlan("test", stages, ExecutionStrategy.SEQUENTIAL, 3)
+        plan = ExecutionPlan(
+            plan_id="test",
+            stages=stages,
+            strategy=ExecutionStrategy.SEQUENTIAL,
+            total_agents=3,
+        )
 
         # Initially at stage 0
         assert plan.current_stage_index == 0
@@ -238,8 +255,13 @@ class TestExecutionPlan:
 
     def test_execution_summary(self):
         """Test execution summary generation."""
-        stages = [ExecutionStage("stage1", StageType.SEQUENTIAL)]
-        plan = ExecutionPlan("test", stages, ExecutionStrategy.SEQUENTIAL, 1)
+        stages = [ExecutionStage(stage_id="stage1", stage_type=StageType.SEQUENTIAL)]
+        plan = ExecutionPlan(
+            plan_id="test",
+            stages=stages,
+            strategy=ExecutionStrategy.SEQUENTIAL,
+            total_agents=1,
+        )
 
         plan.started_at = time.time() - 5  # Started 5 seconds ago
 

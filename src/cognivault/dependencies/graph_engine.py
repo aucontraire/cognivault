@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any, Callable
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.observability import get_logger
@@ -39,15 +40,50 @@ class ExecutionPriority(Enum):
     BACKGROUND = 5
 
 
-@dataclass
-class ResourceConstraint:
-    """Resource constraint for agent execution."""
+class ResourceConstraint(BaseModel):
+    """
+    Resource constraint for agent execution.
 
-    resource_type: str  # e.g., "memory", "cpu", "llm_tokens"
-    max_usage: float
-    units: str
-    shared: bool = False  # Whether resource can be shared
-    renewable: bool = True  # Whether resource renews after agent completes
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    resource_type: str = Field(
+        ...,
+        description="Type of resource being constrained (e.g., memory, cpu, llm_tokens)",
+        min_length=1,
+        max_length=50,
+        json_schema_extra={"example": "memory"},
+    )
+    max_usage: float = Field(
+        ...,
+        description="Maximum usage allowed for this resource",
+        gt=0.0,
+        json_schema_extra={"example": 8192.0},
+    )
+    units: str = Field(
+        ...,
+        description="Units for the resource measurement",
+        min_length=1,
+        max_length=20,
+        json_schema_extra={"example": "MB"},
+    )
+    shared: bool = Field(
+        False,
+        description="Whether resource can be shared with other agents",
+        json_schema_extra={"example": False},
+    )
+    renewable: bool = Field(
+        True,
+        description="Whether resource renews after agent completes execution",
+        json_schema_extra={"example": True},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
 
 @dataclass

@@ -300,7 +300,7 @@ class HealthChecker:
 
         try:
             # Validate configuration
-            validation_errors = self.config.validate()
+            validation_errors = self.config.validate_configuration()
 
             if validation_errors:
                 return ComponentHealth(

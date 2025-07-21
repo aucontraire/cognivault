@@ -11,8 +11,9 @@ import time
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
 from enum import Enum
+
+from pydantic import BaseModel, Field, ConfigDict
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
@@ -57,57 +58,221 @@ class ExecutionPhase(Enum):
     CLEANUP = "cleanup"
 
 
-@dataclass
-class OrchestratorConfig:
-    """Configuration for the advanced orchestrator."""
+class OrchestratorConfig(BaseModel):
+    """
+    Configuration for the advanced orchestrator.
 
-    max_concurrent_agents: int = 4
-    enable_failure_recovery: bool = True
-    enable_resource_scheduling: bool = True
-    enable_dynamic_composition: bool = False
-    default_execution_strategy: ExecutionStrategy = ExecutionStrategy.ADAPTIVE
-    cascade_prevention_strategy: CascadePreventionStrategy = (
-        CascadePreventionStrategy.GRACEFUL_DEGRADATION
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    max_concurrent_agents: int = Field(
+        4,
+        description="Maximum number of agents that can execute concurrently",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 4},
     )
-    pipeline_timeout_ms: int = 60000
-    resource_allocation_timeout_ms: int = 10000
+    enable_failure_recovery: bool = Field(
+        True,
+        description="Enable failure recovery mechanisms",
+        json_schema_extra={"example": True},
+    )
+    enable_resource_scheduling: bool = Field(
+        True,
+        description="Enable resource scheduling and allocation",
+        json_schema_extra={"example": True},
+    )
+    enable_dynamic_composition: bool = Field(
+        False,
+        description="Enable dynamic agent composition",
+        json_schema_extra={"example": False},
+    )
+    default_execution_strategy: ExecutionStrategy = Field(
+        ExecutionStrategy.ADAPTIVE,
+        description="Default strategy for execution planning",
+        json_schema_extra={"example": "adaptive"},
+    )
+    cascade_prevention_strategy: CascadePreventionStrategy = Field(
+        CascadePreventionStrategy.GRACEFUL_DEGRADATION,
+        description="Strategy for preventing failure cascades",
+        json_schema_extra={"example": "graceful_degradation"},
+    )
+    pipeline_timeout_ms: int = Field(
+        60000,
+        description="Pipeline execution timeout in milliseconds",
+        ge=1000,
+        le=600000,  # 10 minutes max
+        json_schema_extra={"example": 60000},
+    )
+    resource_allocation_timeout_ms: int = Field(
+        10000,
+        description="Resource allocation timeout in milliseconds",
+        ge=100,
+        le=60000,  # 1 minute max
+        json_schema_extra={"example": 10000},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects, not string values
+    )
 
 
-@dataclass
-class ResourceAllocationResult:
-    """Result of resource allocation for an agent."""
+class ResourceAllocationResult(BaseModel):
+    """
+    Result of resource allocation for an agent.
 
-    agent_id: str
-    resource_type: ResourceType
-    requested_amount: float
-    allocated_amount: float
-    allocation_time_ms: float
-    success: bool
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    agent_id: str = Field(
+        ...,
+        description="Unique identifier for the agent",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "critic_agent_001"},
+    )
+    resource_type: ResourceType = Field(
+        ...,
+        description="Type of resource that was allocated",
+        json_schema_extra={"example": "memory"},
+    )
+    requested_amount: float = Field(
+        ...,
+        description="Amount of resource that was requested",
+        ge=0.0,
+        json_schema_extra={"example": 1.5},
+    )
+    allocated_amount: float = Field(
+        ...,
+        description="Amount of resource that was actually allocated",
+        ge=0.0,
+        json_schema_extra={"example": 1.2},
+    )
+    allocation_time_ms: float = Field(
+        ...,
+        description="Time taken to allocate resource in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 125.5},
+    )
+    success: bool = Field(
+        ...,
+        description="Whether the allocation was successful",
+        json_schema_extra={"example": True},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
 
-@dataclass
-class PipelineStage:
-    """Information about a stage in the execution pipeline."""
+class PipelineStage(BaseModel):
+    """
+    Information about a stage in the execution pipeline.
 
-    stage_id: str
-    phase: ExecutionPhase
-    agents_executed: List[str]
-    stage_duration_ms: float
-    success: bool
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    stage_id: str = Field(
+        ...,
+        description="Unique identifier for the pipeline stage",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "stage_001_execution"},
+    )
+    phase: ExecutionPhase = Field(
+        ...,
+        description="Execution phase for this stage",
+        json_schema_extra={"example": "execution"},
+    )
+    agents_executed: List[str] = Field(
+        ...,
+        description="List of agent names executed in this stage",
+        json_schema_extra={"example": ["critic", "historian", "refiner"]},
+    )
+    stage_duration_ms: float = Field(
+        ...,
+        description="Duration of this stage in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 2500.0},
+    )
+    success: bool = Field(
+        ...,
+        description="Whether this stage completed successfully",
+        json_schema_extra={"example": True},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
 
-@dataclass
-class ExecutionResults:
-    """Results of pipeline execution."""
+class ExecutionResults(BaseModel):
+    """
+    Results of pipeline execution.
 
-    success: bool
-    total_agents_executed: int
-    successful_agents: int
-    failed_agents: int
-    execution_time_ms: float
-    pipeline_stages: List[PipelineStage]
-    resource_allocation_results: List[ResourceAllocationResult]
-    failure_recovery_actions: List[str]
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    success: bool = Field(
+        ...,
+        description="Whether the overall pipeline execution was successful",
+        json_schema_extra={"example": True},
+    )
+    total_agents_executed: int = Field(
+        ...,
+        description="Total number of agents that were executed",
+        ge=0,
+        json_schema_extra={"example": 4},
+    )
+    successful_agents: int = Field(
+        ...,
+        description="Number of agents that executed successfully",
+        ge=0,
+        json_schema_extra={"example": 3},
+    )
+    failed_agents: int = Field(
+        ...,
+        description="Number of agents that failed during execution",
+        ge=0,
+        json_schema_extra={"example": 1},
+    )
+    execution_time_ms: float = Field(
+        ...,
+        description="Total execution time in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 5250.0},
+    )
+    pipeline_stages: List[PipelineStage] = Field(
+        default_factory=list,
+        description="List of pipeline stages that were executed",
+    )
+    resource_allocation_results: List[ResourceAllocationResult] = Field(
+        default_factory=list,
+        description="Results of resource allocations during execution",
+    )
+    failure_recovery_actions: List[str] = Field(
+        default_factory=list,
+        description="List of failure recovery actions that were taken",
+        json_schema_extra={
+            "example": ["retry_failed_agent", "fallback_to_alternative"]
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def get_success_rate(self) -> float:
         """Calculate success rate as a fraction."""
@@ -116,37 +281,19 @@ class ExecutionResults:
         return self.successful_agents / self.total_agents_executed
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "success": self.success,
-            "total_agents_executed": self.total_agents_executed,
-            "successful_agents": self.successful_agents,
-            "failed_agents": self.failed_agents,
-            "execution_time_ms": self.execution_time_ms,
-            "success_rate": self.get_success_rate(),
-            "pipeline_stages": [
-                {
-                    "stage_id": stage.stage_id,
-                    "phase": stage.phase.value,
-                    "agents_executed": stage.agents_executed,
-                    "stage_duration_ms": stage.stage_duration_ms,
-                    "success": stage.success,
-                }
-                for stage in self.pipeline_stages
-            ],
-            "resource_allocation_results": [
-                {
-                    "agent_id": result.agent_id,
-                    "resource_type": result.resource_type.value,
-                    "requested_amount": result.requested_amount,
-                    "allocated_amount": result.allocated_amount,
-                    "allocation_time_ms": result.allocation_time_ms,
-                    "success": result.success,
-                }
-                for result in self.resource_allocation_results
-            ],
-            "failure_recovery_actions": self.failure_recovery_actions,
-        }
+        """
+        Convert to dictionary representation.
+
+        Maintained for backward compatibility. Uses Pydantic's model_dump()
+        internally for consistent serialization with calculated fields.
+        """
+        # Use model_dump with mode='json' to properly serialize enums
+        data = self.model_dump(mode="json")
+
+        # Add calculated fields
+        data["success_rate"] = self.get_success_rate()
+
+        return data
 
 
 class AdvancedOrchestrator:

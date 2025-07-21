@@ -249,21 +249,37 @@ class TestCompositionRule:
             return {"result": "success"}
 
         # True condition
-        rule1 = CompositionRule("rule1", "Rule 1", true_condition, test_action)
+        rule1 = CompositionRule(
+            rule_id="rule1", name="Rule 1", condition=true_condition, action=test_action
+        )
         assert rule1.evaluate(context, {}) is True
 
         # False condition
-        rule2 = CompositionRule("rule2", "Rule 2", false_condition, test_action)
+        rule2 = CompositionRule(
+            rule_id="rule2",
+            name="Rule 2",
+            condition=false_condition,
+            action=test_action,
+        )
         assert rule2.evaluate(context, {}) is False
 
         # Disabled rule
         rule3 = CompositionRule(
-            "rule3", "Rule 3", true_condition, test_action, enabled=False
+            rule_id="rule3",
+            name="Rule 3",
+            condition=true_condition,
+            action=test_action,
+            enabled=False,
         )
         assert rule3.evaluate(context, {}) is False
 
         # Error condition
-        rule4 = CompositionRule("rule4", "Rule 4", error_condition, test_action)
+        rule4 = CompositionRule(
+            rule_id="rule4",
+            name="Rule 4",
+            condition=error_condition,
+            action=test_action,
+        )
         assert rule4.evaluate(context, {}) is False
 
     def test_rule_application(self, context):
@@ -279,12 +295,22 @@ class TestCompositionRule:
             raise Exception("Action failed")
 
         # Successful application
-        rule1 = CompositionRule("rule1", "Rule 1", test_condition, success_action)
+        rule1 = CompositionRule(
+            rule_id="rule1",
+            name="Rule 1",
+            condition=test_condition,
+            action=success_action,
+        )
         result = rule1.apply(context, {})
         assert result == {"status": "applied"}
 
         # Failed application
-        rule2 = CompositionRule("rule2", "Rule 2", test_condition, error_action)
+        rule2 = CompositionRule(
+            rule_id="rule2",
+            name="Rule 2",
+            condition=test_condition,
+            action=error_action,
+        )
         result = rule2.apply(context, {})
         assert result == {}
 
@@ -505,10 +531,18 @@ class TestDynamicAgentComposer:
             return {"action": "test"}
 
         rule1 = CompositionRule(
-            "rule1", "Rule 1", test_condition, test_action, priority=5
+            rule_id="rule1",
+            name="Rule 1",
+            condition=test_condition,
+            action=test_action,
+            priority=5,
         )
         rule2 = CompositionRule(
-            "rule2", "Rule 2", test_condition, test_action, priority=10
+            rule_id="rule2",
+            name="Rule 2",
+            condition=test_condition,
+            action=test_action,
+            priority=10,
         )
 
         composer.add_composition_rule(rule1)
@@ -709,7 +743,12 @@ class TestDynamicAgentComposer:
         def test_action(ctx, metadata):
             return {"optimization": "applied"}
 
-        rule = CompositionRule("test_rule", "Test Rule", test_condition, test_action)
+        rule = CompositionRule(
+            rule_id="test_rule",
+            name="Test Rule",
+            condition=test_condition,
+            action=test_action,
+        )
         composer.add_composition_rule(rule)
 
         result = await composer.optimize_composition(context)

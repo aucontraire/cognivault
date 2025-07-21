@@ -233,8 +233,10 @@ def simple_graph_engine():
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
             resource_constraints=[
-                ResourceConstraint("cpu", 10.0, 30.0, "percentage"),
-                ResourceConstraint("memory", 100.0, 512.0, "MB"),
+                ResourceConstraint(
+                    resource_type="cpu", max_usage=30.0, units="percentage"
+                ),
+                ResourceConstraint(resource_type="memory", max_usage=512.0, units="MB"),
             ],
         )
         engine.add_node(node)
@@ -509,8 +511,8 @@ class TestAdvancedOrchestrator:
         )
         engine.add_node(node)
 
-        # Set very short pipeline timeout
-        orchestrator_config.pipeline_timeout_ms = 100  # 100ms
+        # Set very short pipeline timeout (but still within validation bounds)
+        orchestrator_config.pipeline_timeout_ms = 1000  # 1000ms (1 second)
         orchestrator = AdvancedOrchestrator(engine, orchestrator_config)
 
         results = await orchestrator.execute_pipeline(context)
@@ -556,7 +558,7 @@ class TestAdvancedOrchestrator:
             priority=ExecutionPriority.NORMAL,
             resource_constraints=[
                 ResourceConstraint(
-                    "memory", 10000.0, 20000.0, "MB"
+                    resource_type="memory", max_usage=20000.0, units="MB"
                 ),  # Very high memory
             ],
         )
@@ -690,13 +692,19 @@ class TestAdvancedOrchestrator:
         ]
 
         pipeline_stages = [
-            PipelineStage("prep", ExecutionPhase.PREPARATION, [], 50.0, True),
             PipelineStage(
-                "exec",
-                ExecutionPhase.EXECUTION,
-                ["agent1", "agent2", "agent3"],
-                450.0,
-                False,
+                stage_id="prep",
+                phase=ExecutionPhase.PREPARATION,
+                agents_executed=[],
+                stage_duration_ms=50.0,
+                success=True,
+            ),
+            PipelineStage(
+                stage_id="exec",
+                phase=ExecutionPhase.EXECUTION,
+                agents_executed=["agent1", "agent2", "agent3"],
+                stage_duration_ms=450.0,
+                success=False,
             ),
         ]
 
@@ -784,8 +792,12 @@ class TestIntegration:
                 priority=priority,
                 timeout_ms=10000,
                 resource_constraints=[
-                    ResourceConstraint("cpu", 10.0, 25.0, "percentage"),
-                    ResourceConstraint("memory", 100.0, 300.0, "MB"),
+                    ResourceConstraint(
+                        resource_type="cpu", max_usage=25.0, units="percentage"
+                    ),
+                    ResourceConstraint(
+                        resource_type="memory", max_usage=300.0, units="MB"
+                    ),
                 ],
             )
             engine.add_node(node)
@@ -991,11 +1003,19 @@ class TestIntegration:
 
         # Define different resource profiles
         resource_profiles = {
-            "memory_intensive": [ResourceConstraint("memory", 1000.0, 2000.0, "MB")],
-            "cpu_intensive": [ResourceConstraint("cpu", 80.0, 90.0, "percentage")],
+            "memory_intensive": [
+                ResourceConstraint(resource_type="memory", max_usage=2000.0, units="MB")
+            ],
+            "cpu_intensive": [
+                ResourceConstraint(
+                    resource_type="cpu", max_usage=90.0, units="percentage"
+                )
+            ],
             "balanced": [
-                ResourceConstraint("cpu", 30.0, 50.0, "percentage"),
-                ResourceConstraint("memory", 300.0, 500.0, "MB"),
+                ResourceConstraint(
+                    resource_type="cpu", max_usage=50.0, units="percentage"
+                ),
+                ResourceConstraint(resource_type="memory", max_usage=500.0, units="MB"),
             ],
         }
 
