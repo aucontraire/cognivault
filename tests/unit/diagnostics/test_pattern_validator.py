@@ -18,8 +18,8 @@ from cognivault.diagnostics.pattern_validator import (
     SemanticValidator,
     PerformanceValidator,
     SecurityValidator,
-    ValidationLevel,
-    ValidationResult,
+    PatternValidationLevel,
+    PatternValidationResult,
     ValidationIssue,
     PatternValidationReport,
 )
@@ -66,7 +66,7 @@ class TestValidationIssue:
     def test_validation_issue_creation(self):
         """Test ValidationIssue creation."""
         issue = ValidationIssue(
-            level=ValidationResult.WARN,
+            level=PatternValidationResult.WARN,
             category="structure",
             message="Test warning message",
             location="test_method",
@@ -74,7 +74,7 @@ class TestValidationIssue:
             code="V001",
         )
 
-        assert issue.level == ValidationResult.WARN
+        assert issue.level == PatternValidationResult.WARN
         assert issue.category == "structure"
         assert issue.message == "Test warning message"
         assert issue.location == "test_method"
@@ -84,10 +84,12 @@ class TestValidationIssue:
     def test_validation_issue_minimal(self):
         """Test ValidationIssue with minimal fields."""
         issue = ValidationIssue(
-            level=ValidationResult.FAIL, category="semantic", message="Test error"
+            level=PatternValidationResult.FAIL,
+            category="semantic",
+            message="Test error",
         )
 
-        assert issue.level == ValidationResult.FAIL
+        assert issue.level == PatternValidationResult.FAIL
         assert issue.category == "semantic"
         assert issue.message == "Test error"
         assert issue.location is None
@@ -102,18 +104,18 @@ class TestPatternValidationReport:
         """Test PatternValidationReport creation."""
         issues = [
             ValidationIssue(
-                level=ValidationResult.WARN, category="test", message="warning"
+                level=PatternValidationResult.WARN, category="test", message="warning"
             ),
             ValidationIssue(
-                level=ValidationResult.FAIL, category="test", message="error"
+                level=PatternValidationResult.FAIL, category="test", message="error"
             ),
         ]
 
         report = PatternValidationReport(
             pattern_name="test_pattern",
             pattern_class="TestPattern",
-            validation_level=ValidationLevel.STRICT,
-            overall_result=ValidationResult.FAIL,
+            validation_level=PatternValidationLevel.STRICT,
+            overall_result=PatternValidationResult.FAIL,
             issues=issues,
             metrics={"complexity": 5},
             recommendations=["Improve structure"],
@@ -122,8 +124,8 @@ class TestPatternValidationReport:
 
         assert report.pattern_name == "test_pattern"
         assert report.pattern_class == "TestPattern"
-        assert report.validation_level == ValidationLevel.STRICT
-        assert report.overall_result == ValidationResult.FAIL
+        assert report.validation_level == PatternValidationLevel.STRICT
+        assert report.overall_result == PatternValidationResult.FAIL
         assert len(report.issues) == 2
         assert report.metrics["complexity"] == 5
         assert len(report.recommendations) == 1
@@ -145,21 +147,22 @@ class TestStructuralValidator:
     def test_validate_valid_pattern(self, validator):
         """Test validation of valid pattern."""
         pattern = MockGraphPattern()
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have no critical issues for basic pattern
-        assert all(issue.level != ValidationResult.FAIL for issue in issues)
+        assert all(issue.level != PatternValidationResult.FAIL for issue in issues)
 
     def test_validate_missing_build_graph(self, validator):
         """Test validation with missing build_graph method."""
         pattern = Mock()
         delattr(pattern, "build_graph") if hasattr(pattern, "build_graph") else None
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have failure for missing required method
         assert any(
-            issue.level == ValidationResult.FAIL and "build_graph" in issue.message
+            issue.level == PatternValidationResult.FAIL
+            and "build_graph" in issue.message
             for issue in issues
         )
 
@@ -173,11 +176,12 @@ class TestStructuralValidator:
             else None
         )
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have failure for missing required method
         assert any(
-            issue.level == ValidationResult.FAIL and "get_pattern_name" in issue.message
+            issue.level == PatternValidationResult.FAIL
+            and "get_pattern_name" in issue.message
             for issue in issues
         )
 
@@ -193,11 +197,11 @@ class TestStructuralValidator:
                 "agents"
             }  # Missing llm, config
 
-            issues = validator.validate(pattern, ValidationLevel.STRICT)
+            issues = validator.validate(pattern, PatternValidationLevel.STRICT)
 
             # Should have failure for missing parameters
             assert any(
-                issue.level == ValidationResult.FAIL
+                issue.level == PatternValidationResult.FAIL
                 and "missing parameters" in issue.message
                 for issue in issues
             )
@@ -208,11 +212,11 @@ class TestStructuralValidator:
         pattern.build_graph = Mock()
         pattern.get_pattern_name = Mock(return_value="invalid@pattern!")
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have warning for invalid pattern name
         assert any(
-            issue.level == ValidationResult.WARN
+            issue.level == PatternValidationResult.WARN
             and "pattern name" in issue.message.lower()
             for issue in issues
         )
@@ -223,11 +227,12 @@ class TestStructuralValidator:
         pattern.build_graph = Mock()
         pattern.get_pattern_name = Mock(return_value="")
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have failure for empty pattern name
         assert any(
-            issue.level == ValidationResult.FAIL and "non-empty string" in issue.message
+            issue.level == PatternValidationResult.FAIL
+            and "non-empty string" in issue.message
             for issue in issues
         )
 
@@ -237,11 +242,11 @@ class TestStructuralValidator:
         pattern.build_graph = Mock(return_value=Mock())  # Ensure non-async return
         pattern.get_pattern_name = Mock(side_effect=Exception("Test error"))
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have error for exception
         assert any(
-            issue.level == ValidationResult.ERROR
+            issue.level == PatternValidationResult.ERROR
             and "Error calling get_pattern_name" in issue.message
             for issue in issues
         )
@@ -264,21 +269,22 @@ class TestSemanticValidator:
         pattern = MockGraphPattern()
 
         with patch("unittest.mock.Mock"):
-            issues = validator.validate(pattern, ValidationLevel.BASIC)
+            issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
             # Should not have critical issues for working pattern
-            assert all(issue.level != ValidationResult.FAIL for issue in issues)
+            assert all(issue.level != PatternValidationResult.FAIL for issue in issues)
 
     def test_validate_build_graph_returns_none(self, validator):
         """Test validation when build_graph returns None."""
         pattern = Mock()
         pattern.build_graph = Mock(return_value=None)
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have failure for None return
         assert any(
-            issue.level == ValidationResult.FAIL and "returned None" in issue.message
+            issue.level == PatternValidationResult.FAIL
+            and "returned None" in issue.message
             for issue in issues
         )
 
@@ -287,11 +293,11 @@ class TestSemanticValidator:
         pattern = Mock()
         pattern.build_graph = Mock(side_effect=Exception("Build error"))
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have error for exception
         assert any(
-            issue.level == ValidationResult.ERROR
+            issue.level == PatternValidationResult.ERROR
             and "Error building graph" in issue.message
             for issue in issues
         )
@@ -301,7 +307,7 @@ class TestSemanticValidator:
         pattern = Mock()
         delattr(pattern, "build_graph") if hasattr(pattern, "build_graph") else None
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should handle missing method gracefully
         assert isinstance(issues, list)
@@ -313,11 +319,11 @@ class TestSemanticValidator:
         # Force an exception in the pattern itself to trigger exception handling
         pattern.build_graph.side_effect = Exception("Mock validation error")
 
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Should have error for validation failure (build_graph level)
         assert any(
-            issue.level == ValidationResult.ERROR
+            issue.level == PatternValidationResult.ERROR
             and "Error building graph" in issue.message
             for issue in issues
         )
@@ -338,7 +344,7 @@ class TestPerformanceValidator:
     def test_validate_basic_level(self, validator):
         """Test validation at basic level."""
         pattern = MockGraphPattern()
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Basic level should not run performance checks
         assert len(issues) == 0
@@ -352,7 +358,7 @@ class TestPerformanceValidator:
                 with patch.object(
                     validator, "_check_efficiency_patterns", return_value=[]
                 ):
-                    issues = validator.validate(pattern, ValidationLevel.STRICT)
+                    issues = validator.validate(pattern, PatternValidationLevel.STRICT)
 
                     # Should run all performance checks
                     assert isinstance(issues, list)
@@ -368,7 +374,7 @@ class TestPerformanceValidator:
 
             # Should detect synchronous sleep
             assert any(
-                issue.level == ValidationResult.WARN
+                issue.level == PatternValidationResult.WARN
                 and "synchronous sleep" in issue.message
                 for issue in issues
             )
@@ -382,7 +388,7 @@ class TestPerformanceValidator:
 
             # Should detect global variable usage
             assert any(
-                issue.level == ValidationResult.WARN
+                issue.level == PatternValidationResult.WARN
                 and "global variable" in issue.message
                 for issue in issues
             )
@@ -399,7 +405,7 @@ class TestPerformanceValidator:
 
             # Should detect high number of loops
             assert any(
-                issue.level == ValidationResult.WARN
+                issue.level == PatternValidationResult.WARN
                 and "loops detected" in issue.message
                 for issue in issues
             )
@@ -420,7 +426,7 @@ class TestSecurityValidator:
     def test_validate_basic_level(self, validator):
         """Test validation at basic level."""
         pattern = MockGraphPattern()
-        issues = validator.validate(pattern, ValidationLevel.BASIC)
+        issues = validator.validate(pattern, PatternValidationLevel.BASIC)
 
         # Basic level should not run security checks
         assert len(issues) == 0
@@ -431,7 +437,7 @@ class TestSecurityValidator:
 
         with patch.object(validator, "_check_security_patterns", return_value=[]):
             with patch.object(validator, "_check_data_validation", return_value=[]):
-                issues = validator.validate(pattern, ValidationLevel.STRICT)
+                issues = validator.validate(pattern, PatternValidationLevel.STRICT)
 
                 # Should run security checks
                 assert isinstance(issues, list)
@@ -445,7 +451,8 @@ class TestSecurityValidator:
 
             # Should detect eval usage
             assert any(
-                issue.level == ValidationResult.FAIL and "eval()" in issue.message
+                issue.level == PatternValidationResult.FAIL
+                and "eval()" in issue.message
                 for issue in issues
             )
 
@@ -458,7 +465,8 @@ class TestSecurityValidator:
 
             # Should detect exec usage
             assert any(
-                issue.level == ValidationResult.FAIL and "exec()" in issue.message
+                issue.level == PatternValidationResult.FAIL
+                and "exec()" in issue.message
                 for issue in issues
             )
 
@@ -475,7 +483,7 @@ class TestSecurityValidator:
 
             # Should detect missing validation
             assert any(
-                issue.level == ValidationResult.WARN
+                issue.level == PatternValidationResult.WARN
                 and "No input validation" in issue.message
                 for issue in issues
             )
@@ -539,13 +547,13 @@ class TestPatternValidationFramework:
     def test_validate_pattern_comprehensive_pass(self, framework, mock_pattern):
         """Test comprehensive validation with passing pattern."""
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.BASIC
+            mock_pattern, PatternValidationLevel.BASIC
         )
 
         assert isinstance(report, PatternValidationReport)
         assert report.pattern_name == "test_pattern"
         assert report.pattern_class == "MockGraphPattern"
-        assert report.validation_level == ValidationLevel.BASIC
+        assert report.validation_level == PatternValidationLevel.BASIC
 
     def test_validate_pattern_comprehensive_with_issues(self, framework):
         """Test comprehensive validation with issues."""
@@ -556,10 +564,13 @@ class TestPatternValidationFramework:
         del pattern.build_graph
 
         report = framework._validate_pattern_comprehensive(
-            pattern, ValidationLevel.BASIC
+            pattern, PatternValidationLevel.BASIC
         )
 
-        assert report.overall_result in [ValidationResult.FAIL, ValidationResult.ERROR]
+        assert report.overall_result in [
+            PatternValidationResult.FAIL,
+            PatternValidationResult.ERROR,
+        ]
         assert len(report.issues) > 0
 
     def test_validate_pattern_comprehensive_certification(
@@ -567,10 +578,10 @@ class TestPatternValidationFramework:
     ):
         """Test certification level validation."""
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.CERTIFICATION
+            mock_pattern, PatternValidationLevel.CERTIFICATION
         )
 
-        assert report.validation_level == ValidationLevel.CERTIFICATION
+        assert report.validation_level == PatternValidationLevel.CERTIFICATION
         # Certification readiness depends on issues found
 
     def test_validate_pattern_comprehensive_validator_exception(
@@ -584,12 +595,12 @@ class TestPatternValidationFramework:
         framework.validators.append(bad_validator)
 
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.BASIC
+            mock_pattern, PatternValidationLevel.BASIC
         )
 
         # Should handle validator exception gracefully
         assert any(
-            issue.level == ValidationResult.ERROR
+            issue.level == PatternValidationResult.ERROR
             and "Validator Bad Validator failed" in issue.message
             for issue in report.issues
         )
@@ -597,7 +608,7 @@ class TestPatternValidationFramework:
     def test_display_validation_report(self, framework, mock_pattern):
         """Test validation report display."""
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.BASIC
+            mock_pattern, PatternValidationLevel.BASIC
         )
 
         with patch.object(framework.console, "print") as mock_print:
@@ -610,21 +621,23 @@ class TestPatternValidationFramework:
         """Test validation report display with issues."""
         issues = [
             ValidationIssue(
-                level=ValidationResult.WARN,
+                level=PatternValidationResult.WARN,
                 category="test",
                 message="warning message",
                 suggestion="fix it",
             ),
             ValidationIssue(
-                level=ValidationResult.FAIL, category="test", message="error message"
+                level=PatternValidationResult.FAIL,
+                category="test",
+                message="error message",
             ),
         ]
 
         report = PatternValidationReport(
             pattern_name="test",
             pattern_class="Test",
-            validation_level=ValidationLevel.BASIC,
-            overall_result=ValidationResult.FAIL,
+            validation_level=PatternValidationLevel.BASIC,
+            overall_result=PatternValidationResult.FAIL,
             issues=issues,
         )
 
@@ -637,7 +650,7 @@ class TestPatternValidationFramework:
     def test_format_report_json(self, framework, mock_pattern):
         """Test JSON report formatting."""
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.BASIC
+            mock_pattern, PatternValidationLevel.BASIC
         )
 
         json_output = framework._format_report_json(report)
@@ -650,7 +663,7 @@ class TestPatternValidationFramework:
     def test_format_report_markdown(self, framework, mock_pattern):
         """Test Markdown report formatting."""
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.BASIC
+            mock_pattern, PatternValidationLevel.BASIC
         )
 
         markdown_output = framework._format_report_markdown(report)
@@ -716,12 +729,12 @@ class TestPatternValidationFramework:
         report = framework._run_certification_tests(mock_pattern, None)
 
         assert isinstance(report, PatternValidationReport)
-        assert report.validation_level == ValidationLevel.CERTIFICATION
+        assert report.validation_level == PatternValidationLevel.CERTIFICATION
 
     def test_display_certification_results(self, framework, mock_pattern):
         """Test certification results display."""
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.CERTIFICATION
+            mock_pattern, PatternValidationLevel.CERTIFICATION
         )
 
         with patch.object(framework.console, "print") as mock_print:
@@ -733,7 +746,7 @@ class TestPatternValidationFramework:
     def test_generate_certificate(self, framework, mock_pattern):
         """Test certificate generation."""
         report = framework._validate_pattern_comprehensive(
-            mock_pattern, ValidationLevel.CERTIFICATION
+            mock_pattern, PatternValidationLevel.CERTIFICATION
         )
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
@@ -809,7 +822,7 @@ class TestPatternValidationFrameworkIntegration:
 
         # Should not raise exceptions
         report = framework._validate_pattern_comprehensive(
-            pattern, ValidationLevel.STANDARD
+            pattern, PatternValidationLevel.STANDARD
         )
         assert isinstance(report, PatternValidationReport)
 
@@ -838,7 +851,7 @@ class TestPatternValidationFrameworkIntegration:
         custom_validator = Mock()
         custom_validator.validate.return_value = [
             ValidationIssue(
-                level=ValidationResult.WARN,
+                level=PatternValidationResult.WARN,
                 category="custom",
                 message="Custom validation warning",
             )
@@ -848,7 +861,7 @@ class TestPatternValidationFrameworkIntegration:
 
         pattern = MockGraphPattern()
         report = framework._validate_pattern_comprehensive(
-            pattern, ValidationLevel.BASIC
+            pattern, PatternValidationLevel.BASIC
         )
 
         # Should include custom validator results
@@ -874,7 +887,7 @@ class TestPatternValidationFrameworkPerformance:
 
         start_time = time.time()
         report = framework._validate_pattern_comprehensive(
-            pattern, ValidationLevel.BASIC
+            pattern, PatternValidationLevel.BASIC
         )
         end_time = time.time()
 
@@ -890,7 +903,7 @@ class TestPatternValidationFrameworkPerformance:
         reports = []
         for pattern in patterns:
             report = framework._validate_pattern_comprehensive(
-                pattern, ValidationLevel.BASIC
+                pattern, PatternValidationLevel.BASIC
             )
             reports.append(report)
         end_time = time.time()
@@ -916,7 +929,7 @@ class TestPatternValidationFrameworkErrorHandling:
 
         # Should handle gracefully
         report = framework._validate_pattern_comprehensive(
-            invalid_pattern, ValidationLevel.BASIC
+            invalid_pattern, PatternValidationLevel.BASIC
         )
         assert isinstance(report, PatternValidationReport)
 
@@ -927,18 +940,20 @@ class TestPatternValidationFrameworkErrorHandling:
         # Remove all methods
 
         report = framework._validate_pattern_comprehensive(
-            pattern, ValidationLevel.STRICT
+            pattern, PatternValidationLevel.STRICT
         )
 
         # Should detect missing methods
         assert len(report.issues) > 0
-        assert any(issue.level == ValidationResult.FAIL for issue in report.issues)
+        assert any(
+            issue.level == PatternValidationResult.FAIL for issue in report.issues
+        )
 
     def test_format_report_with_unicode(self, framework):
         """Test report formatting with unicode characters."""
         issues = [
             ValidationIssue(
-                level=ValidationResult.WARN,
+                level=PatternValidationResult.WARN,
                 category="test",
                 message="Unicode message: 测试",
             )
@@ -946,8 +961,8 @@ class TestPatternValidationFrameworkErrorHandling:
         report = PatternValidationReport(
             pattern_name="test_pattern",
             pattern_class="TestPattern",
-            validation_level=ValidationLevel.BASIC,
-            overall_result=ValidationResult.WARN,
+            validation_level=PatternValidationLevel.BASIC,
+            overall_result=PatternValidationResult.WARN,
             issues=issues,
         )
 

@@ -7,7 +7,6 @@ and advanced routing capabilities.
 """
 
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any, Callable
 
@@ -86,19 +85,77 @@ class ResourceConstraint(BaseModel):
     )
 
 
-@dataclass
-class DependencyEdge:
-    """An edge in the dependency graph representing a dependency relationship."""
+class DependencyEdge(BaseModel):
+    """
+    An edge in the dependency graph representing a dependency relationship.
 
-    from_agent: str
-    to_agent: str
-    dependency_type: DependencyType
-    condition: Optional[Callable[[AgentContext], bool]] = None
-    condition_name: Optional[str] = None
-    weight: float = 1.0  # For prioritization
-    timeout_ms: Optional[int] = None
-    retry_count: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    from_agent: str = Field(
+        ...,
+        description="Source agent in the dependency relationship",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "refiner"},
+    )
+    to_agent: str = Field(
+        ...,
+        description="Target agent in the dependency relationship",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "historian"},
+    )
+    dependency_type: DependencyType = Field(
+        ...,
+        description="Type of dependency relationship",
+        json_schema_extra={"example": "hard"},
+    )
+    condition: Optional[Callable[[AgentContext], bool]] = Field(
+        default=None,
+        description="Condition function to evaluate dependency satisfaction",
+        exclude=True,  # Don't serialize functions
+    )
+    condition_name: Optional[str] = Field(
+        default=None,
+        description="Human-readable name for the condition",
+        max_length=200,
+        json_schema_extra={"example": "check_query_complexity"},
+    )
+    weight: float = Field(
+        default=1.0,
+        description="Weight for prioritization (higher = more important)",
+        ge=0.0,
+        le=100.0,
+        json_schema_extra={"example": 1.0},
+    )
+    timeout_ms: Optional[int] = Field(
+        default=None,
+        description="Timeout in milliseconds for dependency evaluation",
+        ge=0,
+        le=300000,
+        json_schema_extra={"example": 30000},
+    )
+    retry_count: int = Field(
+        default=0,
+        description="Number of retries attempted for this dependency",
+        ge=0,
+        le=10,
+        json_schema_extra={"example": 0},
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata for the dependency edge",
+        json_schema_extra={"example": {"priority": "high", "source": "user_config"}},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For callable condition
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def is_satisfied(self, context: AgentContext) -> bool:
         """Check if dependency condition is satisfied."""
@@ -114,25 +171,95 @@ class DependencyEdge:
         return hash((self.from_agent, self.to_agent, self.dependency_type))
 
 
-@dataclass
-class DependencyNode:
-    """A node in the dependency graph representing an agent and its constraints."""
+class DependencyNode(BaseModel):
+    """
+    A node in the dependency graph representing an agent and its constraints.
 
-    agent_id: str
-    agent: BaseAgent
-    priority: ExecutionPriority = ExecutionPriority.NORMAL
-    resource_constraints: List[ResourceConstraint] = field(default_factory=list)
-    max_retries: int = 3
-    timeout_ms: int = 30000
-    can_run_parallel: bool = True
-    requires_exclusive_access: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    agent_id: str = Field(
+        ...,
+        description="Unique identifier for the agent",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "refiner"},
+    )
+    agent: BaseAgent = Field(
+        ...,
+        description="The agent instance for this node",
+        exclude=True,  # Don't serialize agent instances
+    )
+    priority: ExecutionPriority = Field(
+        default=ExecutionPriority.NORMAL,
+        description="Execution priority level for this agent",
+        json_schema_extra={"example": "normal"},
+    )
+    resource_constraints: List[ResourceConstraint] = Field(
+        default_factory=list,
+        description="List of resource constraints for this agent",
+        json_schema_extra={"example": []},
+    )
+    max_retries: int = Field(
+        default=3,
+        description="Maximum number of retry attempts",
+        ge=0,
+        le=20,
+        json_schema_extra={"example": 3},
+    )
+    timeout_ms: int = Field(
+        default=30000,
+        description="Timeout in milliseconds for agent execution",
+        ge=1000,
+        le=600000,
+        json_schema_extra={"example": 30000},
+    )
+    can_run_parallel: bool = Field(
+        default=True,
+        description="Whether this agent can run in parallel with itself",
+        json_schema_extra={"example": True},
+    )
+    requires_exclusive_access: bool = Field(
+        default=False,
+        description="Whether this agent requires exclusive system access",
+        json_schema_extra={"example": False},
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata for the dependency node",
+        json_schema_extra={"example": {"source": "config", "version": "1.0"}},
+    )
 
     # Runtime state
-    execution_count: int = 0
-    last_execution_time_ms: Optional[float] = None
-    last_error: Optional[Exception] = None
-    is_executing: bool = False
+    execution_count: int = Field(
+        default=0,
+        description="Number of times this agent has been executed",
+        ge=0,
+        json_schema_extra={"example": 0},
+    )
+    last_execution_time_ms: Optional[float] = Field(
+        default=None,
+        description="Timestamp of last execution in milliseconds",
+        json_schema_extra={"example": 1640995200000.0},
+    )
+    last_error: Optional[Exception] = Field(
+        default=None,
+        description="Last error encountered during execution",
+        exclude=True,  # Don't serialize exceptions
+    )
+    is_executing: bool = Field(
+        default=False,
+        description="Whether this agent is currently executing",
+        json_schema_extra={"example": False},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For BaseAgent and Exception
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def can_execute(self, context: AgentContext) -> bool:
         """Check if node can execute given current context."""

@@ -24,7 +24,7 @@ class ExecutionMode(Enum):
     HYBRID = "hybrid"
 
 
-class ValidationLevel(Enum):
+class OrchestrationValidationLevel(Enum):
     """Validation levels for DAG execution."""
 
     NONE = "none"
@@ -105,8 +105,8 @@ class DAGExecutionConfig(BaseModel):
         default=ExecutionMode.SEQUENTIAL,
         description="Execution strategy for the DAG (sequential, parallel, or hybrid)",
     )
-    validation_level: ValidationLevel = Field(
-        default=ValidationLevel.BASIC,
+    validation_level: OrchestrationValidationLevel = Field(
+        default=OrchestrationValidationLevel.BASIC,
         description="Level of validation to apply during execution",
     )
     failure_policy: FailurePolicy = Field(
@@ -488,7 +488,7 @@ class LangGraphConfigManager:
         # Create DAG execution configuration
         dag_config = DAGExecutionConfig(
             execution_mode=ExecutionMode.SEQUENTIAL,
-            validation_level=ValidationLevel.BASIC,
+            validation_level=OrchestrationValidationLevel.BASIC,
             failure_policy=FailurePolicy.FAIL_FAST,
             max_execution_time_seconds=300.0,
             enable_observability=True,
@@ -512,7 +512,7 @@ class LangGraphConfigManager:
         config = cls.create_default_config()
 
         # Development-friendly settings
-        config.dag_execution.validation_level = ValidationLevel.STRICT
+        config.dag_execution.validation_level = OrchestrationValidationLevel.STRICT
         config.dag_execution.enable_tracing = True
         config.dag_execution.enable_state_snapshots = True
         config.dag_execution.failure_policy = FailurePolicy.CONTINUE_ON_ERROR
@@ -530,7 +530,7 @@ class LangGraphConfigManager:
         config = cls.create_default_config()
 
         # Production-optimized settings
-        config.dag_execution.validation_level = ValidationLevel.BASIC
+        config.dag_execution.validation_level = OrchestrationValidationLevel.BASIC
         config.dag_execution.enable_tracing = False
         config.dag_execution.enable_state_snapshots = False
         config.dag_execution.failure_policy = FailurePolicy.GRACEFUL_DEGRADATION

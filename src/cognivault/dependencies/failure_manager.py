@@ -315,7 +315,7 @@ class FailureImpactAnalysis(BaseModel):
         return len(self.recovery_options) > 0 or len(self.alternative_paths) > 0
 
 
-class CircuitBreaker:
+class DependencyCircuitBreaker:
     """Circuit breaker for preventing cascade failures."""
 
     def __init__(
@@ -389,7 +389,7 @@ class FailureManager:
     def __init__(self, graph_engine: DependencyGraphEngine):
         self.graph_engine = graph_engine
         self.failure_history: List[FailureRecord] = []
-        self.circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self.circuit_breakers: Dict[str, DependencyCircuitBreaker] = {}
         self.retry_configs: Dict[str, RetryConfiguration] = {}
         self.cascade_prevention = CascadePreventionStrategy.CIRCUIT_BREAKER
 
@@ -414,7 +414,7 @@ class FailureManager:
         recovery_timeout_ms: int = 60000,
     ) -> None:
         """Configure circuit breaker for a specific agent."""
-        self.circuit_breakers[agent_id] = CircuitBreaker(
+        self.circuit_breakers[agent_id] = DependencyCircuitBreaker(
             failure_threshold=failure_threshold, recovery_timeout_ms=recovery_timeout_ms
         )
         logger.debug(f"Configured circuit breaker for {agent_id}")

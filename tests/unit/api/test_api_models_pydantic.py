@@ -13,7 +13,7 @@ from cognivault.api.models import (
     StatusResponse,
     CompletionRequest,
     CompletionResponse,
-    LLMProvider,
+    LLMProviderInfo,
 )
 
 
@@ -366,11 +366,11 @@ class TestCompletionResponseValidation:
 
 
 class TestLLMProviderValidation:
-    """Test LLMProvider Pydantic validation."""
+    """Test LLMProviderInfo Pydantic validation."""
 
     def test_valid_provider(self):
         """Test valid provider."""
-        provider = LLMProvider(
+        provider = LLMProviderInfo(
             name="openai",
             models=["gpt-4", "gpt-3.5-turbo"],
             available=True,
@@ -383,7 +383,7 @@ class TestLLMProviderValidation:
         """Test models field validation."""
         # Empty models list should fail
         with pytest.raises(ValidationError, match="at least 1 item"):
-            LLMProvider(
+            LLMProviderInfo(
                 name="openai",
                 models=[],
                 available=True,
@@ -391,7 +391,7 @@ class TestLLMProviderValidation:
 
         # Duplicate models should fail
         with pytest.raises(ValidationError, match="Duplicate model names"):
-            LLMProvider(
+            LLMProviderInfo(
                 name="openai",
                 models=["gpt-4", "gpt-4"],
                 available=True,
@@ -399,7 +399,7 @@ class TestLLMProviderValidation:
 
         # Invalid model name format should fail
         with pytest.raises(ValidationError, match="Invalid model name format"):
-            LLMProvider(
+            LLMProviderInfo(
                 name="openai",
                 models=["gpt@4"],
                 available=True,
@@ -408,7 +408,7 @@ class TestLLMProviderValidation:
     def test_cost_per_token_validation(self):
         """Test cost_per_token validation."""
         with pytest.raises(ValidationError, match="greater than or equal to 0"):
-            LLMProvider(
+            LLMProviderInfo(
                 name="openai",
                 models=["gpt-4"],
                 available=True,
@@ -446,7 +446,7 @@ class TestBackwardCompatibility:
                 response_time_ms=1000.0,
                 request_id="550e8400-e29b-41d4-a716-446655440000",
             ),
-            LLMProvider(name="openai", models=["gpt-4"], available=True),
+            LLMProviderInfo(name="openai", models=["gpt-4"], available=True),
         ]
 
         for model in models:

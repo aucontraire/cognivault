@@ -5,7 +5,7 @@ import pytest
 from cognivault.langgraph_backend.semantic_validation import (
     SemanticValidator,
     CogniVaultValidator,
-    ValidationResult,
+    SemanticValidationResult,
     ValidationIssue,
     ValidationSeverity,
     ValidationError,
@@ -45,12 +45,12 @@ class TestValidationIssue:
         assert issue.code is None
 
 
-class TestValidationResult:
-    """Test ValidationResult functionality."""
+class TestSemanticValidationResult:
+    """Test SemanticValidationResult functionality."""
 
     def test_validation_result_valid(self):
-        """Test ValidationResult for valid workflow."""
-        result = ValidationResult(is_valid=True, issues=[])
+        """Test SemanticValidationResult for valid workflow."""
+        result = SemanticValidationResult(is_valid=True, issues=[])
 
         assert result.is_valid
         assert not result.has_errors
@@ -59,8 +59,8 @@ class TestValidationResult:
         assert result.warning_messages == []
 
     def test_validation_result_with_errors(self):
-        """Test ValidationResult with errors."""
-        result = ValidationResult(
+        """Test SemanticValidationResult with errors."""
+        result = SemanticValidationResult(
             is_valid=False,
             issues=[
                 ValidationIssue(ValidationSeverity.ERROR, "Error 1"),
@@ -77,7 +77,7 @@ class TestValidationResult:
 
     def test_add_issue_updates_validity(self):
         """Test that adding error issues updates validity."""
-        result = ValidationResult(is_valid=True, issues=[])
+        result = SemanticValidationResult(is_valid=True, issues=[])
 
         # Adding warning doesn't change validity
         result.add_issue(ValidationSeverity.WARNING, "Warning message")
@@ -264,7 +264,7 @@ class TestValidationError:
 
     def test_validation_error_creation(self):
         """Test creating ValidationError."""
-        result = ValidationResult(
+        result = SemanticValidationResult(
             is_valid=False,
             issues=[ValidationIssue(ValidationSeverity.ERROR, "Test error")],
         )
@@ -341,7 +341,7 @@ class TestSemanticValidatorIntegration:
         )
 
         # Should complete without issues (may have warnings about unknown agents)
-        assert isinstance(result, ValidationResult)
+        assert isinstance(result, SemanticValidationResult)
 
 
 class MockValidator(SemanticValidator):
@@ -351,7 +351,7 @@ class MockValidator(SemanticValidator):
         self.should_fail = should_fail
 
     def validate_workflow(self, agents, pattern, **kwargs):
-        result = ValidationResult(is_valid=True, issues=[])
+        result = SemanticValidationResult(is_valid=True, issues=[])
 
         if self.should_fail:
             result.add_issue(

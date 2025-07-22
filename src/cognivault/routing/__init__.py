@@ -14,7 +14,7 @@ from .resource_optimizer import (
     ResourceConstraints,
     OptimizationStrategy,
 )
-from .routing_decision import RoutingDecision, RoutingReasoning, ConfidenceLevel
+from .routing_decision import RoutingDecision, RoutingReasoning, RoutingConfidenceLevel
 
 __all__ = [
     "ResourceOptimizer",
@@ -22,5 +22,5 @@ __all__ = [
     "OptimizationStrategy",
     "RoutingDecision",
     "RoutingReasoning",
-    "ConfidenceLevel",
+    "RoutingConfidenceLevel",
 ]

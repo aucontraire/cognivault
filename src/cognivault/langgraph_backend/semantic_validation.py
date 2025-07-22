@@ -32,7 +32,7 @@ class ValidationIssue:
 
 
 @dataclass
-class ValidationResult:
+class SemanticValidationResult:
     """Result of semantic validation with detailed feedback."""
 
     is_valid: bool
@@ -103,7 +103,7 @@ class SemanticValidator(ABC):
     @abstractmethod
     def validate_workflow(
         self, agents: List[str], pattern: str, **kwargs: Any
-    ) -> ValidationResult:
+    ) -> SemanticValidationResult:
         """
         Validate an agent workflow for semantic correctness.
 
@@ -118,7 +118,7 @@ class SemanticValidator(ABC):
 
         Returns
         -------
-        ValidationResult
+        SemanticValidationResult
             Detailed validation result with issues and suggestions
         """
         pass
@@ -135,7 +135,7 @@ class SemanticValidator(ABC):
         """
         pass
 
-    def validate_agents(self, agents: List[str]) -> ValidationResult:
+    def validate_agents(self, agents: List[str]) -> SemanticValidationResult:
         """
         Validate individual agents regardless of pattern.
 
@@ -146,10 +146,10 @@ class SemanticValidator(ABC):
 
         Returns
         -------
-        ValidationResult
+        SemanticValidationResult
             Basic agent validation result
         """
-        result = ValidationResult(is_valid=True, issues=[])
+        result = SemanticValidationResult(is_valid=True, issues=[])
 
         # Check for duplicates
         seen = set()
@@ -221,7 +221,7 @@ class CogniVaultValidator(SemanticValidator):
 
     def validate_workflow(
         self, agents: List[str], pattern: str, **kwargs: Any
-    ) -> ValidationResult:
+    ) -> SemanticValidationResult:
         """
         Validate a CogniVault workflow for semantic correctness.
 
@@ -236,10 +236,10 @@ class CogniVaultValidator(SemanticValidator):
 
         Returns
         -------
-        ValidationResult
+        SemanticValidationResult
             Comprehensive validation result
         """
-        result = ValidationResult(is_valid=True, issues=[])
+        result = SemanticValidationResult(is_valid=True, issues=[])
 
         # First validate basic agent requirements
         agent_result = self.validate_agents(agents)
@@ -291,7 +291,7 @@ class CogniVaultValidator(SemanticValidator):
         return result
 
     def _validate_standard_pattern(
-        self, agents: List[str], result: ValidationResult
+        self, agents: List[str], result: SemanticValidationResult
     ) -> None:
         """Validate standard pattern semantics."""
 
@@ -344,7 +344,7 @@ class CogniVaultValidator(SemanticValidator):
                 )
 
     def _validate_parallel_pattern(
-        self, agents: List[str], result: ValidationResult
+        self, agents: List[str], result: SemanticValidationResult
     ) -> None:
         """Validate parallel pattern semantics."""
 
@@ -368,7 +368,7 @@ class CogniVaultValidator(SemanticValidator):
             )
 
     def _validate_conditional_pattern(
-        self, agents: List[str], result: ValidationResult
+        self, agents: List[str], result: SemanticValidationResult
     ) -> None:
         """Validate conditional pattern semantics."""
 
@@ -395,7 +395,7 @@ class CogniVaultValidator(SemanticValidator):
 class ValidationError(Exception):
     """Raised when semantic validation fails with errors."""
 
-    def __init__(self, message: str, validation_result: ValidationResult):
+    def __init__(self, message: str, validation_result: SemanticValidationResult):
         super().__init__(message)
         self.validation_result = validation_result
 

@@ -49,7 +49,7 @@ class TestNodeFailureRecovery:
             workflow_id="fallback-test",
             correlation_id="fallback-correlation",
             cognitive_classification={"speed": "adaptive", "depth": "deep"},
-            task_classification=Mock(spec=TaskClassification),
+            task_classification=TaskClassification(task_type="evaluate"),
         )
         return context
 
@@ -68,8 +68,18 @@ class TestNodeFailureRecovery:
             return 0.8
 
         criteria = [
-            DecisionCriteria("failing_criterion", failing_evaluator, 1.0, 0.5),
-            DecisionCriteria("working_criterion", working_evaluator, 1.0, 0.5),
+            DecisionCriteria(
+                name="failing_criterion",
+                evaluator=failing_evaluator,
+                weight=1.0,
+                threshold=0.5,
+            ),
+            DecisionCriteria(
+                name="working_criterion",
+                evaluator=working_evaluator,
+                weight=1.0,
+                threshold=0.5,
+            ),
         ]
 
         paths = {
@@ -178,16 +188,16 @@ class TestNodeFailureRecovery:
 
         criteria = [
             ValidationCriteria(
-                "exception_criterion",
-                exception_validator,
-                1.0,
+                name="exception_criterion",
+                validator=exception_validator,
+                weight=1.0,
                 required=False,  # Not required, so failure shouldn't block
                 error_message="System error in validation",
             ),
             ValidationCriteria(
-                "working_criterion",
-                working_validator,
-                2.0,
+                name="working_criterion",
+                validator=working_validator,
+                weight=2.0,
                 required=True,
                 error_message="Content too short",
             ),
@@ -246,10 +256,10 @@ class TestNodeFailureRecovery:
 
         criteria = [
             TerminationCriteria(
-                "resource_exhaustion",
-                resource_check_evaluator,
-                0.9,
-                1.0,
+                name="resource_exhaustion",
+                evaluator=resource_check_evaluator,
+                threshold=0.9,
+                weight=1.0,
                 required=True,
                 description="Check for resource exhaustion",
             ),
@@ -323,7 +333,7 @@ class TestGracefulDegradation:
             workflow_id="degradation-test",
             correlation_id="degradation-correlation",
             cognitive_classification={"speed": "fast"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         # Provide only low-quality inputs (below threshold)
@@ -372,16 +382,16 @@ class TestGracefulDegradation:
         # Create strict criteria that will fail
         strict_criteria = [
             ValidationCriteria(
-                "strict_content_length",
-                lambda data: len(data.get("content", "")) > 200,
-                2.0,
+                name="strict_content_length",
+                validator=lambda data: len(data.get("content", "")) > 200,
+                weight=2.0,
                 required=True,
                 error_message="Content must be very comprehensive",
             ),
             ValidationCriteria(
-                "strict_quality",
-                lambda data: data.get("quality_score", 0) > 0.95,
-                1.0,
+                name="strict_quality",
+                validator=lambda data: data.get("quality_score", 0) > 0.95,
+                weight=1.0,
                 required=True,
                 error_message="Quality must be exceptional",
             ),
@@ -399,7 +409,7 @@ class TestGracefulDegradation:
             workflow_id="relaxed-test",
             correlation_id="relaxed-correlation",
             cognitive_classification={"speed": "slow"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         context.available_inputs = {
@@ -422,17 +432,18 @@ class TestGracefulDegradation:
         # Test with relaxed criteria
         relaxed_criteria = [
             ValidationCriteria(
-                "relaxed_content_length",
-                lambda data: len(data.get("content", ""))
+                name="relaxed_content_length",
+                validator=lambda data: len(data.get("content", ""))
                 > 20,  # Much lower requirement
-                1.0,
+                weight=1.0,
                 required=True,
                 error_message="Content must meet minimum length",
             ),
             ValidationCriteria(
-                "relaxed_quality",
-                lambda data: data.get("quality_score", 0) > 0.7,  # Lower requirement
-                1.0,
+                name="relaxed_quality",
+                validator=lambda data: data.get("quality_score", 0)
+                > 0.7,  # Lower requirement
+                weight=1.0,
                 required=True,
                 error_message="Quality must be acceptable",
             ),
@@ -476,7 +487,11 @@ class TestFallbackPatternSelection:
         decision_node = DecisionNode(
             mock_metadata,
             "pattern_decision",
-            [DecisionCriteria("basic", lambda ctx: 0.5, 1.0, 0.3)],
+            [
+                DecisionCriteria(
+                    name="basic", evaluator=lambda ctx: 0.5, weight=1.0, threshold=0.3
+                )
+            ],
             {"default": ["agent1"]},
         )
 
@@ -503,7 +518,11 @@ class TestFallbackPatternSelection:
         validator_node = ValidatorNode(
             mock_metadata,
             "pattern_validator",
-            [ValidationCriteria("basic", lambda data: True, 1.0, True)],
+            [
+                ValidationCriteria(
+                    name="basic", validator=lambda data: True, weight=1.0, required=True
+                )
+            ],
         )
 
         fallback_patterns = validator_node.get_fallback_patterns()
@@ -516,7 +535,15 @@ class TestFallbackPatternSelection:
         terminator_node = TerminatorNode(
             mock_metadata,
             "pattern_terminator",
-            [TerminationCriteria("basic", lambda data: True, 0.5, 1.0, True)],
+            [
+                TerminationCriteria(
+                    name="basic",
+                    evaluator=lambda data: True,
+                    threshold=0.5,
+                    weight=1.0,
+                    required=True,
+                )
+            ],
         )
 
         fallback_patterns = terminator_node.get_fallback_patterns()
@@ -552,7 +579,7 @@ class TestCircuitBreakerPattern:
             workflow_id="circuit-breaker-test",
             correlation_id="circuit-correlation",
             cognitive_classification={"speed": "fast"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         # Create inputs that will consistently fail threshold checks
@@ -630,7 +657,12 @@ class TestErrorPropagationControl:
             decision_metadata,
             "error_prone_decision",
             [
-                DecisionCriteria("failing", lambda ctx: 1 / 0, 1.0, 0.5)
+                DecisionCriteria(
+                    name="failing",
+                    evaluator=lambda ctx: 1 / 0,
+                    weight=1.0,
+                    threshold=0.5,
+                )
             ],  # Division by zero
             {"error_path": ["error_agent"], "safe_path": ["safe_agent"]},
         )
@@ -648,7 +680,7 @@ class TestErrorPropagationControl:
             workflow_id="error-containment-test",
             correlation_id="error-correlation",
             cognitive_classification={"speed": "adaptive"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         context.available_inputs = {

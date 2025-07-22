@@ -364,11 +364,11 @@ class WorkflowExecutor:
             task_classification = classify_query_task(initial_context.query)
         except ImportError:
             # Create a mock task classification if the module is not available
-            from types import SimpleNamespace
+            from cognivault.agents.metadata import TaskClassification
 
-            task_classification = SimpleNamespace()
-            for attr in ["task_type", "complexity", "domain"]:
-                setattr(task_classification, attr, "unknown")
+            task_classification = TaskClassification(
+                task_type="transform", complexity="moderate", domain="unknown"
+            )
 
         try:
             from cognivault.orchestration.nodes.base_advanced_node import (

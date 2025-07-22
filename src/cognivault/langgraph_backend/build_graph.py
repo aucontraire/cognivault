@@ -23,7 +23,11 @@ from cognivault.observability import get_logger
 
 from .graph_patterns import GraphPattern, PatternRegistry
 from .graph_cache import GraphCache, CacheConfig
-from .semantic_validation import SemanticValidator, ValidationError, ValidationResult
+from .semantic_validation import (
+    SemanticValidator,
+    ValidationError,
+    SemanticValidationResult,
+)
 
 
 class GraphBuildError(Exception):
@@ -472,7 +476,7 @@ class GraphFactory:
         pattern: str,
         validator: Optional[SemanticValidator] = None,
         strict_mode: bool = False,
-    ) -> ValidationResult:
+    ) -> SemanticValidationResult:
         """
         Validate a workflow configuration without building the graph.
 
@@ -489,7 +493,7 @@ class GraphFactory:
 
         Returns
         -------
-        ValidationResult
+        SemanticValidationResult
             Detailed validation result
 
         Raises
@@ -501,7 +505,7 @@ class GraphFactory:
         use_validator = validator or self.default_validator
 
         if not use_validator:
-            return ValidationResult(is_valid=True, issues=[])
+            return SemanticValidationResult(is_valid=True, issues=[])
 
         try:
             return use_validator.validate_workflow(

@@ -354,7 +354,7 @@ class CompletionResponse(BaseModel):
 
 
 # EXTERNAL SCHEMA
-class LLMProvider(BaseModel):
+class LLMProviderInfo(BaseModel):
     """External LLM provider information - v1.0.0"""
 
     name: str = Field(

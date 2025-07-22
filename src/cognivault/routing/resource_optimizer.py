@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Set, Tuple, Any
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
 from cognivault.observability import get_logger
-from .routing_decision import RoutingDecision, ConfidenceLevel
+from .routing_decision import RoutingDecision, RoutingConfidenceLevel
 
 logger = get_logger(__name__)
 
@@ -369,7 +369,7 @@ class ResourceOptimizer:
             selected_agents=[],
             routing_strategy=strategy.value,
             confidence_score=0.0,
-            confidence_level=ConfidenceLevel.MEDIUM,
+            confidence_level=RoutingConfidenceLevel.MEDIUM,
             available_agents=available_agents.copy(),
         )
 
@@ -377,7 +377,7 @@ class ResourceOptimizer:
         if not available_agents:
             decision.add_risk("empty_agents_list", "No agents available for selection")
             decision.confidence_score = 0.1
-            decision.confidence_level = ConfidenceLevel.VERY_LOW
+            decision.confidence_level = RoutingConfidenceLevel.VERY_LOW
             return decision
 
         # Error handling: Validate and normalize complexity score
@@ -479,7 +479,7 @@ class ResourceOptimizer:
                     "resource", "error", "No agents satisfy constraints"
                 )
                 decision.confidence_score = 0.0
-                decision.confidence_level = ConfidenceLevel.VERY_LOW
+                decision.confidence_level = RoutingConfidenceLevel.VERY_LOW
                 return decision
 
         try:

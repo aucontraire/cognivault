@@ -6,11 +6,12 @@ output combination and synthesis in the advanced node execution system.
 """
 
 from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass
+from dataclasses import dataclass  # Keep for any remaining dataclasses
 from enum import Enum
 import statistics
 import asyncio
 
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from cognivault.agents.metadata import AgentMetadata
 from cognivault.events import emit_aggregation_completed
 from .base_advanced_node import BaseAdvancedNode, NodeExecutionContext
@@ -28,29 +29,57 @@ class AggregationStrategy(Enum):
     BEST_QUALITY = "best_quality"
 
 
-@dataclass
-class AggregationInput:
-    """Represents input from a single source for aggregation."""
+class AggregationInput(BaseModel):
+    """
+    Represents input from a single source for aggregation.
 
-    source: str
-    data: Dict[str, Any]
-    confidence: float = 0.0
-    weight: float = 1.0
-    quality_score: float = 0.0
-    timestamp: Optional[float] = None
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
 
-    def __post_init__(self):
-        """Validate input ranges."""
-        if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(
-                f"Confidence must be between 0.0 and 1.0, got {self.confidence}"
-            )
-        if self.weight < 0.0:
-            raise ValueError(f"Weight must be non-negative, got {self.weight}")
-        if not 0.0 <= self.quality_score <= 1.0:
-            raise ValueError(
-                f"Quality score must be between 0.0 and 1.0, got {self.quality_score}"
-            )
+    source: str = Field(
+        ...,
+        description="Source identifier for this aggregation input",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "agent_1"},
+    )
+    data: Dict[str, Any] = Field(
+        ...,
+        description="Data payload from the source",
+        json_schema_extra={"example": {"content": "Analysis result", "type": "text"}},
+    )
+    confidence: float = Field(
+        default=0.0,
+        description="Confidence level of this input (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+    weight: float = Field(
+        default=1.0,
+        description="Weight/importance of this input in aggregation",
+        ge=0.0,
+        json_schema_extra={"example": 1.5},
+    )
+    quality_score: float = Field(
+        default=0.0,
+        description="Quality score of this input (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.92},
+    )
+    timestamp: Optional[float] = Field(
+        default=None,
+        description="Timestamp when this input was created",
+        ge=0.0,
+        json_schema_extra={"example": 1640995200.0},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
 class AggregatorNode(BaseAdvancedNode):

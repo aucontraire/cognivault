@@ -11,25 +11,92 @@ import re
 import yaml
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
 from pathlib import Path
+from datetime import datetime
 
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from cognivault.config.app_config import get_config
 
 
-@dataclass
-class SearchResult:
-    """A single search result from historical content."""
+class SearchResult(BaseModel):
+    """
+    A single search result from historical content.
 
-    filepath: str
-    filename: str
-    title: str
-    date: str
-    relevance_score: float
-    match_type: str  # "topic", "keyword", "title", "content"
-    matched_terms: List[str]
-    excerpt: str
-    metadata: Dict[str, Any]
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    filepath: str = Field(
+        ...,
+        description="Full path to the file containing this result",
+        min_length=1,
+        max_length=1000,
+        json_schema_extra={"example": "/users/notes/ai-concepts.md"},
+    )
+    filename: str = Field(
+        ...,
+        description="Filename part of the filepath",
+        min_length=1,
+        max_length=255,
+        json_schema_extra={"example": "ai-concepts.md"},
+    )
+    title: str = Field(
+        ...,
+        description="Title of the document from frontmatter",
+        min_length=1,
+        max_length=500,
+        json_schema_extra={"example": "Introduction to Machine Learning"},
+    )
+    date: str = Field(
+        ...,
+        description="Date from document frontmatter",
+        max_length=100,
+        json_schema_extra={"example": "2024-01-15"},
+    )
+    relevance_score: float = Field(
+        ...,
+        description="Relevance score for this search result",
+        ge=0.0,
+        le=1000.0,
+        json_schema_extra={"example": 8.5},
+    )
+    match_type: str = Field(
+        ...,
+        description="Type of match found",
+        pattern=r"^(topic|keyword|title|content|tag|domain|none)$",
+        json_schema_extra={"example": "topic"},
+    )
+    matched_terms: List[str] = Field(
+        default_factory=list,
+        description="Terms that matched in the search",
+        max_length=50,
+        json_schema_extra={"example": ["machine learning", "ai", "neural networks"]},
+    )
+    excerpt: str = Field(
+        ...,
+        description="Relevant excerpt from the document content",
+        max_length=2000,
+        json_schema_extra={
+            "example": "Machine learning is a subset of artificial intelligence..."
+        },
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Document frontmatter metadata",
+        json_schema_extra={
+            "example": {
+                "uuid": "123e4567-e89b-12d3-a456-426614174000",
+                "topics": ["ai", "machine learning"],
+                "domain": "technology",
+            }
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For Path objects if needed
+    )
 
     @property
     def uuid(self) -> Optional[str]:
@@ -160,11 +227,20 @@ class TagBasedSearch(HistorianSearchInterface):
             )
 
             if score > 0:
+                # Get date and convert to string if it's a datetime object
+                date_value = frontmatter.get("date", "")
+                if isinstance(date_value, datetime):
+                    date_value = date_value.isoformat()
+                elif date_value is None:
+                    date_value = ""
+                else:
+                    date_value = str(date_value)
+
                 result = SearchResult(
                     filepath=filepath,
                     filename=os.path.basename(filepath),
                     title=frontmatter.get("title", "Untitled"),
-                    date=frontmatter.get("date", ""),
+                    date=date_value,
                     relevance_score=score,
                     match_type=match_type,
                     matched_terms=matched_terms,
@@ -337,11 +413,20 @@ class KeywordSearch(HistorianSearchInterface):
             )
 
             if score > 0:
+                # Get date and convert to string if it's a datetime object
+                date_value = frontmatter.get("date", "")
+                if isinstance(date_value, datetime):
+                    date_value = date_value.isoformat()
+                elif date_value is None:
+                    date_value = ""
+                else:
+                    date_value = str(date_value)
+
                 result = SearchResult(
                     filepath=filepath,
                     filename=os.path.basename(filepath),
                     title=frontmatter.get("title", "Untitled"),
-                    date=frontmatter.get("date", ""),
+                    date=date_value,
                     relevance_score=score,
                     match_type="keyword",
                     matched_terms=matched_terms,

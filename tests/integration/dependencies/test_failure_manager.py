@@ -24,7 +24,7 @@ from cognivault.dependencies.failure_manager import (
     RetryConfiguration,
     FailureRecord,
     FailureImpactAnalysis,
-    CircuitBreaker,
+    DependencyCircuitBreaker,
 )
 
 
@@ -318,11 +318,11 @@ class TestFailureImpactAnalysis:
 
 
 class TestCircuitBreaker:
-    """Test CircuitBreaker functionality."""
+    """Test DependencyCircuitBreaker functionality."""
 
     def test_circuit_breaker_creation(self):
         """Test creating a circuit breaker."""
-        cb = CircuitBreaker(
+        cb = DependencyCircuitBreaker(
             failure_threshold=3,
             recovery_timeout_ms=60000.0,
             half_open_max_calls=2,
@@ -335,7 +335,7 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_closed_state(self):
         """Test circuit breaker in closed state."""
-        cb = CircuitBreaker(failure_threshold=2)
+        cb = DependencyCircuitBreaker(failure_threshold=2)
 
         # Initially closed - should allow execution
         assert cb.can_execute() is True
@@ -347,7 +347,7 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_opens_on_failures(self):
         """Test circuit breaker opens after failure threshold."""
-        cb = CircuitBreaker(failure_threshold=2)
+        cb = DependencyCircuitBreaker(failure_threshold=2)
 
         # First failure
         cb.record_failure()
@@ -361,7 +361,7 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_recovery(self):
         """Test circuit breaker recovery after timeout."""
-        cb = CircuitBreaker(
+        cb = DependencyCircuitBreaker(
             failure_threshold=1,
             recovery_timeout_ms=100.0,  # Short timeout for testing
         )
@@ -380,7 +380,7 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_half_open_success(self):
         """Test circuit breaker success in half-open state."""
-        cb = CircuitBreaker(failure_threshold=1, recovery_timeout_ms=1.0)
+        cb = DependencyCircuitBreaker(failure_threshold=1, recovery_timeout_ms=1.0)
 
         # Open the circuit
         cb.record_failure()
@@ -396,7 +396,7 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_half_open_failure(self):
         """Test circuit breaker failure in half-open state."""
-        cb = CircuitBreaker(failure_threshold=1, recovery_timeout_ms=1.0)
+        cb = DependencyCircuitBreaker(failure_threshold=1, recovery_timeout_ms=1.0)
 
         # Open the circuit
         cb.record_failure()
@@ -412,7 +412,7 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_half_open_call_limit(self):
         """Test circuit breaker call limit in half-open state."""
-        cb = CircuitBreaker(
+        cb = DependencyCircuitBreaker(
             failure_threshold=1,
             recovery_timeout_ms=1.0,
             half_open_max_calls=2,

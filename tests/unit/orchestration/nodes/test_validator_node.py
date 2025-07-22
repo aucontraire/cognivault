@@ -11,7 +11,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from cognivault.orchestration.nodes.validator_node import (
     ValidatorNode,
     ValidationCriteria,
-    ValidationResult,
+    NodeValidationResult,
     ValidationReport,
     NodeExecutionContext,
 )
@@ -181,8 +181,8 @@ class TestValidationCriteria:
             name="has_key", validator=lambda data: "key" in data
         )
 
-        assert criterion.validate({"key": "value"}) is True
-        assert criterion.validate({"other": "value"}) is False
+        assert criterion.validate_data({"key": "value"}) is True
+        assert criterion.validate_data({"other": "value"}) is False
 
 
 class TestValidationReport:
@@ -191,7 +191,7 @@ class TestValidationReport:
     def test_validation_report_creation(self):
         """Test ValidationReport creation."""
         report = ValidationReport(
-            result=ValidationResult.PASS,
+            result=NodeValidationResult.PASS,
             quality_score=0.85,
             criteria_results={"test": {"passed": True}},
             recommendations=["All good"],
@@ -202,7 +202,7 @@ class TestValidationReport:
             warnings=[],
         )
 
-        assert report.result == ValidationResult.PASS
+        assert report.result == NodeValidationResult.PASS
         assert report.quality_score == 0.85
         assert report.success_rate == 1.0  # 2/2
         assert report.total_criteria == 2
@@ -213,7 +213,7 @@ class TestValidationReport:
         """Test ValidationReport success_rate calculation."""
         # Test normal case
         report = ValidationReport(
-            result=ValidationResult.WARNING,
+            result=NodeValidationResult.WARNING,
             quality_score=0.7,
             criteria_results={},
             recommendations=[],
@@ -228,7 +228,7 @@ class TestValidationReport:
 
         # Test edge case: no criteria
         report_empty = ValidationReport(
-            result=ValidationResult.PASS,
+            result=NodeValidationResult.PASS,
             quality_score=0.0,
             criteria_results={},
             recommendations=[],

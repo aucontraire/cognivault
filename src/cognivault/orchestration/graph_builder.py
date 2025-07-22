@@ -6,10 +6,10 @@ CogniVault agent definitions, including node creation, edge routing, and
 graph validation.
 """
 
-from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict, Any, Optional, Callable, Set
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent, LangGraphNodeDefinition
 
@@ -23,16 +23,49 @@ class EdgeType(Enum):
     AGGREGATION = "aggregation"  # Multiple inputs to single node
 
 
-@dataclass
-class GraphEdge:
-    """Definition of an edge between graph nodes."""
+class GraphEdge(BaseModel):
+    """
+    Definition of an edge between graph nodes.
 
-    from_node: str
-    to_node: str
-    edge_type: EdgeType
-    condition: Optional[Callable[[AgentContext], bool]] = None
-    condition_name: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    from_node: str = Field(
+        ...,
+        description="Source node identifier",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "refiner_node"},
+    )
+    to_node: str = Field(
+        ...,
+        description="Destination node identifier",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "critic_node"},
+    )
+    edge_type: EdgeType = Field(..., description="Type of edge for routing logic")
+    condition: Optional[Callable[[AgentContext], bool]] = Field(
+        default=None, description="Optional condition function for conditional edges"
+    )
+    condition_name: Optional[str] = Field(
+        default=None,
+        description="Optional name/description of the condition",
+        max_length=200,
+        json_schema_extra={"example": "high_confidence_check"},
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Additional edge metadata",
+        json_schema_extra={"example": {"priority": "high", "timeout_seconds": 30}},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For Callable and complex types
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
@@ -45,15 +78,62 @@ class GraphEdge:
         }
 
 
-@dataclass
-class GraphDefinition:
-    """Complete graph definition with nodes and edges."""
+class GraphDefinition(BaseModel):
+    """
+    Complete graph definition with nodes and edges.
 
-    nodes: Dict[str, LangGraphNodeDefinition]
-    edges: List[GraphEdge]
-    entry_points: List[str]
-    exit_points: List[str]
-    metadata: Dict[str, Any]
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    nodes: Dict[str, LangGraphNodeDefinition] = Field(
+        ...,
+        description="Dictionary mapping node IDs to their definitions",
+        json_schema_extra={
+            "example": {
+                "refiner": {"node_type": "processor", "agent_name": "Refiner"},
+                "critic": {"node_type": "processor", "agent_name": "Critic"},
+            }
+        },
+    )
+    edges: List[GraphEdge] = Field(
+        ...,
+        description="List of edges defining the graph connectivity",
+        json_schema_extra={
+            "example": [
+                {"from_node": "refiner", "to_node": "critic", "edge_type": "sequential"}
+            ]
+        },
+    )
+    entry_points: List[str] = Field(
+        ...,
+        description="List of node IDs that serve as graph entry points",
+        min_length=1,
+        json_schema_extra={"example": ["refiner"]},
+    )
+    exit_points: List[str] = Field(
+        ...,
+        description="List of node IDs that serve as graph exit points",
+        min_length=1,
+        json_schema_extra={"example": ["synthesis"]},
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional graph metadata and configuration",
+        json_schema_extra={
+            "example": {
+                "version": "1.0",
+                "description": "Standard agent processing pipeline",
+                "parallel_capable": True,
+            }
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For LangGraphNodeDefinition objects
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""

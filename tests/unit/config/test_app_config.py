@@ -9,7 +9,7 @@ import pytest
 
 from cognivault.config.app_config import (
     ApplicationConfig,
-    ExecutionConfig,
+    AppExecutionConfig,
     FileConfig,
     ModelConfig,
     DevelopmentConfig,
@@ -23,11 +23,11 @@ from cognivault.config.app_config import (
 
 
 class TestExecutionConfig:
-    """Test suite for ExecutionConfig."""
+    """Test suite for AppExecutionConfig."""
 
     def test_default_values(self):
-        """Test that ExecutionConfig has correct default values."""
-        config = ExecutionConfig()
+        """Test that AppExecutionConfig has correct default values."""
+        config = AppExecutionConfig()
 
         assert config.max_retries == 3
         assert config.timeout_seconds == 10
@@ -94,7 +94,7 @@ class TestApplicationConfig:
         assert config.environment == Environment.DEVELOPMENT
         assert config.log_level == LogLevel.INFO
         assert config.debug_mode is False
-        assert isinstance(config.execution, ExecutionConfig)
+        assert isinstance(config.execution, AppExecutionConfig)
         assert isinstance(config.files, FileConfig)
         assert isinstance(config.models, ModelConfig)
         assert isinstance(config.testing, DevelopmentConfig)

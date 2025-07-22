@@ -11,35 +11,121 @@ from typing import Dict, List, Any, Optional, Tuple
 from collections import Counter
 from dataclasses import dataclass
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.store.frontmatter import TopicTaxonomy
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class TopicSuggestion:
-    """A suggested topic with confidence and reasoning."""
+class TopicSuggestion(BaseModel):
+    """
+    A suggested topic with confidence and reasoning.
 
-    topic: str
-    confidence: float  # 0.0 to 1.0
-    source: (
-        str  # "agent_output", "llm_analysis", "keyword_extraction", "domain_mapping"
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    topic: str = Field(
+        ...,
+        description="The suggested topic name or phrase",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "machine learning"},
     )
-    reasoning: str
-    related_terms: List[str]
+    confidence: float = Field(
+        ...,
+        description="Confidence score for this topic suggestion (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+    source: str = Field(
+        ...,
+        description="Source of this topic suggestion",
+        pattern=r"^(agent_output|llm_analysis|keyword_extraction|domain_mapping)$",
+        json_schema_extra={"example": "llm_analysis"},
+    )
+    reasoning: str = Field(
+        ...,
+        description="Explanation for why this topic was suggested",
+        min_length=1,
+        max_length=1000,
+        json_schema_extra={"example": "High-frequency ML terms detected in content"},
+    )
+    related_terms: List[str] = Field(
+        default_factory=list,
+        description="Related terms and keywords for this topic",
+        max_length=50,
+        json_schema_extra={"example": ["neural networks", "algorithms", "ai"]},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
-@dataclass
-class TopicAnalysis:
-    """Complete topic analysis for a query and agent outputs."""
+class TopicAnalysis(BaseModel):
+    """
+    Complete topic analysis for a query and agent outputs.
 
-    suggested_topics: List[TopicSuggestion]
-    suggested_domain: Optional[str]
-    confidence_score: float
-    key_terms: List[str]
-    themes: List[str]
-    complexity_indicators: List[str]
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    suggested_topics: List[TopicSuggestion] = Field(
+        default_factory=list,
+        description="List of suggested topics with confidence scores",
+        max_length=20,
+        json_schema_extra={
+            "example": [
+                {
+                    "topic": "machine learning",
+                    "confidence": 0.9,
+                    "source": "llm_analysis",
+                    "reasoning": "ML concepts dominate the content",
+                    "related_terms": ["neural networks", "algorithms"],
+                }
+            ]
+        },
+    )
+    suggested_domain: Optional[str] = Field(
+        default=None,
+        description="Primary domain suggested for this content",
+        max_length=100,
+        json_schema_extra={"example": "technology"},
+    )
+    confidence_score: float = Field(
+        ...,
+        description="Overall confidence score for the topic analysis (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.82},
+    )
+    key_terms: List[str] = Field(
+        default_factory=list,
+        description="Key terms extracted from the analyzed content",
+        max_length=50,
+        json_schema_extra={"example": ["algorithm", "data", "neural", "learning"]},
+    )
+    themes: List[str] = Field(
+        default_factory=list,
+        description="High-level themes identified in the content",
+        max_length=20,
+        json_schema_extra={"example": ["artificial intelligence", "data science"]},
+    )
+    complexity_indicators: List[str] = Field(
+        default_factory=list,
+        description="Indicators of content complexity and sophistication",
+        max_length=10,
+        json_schema_extra={"example": ["technical", "analytical", "comprehensive"]},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
 class KeywordExtractor:

@@ -393,7 +393,9 @@ def test_graph_builder_method_chaining():
     builder = GraphBuilder()
     agent1 = MockAgent("Agent1")
     agent2 = MockAgent("Agent2")
-    edge = GraphEdge("agent1", "agent2", EdgeType.SEQUENTIAL)
+    edge = GraphEdge(
+        from_node="agent1", to_node="agent2", edge_type=EdgeType.SEQUENTIAL
+    )
 
     def routing_func(context):
         return "agent2"

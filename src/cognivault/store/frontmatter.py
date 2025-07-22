@@ -45,7 +45,7 @@ class DifficultyLevel(Enum):
     EXPERT = "expert"
 
 
-class ConfidenceLevel(Enum):
+class AgentConfidenceLevel(Enum):
     """Confidence levels for agent outputs."""
 
     LOW = "low"  # 0.0 - 0.4
@@ -61,7 +61,7 @@ class AgentExecutionResult(BaseModel):
 
     status: AgentStatus
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
-    confidence_level: Optional[ConfidenceLevel] = None
+    confidence_level: Optional[AgentConfidenceLevel] = None
     processing_time_ms: Optional[int] = None
     changes_made: bool = False
     error_message: Optional[str] = None
@@ -71,13 +71,13 @@ class AgentExecutionResult(BaseModel):
         """Auto-calculate confidence level from numeric confidence."""
         if self.confidence_level is None:
             if self.confidence < 0.4:
-                self.confidence_level = ConfidenceLevel.LOW
+                self.confidence_level = AgentConfidenceLevel.LOW
             elif self.confidence < 0.7:
-                self.confidence_level = ConfidenceLevel.MODERATE
+                self.confidence_level = AgentConfidenceLevel.MODERATE
             elif self.confidence < 0.9:
-                self.confidence_level = ConfidenceLevel.HIGH
+                self.confidence_level = AgentConfidenceLevel.HIGH
             else:
-                self.confidence_level = ConfidenceLevel.VERY_HIGH
+                self.confidence_level = AgentConfidenceLevel.VERY_HIGH
 
 
 class EnhancedFrontmatter(BaseModel):

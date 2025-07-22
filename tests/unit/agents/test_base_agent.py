@@ -782,8 +782,19 @@ def test_node_output_schema():
 
 def test_langgraph_node_definition():
     """Test LangGraphNodeDefinition creation and to_dict method."""
-    inputs = [NodeInputSchema("context", "Input context", True, "AgentContext")]
-    outputs = [NodeOutputSchema("context", "Output context", "AgentContext")]
+    inputs = [
+        NodeInputSchema(
+            name="context",
+            description="Input context",
+            required=True,
+            type_hint="AgentContext",
+        )
+    ]
+    outputs = [
+        NodeOutputSchema(
+            name="context", description="Output context", type_hint="AgentContext"
+        )
+    ]
 
     node_def = LangGraphNodeDefinition(
         node_id="test_node",

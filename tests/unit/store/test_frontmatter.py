@@ -14,7 +14,7 @@ from cognivault.store.frontmatter import (
     AgentExecutionResult,
     AgentStatus,
     DifficultyLevel,
-    ConfidenceLevel,
+    AgentConfidenceLevel,
     TopicTaxonomy,
     create_basic_frontmatter,
     frontmatter_to_yaml_dict,
@@ -99,14 +99,14 @@ class TestDifficultyLevel:
 
 
 class TestConfidenceLevel:
-    """Test ConfidenceLevel enum functionality."""
+    """Test AgentConfidenceLevel enum functionality."""
 
     def test_confidence_level_values(self):
         """Test that confidence levels are properly defined."""
-        assert ConfidenceLevel.LOW.value == "low"
-        assert ConfidenceLevel.MODERATE.value == "moderate"
-        assert ConfidenceLevel.HIGH.value == "high"
-        assert ConfidenceLevel.VERY_HIGH.value == "very_high"
+        assert AgentConfidenceLevel.LOW.value == "low"
+        assert AgentConfidenceLevel.MODERATE.value == "moderate"
+        assert AgentConfidenceLevel.HIGH.value == "high"
+        assert AgentConfidenceLevel.VERY_HIGH.value == "very_high"
 
     def test_confidence_level_coverage(self):
         """Test that confidence levels cover expected ranges."""
@@ -117,7 +117,7 @@ class TestConfidenceLevel:
         very_high_range = (0.9, 1.0)  # VERY_HIGH
 
         # Just verify we have the right number of levels
-        assert len(list(ConfidenceLevel)) == 4
+        assert len(list(AgentConfidenceLevel)) == 4
 
 
 class TestAgentExecutionResult:
@@ -129,7 +129,7 @@ class TestAgentExecutionResult:
 
         assert result.status == AgentStatus.REFINED
         assert result.confidence == 0.0
-        assert result.confidence_level == ConfidenceLevel.LOW  # Auto-calculated
+        assert result.confidence_level == AgentConfidenceLevel.LOW  # Auto-calculated
         assert result.processing_time_ms is None
         assert result.changes_made is False
         assert result.error_message is None
@@ -150,7 +150,7 @@ class TestAgentExecutionResult:
 
         assert result.status == AgentStatus.ANALYZED
         assert result.confidence == 0.85
-        assert result.confidence_level == ConfidenceLevel.HIGH  # Auto-calculated
+        assert result.confidence_level == AgentConfidenceLevel.HIGH  # Auto-calculated
         assert result.processing_time_ms == 1500
         assert result.changes_made is True
         assert result.error_message is None
@@ -160,44 +160,44 @@ class TestAgentExecutionResult:
         """Test automatic confidence level calculation."""
         # Test LOW (0.0 - 0.4)
         result_low = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.3)
-        assert result_low.confidence_level == ConfidenceLevel.LOW
+        assert result_low.confidence_level == AgentConfidenceLevel.LOW
 
         # Test MODERATE (0.4 - 0.7)
         result_moderate = AgentExecutionResult(
             status=AgentStatus.REFINED, confidence=0.6
         )
-        assert result_moderate.confidence_level == ConfidenceLevel.MODERATE
+        assert result_moderate.confidence_level == AgentConfidenceLevel.MODERATE
 
         # Test HIGH (0.7 - 0.9)
         result_high = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.8)
-        assert result_high.confidence_level == ConfidenceLevel.HIGH
+        assert result_high.confidence_level == AgentConfidenceLevel.HIGH
 
         # Test VERY_HIGH (0.9 - 1.0)
         result_very_high = AgentExecutionResult(
             status=AgentStatus.REFINED, confidence=0.95
         )
-        assert result_very_high.confidence_level == ConfidenceLevel.VERY_HIGH
+        assert result_very_high.confidence_level == AgentConfidenceLevel.VERY_HIGH
 
     def test_confidence_level_boundary_values(self):
         """Test boundary values for confidence level calculation."""
         # Test exact boundary values
         result_40 = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.4)
-        assert result_40.confidence_level == ConfidenceLevel.MODERATE
+        assert result_40.confidence_level == AgentConfidenceLevel.MODERATE
 
         result_70 = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.7)
-        assert result_70.confidence_level == ConfidenceLevel.HIGH
+        assert result_70.confidence_level == AgentConfidenceLevel.HIGH
 
         result_90 = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.9)
-        assert result_90.confidence_level == ConfidenceLevel.VERY_HIGH
+        assert result_90.confidence_level == AgentConfidenceLevel.VERY_HIGH
 
     def test_manual_confidence_level_override(self):
         """Test manually setting confidence level overrides auto-calculation."""
         result = AgentExecutionResult(
             status=AgentStatus.REFINED,
             confidence=0.3,  # Would normally be LOW
-            confidence_level=ConfidenceLevel.HIGH,  # Manual override
+            confidence_level=AgentConfidenceLevel.HIGH,  # Manual override
         )
-        assert result.confidence_level == ConfidenceLevel.HIGH
+        assert result.confidence_level == AgentConfidenceLevel.HIGH
 
     def test_confidence_validation(self):
         """Test confidence value validation."""

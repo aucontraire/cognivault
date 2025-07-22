@@ -157,9 +157,27 @@ class TestTopicManager:
         manager = TopicManager(llm=None)
 
         suggestions = [
-            TopicSuggestion("ai", 0.9, "llm_analysis", "High confidence", []),
-            TopicSuggestion("tech", 0.7, "domain_mapping", "Medium confidence", []),
-            TopicSuggestion("code", 0.5, "keyword_extraction", "Low confidence", []),
+            TopicSuggestion(
+                topic="ai",
+                confidence=0.9,
+                source="llm_analysis",
+                reasoning="High confidence",
+                related_terms=[],
+            ),
+            TopicSuggestion(
+                topic="tech",
+                confidence=0.7,
+                source="domain_mapping",
+                reasoning="Medium confidence",
+                related_terms=[],
+            ),
+            TopicSuggestion(
+                topic="code",
+                confidence=0.5,
+                source="keyword_extraction",
+                reasoning="Low confidence",
+                related_terms=[],
+            ),
         ]
 
         confidence = manager._calculate_confidence(suggestions)
@@ -191,9 +209,27 @@ class TestTopicManager:
         manager = TopicManager(llm=None)
 
         suggestions = [
-            TopicSuggestion("machine learning", 0.9, "llm_analysis", "ML topic", []),
-            TopicSuggestion("data science", 0.8, "llm_analysis", "Data topic", []),
-            TopicSuggestion("technology", 0.7, "domain_mapping", "Tech domain", []),
+            TopicSuggestion(
+                topic="machine learning",
+                confidence=0.9,
+                source="llm_analysis",
+                reasoning="ML topic",
+                related_terms=[],
+            ),
+            TopicSuggestion(
+                topic="data science",
+                confidence=0.8,
+                source="llm_analysis",
+                reasoning="Data topic",
+                related_terms=[],
+            ),
+            TopicSuggestion(
+                topic="technology",
+                confidence=0.7,
+                source="domain_mapping",
+                reasoning="Tech domain",
+                related_terms=[],
+            ),
         ]
 
         themes = manager._extract_themes(suggestions, ["machine", "data", "science"])
@@ -232,7 +268,13 @@ class TestTopicAnalysis:
     def test_topic_analysis_creation(self):
         """Test creating topic analysis results."""
         suggestions = [
-            TopicSuggestion("ai", 0.9, "llm_analysis", "AI content", ["ml", "nlp"])
+            TopicSuggestion(
+                topic="ai",
+                confidence=0.9,
+                source="llm_analysis",
+                reasoning="AI content",
+                related_terms=["ml", "nlp"],
+            )
         ]
 
         analysis = TopicAnalysis(
@@ -282,11 +324,11 @@ class TestTopicManagerLLMIntegration:
         # Mock LLM response
         mock_llm_suggestions = [
             TopicSuggestion(
-                "democracy",
-                0.9,
-                "llm_analysis",
-                "Democracy topic",
-                ["politics", "voting"],
+                topic="democracy",
+                confidence=0.9,
+                source="llm_analysis",
+                reasoning="Democracy topic",
+                related_terms=["politics", "voting"],
             )
         ]
 
@@ -385,10 +427,18 @@ class TestEnhancedDomainMapping:
         # Create suggestions with keyword extraction source
         suggestions = [
             TopicSuggestion(
-                "democracy", 0.8, "keyword_extraction", "Political term", []
+                topic="democracy",
+                confidence=0.8,
+                source="keyword_extraction",
+                reasoning="Political term",
+                related_terms=[],
             ),
             TopicSuggestion(
-                "politics", 0.7, "keyword_extraction", "Political term", []
+                topic="politics",
+                confidence=0.7,
+                source="keyword_extraction",
+                reasoning="Political term",
+                related_terms=[],
             ),
         ]
 
@@ -403,7 +453,13 @@ class TestEnhancedDomainMapping:
 
         # No domain mapping suggestions
         suggestions = [
-            TopicSuggestion("random", 0.5, "keyword_extraction", "Random term", []),
+            TopicSuggestion(
+                topic="random",
+                confidence=0.5,
+                source="keyword_extraction",
+                reasoning="Random term",
+                related_terms=[],
+            ),
         ]
 
         # Key terms include democracy-related terms
@@ -419,7 +475,13 @@ class TestEnhancedDomainMapping:
 
         # No domain mapping suggestions
         suggestions = [
-            TopicSuggestion("random", 0.5, "keyword_extraction", "Random term", []),
+            TopicSuggestion(
+                topic="random",
+                confidence=0.5,
+                source="keyword_extraction",
+                reasoning="Random term",
+                related_terms=[],
+            ),
         ]
 
         # Key terms don't match any domain

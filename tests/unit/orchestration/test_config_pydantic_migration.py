@@ -25,7 +25,7 @@ from cognivault.orchestration.config import (
     LangGraphIntegrationConfig,
     LangGraphConfigManager,
     ExecutionMode,
-    ValidationLevel,
+    OrchestrationValidationLevel,
     FailurePolicy,
     get_orchestration_config,
     set_orchestration_config,
@@ -197,7 +197,7 @@ class TestDAGExecutionConfig:
         config = DAGExecutionConfig()
 
         assert config.execution_mode == ExecutionMode.SEQUENTIAL
-        assert config.validation_level == ValidationLevel.BASIC
+        assert config.validation_level == OrchestrationValidationLevel.BASIC
         assert config.failure_policy == FailurePolicy.FAIL_FAST
         assert config.max_execution_time_seconds == 300.0
         assert config.enable_observability is True
@@ -216,11 +216,11 @@ class TestDAGExecutionConfig:
         # Valid enum values
         config = DAGExecutionConfig(
             execution_mode=ExecutionMode.PARALLEL,
-            validation_level=ValidationLevel.STRICT,
+            validation_level=OrchestrationValidationLevel.STRICT,
             failure_policy=FailurePolicy.GRACEFUL_DEGRADATION,
         )
         assert config.execution_mode == ExecutionMode.PARALLEL
-        assert config.validation_level == ValidationLevel.STRICT
+        assert config.validation_level == OrchestrationValidationLevel.STRICT
         assert config.failure_policy == FailurePolicy.GRACEFUL_DEGRADATION
 
     def test_max_execution_time_validation(self):
@@ -506,7 +506,9 @@ class TestLangGraphConfigManager:
         """Test create_development_config method."""
         config = LangGraphConfigManager.create_development_config()
 
-        assert config.dag_execution.validation_level == ValidationLevel.STRICT
+        assert (
+            config.dag_execution.validation_level == OrchestrationValidationLevel.STRICT
+        )
         assert config.dag_execution.enable_tracing is True
         assert config.dag_execution.enable_state_snapshots is True
         assert config.dag_execution.failure_policy == FailurePolicy.CONTINUE_ON_ERROR
@@ -520,7 +522,9 @@ class TestLangGraphConfigManager:
         """Test create_production_config method."""
         config = LangGraphConfigManager.create_production_config()
 
-        assert config.dag_execution.validation_level == ValidationLevel.BASIC
+        assert (
+            config.dag_execution.validation_level == OrchestrationValidationLevel.BASIC
+        )
         assert config.dag_execution.enable_tracing is False
         assert config.dag_execution.enable_state_snapshots is False
         assert config.dag_execution.failure_policy == FailurePolicy.GRACEFUL_DEGRADATION
@@ -671,9 +675,9 @@ class TestBackwardCompatibility:
         assert ExecutionMode.PARALLEL.value == "parallel"
         assert ExecutionMode.HYBRID.value == "hybrid"
 
-        assert ValidationLevel.NONE.value == "none"
-        assert ValidationLevel.BASIC.value == "basic"
-        assert ValidationLevel.STRICT.value == "strict"
+        assert OrchestrationValidationLevel.NONE.value == "none"
+        assert OrchestrationValidationLevel.BASIC.value == "basic"
+        assert OrchestrationValidationLevel.STRICT.value == "strict"
 
         assert FailurePolicy.FAIL_FAST.value == "fail_fast"
         assert FailurePolicy.CONTINUE_ON_ERROR.value == "continue_on_error"

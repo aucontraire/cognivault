@@ -18,7 +18,7 @@ from cognivault.routing.resource_optimizer import (
 from cognivault.routing.routing_decision import (
     RoutingDecision,
     RoutingReasoning,
-    ConfidenceLevel,
+    RoutingConfidenceLevel,
 )
 from cognivault.langgraph_backend.graph_patterns.conditional import (
     EnhancedConditionalPattern,
@@ -163,7 +163,7 @@ class TestResourceOptimizer:
         # Check decision has required metadata
         assert decision.decision_id is not None
         assert decision.timestamp is not None
-        assert decision.confidence_level in ConfidenceLevel
+        assert decision.confidence_level in RoutingConfidenceLevel
         assert len(decision.available_agents) == 4
         assert decision.reasoning is not None
         assert isinstance(decision.reasoning, RoutingReasoning)
@@ -389,7 +389,7 @@ class TestEndToEndRoutingIntegration:
             mock_decision.selected_agents = ["refiner", "critic", "synthesis"]
             mock_decision.routing_strategy = "balanced"
             mock_decision.confidence_score = 0.8
-            mock_decision.confidence_level = ConfidenceLevel.HIGH
+            mock_decision.confidence_level = RoutingConfidenceLevel.HIGH
 
             mock_optimizer.select_optimal_agents.return_value = mock_decision
 
@@ -1001,7 +1001,7 @@ class TestResourceOptimizerErrorHandling:
         assert decision.selected_agents == []
         assert decision.routing_strategy == "balanced"
         assert decision.confidence_score < 0.5
-        assert decision.confidence_level == ConfidenceLevel.VERY_LOW
+        assert decision.confidence_level == RoutingConfidenceLevel.VERY_LOW
 
     def test_missing_performance_data_handling(self):
         """Test handling of missing performance data."""
@@ -2200,7 +2200,7 @@ class TestRoutingDecisionSerializationEdgeCases:
         from cognivault.routing.routing_decision import (
             RoutingDecision,
             RoutingReasoning,
-            ConfidenceLevel,
+            RoutingConfidenceLevel,
         )
         from datetime import datetime, timezone
 
@@ -2258,7 +2258,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="minimal",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM,
+            confidence_level=RoutingConfidenceLevel.MEDIUM,
             query_hash=None,  # None value
             entry_point=None,  # None value
             estimated_total_time_ms=None,  # None value
@@ -2281,7 +2281,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=[],  # Empty list
             routing_strategy="test",
             confidence_score=0.0,
-            confidence_level=ConfidenceLevel.VERY_LOW,
+            confidence_level=RoutingConfidenceLevel.VERY_LOW,
             available_agents=[],  # Empty list
             execution_order=[],  # Empty list
             parallel_groups=[],  # Empty list
@@ -2374,7 +2374,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM,
+            confidence_level=RoutingConfidenceLevel.MEDIUM,
         )
 
         # Add Unicode and special characters
@@ -2487,7 +2487,7 @@ class TestRoutingDecisionSerializationEdgeCases:
                 routing_strategy="x"
                 * 1000,  # Very long string (exceeds max_length=200)
                 confidence_score=1.0,  # Maximum confidence
-                confidence_level=ConfidenceLevel.VERY_HIGH,
+                confidence_level=RoutingConfidenceLevel.VERY_HIGH,
                 estimated_total_time_ms=float(
                     "inf"
                 ),  # Infinity (exceeds max constraint)
@@ -2499,7 +2499,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["agent"] * 100,  # Very long list (valid)
             routing_strategy="x" * 190,  # Long string within limits
             confidence_score=1.0,  # Maximum confidence
-            confidence_level=ConfidenceLevel.VERY_HIGH,
+            confidence_level=RoutingConfidenceLevel.VERY_HIGH,
             estimated_total_time_ms=599999.0,  # Just under limit
             estimated_success_probability=0.0,  # Minimum probability
         )
@@ -2529,7 +2529,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM,
+            confidence_level=RoutingConfidenceLevel.MEDIUM,
         )
 
         # Create self-referential structure (not actually circular in this case)
@@ -2583,7 +2583,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM,
+            confidence_level=RoutingConfidenceLevel.MEDIUM,
             timestamp=datetime.now(timezone.utc),
         )
 
@@ -2612,7 +2612,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["agent"] * 1000,
             routing_strategy="performance_test",
             confidence_score=0.8,
-            confidence_level=ConfidenceLevel.HIGH,
+            confidence_level=RoutingConfidenceLevel.HIGH,
         )
 
         # Add large reasoning data
@@ -2675,7 +2675,7 @@ class TestRoutingDecisionSerializationEdgeCases:
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=ConfidenceLevel.MEDIUM,
+            confidence_level=RoutingConfidenceLevel.MEDIUM,
         )
 
         # Enhanced Pydantic validation prevents setting reasoning to None

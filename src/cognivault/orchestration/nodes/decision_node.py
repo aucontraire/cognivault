@@ -6,21 +6,53 @@ routing and flow control in the advanced node execution system.
 """
 
 from typing import Dict, List, Any, Optional, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass  # Keep for any remaining dataclasses
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.agents.metadata import AgentMetadata
 from cognivault.events import emit_decision_made
 from .base_advanced_node import BaseAdvancedNode, NodeExecutionContext
 
 
-@dataclass
-class DecisionCriteria:
-    """Represents a single decision criterion."""
+class DecisionCriteria(BaseModel):
+    """
+    Represents a single decision criterion.
 
-    name: str
-    evaluator: Callable[[NodeExecutionContext], float]
-    weight: float = 1.0
-    threshold: float = 0.5
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    name: str = Field(
+        ...,
+        description="Name/identifier of the decision criterion",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "complexity_check"},
+    )
+    evaluator: Callable[[NodeExecutionContext], float] = Field(
+        ...,
+        description="Function that evaluates the criterion against context",
+    )
+    weight: float = Field(
+        default=1.0,
+        description="Weight/importance of this criterion in decision making",
+        ge=0.0,
+        le=10.0,
+        json_schema_extra={"example": 2.0},
+    )
+    threshold: float = Field(
+        default=0.5,
+        description="Threshold value for criterion to be considered passed",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.8},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For Callable evaluator function
+    )
 
     def evaluate(self, context: NodeExecutionContext) -> float:
         """Evaluate this criterion against the context."""

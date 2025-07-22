@@ -134,7 +134,11 @@ class TestDependencyEdge:
         context = AgentContext(query="test")
 
         # Edge with no condition (always satisfied)
-        edge = DependencyEdge("agent_a", "agent_b", DependencyType.CONDITIONAL)
+        edge = DependencyEdge(
+            from_agent="agent_a",
+            to_agent="agent_b",
+            dependency_type=DependencyType.CONDITIONAL,
+        )
         assert edge.is_satisfied(context)
 
         # Edge with true condition
@@ -154,9 +158,15 @@ class TestDependencyEdge:
 
     def test_edge_hash(self):
         """Test edge hashing for set operations."""
-        edge1 = DependencyEdge("a", "b", DependencyType.HARD)
-        edge2 = DependencyEdge("a", "b", DependencyType.HARD)
-        edge3 = DependencyEdge("a", "c", DependencyType.HARD)
+        edge1 = DependencyEdge(
+            from_agent="a", to_agent="b", dependency_type=DependencyType.HARD
+        )
+        edge2 = DependencyEdge(
+            from_agent="a", to_agent="b", dependency_type=DependencyType.HARD
+        )
+        edge3 = DependencyEdge(
+            from_agent="a", to_agent="c", dependency_type=DependencyType.HARD
+        )
 
         assert hash(edge1) == hash(edge2)
         assert hash(edge1) != hash(edge3)
@@ -172,8 +182,12 @@ class TestTopologicalSort:
         """Test basic topological sorting."""
         nodes = ["a", "b", "c"]
         edges = [
-            DependencyEdge("a", "b", DependencyType.HARD),
-            DependencyEdge("b", "c", DependencyType.HARD),
+            DependencyEdge(
+                from_agent="a", to_agent="b", dependency_type=DependencyType.HARD
+            ),
+            DependencyEdge(
+                from_agent="b", to_agent="c", dependency_type=DependencyType.HARD
+            ),
         ]
 
         result = TopologicalSort.sort(nodes, edges)
@@ -183,8 +197,12 @@ class TestTopologicalSort:
         """Test sorting with parallel branches."""
         nodes = ["a", "b", "c", "d"]
         edges = [
-            DependencyEdge("a", "c", DependencyType.HARD),
-            DependencyEdge("b", "d", DependencyType.HARD),
+            DependencyEdge(
+                from_agent="a", to_agent="c", dependency_type=DependencyType.HARD
+            ),
+            DependencyEdge(
+                from_agent="b", to_agent="d", dependency_type=DependencyType.HARD
+            ),
         ]
 
         result = TopologicalSort.sort(nodes, edges)
@@ -196,9 +214,15 @@ class TestTopologicalSort:
         """Test detection of circular dependencies."""
         nodes = ["a", "b", "c"]
         edges = [
-            DependencyEdge("a", "b", DependencyType.HARD),
-            DependencyEdge("b", "c", DependencyType.HARD),
-            DependencyEdge("c", "a", DependencyType.HARD),
+            DependencyEdge(
+                from_agent="a", to_agent="b", dependency_type=DependencyType.HARD
+            ),
+            DependencyEdge(
+                from_agent="b", to_agent="c", dependency_type=DependencyType.HARD
+            ),
+            DependencyEdge(
+                from_agent="c", to_agent="a", dependency_type=DependencyType.HARD
+            ),
         ]
 
         with pytest.raises(CircularDependencyError) as exc_info:
@@ -210,7 +234,11 @@ class TestTopologicalSort:
     def test_self_dependency(self):
         """Test detection of self-dependencies."""
         nodes = ["a"]
-        edges = [DependencyEdge("a", "a", DependencyType.HARD)]
+        edges = [
+            DependencyEdge(
+                from_agent="a", to_agent="a", dependency_type=DependencyType.HARD
+            )
+        ]
 
         with pytest.raises(CircularDependencyError):
             TopologicalSort.sort(nodes, edges)
@@ -219,7 +247,9 @@ class TestTopologicalSort:
         """Test that soft dependencies don't affect topological ordering."""
         nodes = ["a", "b"]
         edges = [
-            DependencyEdge("b", "a", DependencyType.SOFT)  # Soft dependency reversed
+            DependencyEdge(
+                from_agent="b", to_agent="a", dependency_type=DependencyType.SOFT
+            )  # Soft dependency reversed
         ]
 
         result = TopologicalSort.sort(nodes, edges)
@@ -252,8 +282,16 @@ class TestDependencyGraphEngine:
             graph_engine.add_node(node)
 
         # Add edges
-        edge1 = DependencyEdge("agent_a", "agent_b", DependencyType.HARD)
-        edge2 = DependencyEdge("agent_b", "agent_c", DependencyType.CONDITIONAL)
+        edge1 = DependencyEdge(
+            from_agent="agent_a",
+            to_agent="agent_b",
+            dependency_type=DependencyType.HARD,
+        )
+        edge2 = DependencyEdge(
+            from_agent="agent_b",
+            to_agent="agent_c",
+            dependency_type=DependencyType.CONDITIONAL,
+        )
 
         graph_engine.add_edge(edge1)
         graph_engine.add_edge(edge2)

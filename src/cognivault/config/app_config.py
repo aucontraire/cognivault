@@ -31,7 +31,7 @@ class Environment(Enum):
     PRODUCTION = "production"
 
 
-class ExecutionConfig(BaseModel):
+class AppExecutionConfig(BaseModel):
     """Configuration for agent execution and orchestration."""
 
     # Timeout and retry settings
@@ -371,8 +371,8 @@ class ApplicationConfig(BaseModel):
     )
 
     # Subsystem configurations
-    execution: ExecutionConfig = Field(
-        default_factory=ExecutionConfig,
+    execution: AppExecutionConfig = Field(
+        default_factory=AppExecutionConfig,
         description="Configuration for agent execution and orchestration",
     )
     files: FileConfig = Field(

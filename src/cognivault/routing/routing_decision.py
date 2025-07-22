@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class ConfidenceLevel(Enum):
+class RoutingConfidenceLevel(Enum):
     """Confidence levels for routing decisions."""
 
     VERY_LOW = "very_low"  # 0.0 - 0.2
@@ -176,7 +176,7 @@ class RoutingDecision(BaseModel):
         le=1.0,
         json_schema_extra={"example": 0.85},
     )
-    confidence_level: ConfidenceLevel = Field(
+    confidence_level: RoutingConfidenceLevel = Field(
         ...,
         description="Categorical confidence level derived from numeric score",
         json_schema_extra={"example": "high"},
@@ -276,18 +276,18 @@ class RoutingDecision(BaseModel):
         if not self.execution_order:
             self.execution_order = self.selected_agents.copy()
 
-    def _calculate_confidence_level(self) -> ConfidenceLevel:
+    def _calculate_confidence_level(self) -> RoutingConfidenceLevel:
         """Calculate confidence level from numeric score."""
         if self.confidence_score <= 0.2:
-            return ConfidenceLevel.VERY_LOW
+            return RoutingConfidenceLevel.VERY_LOW
         elif self.confidence_score <= 0.4:
-            return ConfidenceLevel.LOW
+            return RoutingConfidenceLevel.LOW
         elif self.confidence_score <= 0.6:
-            return ConfidenceLevel.MEDIUM
+            return RoutingConfidenceLevel.MEDIUM
         elif self.confidence_score <= 0.8:
-            return ConfidenceLevel.HIGH
+            return RoutingConfidenceLevel.HIGH
         else:
-            return ConfidenceLevel.VERY_HIGH
+            return RoutingConfidenceLevel.VERY_HIGH
 
     def add_reasoning(self, category: str, key: str, value: Any) -> None:
         """Add reasoning information to the decision."""
@@ -339,8 +339,8 @@ class RoutingDecision(BaseModel):
     def is_high_confidence(self) -> bool:
         """Check if this is a high-confidence decision."""
         return self.confidence_level in [
-            ConfidenceLevel.HIGH,
-            ConfidenceLevel.VERY_HIGH,
+            RoutingConfidenceLevel.HIGH,
+            RoutingConfidenceLevel.VERY_HIGH,
         ]
 
     def is_risky(self) -> bool:

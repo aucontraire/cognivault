@@ -17,7 +17,7 @@ from enum import Enum
 from .base import GraphPattern
 from ..semantic_validation import (
     SemanticValidator,
-    ValidationResult,
+    SemanticValidationResult,
     ValidationSeverity,
 )
 
@@ -703,7 +703,7 @@ class EnhancedConditionalPattern(GraphPattern):
         agents: List[str],
         query: str,
         routing_strategy: Optional[RoutingStrategy] = None,
-    ) -> ValidationResult:
+    ) -> SemanticValidationResult:
         """
         Comprehensive validation with conditional pattern context.
 
@@ -718,7 +718,7 @@ class EnhancedConditionalPattern(GraphPattern):
 
         Returns
         -------
-        ValidationResult
+        SemanticValidationResult
             Detailed validation result with suggestions
         """
         # Use conditional validator if available, fallback to semantic validator
@@ -1056,7 +1056,7 @@ class ConditionalPatternValidator(SemanticValidator):
 
     def validate_workflow(
         self, agents: List[str], pattern: str, **kwargs: Any
-    ) -> ValidationResult:
+    ) -> SemanticValidationResult:
         """
         Validate conditional pattern workflow.
 
@@ -1071,10 +1071,10 @@ class ConditionalPatternValidator(SemanticValidator):
 
         Returns
         -------
-        ValidationResult
+        SemanticValidationResult
             Detailed validation result with conditional pattern insights
         """
-        result = ValidationResult(is_valid=True, issues=[])
+        result = SemanticValidationResult(is_valid=True, issues=[])
         agents_lower = [agent.lower() for agent in agents]
 
         # Basic agent validation
@@ -1110,7 +1110,10 @@ class ConditionalPatternValidator(SemanticValidator):
         return result
 
     def _validate_routing_strategy(
-        self, result: ValidationResult, agents: List[str], strategy: RoutingStrategy
+        self,
+        result: SemanticValidationResult,
+        agents: List[str],
+        strategy: RoutingStrategy,
     ) -> None:
         """Validate agents against routing strategy requirements."""
         if strategy not in self.strategy_requirements:
@@ -1153,7 +1156,10 @@ class ConditionalPatternValidator(SemanticValidator):
                 )
 
     def _validate_context_selection(
-        self, result: ValidationResult, agents: List[str], context: ContextAnalysis
+        self,
+        result: SemanticValidationResult,
+        agents: List[str],
+        context: ContextAnalysis,
     ) -> None:
         """Validate agent selection against context analysis."""
         # Check if research capability is available when needed
@@ -1192,7 +1198,7 @@ class ConditionalPatternValidator(SemanticValidator):
 
     def _validate_performance_selection(
         self,
-        result: ValidationResult,
+        result: SemanticValidationResult,
         agents: List[str],
         performance_data: Dict[str, Any],
     ) -> None:
@@ -1221,7 +1227,7 @@ class ConditionalPatternValidator(SemanticValidator):
                 )
 
     def _validate_fallback_viability(
-        self, result: ValidationResult, agents: List[str]
+        self, result: SemanticValidationResult, agents: List[str]
     ) -> None:
         """Validate that meaningful fallbacks exist for critical agents."""
         critical_agents = [
@@ -1256,7 +1262,7 @@ class ConditionalPatternValidator(SemanticValidator):
         original_agents: List[str],
         selected_agents: List[str],
         context: ContextAnalysis,
-    ) -> ValidationResult:
+    ) -> SemanticValidationResult:
         """
         Validate a routing decision made by the conditional pattern.
 
@@ -1271,10 +1277,10 @@ class ConditionalPatternValidator(SemanticValidator):
 
         Returns
         -------
-        ValidationResult
+        SemanticValidationResult
             Validation of the routing decision
         """
-        result = ValidationResult(is_valid=True, issues=[])
+        result = SemanticValidationResult(is_valid=True, issues=[])
 
         # Check if important agents were excluded
         excluded = [agent for agent in original_agents if agent not in selected_agents]

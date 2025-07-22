@@ -20,7 +20,7 @@ from cognivault.dependencies.graph_engine import (
 )
 from cognivault.dependencies.dynamic_composition import (
     DynamicAgentComposer,
-    AgentMetadata,
+    DiscoveredAgentInfo,
     CompositionRule,
     DiscoveryStrategy,
     CompositionEvent,
@@ -93,12 +93,12 @@ def context():
     return AgentContext(query="test query")
 
 
-class TestAgentMetadata:
-    """Test AgentMetadata functionality."""
+class TestDiscoveredAgentInfo:
+    """Test DiscoveredAgentInfo functionality."""
 
     def test_metadata_creation(self):
         """Test creating agent metadata."""
-        metadata = AgentMetadata(
+        metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="test_module.TestAgent",
             module_path="test_module",
@@ -121,7 +121,7 @@ class TestAgentMetadata:
 
     def test_metadata_can_replace(self):
         """Test metadata replacement compatibility checking."""
-        metadata1 = AgentMetadata(
+        metadata1 = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -129,7 +129,7 @@ class TestAgentMetadata:
             capabilities=["cap1", "cap2"],
         )
 
-        metadata2 = AgentMetadata(
+        metadata2 = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -138,7 +138,7 @@ class TestAgentMetadata:
         )
 
         # Different agent ID - should not replace
-        metadata3 = AgentMetadata(
+        metadata3 = DiscoveredAgentInfo(
             agent_id="different_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -152,7 +152,7 @@ class TestAgentMetadata:
         assert metadata3.can_replace(metadata1) is False
 
         # Missing capabilities - should not replace
-        metadata4 = AgentMetadata(
+        metadata4 = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -163,7 +163,7 @@ class TestAgentMetadata:
 
     def test_metadata_version_compatibility(self):
         """Test version compatibility checking."""
-        metadata1 = AgentMetadata(
+        metadata1 = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -171,7 +171,7 @@ class TestAgentMetadata:
             compatibility={"min_version": "1.0.0"},
         )
 
-        metadata2 = AgentMetadata(
+        metadata2 = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -183,7 +183,7 @@ class TestAgentMetadata:
 
     def test_metadata_to_dict(self):
         """Test converting metadata to dictionary."""
-        metadata = AgentMetadata(
+        metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -575,7 +575,7 @@ class TestDynamicAgentComposer:
         """Test discovery with mock discoverers."""
         # Create mock discoverer
         mock_discoverer = Mock(spec=AgentDiscoverer)
-        mock_metadata = AgentMetadata(
+        mock_metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -595,7 +595,7 @@ class TestDynamicAgentComposer:
         """Test discovery with version merging."""
         # Create two discoverers with different versions of same agent
         mock_discoverer1 = Mock(spec=AgentDiscoverer)
-        metadata1 = AgentMetadata(
+        metadata1 = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -604,7 +604,7 @@ class TestDynamicAgentComposer:
         mock_discoverer1.discover_agents = AsyncMock(return_value=[metadata1])
 
         mock_discoverer2 = Mock(spec=AgentDiscoverer)
-        metadata2 = AgentMetadata(
+        metadata2 = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
@@ -632,7 +632,7 @@ class TestDynamicAgentComposer:
     async def test_load_agent_already_loaded(self, composer):
         """Test loading agent that's already loaded."""
         # Mock discovered agent
-        metadata = AgentMetadata(
+        metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="test_module.TestAgent",
             module_path="test_module",
@@ -651,7 +651,7 @@ class TestDynamicAgentComposer:
     async def test_load_agent_with_mocking(self, composer):
         """Test loading agent with mocked imports."""
         # Mock discovered agent
-        metadata = AgentMetadata(
+        metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="test_module.TestAgent",
             module_path="test_module",
@@ -684,13 +684,13 @@ class TestDynamicAgentComposer:
     async def test_hot_swap_agent_incompatible(self, composer, context):
         """Test hot swapping with incompatible agents."""
         # Mock metadata for incompatible agents
-        old_metadata = AgentMetadata(
+        old_metadata = DiscoveredAgentInfo(
             agent_id="old_agent",
             agent_class="OldAgent",
             module_path="old",
             capabilities=["cap1", "cap2"],
         )
-        new_metadata = AgentMetadata(
+        new_metadata = DiscoveredAgentInfo(
             agent_id="new_agent",
             agent_class="NewAgent",
             module_path="new",
@@ -760,7 +760,7 @@ class TestDynamicAgentComposer:
     def test_get_composition_status(self, composer):
         """Test getting composition status."""
         # Add some test data
-        composer.discovered_agents["agent1"] = AgentMetadata(
+        composer.discovered_agents["agent1"] = DiscoveredAgentInfo(
             agent_id="agent1",
             agent_class="Agent1",
             module_path="test",
@@ -793,13 +793,13 @@ class TestDynamicAgentComposer:
     async def test_find_swap_opportunities(self, composer, context):
         """Test finding swap opportunities."""
         # Create metadata for agents with version differences
-        old_metadata = AgentMetadata(
+        old_metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
             agent_class="TestAgent",
             module_path="test",
             version="1.0.0",
         )
-        new_metadata = AgentMetadata(
+        new_metadata = DiscoveredAgentInfo(
             agent_id="test_agent_new",
             agent_class="TestAgent",
             module_path="test",
@@ -811,7 +811,7 @@ class TestDynamicAgentComposer:
         composer.loaded_agents["test_agent"] = MockAgent("test_agent")
 
         # Mock can_replace to return True
-        with patch.object(new_metadata, "can_replace", return_value=True):
+        with patch.object(DiscoveredAgentInfo, "can_replace", return_value=True):
             opportunities = await composer._find_swap_opportunities(context)
 
         assert len(opportunities) == 1
@@ -863,13 +863,13 @@ class TestCompositionRules:
         # Test condition with newer version available
         metadata = {
             "discovered_agents": {
-                "agent1": AgentMetadata(
+                "agent1": DiscoveredAgentInfo(
                     agent_id="agent1",
                     agent_class="Agent1",
                     module_path="test",
                     version="1.0.0",
                 ),
-                "agent1_new": AgentMetadata(
+                "agent1_new": DiscoveredAgentInfo(
                     agent_id="agent1",  # Same agent_id
                     agent_class="Agent1",
                     module_path="test",
@@ -916,14 +916,14 @@ class TestIntegration:
 
         # Create mock discoverer with agents
         mock_discoverer = Mock(spec=AgentDiscoverer)
-        metadata1 = AgentMetadata(
+        metadata1 = DiscoveredAgentInfo(
             agent_id="agent1",
             agent_class="test.Agent1",
             module_path="test",
             version="1.0.0",
             capabilities=["cap1"],
         )
-        metadata2 = AgentMetadata(
+        metadata2 = DiscoveredAgentInfo(
             agent_id="agent2",
             agent_class="test.Agent2",
             module_path="test",
@@ -990,14 +990,14 @@ class TestIntegration:
         context = AgentContext(query="test")
 
         # Create old and new agent metadata
-        old_metadata = AgentMetadata(
+        old_metadata = DiscoveredAgentInfo(
             agent_id="processor",
             agent_class="OldProcessor",
             module_path="old",
             version="1.0.0",
             capabilities=["process"],
         )
-        new_metadata = AgentMetadata(
+        new_metadata = DiscoveredAgentInfo(
             agent_id="processor_v2",
             agent_class="NewProcessor",
             module_path="new",
@@ -1023,7 +1023,7 @@ class TestIntegration:
 
         # Mock can_replace to return True
         with (
-            patch.object(new_metadata, "can_replace", return_value=True),
+            patch.object(DiscoveredAgentInfo, "can_replace", return_value=True),
             patch.object(composer, "load_agent", return_value=new_agent),
         ):
             result = await composer.hot_swap_agent("processor", "processor_v2", context)
