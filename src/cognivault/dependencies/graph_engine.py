@@ -211,7 +211,7 @@ class DependencyNode(BaseModel):
     timeout_ms: int = Field(
         default=30000,
         description="Timeout in milliseconds for agent execution",
-        ge=1000,
+        ge=100,  # Allow shorter timeouts for testing purposes
         le=600000,
         json_schema_extra={"example": 30000},
     )

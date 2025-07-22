@@ -1825,15 +1825,19 @@ class TestAdvancedOrchestratorCriticalPaths:
         # Create proper DependencyNode mocks with priority values
         mock_node1 = Mock(spec=DependencyNode)
         mock_node1.priority = ExecutionPriority.NORMAL
+        mock_node1.requires_exclusive_access = False
 
         mock_node2 = Mock(spec=DependencyNode)
         mock_node2.priority = ExecutionPriority.NORMAL
+        mock_node2.requires_exclusive_access = False
 
         mock_node3 = Mock(spec=DependencyNode)
         mock_node3.priority = ExecutionPriority.NORMAL
+        mock_node3.requires_exclusive_access = False
 
         mock_node4 = Mock(spec=DependencyNode)
         mock_node4.priority = ExecutionPriority.NORMAL
+        mock_node4.requires_exclusive_access = False
 
         orchestrator_with_dynamic_composition.graph_engine.nodes = {
             "successful_agent": mock_node1,
