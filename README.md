@@ -959,11 +959,29 @@ This approach allows you to cleanly swap or combine LLMs in the future with mini
 
 Make sure your `.env` file is configured with your OpenAI credentials if using the OpenAI LLM backend.
 
+#### Quick Execution
+
 To run the full pipeline with all agents:
 
 ```bash
 make run QUESTION="Is democracy becoming more robust globally?"
 ```
+
+#### Safe Execution with Validation
+
+For production-ready execution with type checking, formatting, and test validation:
+
+```bash
+make run-safe QUESTION="Is democracy becoming more robust globally?"
+```
+
+The `run-safe` target provides **"compilation-like" safety** for Python by running:
+1. **Format checking** (`black` + `ruff`) 
+2. **Type checking** (`mypy`)
+3. **Test validation** (all tests must pass)
+4. **Application execution** (your query)
+
+This is recommended for CI/CD pipelines and when you want to ensure code quality before execution. All the same arguments work with `run-safe` as with `run`.
 
 This executes:
 

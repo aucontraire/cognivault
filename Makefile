@@ -1,4 +1,4 @@
-.PHONY: install test run lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-%
+.PHONY: install test run run-safe lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-%
 
 install:
 	bash scripts/setup.sh
@@ -21,6 +21,11 @@ run:
 	$(if $(ROLLBACK_LAST_CHECKPOINT),--rollback-last-checkpoint,) \
 	$(if $(COMPARE_MODES),--compare-modes,) \
 	$(if $(BENCHMARK_RUNS),--benchmark-runs=$(BENCHMARK_RUNS),)
+
+run-safe:
+	$(MAKE) check
+	$(MAKE) test
+	$(MAKE) run
 
 lint:
 	poetry run ruff check src/ tests/
