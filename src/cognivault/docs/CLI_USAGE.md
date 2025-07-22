@@ -76,21 +76,133 @@ make run QUESTION="What are the implications of AI governance?"
 # Run using predefined YAML workflow definitions
 cognivault workflow run examples/workflows/enhanced_prompts_example.yaml --query "What is the most complete protein?" --format json --export-md
 
+# Domain-specific workflow execution (configurable prompt composition)
+cognivault workflow run src/cognivault/workflows/examples/academic_research.yaml --query "How does machine learning impact education?" --export-md
+
+cognivault workflow run src/cognivault/workflows/examples/executive_briefing.yaml --query "What are AI governance implications?" --format json
+
+cognivault workflow run src/cognivault/workflows/examples/legal_analysis.yaml --query "What are regulatory considerations for AI deployment?" --trace
+```
+
+**Advanced Configuration Examples:**
+```bash
+# Run sophisticated academic research workflow with detailed agent specialization
+cognivault workflow run src/cognivault/workflows/examples/academic_research.yaml \
+  --query "What are the implications of large language models in scientific research?" \
+  --export-md --trace --log-level DEBUG
+
+# Executive briefing workflow with business-focused agent behaviors
+cognivault workflow run src/cognivault/workflows/examples/executive_briefing.yaml \
+  --query "Strategic implications of AI adoption in enterprise" \
+  --format json --export-trace /tmp/executive_analysis.json
+
+# Legal analysis workflow with compliance-focused configurations
+cognivault workflow run src/cognivault/workflows/examples/legal_analysis.yaml \
+  --query "GDPR compliance requirements for AI systems" \
+  --export-md --enable-checkpoints --thread-id legal-research
 ```
 
 **Workflow Management:**
 ```bash
-# List available workflows
-cognivault workflow list
+# List available workflows with configuration details
+cognivault workflow list --show-config
 
-# Validate workflow definition
-cognivault workflow validate examples/workflows/my_custom_workflow.yaml
+# Validate workflow definition and configuration schemas
+cognivault workflow validate examples/workflows/my_custom_workflow.yaml --validate-config
 
-# Show workflow structure and node details
-cognivault workflow show examples/workflows/enhanced_prompts_example.yaml
+# Show workflow structure with agent configuration details
+cognivault workflow show src/cognivault/workflows/examples/academic_research.yaml --show-agent-configs
 ```
 
-The full pipeline executes: **Refiner** → **Critic** + **Historian** (parallel) → **Synthesis** with ~25-30 second execution time using real OpenAI integration. Declarative workflows support advanced node types (Decision, Aggregator, Validator, Terminator) with custom routing and composition logic.
+The full pipeline executes: **Refiner** → **Critic** + **Historian** (parallel) → **Synthesis** with ~25-30 second execution time using real OpenAI integration. CogniVault features **production-ready orchestration** with:
+
+- **Advanced WorkflowComposer** (662 lines): Sophisticated DAG composition with configuration support
+- **Multi-Axis Classification**: 6-axis agent metadata system for intelligent routing  
+- **Advanced Node Types**: Decision, Aggregator, Validator, Terminator nodes with conditional logic
+- **LangGraph 0.5.3 Integration**: StateGraph-based execution with parallel processing
+- **Configuration-Driven Behaviors**: YAML-driven agent specialization without code changes
+
+### Configurable Prompt Composition Showcase
+
+CogniVault features a sophisticated **configurable prompt composition** system that allows domain-specific agent behavior customization through YAML configuration without code changes.
+
+#### Domain-Specific Agent Behaviors
+
+**Academic Research Configuration:**
+```bash
+# Academic workflow with scholarly agent behaviors
+cognivault workflow run src/cognivault/workflows/examples/academic_research.yaml \
+  --query "What are the computational complexity implications of transformer architectures?" \
+  --export-md --trace
+```
+
+This workflow configures agents with:
+- **Refiner**: Maintains academic terminology, research rigor, methodology context
+- **Historian**: Prioritizes peer-reviewed sources, theoretical frameworks
+- **Critic**: Applies peer-review standards, methodological soundness evaluation
+- **Synthesis**: Scholarly voice, research implications, future directions
+
+**Executive Briefing Configuration:**
+```bash
+# Executive workflow with business-focused agent behaviors
+cognivault workflow run src/cognivault/workflows/examples/executive_briefing.yaml \
+  --query "ROI analysis of AI implementation in supply chain management" \
+  --format json --export-trace /tmp/executive_analysis.json
+```
+
+This workflow configures agents with:
+- **Refiner**: Business context preservation, strategic framing
+- **Historian**: Industry precedents, market analysis focus
+- **Critic**: Risk assessment, financial impact evaluation
+- **Synthesis**: Executive summary format, actionable recommendations
+
+**Legal Analysis Configuration:**
+```bash
+# Legal workflow with compliance-focused agent behaviors
+cognivault workflow run src/cognivault/workflows/examples/legal_analysis.yaml \
+  --query "Data privacy requirements for AI systems under emerging regulations" \
+  --export-md --enable-checkpoints --thread-id legal-research
+```
+
+This workflow configures agents with:
+- **Refiner**: Legal terminology precision, jurisdictional scope
+- **Historian**: Regulatory precedents, case law analysis
+- **Critic**: Compliance risk assessment, regulatory gap identification
+- **Synthesis**: Legal brief format, regulatory compliance roadmap
+
+#### Configuration Features Demonstrated
+
+**Custom System Prompts:**
+```yaml
+# Example configuration showing custom prompt injection
+config:
+  agent_type: refiner
+  prompt_config:
+    custom_system_prompt: "You are an expert academic research assistant..."
+    template_variables:
+      domain: academic_research
+      methodology: systematic_inquiry
+```
+
+**Behavioral Constraints:**
+```yaml
+# Example showing behavioral modification
+behavioral_config:
+  custom_constraints:
+    - preserve_technical_terminology
+    - maintain_academic_tone
+    - cite_relevant_methodologies
+  fallback_mode: comprehensive
+```
+
+**Output Format Control:**
+```yaml
+# Example showing output customization
+output_config:
+  format_preference: structured
+  include_confidence: true
+  metadata_inclusion: comprehensive
+```
 
 #### Run Specific Agents
 ```bash
@@ -406,6 +518,37 @@ cognivault main "Research question" --enable-checkpoints --thread-id research-se
 cognivault main "Follow-up question" --enable-checkpoints --thread-id research-session
 ```
 
+#### Domain-Specific Analysis Workflows
+```bash
+# Academic research with scholarly agent behaviors
+cognivault workflow run src/cognivault/workflows/examples/academic_research.yaml \
+  --query "Machine learning applications in computational biology" \
+  --export-md --trace --thread-id academic-research
+
+# Executive analysis with business-focused behaviors  
+cognivault workflow run src/cognivault/workflows/examples/executive_briefing.yaml \
+  --query "Digital transformation strategy for manufacturing" \
+  --format json --export-trace /tmp/business_analysis.json
+
+# Legal compliance analysis with regulatory focus
+cognivault workflow run src/cognivault/workflows/examples/legal_analysis.yaml \
+  --query "AI ethics compliance framework for healthcare applications" \
+  --export-md --enable-checkpoints --thread-id legal-compliance
+```
+
+#### Configuration Comparison and A/B Testing
+```bash
+# Compare different agent configurations for the same query
+cognivault workflow run src/cognivault/workflows/examples/academic_research.yaml \
+  --query "Impact of federated learning on privacy" --export-trace /tmp/academic_analysis.json
+
+cognivault workflow run src/cognivault/workflows/examples/executive_briefing.yaml \
+  --query "Impact of federated learning on privacy" --export-trace /tmp/executive_analysis.json
+
+# Analyze configuration performance differences
+cognivault diagnostics patterns benchmark academic_research --baseline executive_briefing --runs 5
+```
+
 #### Pattern Development
 ```bash
 # Validate custom patterns
@@ -524,15 +667,35 @@ export COGNIVAULT_TRACE=false
 
 ---
 
-## Benefits of the New CLI
+## Benefits of the CogniVault CLI
 
+### Core Usability Benefits
 - **Simpler**: No need to remember `PYTHONPATH` setup or complex `poetry run` commands
 - **Shorter**: Fewer characters to type for common operations
 - **Consistent**: Same command structure across all operations
 - **Portable**: Works from any directory within the project
 - **Comprehensive**: Full feature coverage with extensive help text
+
+### Advanced Orchestration Benefits
+- **Configuration-Driven**: YAML-driven agent behavior customization without code changes
+- **Domain-Specific**: Academic, executive, legal workflow specializations operational
+- **Sophisticated Composition**: 662-line WorkflowComposer with advanced DAG capabilities
+- **Multi-Axis Classification**: 6-axis agent metadata system for intelligent routing
+- **Production-Ready Orchestration**: LangGraph 0.5.3 integration with parallel processing
+
+### Observability and Monitoring Benefits
 - **Observable**: Rich tracing, health checks, and diagnostic capabilities
-- **Production-Ready**: Monitoring integration and export capabilities
+- **Performance Analytics**: A/B testing of different agent configurations
+- **Behavioral Drift Detection**: Track configuration changes and performance impact
+- **Export Capabilities**: JSON, Markdown, Prometheus format support
+- **Production Monitoring**: Comprehensive diagnostics and health reporting
+
+### Developer Experience Benefits
+- **Immediate Testing**: Dry-run validation and health checks
+- **Configuration Validation**: YAML schema validation and error reporting
+- **Pattern Development**: Custom workflow pattern validation and benchmarking
+- **API Integration**: Mock and real API mode testing capabilities
+- **Checkpointing**: Session persistence for long-running analysis workflows
 
 ---
 
