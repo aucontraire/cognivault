@@ -194,19 +194,23 @@ class TestAggregationInput:
 
     def test_aggregation_input_invalid_confidence(self):
         """Test AggregationInput with invalid confidence."""
-        with pytest.raises(ValueError, match="Confidence must be between 0.0 and 1.0"):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
             AggregationInput(source="agent1", data={"result": "test"}, confidence=1.5)
 
     def test_aggregation_input_invalid_weight(self):
         """Test AggregationInput with invalid weight."""
-        with pytest.raises(ValueError, match="Weight must be non-negative"):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
             AggregationInput(source="agent1", data={"result": "test"}, weight=-1.0)
 
     def test_aggregation_input_invalid_quality_score(self):
         """Test AggregationInput with invalid quality score."""
-        with pytest.raises(
-            ValueError, match="Quality score must be between 0.0 and 1.0"
-        ):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
             AggregationInput(
                 source="agent1", data={"result": "test"}, quality_score=2.0
             )

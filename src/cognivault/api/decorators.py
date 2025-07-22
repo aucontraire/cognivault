@@ -11,6 +11,7 @@ from enum import Enum
 from functools import wraps
 from typing import Callable, Dict, Any, Optional
 
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from cognivault.observability import get_logger
 
 logger = get_logger(__name__)
@@ -35,18 +36,55 @@ def ensure_initialized(func: Callable) -> Callable:
     return wrapper
 
 
-@dataclass
-class TokenBucket:
-    """Token bucket for rate limiting implementation."""
+class TokenBucket(BaseModel):
+    """
+    Token bucket for rate limiting implementation.
 
-    capacity: int
-    refill_rate: float  # tokens per second
-    tokens: float = field(init=False)
-    last_refill: float = field(init=False)
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
 
-    def __post_init__(self):
-        self.tokens = self.capacity
-        self.last_refill = time.time()
+    capacity: int = Field(
+        ...,
+        description="Maximum number of tokens the bucket can hold",
+        gt=0,
+        le=10000,
+        json_schema_extra={"example": 100},
+    )
+    refill_rate: float = Field(
+        ...,
+        description="Tokens refilled per second",
+        gt=0.0,
+        le=1000.0,
+        json_schema_extra={"example": 10.0},
+    )
+    tokens: float = Field(
+        default=0.0,
+        description="Current number of tokens available",
+        ge=0.0,
+        json_schema_extra={"example": 100.0},
+    )
+    last_refill: float = Field(
+        default=0.0,
+        description="Timestamp of last refill operation",
+        ge=0.0,
+        json_schema_extra={"example": 1640995200.0},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,
+    )
+
+    @model_validator(mode="after")
+    def initialize_tokens_and_time(self) -> "TokenBucket":
+        """Initialize tokens and last_refill time if not set."""
+        if self.tokens == 0.0:
+            self.tokens = float(self.capacity)
+        if self.last_refill == 0.0:
+            self.last_refill = time.time()
+        return self
 
     def consume(self, tokens: int = 1) -> bool:
         """
@@ -123,15 +161,51 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open"  # Testing if service has recovered
 
 
-@dataclass
-class CircuitBreaker:
-    """Circuit breaker implementation for API resilience."""
+class APICircuitBreaker(BaseModel):
+    """
+    Circuit breaker implementation for API resilience.
 
-    failure_threshold: int
-    recovery_timeout: int
-    failure_count: int = 0
-    last_failure_time: Optional[float] = None
-    state: CircuitState = CircuitState.CLOSED
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    failure_threshold: int = Field(
+        ...,
+        description="Number of failures before opening the circuit",
+        gt=0,
+        le=100,
+        json_schema_extra={"example": 5},
+    )
+    recovery_timeout: int = Field(
+        ...,
+        description="Seconds to wait before attempting recovery",
+        gt=0,
+        le=3600,
+        json_schema_extra={"example": 60},
+    )
+    failure_count: int = Field(
+        default=0,
+        description="Current count of consecutive failures",
+        ge=0,
+        json_schema_extra={"example": 0},
+    )
+    last_failure_time: Optional[float] = Field(
+        default=None,
+        description="Timestamp of the last failure",
+        ge=0.0,
+        json_schema_extra={"example": 1640995200.0},
+    )
+    state: CircuitState = Field(
+        default=CircuitState.CLOSED,
+        description="Current state of the circuit breaker",
+        json_schema_extra={"example": "closed"},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,
+    )
 
     def can_execute(self) -> bool:
         """Check if the circuit allows execution."""
@@ -189,7 +263,7 @@ class CircuitBreaker:
 
 
 # Global circuit breaker state
-_circuit_breakers: Dict[str, CircuitBreaker] = {}
+_circuit_breakers: Dict[str, APICircuitBreaker] = {}
 
 
 def circuit_breaker(failure_threshold: int = 5, recovery_timeout: int = 60):
@@ -209,7 +283,7 @@ def circuit_breaker(failure_threshold: int = 5, recovery_timeout: int = 60):
 
             # Get or create circuit breaker for this method
             if breaker_key not in _circuit_breakers:
-                _circuit_breakers[breaker_key] = CircuitBreaker(
+                _circuit_breakers[breaker_key] = APICircuitBreaker(
                     failure_threshold=failure_threshold,
                     recovery_timeout=recovery_timeout,
                 )

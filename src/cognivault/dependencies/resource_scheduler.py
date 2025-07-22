@@ -8,10 +8,10 @@ resource pools, scheduling policies, priority queuing, and concurrency control.
 import asyncio
 import time
 import uuid
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.observability import get_logger
 from .graph_engine import ExecutionPriority, ResourceConstraint
 
@@ -49,29 +49,112 @@ class ResourceState(Enum):
     RESERVED = "reserved"
 
 
-@dataclass
-class ResourceRequest:
-    """Request for resource allocation."""
+class ResourceRequest(BaseModel):
+    """
+    Request for resource allocation.
 
-    agent_id: str
-    resource_type: ResourceType
-    amount: float
-    units: str
-    priority: ExecutionPriority = ExecutionPriority.NORMAL
-    estimated_duration_ms: Optional[int] = None
-    max_wait_time_ms: Optional[int] = None
-    exclusive: bool = False
-    shareable: bool = True
-    deadline: Optional[float] = None
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    agent_id: str = Field(
+        ...,
+        description="Unique identifier for the requesting agent",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "critic_agent_001"},
+    )
+    resource_type: ResourceType = Field(
+        ...,
+        description="Type of resource being requested",
+        json_schema_extra={"example": "memory"},
+    )
+    amount: float = Field(
+        ...,
+        description="Amount of resource being requested",
+        gt=0.0,
+        json_schema_extra={"example": 2.5},
+    )
+    units: str = Field(
+        ...,
+        description="Units for the resource amount",
+        min_length=1,
+        max_length=50,
+        json_schema_extra={"example": "GB"},
+    )
+
+    # Optional fields with defaults
+    priority: ExecutionPriority = Field(
+        ExecutionPriority.NORMAL,
+        description="Priority level for this resource request",
+        json_schema_extra={"example": "normal"},
+    )
+    estimated_duration_ms: Optional[int] = Field(
+        None,
+        description="Estimated duration the resource will be needed (ms)",
+        gt=0,
+        json_schema_extra={"example": 5000},
+    )
+    max_wait_time_ms: Optional[int] = Field(
+        None,
+        description="Maximum time willing to wait for allocation (ms)",
+        gt=0,
+        json_schema_extra={"example": 30000},
+    )
+    exclusive: bool = Field(
+        False,
+        description="Whether the resource should be exclusively allocated",
+        json_schema_extra={"example": False},
+    )
+    shareable: bool = Field(
+        True,
+        description="Whether the resource can be shared with other requests",
+        json_schema_extra={"example": True},
+    )
+    deadline: Optional[float] = Field(
+        None,
+        description="Unix timestamp deadline for resource usage",
+        gt=0.0,
+        json_schema_extra={"example": 1704067200.0},
+    )
 
     # Request metadata
-    request_id: str = field(default_factory=lambda: f"req_{int(time.time() * 1000)}")
-    created_at: float = field(default_factory=time.time)
-    granted_at: Optional[float] = None
-    released_at: Optional[float] = None
+    request_id: str = Field(
+        default_factory=lambda: f"req_{int(time.time() * 1000)}",
+        description="Unique identifier for this resource request",
+        json_schema_extra={"example": "req_1704067200000"},
+    )
+    created_at: float = Field(
+        default_factory=time.time,
+        description="Unix timestamp when request was created",
+        gt=0.0,
+        json_schema_extra={"example": 1704067200.0},
+    )
+    granted_at: Optional[float] = Field(
+        None,
+        description="Unix timestamp when request was granted",
+        gt=0.0,
+        json_schema_extra={"example": 1704067205.0},
+    )
+    released_at: Optional[float] = Field(
+        None,
+        description="Unix timestamp when resource was released",
+        gt=0.0,
+        json_schema_extra={"example": 1704067210.0},
+    )
 
-    # Queue management
-    _queue_index: int = 0
+    # Queue management - internal field
+    queue_index: int = Field(
+        0,
+        description="Internal queue index for scheduling",
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def is_expired(self) -> bool:
         """Check if request has expired based on max wait time."""
@@ -91,15 +174,47 @@ class ResourceRequest:
         return (self.deadline - time.time()) * 1000 < threshold_ms
 
 
-@dataclass
-class ResourceAllocation:
-    """Represents an active resource allocation."""
+class ResourceAllocation(BaseModel):
+    """
+    Represents an active resource allocation.
 
-    request: ResourceRequest
-    allocated_amount: float
-    allocation_id: str = field(default_factory=lambda: f"alloc_{uuid.uuid4().hex[:12]}")
-    allocated_at: float = field(default_factory=time.time)
-    expected_release_at: Optional[float] = None
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    request: ResourceRequest = Field(
+        ...,
+        description="The original resource request that was allocated",
+    )
+    allocated_amount: float = Field(
+        ...,
+        description="Amount of resource that was actually allocated",
+        gt=0.0,
+        json_schema_extra={"example": 2.0},
+    )
+    allocation_id: str = Field(
+        default_factory=lambda: f"alloc_{uuid.uuid4().hex[:12]}",
+        description="Unique identifier for this allocation",
+        json_schema_extra={"example": "alloc_a1b2c3d4e5f6"},
+    )
+    allocated_at: float = Field(
+        default_factory=time.time,
+        description="Unix timestamp when allocation was made",
+        gt=0.0,
+        json_schema_extra={"example": 1704067200.0},
+    )
+    expected_release_at: Optional[float] = Field(
+        None,
+        description="Expected Unix timestamp when resource will be released",
+        gt=0.0,
+        json_schema_extra={"example": 1704067300.0},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def get_age_ms(self) -> float:
         """Get age of allocation in milliseconds."""
@@ -112,27 +227,93 @@ class ResourceAllocation:
         return time.time() > self.expected_release_at
 
 
-@dataclass
-class ResourcePool:
-    """Pool of resources with capacity and allocation tracking."""
+class ResourcePool(BaseModel):
+    """
+    Pool of resources with capacity and allocation tracking.
 
-    resource_type: ResourceType
-    total_capacity: float
-    units: str
-    available_capacity: Optional[float] = None
-    allocated_capacity: float = 0
-    reserved_capacity: float = 0
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    resource_type: ResourceType = Field(
+        ...,
+        description="Type of resource managed by this pool",
+        json_schema_extra={"example": "memory"},
+    )
+    total_capacity: float = Field(
+        ...,
+        description="Total capacity available in the pool",
+        gt=0.0,
+        json_schema_extra={"example": 16.0},
+    )
+    units: str = Field(
+        ...,
+        description="Units for capacity measurement",
+        min_length=1,
+        max_length=50,
+        json_schema_extra={"example": "GB"},
+    )
+
+    # Optional fields with defaults
+    available_capacity: Optional[float] = Field(
+        None,
+        description="Currently available capacity (computed if None)",
+        ge=0.0,
+        json_schema_extra={"example": 12.5},
+    )
+    allocated_capacity: float = Field(
+        0.0,
+        description="Currently allocated capacity",
+        ge=0.0,
+        json_schema_extra={"example": 3.5},
+    )
+    reserved_capacity: float = Field(
+        0.0,
+        description="Reserved capacity not available for allocation",
+        ge=0.0,
+        json_schema_extra={"example": 1.0},
+    )
 
     # Allocation tracking
-    active_allocations: Dict[str, ResourceAllocation] = field(default_factory=dict)
-    allocation_history: List[ResourceAllocation] = field(default_factory=list)
+    active_allocations: Dict[str, ResourceAllocation] = Field(
+        default_factory=dict,
+        description="Currently active resource allocations by allocation ID",
+    )
+    allocation_history: List[ResourceAllocation] = Field(
+        default_factory=list,
+        description="Historical record of all allocations made from this pool",
+    )
 
     # Pool configuration
-    allow_oversubscription: bool = False
-    oversubscription_factor: float = 1.2
-    min_available_threshold: float = 0.1  # 10% minimum available
+    allow_oversubscription: bool = Field(
+        False,
+        description="Whether to allow allocating more than total capacity",
+        json_schema_extra={"example": False},
+    )
+    oversubscription_factor: float = Field(
+        1.2,
+        description="Factor for oversubscription (only used if allowed)",
+        gt=1.0,
+        le=5.0,  # Reasonable upper bound
+        json_schema_extra={"example": 1.2},
+    )
+    min_available_threshold: float = Field(
+        0.1,
+        description="Minimum available capacity threshold (as fraction)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.1},
+    )
 
-    def __post_init__(self):
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
+
+    def model_post_init(self, __context) -> None:
+        """Post-initialization to set computed fields."""
         if self.available_capacity is None:
             self.available_capacity = float(self.total_capacity)
 
@@ -259,7 +440,7 @@ class PriorityQueue:
 
     def enqueue(self, request: ResourceRequest) -> None:
         """Add a request to the queue."""
-        request._queue_index = self._request_index
+        request.queue_index = self._request_index
         self._request_index += 1
         self.requests.append(request)
         self._sort_queue()
@@ -317,7 +498,7 @@ class PriorityQueue:
             self.requests.sort(
                 key=lambda r: (
                     r.priority.value,  # Lower number = higher priority
-                    r._queue_index,  # FIFO within same priority
+                    r.queue_index,  # FIFO within same priority
                 )
             )
 
@@ -326,7 +507,7 @@ class PriorityQueue:
                 key=lambda r: (
                     r.estimated_duration_ms or float("inf"),
                     r.priority.value,
-                    r._queue_index,
+                    r.queue_index,
                 )
             )
 
@@ -335,7 +516,7 @@ class PriorityQueue:
                 key=lambda r: (
                     r.deadline or float("inf"),
                     r.priority.value,
-                    r._queue_index,
+                    r.queue_index,
                 )
             )
 

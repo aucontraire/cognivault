@@ -6,16 +6,17 @@ validation and gating in the advanced node execution system.
 """
 
 from typing import Dict, List, Any, Optional, Callable, cast
-from dataclasses import dataclass
+from dataclasses import dataclass  # Still needed for ValidationReport
 from enum import Enum
 import asyncio
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.agents.metadata import AgentMetadata
 from cognivault.events import emit_validation_completed
 from .base_advanced_node import BaseAdvancedNode, NodeExecutionContext
 
 
-class ValidationResult(Enum):
+class NodeValidationResult(Enum):
     """Possible validation results."""
 
     PASS = "pass"
@@ -23,34 +24,119 @@ class ValidationResult(Enum):
     WARNING = "warning"
 
 
-@dataclass
-class ValidationCriteria:
-    """Represents a single validation criterion."""
+class ValidationCriteria(BaseModel):
+    """
+    Represents a single validation criterion.
 
-    name: str
-    validator: Callable[[Dict[str, Any]], bool]
-    weight: float = 1.0
-    required: bool = True
-    error_message: str = ""
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
 
-    def validate(self, data: Dict[str, Any]) -> bool:
+    name: str = Field(
+        ...,
+        description="Name/identifier of the validation criterion",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "output_quality_check"},
+    )
+    validator: Callable[[Dict[str, Any]], bool] = Field(
+        ..., description="Function that performs the validation logic"
+    )
+    weight: float = Field(
+        default=1.0,
+        description="Weight/importance of this criterion in overall validation",
+        ge=0.0,
+        le=10.0,
+        json_schema_extra={"example": 1.0},
+    )
+    required: bool = Field(
+        default=True,
+        description="Whether this criterion must pass for overall validation to succeed",
+    )
+    error_message: str = Field(
+        default="",
+        description="Custom error message when validation fails",
+        max_length=500,
+        json_schema_extra={"example": "Output quality is below acceptable threshold"},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For Callable validator function
+    )
+
+    def validate_data(self, data: Dict[str, Any]) -> bool:
         """Validate data against this criterion."""
         return self.validator(data)
 
 
-@dataclass
-class ValidationReport:
-    """Detailed validation report."""
+class ValidationReport(BaseModel):
+    """
+    Detailed validation report.
 
-    result: ValidationResult
-    quality_score: float
-    criteria_results: Dict[str, Dict[str, Any]]
-    recommendations: List[str]
-    validation_time_ms: float
-    total_criteria: int
-    passed_criteria: int
-    failed_criteria: int
-    warnings: List[str]
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    result: NodeValidationResult = Field(
+        ...,
+        description="Overall validation result",
+        json_schema_extra={"example": "pass"},
+    )
+    quality_score: float = Field(
+        ...,
+        description="Calculated quality score (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+    criteria_results: Dict[str, Dict[str, Any]] = Field(
+        ...,
+        description="Results from each validation criterion",
+        json_schema_extra={"example": {"criterion_1": {"passed": True, "weight": 1.0}}},
+    )
+    recommendations: List[str] = Field(
+        default_factory=list,
+        description="List of improvement recommendations",
+        max_length=100,
+        json_schema_extra={"example": ["Fix required criterion 'content_check'"]},
+    )
+    validation_time_ms: float = Field(
+        ...,
+        description="Time taken for validation in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 125.5},
+    )
+    total_criteria: int = Field(
+        ...,
+        description="Total number of validation criteria",
+        ge=0,
+        json_schema_extra={"example": 5},
+    )
+    passed_criteria: int = Field(
+        ...,
+        description="Number of criteria that passed",
+        ge=0,
+        json_schema_extra={"example": 4},
+    )
+    failed_criteria: int = Field(
+        ...,
+        description="Number of criteria that failed",
+        ge=0,
+        json_schema_extra={"example": 1},
+    )
+    warnings: List[str] = Field(
+        default_factory=list,
+        description="List of validation warnings",
+        max_length=100,
+        json_schema_extra={"example": ["Optional criterion failed"]},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
     @property
     def success_rate(self) -> float:
@@ -179,7 +265,7 @@ class ValidatorNode(BaseAdvancedNode):
             "failed_criteria": validation_report.failed_criteria,
             "warnings": validation_report.warnings,
             "passed": validation_report.result
-            in [ValidationResult.PASS, ValidationResult.WARNING],
+            in [NodeValidationResult.PASS, NodeValidationResult.WARNING],
             "validated_data": data_to_validate,
         }
 
@@ -281,7 +367,7 @@ class ValidatorNode(BaseAdvancedNode):
         # Validate each criterion
         for criterion in self.validation_criteria:
             try:
-                passed = criterion.validate(data)
+                passed = criterion.validate_data(data)
                 criteria_results[criterion.name] = {
                     "passed": passed,
                     "weight": criterion.weight,
@@ -358,7 +444,7 @@ class ValidatorNode(BaseAdvancedNode):
         failed_criteria: int,
         warnings: List[str],
         criteria_results: Dict[str, Dict[str, Any]],
-    ) -> ValidationResult:
+    ) -> NodeValidationResult:
         """
         Determine the overall validation result.
 
@@ -377,7 +463,7 @@ class ValidatorNode(BaseAdvancedNode):
 
         Returns
         -------
-        ValidationResult
+        NodeValidationResult
             Overall validation result
         """
         # Check required criteria pass rate
@@ -391,23 +477,23 @@ class ValidatorNode(BaseAdvancedNode):
             required_pass_rate = required_passed / len(required_criteria)
 
             if required_pass_rate < self.required_criteria_pass_rate:
-                return ValidationResult.FAIL
+                return NodeValidationResult.FAIL
 
         # Strict mode: any failure is a failure
         if self.strict_mode and failed_criteria > 0:
-            return ValidationResult.FAIL
+            return NodeValidationResult.FAIL
 
         # Check quality threshold
         if quality_score < self.quality_threshold:
-            return ValidationResult.FAIL
+            return NodeValidationResult.FAIL
 
         # Check if we have warnings
         if warnings and not self.allow_warnings:
-            return ValidationResult.FAIL
+            return NodeValidationResult.FAIL
 
         # Success with warnings
         if warnings and self.allow_warnings:
-            return ValidationResult.WARNING
+            return NodeValidationResult.WARNING
 
         # Full success
-        return ValidationResult.PASS
+        return NodeValidationResult.PASS

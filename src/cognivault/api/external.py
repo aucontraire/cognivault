@@ -14,7 +14,7 @@ from .models import (
     StatusResponse,
     CompletionRequest,
     CompletionResponse,
-    LLMProvider,
+    LLMProviderInfo,
 )
 
 
@@ -110,7 +110,7 @@ class LLMGatewayAPI(BaseAPI):
         raise NotImplementedError("Subclasses must implement execute_workflow")
 
     @ensure_initialized
-    async def get_providers(self) -> List[LLMProvider]:
+    async def get_providers(self) -> List[LLMProviderInfo]:
         """
         Get available LLM providers and models.
 

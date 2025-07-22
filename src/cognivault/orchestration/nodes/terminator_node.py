@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from enum import Enum
 import asyncio
 
+from pydantic import BaseModel, Field, ConfigDict
+
 from cognivault.agents.metadata import AgentMetadata
 from cognivault.events import emit_termination_triggered
 from .base_advanced_node import BaseAdvancedNode, NodeExecutionContext
@@ -26,35 +28,125 @@ class TerminationReason(Enum):
     MANUAL_TRIGGER = "manual_trigger"
 
 
-@dataclass
-class TerminationCriteria:
-    """Represents a single termination criterion."""
+class TerminationCriteria(BaseModel):
+    """
+    Represents a single termination criterion.
 
-    name: str
-    evaluator: Callable[[Dict[str, Any]], bool]
-    threshold: float = 0.0
-    weight: float = 1.0
-    required: bool = True
-    description: str = ""
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    name: str = Field(
+        ...,
+        description="Name/identifier of the termination criterion",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "confidence_check"},
+    )
+    evaluator: Callable[[Dict[str, Any]], bool] = Field(
+        ...,
+        description="Function that evaluates the criterion against input data",
+    )
+    threshold: float = Field(
+        default=0.0,
+        description="Threshold value for criterion evaluation",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.95},
+    )
+    weight: float = Field(
+        default=1.0,
+        description="Weight/importance of this criterion in termination decision",
+        ge=0.0,
+        le=10.0,
+        json_schema_extra={"example": 2.0},
+    )
+    required: bool = Field(
+        default=True,
+        description="Whether this criterion is required for termination",
+        json_schema_extra={"example": True},
+    )
+    description: str = Field(
+        default="",
+        description="Human-readable description of the criterion",
+        max_length=500,
+        json_schema_extra={"example": "Check if confidence threshold is met"},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For Callable evaluator function
+    )
 
     def evaluate(self, data: Dict[str, Any]) -> bool:
         """Evaluate data against this criterion."""
         return self.evaluator(data)
 
 
-@dataclass
-class TerminationReport:
-    """Detailed termination report."""
+class TerminationReport(BaseModel):
+    """
+    Detailed termination report.
 
-    should_terminate: bool
-    termination_reason: TerminationReason
-    confidence_score: float
-    criteria_results: Dict[str, Dict[str, Any]]
-    resource_savings: Dict[str, float]
-    completion_time_ms: float
-    met_criteria: List[str]
-    unmet_criteria: List[str]
-    termination_message: str
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    should_terminate: bool = Field(
+        ...,
+        description="Whether termination is recommended",
+        json_schema_extra={"example": True},
+    )
+    termination_reason: TerminationReason = Field(
+        ...,
+        description="Primary reason for termination decision",
+        json_schema_extra={"example": "confidence_threshold"},
+    )
+    confidence_score: float = Field(
+        ...,
+        description="Overall confidence score for termination decision",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.95},
+    )
+    criteria_results: Dict[str, Dict[str, Any]] = Field(
+        ...,
+        description="Detailed results for each termination criterion",
+        json_schema_extra={"example": {"criterion1": {"met": True, "score": 0.9}}},
+    )
+    resource_savings: Dict[str, float] = Field(
+        ...,
+        description="Estimated resource savings from early termination",
+        json_schema_extra={"example": {"cpu_time_ms": 1000.0, "memory_mb": 50.0}},
+    )
+    completion_time_ms: float = Field(
+        ...,
+        description="Time taken to complete termination evaluation in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 125.5},
+    )
+    met_criteria: List[str] = Field(
+        ...,
+        description="Names of criteria that were successfully met",
+        json_schema_extra={"example": ["confidence_check", "quality_check"]},
+    )
+    unmet_criteria: List[str] = Field(
+        ...,
+        description="Names of criteria that were not met",
+        json_schema_extra={"example": ["resource_limit"]},
+    )
+    termination_message: str = Field(
+        ...,
+        description="Human-readable message explaining the termination decision",
+        min_length=1,
+        max_length=1000,
+        json_schema_extra={"example": "Confidence threshold met with score 0.95"},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
 class TerminatorNode(BaseAdvancedNode):

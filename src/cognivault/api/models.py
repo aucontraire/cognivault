@@ -4,9 +4,10 @@ Centralized schema definitions for API contracts.
 Schemas tagged with # EXTERNAL SCHEMA require special handling for changes.
 """
 
-from dataclasses import dataclass
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import re
 
 
 # =============================================================================
@@ -15,74 +16,392 @@ from datetime import datetime
 
 
 # EXTERNAL SCHEMA
-@dataclass
-class WorkflowRequest:
+class WorkflowRequest(BaseModel):
     """External workflow execution request - v1.0.0"""
 
-    query: str
-    agents: Optional[List[str]] = None
-    execution_config: Optional[Dict[str, Any]] = None
-    correlation_id: Optional[str] = None
+    query: str = Field(
+        ...,
+        description="The query or prompt to execute",
+        min_length=1,
+        max_length=10000,
+        json_schema_extra={
+            "example": "Analyze the impact of climate change on agriculture"
+        },
+    )
+    agents: Optional[List[str]] = Field(
+        None,
+        description="List of agent names to execute (default: all available)",
+        json_schema_extra={"example": ["refiner", "historian", "critic", "synthesis"]},
+    )
+    execution_config: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Additional execution configuration parameters",
+        json_schema_extra={
+            "example": {"timeout_seconds": 30, "parallel_execution": True}
+        },
+    )
+    correlation_id: Optional[str] = Field(
+        None,
+        description="Unique identifier for request correlation",
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        max_length=100,
+        json_schema_extra={"example": "req-12345-abcdef"},
+    )
+
+    @field_validator("agents")
+    @classmethod
+    def validate_agents(cls, v):
+        """Validate agent names."""
+        if v is not None:
+            if not v:  # Empty list
+                raise ValueError("agents list cannot be empty if provided")
+
+            valid_agents = {"refiner", "historian", "critic", "synthesis"}
+            invalid_agents = set(v) - valid_agents
+            if invalid_agents:
+                raise ValueError(
+                    f"Invalid agents: {invalid_agents}. Valid agents: {valid_agents}"
+                )
+
+            # Check for duplicates
+            if len(v) != len(set(v)):
+                raise ValueError("Duplicate agents are not allowed")
+
+        return v
+
+    @field_validator("execution_config")
+    @classmethod
+    def validate_execution_config(cls, v):
+        """Validate execution configuration."""
+        if v is not None:
+            # Validate timeout if provided
+            if "timeout_seconds" in v:
+                timeout = v["timeout_seconds"]
+                if not isinstance(timeout, (int, float)) or timeout <= 0:
+                    raise ValueError("timeout_seconds must be a positive number")
+                if timeout > 600:  # 10 minutes max
+                    raise ValueError("timeout_seconds cannot exceed 600 seconds")
+
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for backward compatibility."""
+        return self.model_dump()
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,  # Prevent additional fields
+    )
 
 
 # EXTERNAL SCHEMA
-@dataclass
-class WorkflowResponse:
+class WorkflowResponse(BaseModel):
     """External workflow execution response - v1.0.0"""
 
-    workflow_id: str
-    status: str
-    agent_outputs: Dict[str, str]
-    execution_time_seconds: float
-    correlation_id: Optional[str] = None
-    error_message: Optional[str] = None
+    workflow_id: str = Field(
+        ...,
+        description="Unique identifier for the workflow execution",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    status: str = Field(
+        ...,
+        description="Execution status",
+        pattern=r"^(completed|failed|running|cancelled)$",
+        json_schema_extra={"example": "completed"},
+    )
+    agent_outputs: Dict[str, str] = Field(
+        ...,
+        description="Outputs from each executed agent",
+        json_schema_extra={
+            "example": {
+                "refiner": "Refined and clarified query",
+                "historian": "Relevant historical context",
+                "critic": "Critical analysis and evaluation",
+                "synthesis": "Comprehensive synthesis of insights",
+            }
+        },
+    )
+    execution_time_seconds: float = Field(
+        ...,
+        description="Total execution time in seconds",
+        ge=0.0,
+        json_schema_extra={"example": 42.5},
+    )
+    correlation_id: Optional[str] = Field(
+        None,
+        description="Request correlation identifier (if provided in request)",
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        max_length=100,
+        json_schema_extra={"example": "req-12345-abcdef"},
+    )
+    error_message: Optional[str] = Field(
+        None,
+        description="Error message if execution failed",
+        max_length=5000,
+        json_schema_extra={"example": "Agent 'historian' failed: timeout exceeded"},
+    )
+
+    @model_validator(mode="after")
+    def validate_status_consistency(self):
+        """Validate status consistency with other fields."""
+        if self.status == "failed" and not self.error_message:
+            raise ValueError("error_message is required when status is 'failed'")
+
+        if self.status == "completed" and not self.agent_outputs:
+            raise ValueError("agent_outputs cannot be empty when status is 'completed'")
+
+        return self
+
+    @field_validator("agent_outputs")
+    @classmethod
+    def validate_agent_outputs(cls, v):
+        """Validate agent outputs."""
+        for agent_name, output in v.items():
+            if not isinstance(output, str):
+                raise ValueError(f"Output for agent '{agent_name}' must be a string")
+            if len(output.strip()) == 0:
+                raise ValueError(f"Output for agent '{agent_name}' cannot be empty")
+
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for backward compatibility."""
+        return self.model_dump()
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
 # EXTERNAL SCHEMA
-@dataclass
-class StatusResponse:
+class StatusResponse(BaseModel):
     """External status query response - v1.0.0"""
 
-    workflow_id: str
-    status: str
-    progress_percentage: float
-    current_agent: Optional[str] = None
-    estimated_completion_seconds: Optional[float] = None
+    workflow_id: str = Field(
+        ...,
+        description="Unique identifier for the workflow execution",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    status: str = Field(
+        ...,
+        description="Current execution status",
+        pattern=r"^(completed|failed|running|cancelled)$",
+        json_schema_extra={"example": "running"},
+    )
+    progress_percentage: float = Field(
+        ...,
+        description="Execution progress as percentage (0-100)",
+        ge=0.0,
+        le=100.0,
+        json_schema_extra={"example": 75.0},
+    )
+    current_agent: Optional[str] = Field(
+        None,
+        description="Currently executing agent (if status is 'running')",
+        json_schema_extra={"example": "critic"},
+    )
+    estimated_completion_seconds: Optional[float] = Field(
+        None,
+        description="Estimated time to completion in seconds",
+        ge=0.0,
+        json_schema_extra={"example": 15.5},
+    )
+
+    @model_validator(mode="after")
+    def validate_status_consistency(self):
+        """Validate status consistency with other fields."""
+        # Validate current_agent consistency
+        if self.status == "running" and self.current_agent is None:
+            # Allow None for running status (agent may not be determinable)
+            pass
+        elif self.status != "running" and self.current_agent is not None:
+            raise ValueError(
+                "current_agent should only be set when status is 'running'"
+            )
+
+        # Validate progress consistency
+        if self.status == "completed" and self.progress_percentage != 100.0:
+            raise ValueError(
+                "progress_percentage must be 100.0 when status is 'completed'"
+            )
+        elif self.status == "failed" and self.progress_percentage == 100.0:
+            raise ValueError(
+                "progress_percentage should not be 100.0 when status is 'failed'"
+            )
+
+        return self
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for backward compatibility."""
+        return self.model_dump()
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
 # EXTERNAL SCHEMA
-@dataclass
-class CompletionRequest:
+class CompletionRequest(BaseModel):
     """External LLM completion request - v1.0.0"""
 
-    prompt: str
-    model: Optional[str] = None
-    max_tokens: Optional[int] = None
-    temperature: Optional[float] = None
-    agent_context: Optional[str] = None
+    prompt: str = Field(
+        ...,
+        description="The prompt to send to the LLM",
+        min_length=1,
+        max_length=50000,
+        json_schema_extra={
+            "example": "Explain the concept of machine learning in simple terms"
+        },
+    )
+    model: Optional[str] = Field(
+        None,
+        description="LLM model to use (default: configured model)",
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        json_schema_extra={"example": "gpt-4"},
+    )
+    max_tokens: Optional[int] = Field(
+        None,
+        description="Maximum number of tokens to generate",
+        ge=1,
+        le=32000,
+        json_schema_extra={"example": 1000},
+    )
+    temperature: Optional[float] = Field(
+        None,
+        description="Sampling temperature (0.0-2.0)",
+        ge=0.0,
+        le=2.0,
+        json_schema_extra={"example": 0.7},
+    )
+    agent_context: Optional[str] = Field(
+        None,
+        description="Additional context from agent execution",
+        max_length=10000,
+        json_schema_extra={"example": "Previous agent outputs and workflow context"},
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for backward compatibility."""
+        return self.model_dump()
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
 # EXTERNAL SCHEMA
-@dataclass
-class CompletionResponse:
+class CompletionResponse(BaseModel):
     """External LLM completion response - v1.0.0"""
 
-    completion: str
-    model_used: str
-    token_usage: Dict[str, int]
-    response_time_ms: float
-    request_id: str
+    completion: str = Field(
+        ...,
+        description="Generated completion text",
+        min_length=1,
+        json_schema_extra={
+            "example": "Machine learning is a subset of artificial intelligence..."
+        },
+    )
+    model_used: str = Field(
+        ...,
+        description="The actual model that generated the completion",
+        json_schema_extra={"example": "gpt-4"},
+    )
+    token_usage: Dict[str, int] = Field(
+        ...,
+        description="Token usage statistics",
+        json_schema_extra={
+            "example": {
+                "prompt_tokens": 25,
+                "completion_tokens": 150,
+                "total_tokens": 175,
+            }
+        },
+    )
+    response_time_ms: float = Field(
+        ...,
+        description="Response time in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 1250.5},
+    )
+    request_id: str = Field(
+        ...,
+        description="Unique identifier for this completion request",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+
+    @field_validator("token_usage")
+    @classmethod
+    def validate_token_usage(cls, v):
+        """Validate token usage structure."""
+        required_keys = {"prompt_tokens", "completion_tokens", "total_tokens"}
+        if not all(key in v for key in required_keys):
+            raise ValueError(f"token_usage must contain keys: {required_keys}")
+
+        for key, value in v.items():
+            if not isinstance(value, int) or value < 0:
+                raise ValueError(f"token_usage['{key}'] must be a non-negative integer")
+
+        # Validate total tokens calculation
+        if v["total_tokens"] != v["prompt_tokens"] + v["completion_tokens"]:
+            raise ValueError(
+                "total_tokens must equal prompt_tokens + completion_tokens"
+            )
+
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for backward compatibility."""
+        return self.model_dump()
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
 # EXTERNAL SCHEMA
-@dataclass
-class LLMProvider:
+class LLMProviderInfo(BaseModel):
     """External LLM provider information - v1.0.0"""
 
-    name: str
-    models: List[str]
-    available: bool
-    cost_per_token: Optional[float] = None
+    name: str = Field(
+        ...,
+        description="Provider name",
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        json_schema_extra={"example": "openai"},
+    )
+    models: List[str] = Field(
+        ...,
+        description="List of available models",
+        min_length=1,
+        json_schema_extra={"example": ["gpt-4", "gpt-3.5-turbo", "text-davinci-003"]},
+    )
+    available: bool = Field(
+        ...,
+        description="Whether the provider is currently available",
+        json_schema_extra={"example": True},
+    )
+    cost_per_token: Optional[float] = Field(
+        None,
+        description="Cost per token in USD (if available)",
+        ge=0.0,
+        json_schema_extra={"example": 0.00003},
+    )
+
+    @field_validator("models")
+    @classmethod
+    def validate_models(cls, v):
+        """Validate model names."""
+        for model in v:
+            if not isinstance(model, str) or len(model.strip()) == 0:
+                raise ValueError("All model names must be non-empty strings")
+            if not re.match(r"^[a-zA-Z0-9._-]+$", model):
+                raise ValueError(f"Invalid model name format: {model}")
+
+        # Check for duplicates
+        if len(v) != len(set(v)):
+            raise ValueError("Duplicate model names are not allowed")
+
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for backward compatibility."""
+        return self.model_dump()
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
 # =============================================================================
@@ -90,21 +409,31 @@ class LLMProvider:
 # =============================================================================
 
 
-@dataclass
-class InternalExecutionGraph:
+class InternalExecutionGraph(BaseModel):
     """Internal execution graph representation - v0.1.0"""
 
-    nodes: List[Dict[str, Any]]
-    edges: List[Dict[str, Any]]
-    metadata: Dict[str, Any]
+    nodes: List[Dict[str, Any]] = Field(
+        ..., description="Graph nodes representing execution units"
+    )
+    edges: List[Dict[str, Any]] = Field(
+        ..., description="Graph edges representing execution dependencies"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional graph metadata"
+    )
+
+    model_config = ConfigDict(extra="allow")  # Internal schemas can be more flexible
 
 
-@dataclass
-class InternalAgentMetrics:
+class InternalAgentMetrics(BaseModel):
     """Internal agent performance metrics - v0.1.0"""
 
-    agent_name: str
-    execution_time_ms: float
-    token_usage: Dict[str, int]
-    success: bool
-    timestamp: datetime
+    agent_name: str = Field(..., description="Name of the agent")
+    execution_time_ms: float = Field(
+        ..., description="Execution time in milliseconds", ge=0.0
+    )
+    token_usage: Dict[str, int] = Field(..., description="Token usage statistics")
+    success: bool = Field(..., description="Whether the agent execution was successful")
+    timestamp: datetime = Field(..., description="Timestamp of the execution")
+
+    model_config = ConfigDict(extra="allow")  # Internal schemas can be more flexible

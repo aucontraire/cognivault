@@ -176,11 +176,16 @@ async def emit_workflow_completed(
     successful_agents: Optional[List[str]] = None,
     failed_agents: Optional[List[str]] = None,
     error_message: Optional[str] = None,
+    error_type: Optional[str] = None,
     correlation_id: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Emit workflow completed event."""
     emitter = get_global_event_emitter()
+
+    # Auto-infer error_type if error_message is provided but error_type is not
+    if error_message and not error_type:
+        error_type = "WorkflowError"
 
     event = WorkflowCompletedEvent(
         event_type=EventType.WORKFLOW_COMPLETED,
@@ -193,6 +198,7 @@ async def emit_workflow_completed(
         successful_agents=successful_agents or [],
         failed_agents=failed_agents or [],
         error_message=error_message,
+        error_type=error_type,
         metadata=metadata or {},
     )
 
@@ -238,6 +244,10 @@ async def emit_agent_execution_completed(
 ) -> None:
     """Emit agent execution completed event."""
     emitter = get_global_event_emitter()
+
+    # Auto-infer error_type if error_message is provided but error_type is not
+    if error_message and not error_type:
+        error_type = "AgentExecutionError"
 
     event = AgentExecutionCompletedEvent(
         event_type=EventType.AGENT_EXECUTION_COMPLETED,

@@ -34,7 +34,7 @@ from .resource_scheduler import (
 )
 from .dynamic_composition import (
     DynamicAgentComposer,
-    AgentMetadata,
+    DiscoveredAgentInfo,
     CompositionRule,
     DiscoveryStrategy,
 )
@@ -60,7 +60,7 @@ __all__ = [
     "ResourceRequest",
     "SchedulingPolicy",
     "DynamicAgentComposer",
-    "AgentMetadata",
+    "DiscoveredAgentInfo",
     "CompositionRule",
     "DiscoveryStrategy",
 ]

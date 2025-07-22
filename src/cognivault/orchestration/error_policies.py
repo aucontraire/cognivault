@@ -9,11 +9,17 @@ import time
 import asyncio
 import logging
 from typing import Dict, Any, Optional, Callable, List
-from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
 
+from pydantic import BaseModel, Field, ConfigDict
+
 logger = logging.getLogger(__name__)
+
+
+def _default_exception_list() -> List[type]:
+    """Default list of exception types for retry/recovery."""
+    return [Exception]
 
 
 class ErrorPolicyType(Enum):
@@ -34,39 +40,142 @@ class FallbackStrategy(Enum):
     PARTIAL_RESULT = "partial_result"
 
 
-@dataclass
-class RetryConfig:
-    """Configuration for retry behavior."""
+class RetryConfig(BaseModel):
+    """
+    Configuration for retry behavior.
 
-    max_attempts: int = 3
-    base_delay_seconds: float = 1.0
-    max_delay_seconds: float = 60.0
-    exponential_base: float = 2.0
-    jitter: bool = True
-    retry_on_types: List[type] = field(default_factory=lambda: [Exception])
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    max_attempts: int = Field(
+        default=3,
+        description="Maximum number of retry attempts",
+        ge=1,
+        le=10,
+        json_schema_extra={"example": 3},
+    )
+    base_delay_seconds: float = Field(
+        default=1.0,
+        description="Base delay between retries in seconds",
+        ge=0.1,
+        le=300.0,
+        json_schema_extra={"example": 1.0},
+    )
+    max_delay_seconds: float = Field(
+        default=60.0,
+        description="Maximum delay between retries in seconds",
+        ge=1.0,
+        le=3600.0,
+        json_schema_extra={"example": 60.0},
+    )
+    exponential_base: float = Field(
+        default=2.0,
+        description="Base for exponential backoff calculation",
+        ge=1.0,
+        le=10.0,
+        json_schema_extra={"example": 2.0},
+    )
+    jitter: bool = Field(
+        default=True, description="Whether to add random jitter to delays"
+    )
+    retry_on_types: List[type] = Field(
+        default_factory=_default_exception_list,
+        description="List of exception types to retry on",
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For exception types
+    )
 
 
-@dataclass
-class CircuitBreakerConfig:
-    """Configuration for circuit breaker behavior."""
+class CircuitBreakerConfig(BaseModel):
+    """
+    Configuration for circuit breaker behavior.
 
-    failure_threshold: int = 5
-    success_threshold: int = 3
-    timeout_seconds: float = 60.0
-    half_open_max_calls: int = 3
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    failure_threshold: int = Field(
+        default=5,
+        description="Number of failures before circuit opens",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 5},
+    )
+    success_threshold: int = Field(
+        default=3,
+        description="Number of successes needed to close circuit",
+        ge=1,
+        le=50,
+        json_schema_extra={"example": 3},
+    )
+    timeout_seconds: float = Field(
+        default=60.0,
+        description="Timeout before trying to close circuit in seconds",
+        ge=1.0,
+        le=3600.0,
+        json_schema_extra={"example": 60.0},
+    )
+    half_open_max_calls: int = Field(
+        default=3,
+        description="Maximum calls allowed in half-open state",
+        ge=1,
+        le=20,
+        json_schema_extra={"example": 3},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
-@dataclass
-class ErrorPolicy:
-    """Comprehensive error handling policy."""
+class ErrorPolicy(BaseModel):
+    """
+    Comprehensive error handling policy.
 
-    policy_type: ErrorPolicyType
-    retry_config: Optional[RetryConfig] = None
-    circuit_breaker_config: Optional[CircuitBreakerConfig] = None
-    fallback_strategy: Optional[FallbackStrategy] = None
-    timeout_seconds: Optional[float] = None
-    critical_errors: List[type] = field(default_factory=list)
-    recoverable_errors: List[type] = field(default_factory=lambda: [Exception])
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    policy_type: ErrorPolicyType = Field(
+        ..., description="Type of error handling policy to apply"
+    )
+    retry_config: Optional[RetryConfig] = Field(
+        default=None, description="Configuration for retry behavior, if applicable"
+    )
+    circuit_breaker_config: Optional[CircuitBreakerConfig] = Field(
+        default=None,
+        description="Configuration for circuit breaker behavior, if applicable",
+    )
+    fallback_strategy: Optional[FallbackStrategy] = Field(
+        default=None, description="Strategy to use when normal execution fails"
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Timeout for individual operation execution in seconds",
+        ge=0.1,
+        le=3600.0,
+        json_schema_extra={"example": 30.0},
+    )
+    critical_errors: List[type] = Field(
+        default_factory=list,
+        description="List of exception types considered critical (non-recoverable)",
+    )
+    recoverable_errors: List[type] = Field(
+        default_factory=_default_exception_list,
+        description="List of exception types that can be recovered from",
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For exception types and complex objects
+    )
 
 
 class LangGraphExecutionError(Exception):

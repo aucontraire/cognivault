@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
+
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
 from cognivault.exceptions import (
     AgentExecutionError,
@@ -102,63 +104,173 @@ class NodeType(Enum):
     VALIDATOR = "validator"  # Quality assurance checkpoint
 
 
-@dataclass
-class NodeInputSchema:
-    """Schema definition for node inputs."""
+class NodeInputSchema(BaseModel):
+    """
+    Schema definition for node inputs.
 
-    name: str
-    description: str
-    required: bool = True
-    type_hint: str = "Any"
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    name: str = Field(
+        ...,
+        description="Name of the input parameter",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "context"},
+    )
+    description: str = Field(
+        ...,
+        description="Human-readable description of the input",
+        min_length=1,
+        max_length=500,
+        json_schema_extra={"example": "Agent context containing query and state"},
+    )
+    required: bool = Field(
+        default=True,
+        description="Whether this input is required for node execution",
+        json_schema_extra={"example": True},
+    )
+    type_hint: str = Field(
+        default="Any",
+        description="Type hint for the input parameter",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "AgentContext"},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
-@dataclass
-class NodeOutputSchema:
-    """Schema definition for node outputs."""
+class NodeOutputSchema(BaseModel):
+    """
+    Schema definition for node outputs.
 
-    name: str
-    description: str
-    type_hint: str = "Any"
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    name: str = Field(
+        ...,
+        description="Name of the output parameter",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "context"},
+    )
+    description: str = Field(
+        ...,
+        description="Human-readable description of the output",
+        min_length=1,
+        max_length=500,
+        json_schema_extra={"example": "Updated context after agent processing"},
+    )
+    type_hint: str = Field(
+        default="Any",
+        description="Type hint for the output parameter",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "AgentContext"},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
-@dataclass
-class LangGraphNodeDefinition:
-    """Complete LangGraph node definition for an agent."""
+class LangGraphNodeDefinition(BaseModel):
+    """
+    Complete LangGraph node definition for an agent.
 
-    node_id: str
-    node_type: NodeType
-    description: str
-    inputs: List[NodeInputSchema]
-    outputs: List[NodeOutputSchema]
-    dependencies: List[str]
-    tags: List[str]
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    node_id: str = Field(
+        ...,
+        description="Unique identifier for the node",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "refiner"},
+    )
+    node_type: NodeType = Field(
+        ...,
+        description="Type of node in the LangGraph DAG",
+        json_schema_extra={"example": "processor"},
+    )
+    description: str = Field(
+        ...,
+        description="Human-readable description of the node",
+        min_length=1,
+        max_length=500,
+        json_schema_extra={"example": "Refiner agent for query processing"},
+    )
+    inputs: List[NodeInputSchema] = Field(
+        ...,
+        description="List of input schemas for this node",
+        json_schema_extra={
+            "example": [{"name": "context", "description": "Input context"}]
+        },
+    )
+    outputs: List[NodeOutputSchema] = Field(
+        ...,
+        description="List of output schemas for this node",
+        json_schema_extra={
+            "example": [{"name": "context", "description": "Output context"}]
+        },
+    )
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="List of node IDs this node depends on",
+        json_schema_extra={"example": ["refiner", "critic"]},
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="List of tags for categorization",
+        json_schema_extra={"example": ["agent", "processor"]},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "node_id": self.node_id,
-            "node_type": self.node_type.value,
-            "description": self.description,
-            "inputs": [
-                {
-                    "name": inp.name,
-                    "description": inp.description,
-                    "required": inp.required,
-                    "type": inp.type_hint,
-                }
-                for inp in self.inputs
-            ],
-            "outputs": [
-                {
-                    "name": out.name,
-                    "description": out.description,
-                    "type": out.type_hint,
-                }
-                for out in self.outputs
-            ],
-            "dependencies": self.dependencies,
-            "tags": self.tags,
-        }
+        """
+        Convert to dictionary representation.
+
+        Maintains backward compatibility with existing code while leveraging
+        Pydantic's enhanced serialization capabilities.
+        """
+        # Use Pydantic's model_dump for better serialization
+        data = self.model_dump()
+
+        # Convert node_type enum to string value for compatibility
+        data["node_type"] = self.node_type.value
+
+        # Convert input/output schemas to the expected format
+        data["inputs"] = [
+            {
+                "name": inp.name,
+                "description": inp.description,
+                "required": inp.required,
+                "type": inp.type_hint,
+            }
+            for inp in self.inputs
+        ]
+        data["outputs"] = [
+            {
+                "name": out.name,
+                "description": out.description,
+                "type": out.type_hint,
+            }
+            for out in self.outputs
+        ]
+
+        return data
 
 
 class BaseAgent(ABC):

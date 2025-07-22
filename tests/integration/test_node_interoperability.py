@@ -79,7 +79,7 @@ class TestComplexWorkflows:
             workflow_id="workflow-001",
             correlation_id="correlation-001",
             cognitive_classification={"speed": "adaptive", "depth": "deep"},
-            task_classification=Mock(spec=TaskClassification),
+            task_classification=TaskClassification(task_type="evaluate"),
         )
 
         # Add initial data for the workflow
@@ -395,7 +395,14 @@ class TestComplexWorkflows:
         decision_node = DecisionNode(
             mock_metadata_decision,
             "router",
-            [DecisionCriteria("complexity", lambda ctx: 0.85, 1.0, 0.8)],
+            [
+                DecisionCriteria(
+                    name="complexity",
+                    evaluator=lambda ctx: 0.85,
+                    weight=1.0,
+                    threshold=0.8,
+                )
+            ],
             {"high_quality": ["expert_agent"], "standard": ["standard_agent"]},
         )
 
@@ -411,10 +418,10 @@ class TestComplexWorkflows:
             "gate",
             [
                 ValidationCriteria(
-                    "basic_quality",
-                    lambda data: data.get("quality_score", 0) > 0.8,
-                    1.0,
-                    True,
+                    name="basic_quality",
+                    validator=lambda data: data.get("quality_score", 0) > 0.8,
+                    weight=1.0,
+                    required=True,
                 )
             ],
         )
@@ -424,11 +431,11 @@ class TestComplexWorkflows:
             "terminator",
             [
                 TerminationCriteria(
-                    "sufficient",
-                    lambda data: data.get("quality_score", 0) >= 0.9,
-                    0.9,
-                    1.0,
-                    True,
+                    name="sufficient",
+                    evaluator=lambda data: data.get("quality_score", 0) >= 0.9,
+                    threshold=0.9,
+                    weight=1.0,
+                    required=True,
                 )
             ],
         )
@@ -536,7 +543,7 @@ class TestNodeFailureHandling:
             workflow_id="test-workflow",
             correlation_id="test-correlation",
             cognitive_classification={"speed": "fast"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         # Only provide 2 inputs (less than required 3)
@@ -585,7 +592,7 @@ class TestNodeFailureHandling:
             workflow_id="test-workflow",
             correlation_id="test-correlation",
             cognitive_classification={"speed": "slow"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         context.available_inputs = {
@@ -612,25 +619,33 @@ class TestNodeFailureHandling:
     @pytest.mark.asyncio
     async def test_terminator_context_validation_failure(self, mock_metadata):
         """Test terminator handling of invalid context."""
+        from pydantic import ValidationError
+
         mock_metadata.execution_pattern = "terminator"
 
         terminator_node = TerminatorNode(
             mock_metadata,
             "context_validator",
-            [TerminationCriteria("basic", lambda data: True, 0.5, 1.0, True)],
+            [
+                TerminationCriteria(
+                    name="basic",
+                    evaluator=lambda data: True,
+                    threshold=0.5,
+                    weight=1.0,
+                    required=True,
+                )
+            ],
         )
 
-        # Create invalid context (missing required fields)
-        invalid_context = NodeExecutionContext(
-            workflow_id="",  # Invalid empty workflow_id
-            correlation_id="",  # Invalid empty correlation_id
-            cognitive_classification={},  # Empty classification
-            task_classification=None,  # Null task classification
-        )
-
-        # Should raise ValueError due to context validation failure
-        with pytest.raises(ValueError, match="Context validation failed"):
-            await terminator_node.execute(invalid_context)
+        # Should raise ValidationError when creating invalid context
+        # (Pydantic validates on construction now)
+        with pytest.raises(ValidationError):
+            invalid_context = NodeExecutionContext(
+                workflow_id="",  # Invalid empty workflow_id
+                correlation_id="",  # Invalid empty correlation_id
+                cognitive_classification={},  # Empty classification
+                task_classification=None,  # Null task classification
+            )
 
 
 class TestDataFlowIntegrity:
@@ -670,7 +685,10 @@ class TestDataFlowIntegrity:
             "metadata_validator",
             [
                 ValidationCriteria(
-                    "has_metadata", lambda data: "metadata" in data, 1.0, True
+                    name="has_metadata",
+                    validator=lambda data: "metadata" in data,
+                    weight=1.0,
+                    required=True,
                 )
             ],
         )
@@ -687,7 +705,7 @@ class TestDataFlowIntegrity:
             workflow_id="metadata-test",
             correlation_id="metadata-correlation",
             cognitive_classification={"speed": "slow", "depth": "deep"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         agg_context.available_inputs = {
@@ -721,7 +739,7 @@ class TestDataFlowIntegrity:
                 workflow_id="metadata-test",
                 correlation_id="metadata-correlation",
                 cognitive_classification={"speed": "slow", "depth": "deep"},
-                task_classification=Mock(),
+                task_classification=TaskClassification(task_type="transform"),
             )
 
             val_context.available_inputs = {"aggregated": agg_result["aggregated_data"]}
@@ -750,7 +768,7 @@ class TestDataFlowIntegrity:
             workflow_id="correlation-test",
             correlation_id=original_correlation_id,
             cognitive_classification={"speed": "fast"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         context.available_inputs = {

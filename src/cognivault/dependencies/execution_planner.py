@@ -7,11 +7,11 @@ constraints, and failure scenarios.
 """
 
 import time
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any
 from abc import ABC, abstractmethod
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
 from cognivault.observability import get_logger
 from .graph_engine import DependencyGraphEngine, DependencyNode
@@ -38,15 +38,49 @@ class StageType(Enum):
     FALLBACK = "fallback"  # Fallback execution path
 
 
-@dataclass
-class ParallelGroup:
-    """Group of agents that can execute in parallel."""
+class ParallelGroup(BaseModel):
+    """
+    Group of agents that can execute in parallel.
 
-    agents: List[str]
-    max_concurrency: Optional[int] = None
-    resource_requirements: Dict[str, float] = field(default_factory=dict)
-    estimated_duration_ms: Optional[float] = None
-    dependencies_satisfied: bool = True
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    agents: List[str] = Field(
+        ...,
+        description="List of agent IDs that can execute in parallel",
+        min_length=1,
+        json_schema_extra={"example": ["refiner", "historian", "critic"]},
+    )
+    max_concurrency: Optional[int] = Field(
+        None,
+        description="Maximum number of agents that can run concurrently in this group",
+        gt=0,
+        le=100,
+        json_schema_extra={"example": 4},
+    )
+    resource_requirements: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Resource requirements for this parallel group by resource type",
+        json_schema_extra={"example": {"memory": 2048.0, "cpu": 50.0}},
+    )
+    estimated_duration_ms: Optional[float] = Field(
+        None,
+        description="Estimated duration for this parallel group to complete (ms)",
+        gt=0.0,
+        json_schema_extra={"example": 30000.0},
+    )
+    dependencies_satisfied: bool = Field(
+        True,
+        description="Whether all dependencies for this group are satisfied",
+        json_schema_extra={"example": True},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def can_add_agent(self, agent_id: str, node: DependencyNode) -> bool:
         """Check if an agent can be added to this parallel group."""
@@ -65,20 +99,79 @@ class ParallelGroup:
         return True
 
 
-@dataclass
-class ExecutionStage:
-    """A stage in the execution plan."""
+class ExecutionStage(BaseModel):
+    """
+    A stage in the execution plan.
 
-    stage_id: str
-    stage_type: StageType
-    agents: List[str] = field(default_factory=list)
-    parallel_groups: List[ParallelGroup] = field(default_factory=list)
-    dependencies: List[str] = field(default_factory=list)  # Stage dependencies
-    conditions: List[str] = field(default_factory=list)  # Execution conditions
-    estimated_duration_ms: Optional[float] = None
-    max_retries: int = 3
-    timeout_ms: Optional[int] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    stage_id: str = Field(
+        ...,
+        description="Unique identifier for this execution stage",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "parallel_stage_0_1"},
+    )
+    stage_type: StageType = Field(
+        ...,
+        description="Type of execution stage (parallel, sequential, conditional, etc.)",
+        json_schema_extra={"example": "parallel"},
+    )
+
+    # Optional fields with defaults
+    agents: List[str] = Field(
+        default_factory=list,
+        description="List of agent IDs to execute in this stage",
+        json_schema_extra={"example": ["refiner", "critic"]},
+    )
+    parallel_groups: List[ParallelGroup] = Field(
+        default_factory=list,
+        description="List of parallel groups within this stage",
+    )
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="Stage dependencies - stages that must complete before this one",
+        json_schema_extra={"example": ["stage_0", "stage_1"]},
+    )
+    conditions: List[str] = Field(
+        default_factory=list,
+        description="Execution conditions that must be met for this stage",
+        json_schema_extra={"example": ["memory_available", "agents_ready"]},
+    )
+    estimated_duration_ms: Optional[float] = Field(
+        None,
+        description="Estimated duration for this stage to complete (ms)",
+        gt=0.0,
+        json_schema_extra={"example": 45000.0},
+    )
+    max_retries: int = Field(
+        3,
+        description="Maximum number of retries allowed for this stage",
+        ge=0,
+        le=10,
+        json_schema_extra={"example": 3},
+    )
+    timeout_ms: Optional[int] = Field(
+        None,
+        description="Timeout for this stage in milliseconds",
+        gt=0,
+        le=3600000,  # Max 1 hour
+        json_schema_extra={"example": 60000},
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata for this execution stage",
+        json_schema_extra={"example": {"priority": "high", "level": 2}},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def get_all_agents(self) -> List[str]:
         """Get all agents in this stage."""
@@ -100,25 +193,102 @@ class ExecutionStage:
         )
 
 
-@dataclass
-class ExecutionPlan:
-    """Complete execution plan with stages and metadata."""
+class ExecutionPlan(BaseModel):
+    """
+    Complete execution plan with stages and metadata.
 
-    plan_id: str
-    stages: List[ExecutionStage]
-    strategy: ExecutionStrategy
-    total_agents: int
-    estimated_total_duration_ms: Optional[float] = None
-    parallelism_factor: float = 1.0  # Average parallelism achieved
-    resource_utilization: Dict[str, float] = field(default_factory=dict)
-    fallback_plan: Optional["ExecutionPlan"] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    plan_id: str = Field(
+        ...,
+        description="Unique identifier for this execution plan",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "adaptive_1704067200"},
+    )
+    stages: List[ExecutionStage] = Field(
+        ...,
+        description="List of execution stages in order",
+        min_length=1,
+    )
+    strategy: ExecutionStrategy = Field(
+        ...,
+        description="Execution strategy used to create this plan",
+        json_schema_extra={"example": "adaptive"},
+    )
+    total_agents: int = Field(
+        ...,
+        description="Total number of agents in this execution plan",
+        ge=1,
+        le=1000,
+        json_schema_extra={"example": 4},
+    )
+
+    # Optional fields with defaults
+    estimated_total_duration_ms: Optional[float] = Field(
+        None,
+        description="Estimated total duration for the entire plan (ms)",
+        gt=0.0,
+        json_schema_extra={"example": 120000.0},
+    )
+    parallelism_factor: float = Field(
+        1.0,
+        description="Average parallelism achieved (agents per stage)",
+        ge=1.0,
+        le=100.0,
+        json_schema_extra={"example": 2.5},
+    )
+    resource_utilization: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Resource utilization by resource type",
+        json_schema_extra={"example": {"memory": 75.0, "cpu": 60.0}},
+    )
+    fallback_plan: Optional["ExecutionPlan"] = Field(
+        None,
+        description="Fallback execution plan if this plan fails",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata for this execution plan",
+        json_schema_extra={
+            "example": {"base_strategy": "parallel", "created_by": "adaptive_builder"}
+        },
+    )
 
     # Runtime tracking
-    created_at: float = field(default_factory=time.time)
-    started_at: Optional[float] = None
-    completed_at: Optional[float] = None
-    current_stage_index: int = 0
+    created_at: float = Field(
+        default_factory=time.time,
+        description="Unix timestamp when the plan was created",
+        gt=0.0,
+        json_schema_extra={"example": 1704067200.0},
+    )
+    started_at: Optional[float] = Field(
+        None,
+        description="Unix timestamp when execution started",
+        gt=0.0,
+        json_schema_extra={"example": 1704067205.0},
+    )
+    completed_at: Optional[float] = Field(
+        None,
+        description="Unix timestamp when execution completed",
+        gt=0.0,
+        json_schema_extra={"example": 1704067325.0},
+    )
+    current_stage_index: int = Field(
+        0,
+        description="Index of currently executing stage",
+        ge=0,
+        json_schema_extra={"example": 2},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def get_total_stages(self) -> int:
         """Get total number of stages in the plan."""

@@ -8,10 +8,10 @@ and recovery mechanisms for agent execution failures.
 
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Set, Optional, Any, Tuple
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
 from cognivault.observability import get_logger
 from .graph_engine import DependencyGraphEngine, DependencyType
@@ -52,21 +52,79 @@ class RetryStrategy(Enum):
     NO_RETRY = "no_retry"
 
 
-@dataclass
-class RetryConfiguration:
-    """Configuration for retry behavior."""
+class RetryConfiguration(BaseModel):
+    """
+    Configuration for retry behavior.
 
-    strategy: RetryStrategy = RetryStrategy.EXPONENTIAL_BACKOFF
-    max_attempts: int = 3
-    base_delay_ms: float = 1000.0
-    max_delay_ms: float = 30000.0
-    backoff_multiplier: float = 2.0
-    jitter: bool = True
-    reset_on_success: bool = True
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    strategy: RetryStrategy = Field(
+        RetryStrategy.EXPONENTIAL_BACKOFF,
+        description="Retry strategy to use for failed agents",
+        json_schema_extra={"example": "exponential_backoff"},
+    )
+    max_attempts: int = Field(
+        3,
+        description="Maximum number of retry attempts",
+        ge=1,
+        le=10,
+        json_schema_extra={"example": 3},
+    )
+    base_delay_ms: float = Field(
+        1000.0,
+        description="Base delay in milliseconds for retry attempts",
+        gt=0.0,
+        le=60000.0,
+        json_schema_extra={"example": 1000.0},
+    )
+    max_delay_ms: float = Field(
+        30000.0,
+        description="Maximum delay in milliseconds for retry attempts",
+        gt=0.0,
+        le=300000.0,  # Max 5 minutes
+        json_schema_extra={"example": 30000.0},
+    )
+    backoff_multiplier: float = Field(
+        2.0,
+        description="Multiplier for exponential backoff",
+        gt=1.0,
+        le=10.0,
+        json_schema_extra={"example": 2.0},
+    )
+    jitter: bool = Field(
+        True,
+        description="Whether to apply jitter to prevent thundering herd",
+        json_schema_extra={"example": True},
+    )
+    reset_on_success: bool = Field(
+        True,
+        description="Whether to reset failure counts on success",
+        json_schema_extra={"example": True},
+    )
 
     # Adaptive retry parameters
-    success_rate_threshold: float = 0.7
-    failure_window_size: int = 10
+    success_rate_threshold: float = Field(
+        0.7,
+        description="Success rate threshold for adaptive retry strategy",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.7},
+    )
+    failure_window_size: int = Field(
+        10,
+        description="Window size for tracking recent failures in adaptive strategy",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def calculate_delay(self, attempt: int, recent_failures: int = 0) -> float:
         """Calculate delay for the given attempt number."""
@@ -105,47 +163,148 @@ class RetryConfiguration:
         return min(delay, self.max_delay_ms)
 
 
-@dataclass
-class FailureRecord:
-    """Record of a failure event."""
+class FailureRecord(BaseModel):
+    """
+    Record of a failure event.
 
-    agent_id: str
-    failure_type: FailureType
-    error_message: str
-    timestamp: float
-    attempt_number: int
-    context_snapshot: Dict[str, Any]
-    stack_trace: Optional[str] = None
-    recovery_action: Optional[str] = None
-    impact_score: float = 0.0
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    agent_id: str = Field(
+        ...,
+        description="ID of the agent that failed",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "refiner_agent"},
+    )
+    failure_type: FailureType = Field(
+        ...,
+        description="Type/category of the failure",
+        json_schema_extra={"example": "timeout"},
+    )
+    error_message: str = Field(
+        ...,
+        description="Error message from the failure",
+        min_length=1,
+        max_length=1000,
+        json_schema_extra={"example": "Request timed out after 30 seconds"},
+    )
+    timestamp: float = Field(
+        ...,
+        description="Unix timestamp when the failure occurred",
+        gt=0.0,
+        json_schema_extra={"example": 1704067200.0},
+    )
+    attempt_number: int = Field(
+        ...,
+        description="Attempt number when the failure occurred",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 2},
+    )
+    context_snapshot: Dict[str, Any] = Field(
+        ...,
+        description="Snapshot of execution context at time of failure",
+        json_schema_extra={"example": {"agent_count": 3, "query_length": 45}},
+    )
+
+    # Optional fields with defaults
+    stack_trace: Optional[str] = Field(
+        None,
+        description="Stack trace of the failure (if available)",
+        max_length=10000,
+        json_schema_extra={"example": "Traceback (most recent call last):\n..."},
+    )
+    recovery_action: Optional[str] = Field(
+        None,
+        description="Recovery action taken for this failure",
+        max_length=200,
+        json_schema_extra={"example": "fallback_chain"},
+    )
+    impact_score: float = Field(
+        0.0,
+        description="Impact score of the failure (0.0-1.0 scale)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.7},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
-        return {
-            "agent_id": self.agent_id,
-            "failure_type": self.failure_type.value,
-            "error_message": self.error_message,
-            "timestamp": self.timestamp,
-            "attempt_number": self.attempt_number,
-            "context_snapshot": self.context_snapshot,
-            "stack_trace": self.stack_trace,
-            "recovery_action": self.recovery_action,
-            "impact_score": self.impact_score,
-        }
+        data = self.model_dump(mode="json")
+        # Ensure failure_type is serialized as string value
+        data["failure_type"] = self.failure_type.value
+        return data
 
 
-@dataclass
-class FailureImpactAnalysis:
-    """Analysis of failure impact on the execution graph."""
+class FailureImpactAnalysis(BaseModel):
+    """
+    Analysis of failure impact on the execution graph.
 
-    failed_agent: str
-    directly_affected: List[str]  # Agents that depend on failed agent
-    transitively_affected: List[str]  # All downstream agents affected
-    critical_path_affected: bool
-    estimated_delay_ms: float
-    alternative_paths: List[List[str]]  # Alternative execution paths
-    recovery_options: List[str]
-    severity_score: float  # 0-1 scale
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    failed_agent: str = Field(
+        ...,
+        description="ID of the agent that failed",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "refiner_agent"},
+    )
+    directly_affected: List[str] = Field(
+        ...,
+        description="Agents that directly depend on the failed agent",
+        json_schema_extra={"example": ["critic_agent", "synthesis_agent"]},
+    )
+    transitively_affected: List[str] = Field(
+        ...,
+        description="All downstream agents affected transitively",
+        json_schema_extra={"example": ["historian_agent", "final_agent"]},
+    )
+    critical_path_affected: bool = Field(
+        ...,
+        description="Whether the critical execution path is affected",
+        json_schema_extra={"example": True},
+    )
+    estimated_delay_ms: float = Field(
+        ...,
+        description="Estimated delay in milliseconds caused by this failure",
+        ge=0.0,
+        json_schema_extra={"example": 45000.0},
+    )
+    alternative_paths: List[List[str]] = Field(
+        ...,
+        description="Alternative execution paths around the failed agent",
+        json_schema_extra={"example": [["backup_agent", "synthesis_agent"]]},
+    )
+    recovery_options: List[str] = Field(
+        ...,
+        description="Available recovery options for this failure",
+        json_schema_extra={"example": ["fallback_chain", "graceful_degradation"]},
+    )
+    severity_score: float = Field(
+        ...,
+        description="Severity score of the failure impact (0.0-1.0 scale)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.8},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+    )
 
     def get_total_affected_count(self) -> int:
         """Get total number of affected agents."""
@@ -156,7 +315,7 @@ class FailureImpactAnalysis:
         return len(self.recovery_options) > 0 or len(self.alternative_paths) > 0
 
 
-class CircuitBreaker:
+class DependencyCircuitBreaker:
     """Circuit breaker for preventing cascade failures."""
 
     def __init__(
@@ -230,7 +389,7 @@ class FailureManager:
     def __init__(self, graph_engine: DependencyGraphEngine):
         self.graph_engine = graph_engine
         self.failure_history: List[FailureRecord] = []
-        self.circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self.circuit_breakers: Dict[str, DependencyCircuitBreaker] = {}
         self.retry_configs: Dict[str, RetryConfiguration] = {}
         self.cascade_prevention = CascadePreventionStrategy.CIRCUIT_BREAKER
 
@@ -255,7 +414,7 @@ class FailureManager:
         recovery_timeout_ms: int = 60000,
     ) -> None:
         """Configure circuit breaker for a specific agent."""
-        self.circuit_breakers[agent_id] = CircuitBreaker(
+        self.circuit_breakers[agent_id] = DependencyCircuitBreaker(
             failure_threshold=failure_threshold, recovery_timeout_ms=recovery_timeout_ms
         )
         logger.debug(f"Configured circuit breaker for {agent_id}")

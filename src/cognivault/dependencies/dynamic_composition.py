@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 from abc import ABC, abstractmethod
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.context import AgentContext
 from cognivault.observability import get_logger
@@ -49,32 +50,96 @@ class CompositionEvent(Enum):
     COMPOSITION_OPTIMIZED = "composition_optimized"
 
 
-@dataclass
-class AgentMetadata:
+class DiscoveredAgentInfo(BaseModel):
     """Metadata about a discovered agent."""
 
-    agent_id: str
-    agent_class: str
-    module_path: str
-    version: str = "1.0.0"
-    capabilities: List[str] = field(default_factory=list)
-    dependencies: List[str] = field(default_factory=list)
-    resource_requirements: Dict[str, Any] = field(default_factory=dict)
-    compatibility: Dict[str, str] = field(default_factory=dict)  # version constraints
+    agent_id: str = Field(
+        ...,
+        description="Unique identifier for the discovered agent",
+        min_length=1,
+        max_length=200,
+    )
+    agent_class: str = Field(
+        ...,
+        description="Class name of the discovered agent",
+        min_length=1,
+        max_length=500,
+    )
+    module_path: str = Field(
+        ...,
+        description="Python module path for the agent",
+        min_length=1,
+        max_length=1000,
+    )
+    version: str = Field(
+        default="1.0.0",
+        description="Agent version using semantic versioning",
+        pattern=r"^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$",
+    )
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="List of agent capabilities",
+    )
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="List of agent dependencies",
+    )
+    resource_requirements: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Resource requirements for agent execution",
+    )
+    compatibility: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Version compatibility constraints",
+    )
 
     # Discovery metadata
-    discovered_at: float = field(default_factory=time.time)
-    discovery_strategy: Optional[DiscoveryStrategy] = None
-    file_path: Optional[Path] = None
-    checksum: Optional[str] = None
+    discovered_at: float = Field(
+        default_factory=time.time,
+        description="Timestamp when agent was discovered",
+        ge=0.0,
+    )
+    discovery_strategy: Optional[DiscoveryStrategy] = Field(
+        default=None,
+        description="Strategy used to discover this agent",
+    )
+    file_path: Optional[Path] = Field(
+        default=None,
+        description="File system path to agent source",
+    )
+    checksum: Optional[str] = Field(
+        default=None,
+        description="Checksum for agent source verification",
+        max_length=100,
+    )
 
     # Runtime metadata
-    load_count: int = 0
-    last_loaded: Optional[float] = None
-    load_errors: List[str] = field(default_factory=list)
-    is_loaded: bool = False
+    load_count: int = Field(
+        default=0,
+        description="Number of times agent has been loaded",
+        ge=0,
+    )
+    last_loaded: Optional[float] = Field(
+        default=None,
+        description="Timestamp of last agent load",
+        ge=0.0,
+    )
+    load_errors: List[str] = Field(
+        default_factory=list,
+        description="List of load error messages",
+    )
+    is_loaded: bool = Field(
+        default=False,
+        description="Whether agent is currently loaded",
+    )
 
-    def can_replace(self, other: "AgentMetadata") -> bool:
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For Path objects
+    )
+
+    def can_replace(self, other: "DiscoveredAgentInfo") -> bool:
         """Check if this agent can replace another agent."""
         # Basic compatibility check
         if self.agent_id != other.agent_id:
@@ -95,39 +160,83 @@ class AgentMetadata:
         return True
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "agent_id": self.agent_id,
-            "agent_class": self.agent_class,
-            "module_path": self.module_path,
-            "version": self.version,
-            "capabilities": self.capabilities,
-            "dependencies": self.dependencies,
-            "resource_requirements": self.resource_requirements,
-            "compatibility": self.compatibility,
-            "discovered_at": self.discovered_at,
-            "discovery_strategy": (
+        """Convert to dictionary representation.
+
+        Note: This method is kept for backward compatibility.
+        For new code, use model_dump() instead.
+        """
+        data = self.model_dump()
+        # Handle special serialization for enum and Path
+        if data.get("discovery_strategy"):
+            data["discovery_strategy"] = (
                 self.discovery_strategy.value if self.discovery_strategy else None
-            ),
-            "file_path": str(self.file_path) if self.file_path else None,
-            "load_count": self.load_count,
-            "last_loaded": self.last_loaded,
-            "is_loaded": self.is_loaded,
-            "load_errors": self.load_errors,
-        }
+            )
+        if data.get("file_path"):
+            data["file_path"] = str(self.file_path) if self.file_path else None
+        return data
 
 
-@dataclass
-class CompositionRule:
-    """Rule for dynamic composition decisions."""
+class CompositionRule(BaseModel):
+    """
+    Rule for dynamic composition decisions.
 
-    rule_id: str
-    name: str
-    condition: Callable[[AgentContext, Dict[str, Any]], bool]
-    action: Callable[[AgentContext, Dict[str, Any]], Dict[str, Any]]
-    priority: int = 0
-    enabled: bool = True
-    description: str = ""
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    # Required fields
+    rule_id: str = Field(
+        ...,
+        description="Unique identifier for this composition rule",
+        min_length=1,
+        max_length=200,
+        json_schema_extra={"example": "high_memory_fallback"},
+    )
+    name: str = Field(
+        ...,
+        description="Human-readable name for this rule",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "High Memory Usage Fallback Rule"},
+    )
+    condition: Callable[[AgentContext, Dict[str, Any]], bool] = Field(
+        ...,
+        description="Function that evaluates whether this rule should be applied",
+    )
+    action: Callable[[AgentContext, Dict[str, Any]], Dict[str, Any]] = Field(
+        ...,
+        description="Function that performs the rule's action when condition is met",
+    )
+
+    # Optional fields with defaults
+    priority: int = Field(
+        0,
+        description="Priority of this rule (higher values = higher priority)",
+        ge=-100,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+    enabled: bool = Field(
+        True,
+        description="Whether this rule is currently enabled",
+        json_schema_extra={"example": True},
+    )
+    description: str = Field(
+        "",
+        description="Description of what this rule does",
+        max_length=500,
+        json_schema_extra={
+            "example": "Switches to memory-efficient agents when memory usage exceeds 80%"
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        use_enum_values=False,  # Keep enum objects
+        # Allow functions to be serialized (they won't be JSON serializable but that's okay)
+        arbitrary_types_allowed=True,
+    )
 
     def evaluate(self, context: AgentContext, metadata: Dict[str, Any]) -> bool:
         """Evaluate if this rule should be applied."""
@@ -153,7 +262,7 @@ class AgentDiscoverer(ABC):
     """Abstract base for agent discovery implementations."""
 
     @abstractmethod
-    async def discover_agents(self) -> List[AgentMetadata]:
+    async def discover_agents(self) -> List[DiscoveredAgentInfo]:
         """Discover available agents."""
         pass
 
@@ -171,7 +280,7 @@ class FilesystemDiscoverer(AgentDiscoverer):
         self.patterns = patterns or ["*agent*.py", "*_agent.py"]
         self._file_checksums: Dict[Path, str] = {}
 
-    async def discover_agents(self) -> List[AgentMetadata]:
+    async def discover_agents(self) -> List[DiscoveredAgentInfo]:
         """Discover agents by scanning filesystem."""
         discovered = []
 
@@ -194,7 +303,9 @@ class FilesystemDiscoverer(AgentDiscoverer):
         """Filesystem discoverer supports hot reloading."""
         return True
 
-    async def _analyze_agent_file(self, file_path: Path) -> Optional[AgentMetadata]:
+    async def _analyze_agent_file(
+        self, file_path: Path
+    ) -> Optional[DiscoveredAgentInfo]:
         """Analyze a Python file to extract agent metadata."""
         try:
             # Calculate file checksum
@@ -233,7 +344,7 @@ class FilesystemDiscoverer(AgentDiscoverer):
                     dependencies = getattr(obj, "dependencies", [])
                     version = getattr(obj, "version", "1.0.0")
 
-                    return AgentMetadata(
+                    return DiscoveredAgentInfo(
                         agent_id=agent_id,
                         agent_class=f"{module_path}.{name}",
                         module_path=module_path,
@@ -271,12 +382,12 @@ class RegistryDiscoverer(AgentDiscoverer):
     def __init__(self, registry):
         self.registry = registry
 
-    async def discover_agents(self) -> List[AgentMetadata]:
+    async def discover_agents(self) -> List[DiscoveredAgentInfo]:
         """Discover agents from registry."""
         discovered = []
 
         for agent_id, agent_metadata in self.registry._agents.items():
-            metadata = AgentMetadata(
+            metadata = DiscoveredAgentInfo(
                 agent_id=agent_id,
                 agent_class=agent_metadata.agent_class.__name__,
                 module_path=agent_metadata.agent_class.__module__,
@@ -305,12 +416,12 @@ class DynamicAgentComposer:
     def __init__(self, graph_engine: DependencyGraphEngine):
         self.graph_engine = graph_engine
         self.discoverers: List[AgentDiscoverer] = []
-        self.discovered_agents: Dict[str, AgentMetadata] = {}
+        self.discovered_agents: Dict[str, DiscoveredAgentInfo] = {}
         self.loaded_agents: Dict[str, BaseAgent] = {}
         self.composition_rules: List[CompositionRule] = []
 
         # Hot-swapping state
-        self.swap_candidates: Dict[str, List[AgentMetadata]] = defaultdict(list)
+        self.swap_candidates: Dict[str, List[DiscoveredAgentInfo]] = defaultdict(list)
         self.swap_history: List[Dict[str, Any]] = []
         self.auto_discovery_enabled = False
         self.auto_swap_enabled = False
@@ -345,12 +456,12 @@ class DynamicAgentComposer:
 
     async def discover_agents(
         self, force_rediscovery: bool = False
-    ) -> Dict[str, AgentMetadata]:
+    ) -> Dict[str, DiscoveredAgentInfo]:
         """Run discovery across all configured discoverers."""
         if not force_rediscovery and self.discovered_agents:
             return self.discovered_agents
 
-        all_discovered: Dict[str, AgentMetadata] = {}
+        all_discovered: Dict[str, DiscoveredAgentInfo] = {}
 
         for discoverer in self.discoverers:
             try:

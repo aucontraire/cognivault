@@ -8,16 +8,18 @@ the base abstractions and execution context for all advanced nodes.
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from cognivault.agents.metadata import AgentMetadata, TaskClassification
 
 
-@dataclass
-class NodeExecutionContext:
+class NodeExecutionContext(BaseModel):
     """
     Execution context for advanced nodes.
+
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
 
     This context carries all necessary information for node execution including
     correlation tracking, workflow identification, cognitive classification,
@@ -25,36 +27,87 @@ class NodeExecutionContext:
     """
 
     # Required fields
-    correlation_id: str
-    workflow_id: str
-    cognitive_classification: Dict[str, str]
-    task_classification: TaskClassification
+    correlation_id: str = Field(
+        ...,
+        description="Unique identifier for request correlation",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "req-123e4567-e89b-12d3-a456-426614174000"},
+    )
+    workflow_id: str = Field(
+        ...,
+        description="Unique identifier for the workflow",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "wf-123e4567-e89b-12d3-a456-426614174000"},
+    )
+    cognitive_classification: Dict[str, str] = Field(
+        ...,
+        description="Multi-axis cognitive classification metadata",
+        json_schema_extra={"example": {"speed": "fast", "depth": "shallow"}},
+    )
+    task_classification: TaskClassification = Field(
+        ...,
+        description="Task classification for execution",
+    )
 
     # Optional fields with defaults
-    execution_path: List[str] = field(default_factory=list)
-    confidence_score: Optional[float] = None
-    resource_usage: Dict[str, Any] = field(default_factory=dict)
+    execution_path: List[str] = Field(
+        default_factory=list,
+        description="Path of nodes executed so far",
+        max_length=100,
+        json_schema_extra={"example": ["refiner", "critic", "historian"]},
+    )
+    confidence_score: Optional[float] = Field(
+        default=None,
+        description="Confidence score for the execution context",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+    resource_usage: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Resource usage metrics and tracking",
+        json_schema_extra={"example": {"cpu_usage": 45.2, "memory_mb": 128.5}},
+    )
 
     # Metadata for advanced routing
-    previous_nodes: List[str] = field(default_factory=list)
-    available_inputs: Dict[str, Any] = field(default_factory=dict)
-    execution_metadata: Dict[str, Any] = field(default_factory=dict)
+    previous_nodes: List[str] = Field(
+        default_factory=list,
+        description="List of previously executed nodes",
+        max_length=100,
+        json_schema_extra={"example": ["refiner", "critic"]},
+    )
+    available_inputs: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Available inputs from previous nodes",
+        json_schema_extra={"example": {"refiner_output": "refined query"}},
+    )
+    execution_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional execution metadata",
+        json_schema_extra={"example": {"priority": "high", "timeout_ms": 30000}},
+    )
 
-    def __post_init__(self):
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For TaskClassification and datetime objects
+    )
+
+    @model_validator(mode="after")
+    def initialize_defaults_and_validate(self) -> "NodeExecutionContext":
         """Initialize default values and validate context."""
+        # Handle None resource_usage and initialize defaults
         if self.resource_usage is None:
             self.resource_usage = {}
 
-        # Initialize default resource tracking
-        if "start_time" not in self.resource_usage:
-            self.resource_usage["start_time"] = datetime.now(timezone.utc)
+        # Initialize default resource tracking (avoid recursion by using dict operations)
+        # At this point, resource_usage is guaranteed to be a dict, not None
+        if self.resource_usage is not None and "start_time" not in self.resource_usage:
+            self.resource_usage.update({"start_time": datetime.now(timezone.utc)})
 
-        # Validate confidence score range
-        if self.confidence_score is not None:
-            if not 0.0 <= self.confidence_score <= 1.0:
-                raise ValueError(
-                    f"Confidence score must be between 0.0 and 1.0, got {self.confidence_score}"
-                )
+        return self
 
     def add_to_execution_path(self, node_name: str) -> None:
         """Add a node to the execution path."""
@@ -63,11 +116,16 @@ class NodeExecutionContext:
 
     def update_resource_usage(self, metrics: Dict[str, Any]) -> None:
         """Update resource usage metrics."""
-        self.resource_usage.update(metrics)
+        if self.resource_usage is not None:
+            self.resource_usage.update(metrics)
 
     def get_execution_time_ms(self) -> Optional[float]:
         """Calculate execution time in milliseconds if start_time is available."""
-        if "start_time" in self.resource_usage and "end_time" in self.resource_usage:
+        if (
+            self.resource_usage is not None
+            and "start_time" in self.resource_usage
+            and "end_time" in self.resource_usage
+        ):
             start = self.resource_usage["start_time"]
             end = self.resource_usage["end_time"]
             return (end - start).total_seconds() * 1000
@@ -82,19 +140,16 @@ class NodeExecutionContext:
         return self.available_inputs.get(node_name)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert context to dictionary for serialization."""
-        return {
-            "correlation_id": self.correlation_id,
-            "workflow_id": self.workflow_id,
-            "cognitive_classification": self.cognitive_classification,
-            "task_classification": self.task_classification.to_dict(),
-            "execution_path": self.execution_path,
-            "confidence_score": self.confidence_score,
-            "resource_usage": self.resource_usage,
-            "previous_nodes": self.previous_nodes,
-            "available_inputs": self.available_inputs,
-            "execution_metadata": self.execution_metadata,
-        }
+        """Convert context to dictionary for serialization.
+
+        Note: This method is kept for backward compatibility.
+        For new code, use model_dump() instead.
+        """
+        data = self.model_dump()
+        # Handle special serialization for TaskClassification
+        if hasattr(self.task_classification, "to_dict"):
+            data["task_classification"] = self.task_classification.to_dict()
+        return data
 
 
 class BaseAdvancedNode(ABC):

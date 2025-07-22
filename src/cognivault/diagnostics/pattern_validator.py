@@ -28,7 +28,7 @@ from rich.panel import Panel
 # from cognivault.langgraph_backend.semantic_validation import SemanticValidator
 
 
-class ValidationLevel(Enum):
+class PatternValidationLevel(Enum):
     """Pattern validation levels."""
 
     BASIC = "basic"
@@ -37,7 +37,7 @@ class ValidationLevel(Enum):
     CERTIFICATION = "certification"
 
 
-class ValidationResult(Enum):
+class PatternValidationResult(Enum):
     """Validation result status."""
 
     PASS = "pass"
@@ -51,7 +51,7 @@ class ValidationIssue(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
-    level: ValidationResult = Field(
+    level: PatternValidationResult = Field(
         ..., description="Severity level of the validation issue"
     )
     category: str = Field(..., description="Category of the validation issue")
@@ -81,10 +81,10 @@ class PatternValidationReport(BaseModel):
 
     pattern_name: str = Field(..., description="Name of the pattern being validated")
     pattern_class: str = Field(..., description="Class name of the pattern")
-    validation_level: ValidationLevel = Field(
+    validation_level: PatternValidationLevel = Field(
         ..., description="Level of validation performed"
     )
-    overall_result: ValidationResult = Field(
+    overall_result: PatternValidationResult = Field(
         ..., description="Overall validation result"
     )
     issues: List[ValidationIssue] = Field(
@@ -119,7 +119,7 @@ class PatternValidator(ABC):
 
     @abstractmethod
     def validate(
-        self, pattern: "GraphPattern", level: ValidationLevel
+        self, pattern: "GraphPattern", level: PatternValidationLevel
     ) -> List[ValidationIssue]:
         """Validate a graph pattern."""
         pass
@@ -139,7 +139,7 @@ class StructuralValidator(PatternValidator):
         return "Structural Validator"
 
     def validate(
-        self, pattern: "GraphPattern", level: ValidationLevel
+        self, pattern: "GraphPattern", level: PatternValidationLevel
     ) -> List[ValidationIssue]:
         """Validate structural requirements."""
         issues = []
@@ -150,7 +150,7 @@ class StructuralValidator(PatternValidator):
             if not hasattr(pattern, method):
                 issues.append(
                     ValidationIssue(
-                        level=ValidationResult.FAIL,
+                        level=PatternValidationResult.FAIL,
                         category="structure",
                         message=f"Missing required method: {method}",
                         suggestion=f"Implement {method} method in your pattern class",
@@ -163,12 +163,15 @@ class StructuralValidator(PatternValidator):
             expected_params = {"agents", "llm", "config"}
             actual_params = set(sig.parameters.keys())
 
-            if level in [ValidationLevel.STRICT, ValidationLevel.CERTIFICATION]:
+            if level in [
+                PatternValidationLevel.STRICT,
+                PatternValidationLevel.CERTIFICATION,
+            ]:
                 missing_params = expected_params - actual_params
                 if missing_params:
                     issues.append(
                         ValidationIssue(
-                            level=ValidationResult.FAIL,
+                            level=PatternValidationResult.FAIL,
                             category="structure",
                             message=f"build_graph missing parameters: {missing_params}",
                             suggestion="Add missing parameters to build_graph method signature",
@@ -182,7 +185,7 @@ class StructuralValidator(PatternValidator):
                 if not isinstance(name, str) or not name:
                     issues.append(
                         ValidationIssue(
-                            level=ValidationResult.FAIL,
+                            level=PatternValidationResult.FAIL,
                             category="structure",
                             message="Pattern name must be a non-empty string",
                             suggestion="Return a descriptive string from get_pattern_name()",
@@ -191,7 +194,7 @@ class StructuralValidator(PatternValidator):
                 elif not name.replace("_", "").replace("-", "").isalnum():
                     issues.append(
                         ValidationIssue(
-                            level=ValidationResult.WARN,
+                            level=PatternValidationResult.WARN,
                             category="structure",
                             message="Pattern name should only contain alphanumeric characters, hyphens, and underscores",
                             suggestion="Use a simpler pattern name format",
@@ -200,7 +203,7 @@ class StructuralValidator(PatternValidator):
             except Exception as e:
                 issues.append(
                     ValidationIssue(
-                        level=ValidationResult.ERROR,
+                        level=PatternValidationResult.ERROR,
                         category="structure",
                         message=f"Error calling get_pattern_name(): {e}",
                         suggestion="Fix the get_pattern_name() method implementation",
@@ -218,7 +221,7 @@ class SemanticValidator(PatternValidator):
         return "Semantic Validator"
 
     def validate(
-        self, pattern: "GraphPattern", level: ValidationLevel
+        self, pattern: "GraphPattern", level: PatternValidationLevel
     ) -> List[ValidationIssue]:
         """Validate semantic correctness."""
         issues = []
@@ -242,7 +245,7 @@ class SemanticValidator(PatternValidator):
                     if graph is None:
                         issues.append(
                             ValidationIssue(
-                                level=ValidationResult.FAIL,
+                                level=PatternValidationResult.FAIL,
                                 category="semantic",
                                 message="build_graph() returned None",
                                 suggestion="Ensure build_graph() returns a valid graph object",
@@ -252,7 +255,7 @@ class SemanticValidator(PatternValidator):
                 except Exception as e:
                     issues.append(
                         ValidationIssue(
-                            level=ValidationResult.ERROR,
+                            level=PatternValidationResult.ERROR,
                             category="semantic",
                             message=f"Error building graph: {e}",
                             suggestion="Fix the build_graph() method implementation",
@@ -262,7 +265,7 @@ class SemanticValidator(PatternValidator):
         except Exception as e:
             issues.append(
                 ValidationIssue(
-                    level=ValidationResult.ERROR,
+                    level=PatternValidationResult.ERROR,
                     category="semantic",
                     message=f"Error during semantic validation: {e}",
                     suggestion="Check pattern implementation for runtime errors",
@@ -280,12 +283,15 @@ class PerformanceValidator(PatternValidator):
         return "Performance Validator"
 
     def validate(
-        self, pattern: "GraphPattern", level: ValidationLevel
+        self, pattern: "GraphPattern", level: PatternValidationLevel
     ) -> List[ValidationIssue]:
         """Validate performance characteristics."""
         issues = []
 
-        if level in [ValidationLevel.STRICT, ValidationLevel.CERTIFICATION]:
+        if level in [
+            PatternValidationLevel.STRICT,
+            PatternValidationLevel.CERTIFICATION,
+        ]:
             # Check for performance-critical implementations
             issues.extend(self._check_performance_patterns(pattern))
 
@@ -308,7 +314,7 @@ class PerformanceValidator(PatternValidator):
         if "time.sleep(" in source:
             issues.append(
                 ValidationIssue(
-                    level=ValidationResult.WARN,
+                    level=PatternValidationResult.WARN,
                     category="performance",
                     message="Found synchronous sleep in pattern code",
                     suggestion="Use asyncio.sleep() instead of time.sleep() in async contexts",
@@ -326,7 +332,7 @@ class PerformanceValidator(PatternValidator):
         if "global " in source:
             issues.append(
                 ValidationIssue(
-                    level=ValidationResult.WARN,
+                    level=PatternValidationResult.WARN,
                     category="performance",
                     message="Found global variable usage",
                     suggestion="Consider using instance variables instead of globals",
@@ -347,7 +353,7 @@ class PerformanceValidator(PatternValidator):
         if nested_loop_count > 3:
             issues.append(
                 ValidationIssue(
-                    level=ValidationResult.WARN,
+                    level=PatternValidationResult.WARN,
                     category="performance",
                     message="High number of loops detected",
                     suggestion="Review loop efficiency and consider optimization",
@@ -365,12 +371,15 @@ class SecurityValidator(PatternValidator):
         return "Security Validator"
 
     def validate(
-        self, pattern: "GraphPattern", level: ValidationLevel
+        self, pattern: "GraphPattern", level: PatternValidationLevel
     ) -> List[ValidationIssue]:
         """Validate security aspects."""
         issues = []
 
-        if level in [ValidationLevel.STRICT, ValidationLevel.CERTIFICATION]:
+        if level in [
+            PatternValidationLevel.STRICT,
+            PatternValidationLevel.CERTIFICATION,
+        ]:
             # Check for security anti-patterns
             issues.extend(self._check_security_patterns(pattern))
 
@@ -391,7 +400,7 @@ class SecurityValidator(PatternValidator):
         if "eval(" in source:
             issues.append(
                 ValidationIssue(
-                    level=ValidationResult.FAIL,
+                    level=PatternValidationResult.FAIL,
                     category="security",
                     message="Found eval() usage - potential security risk",
                     suggestion="Avoid using eval() - use safer alternatives",
@@ -402,7 +411,7 @@ class SecurityValidator(PatternValidator):
         if "exec(" in source:
             issues.append(
                 ValidationIssue(
-                    level=ValidationResult.FAIL,
+                    level=PatternValidationResult.FAIL,
                     category="security",
                     message="Found exec() usage - potential security risk",
                     suggestion="Avoid using exec() - use safer alternatives",
@@ -425,7 +434,7 @@ class SecurityValidator(PatternValidator):
             ):
                 issues.append(
                     ValidationIssue(
-                        level=ValidationResult.WARN,
+                        level=PatternValidationResult.WARN,
                         category="security",
                         message="No input validation detected in build_graph",
                         suggestion="Add input validation to prevent invalid data processing",
@@ -469,8 +478,8 @@ class PatternValidationFramework:
     def validate_pattern(
         self,
         pattern_path: str = typer.Argument(..., help="Path to pattern class or module"),
-        level: ValidationLevel = typer.Option(
-            ValidationLevel.STANDARD, "--level", "-l", help="Validation level"
+        level: PatternValidationLevel = typer.Option(
+            PatternValidationLevel.STANDARD, "--level", "-l", help="Validation level"
         ),
         output_format: str = typer.Option(
             "console", "--format", "-f", help="Output format: console, json, markdown"
@@ -511,7 +520,7 @@ class PatternValidationFramework:
                     self.console.print(output)
 
             # Exit with error code if validation failed
-            if report.overall_result == ValidationResult.FAIL:
+            if report.overall_result == PatternValidationResult.FAIL:
                 raise typer.Exit(1)
 
         except Exception as e:
@@ -625,10 +634,12 @@ class PatternValidationFramework:
                 try:
                     pattern = self._load_pattern(pattern_info["location"])
                     report = self._validate_pattern_comprehensive(
-                        pattern, ValidationLevel.BASIC
+                        pattern, PatternValidationLevel.BASIC
                     )
                     status = (
-                        "✅" if report.overall_result == ValidationResult.PASS else "❌"
+                        "✅"
+                        if report.overall_result == PatternValidationResult.PASS
+                        else "❌"
                     )
                     row.append(status)
                 except:
@@ -790,7 +801,7 @@ class PatternValidationFramework:
             raise RuntimeError(f"Error instantiating pattern class: {e}")
 
     def _validate_pattern_comprehensive(
-        self, pattern: "GraphPattern", level: ValidationLevel
+        self, pattern: "GraphPattern", level: PatternValidationLevel
     ) -> PatternValidationReport:
         """Run comprehensive validation on pattern."""
         all_issues = []
@@ -803,28 +814,30 @@ class PatternValidationFramework:
             except Exception as e:
                 all_issues.append(
                     ValidationIssue(
-                        level=ValidationResult.ERROR,
+                        level=PatternValidationResult.ERROR,
                         category="validator",
                         message=f"Validator {validator.validator_name} failed: {e}",
                     )
                 )
 
         # Determine overall result
-        if any(issue.level == ValidationResult.ERROR for issue in all_issues):
-            overall_result = ValidationResult.ERROR
-        elif any(issue.level == ValidationResult.FAIL for issue in all_issues):
-            overall_result = ValidationResult.FAIL
-        elif any(issue.level == ValidationResult.WARN for issue in all_issues):
-            overall_result = ValidationResult.WARN
+        if any(issue.level == PatternValidationResult.ERROR for issue in all_issues):
+            overall_result = PatternValidationResult.ERROR
+        elif any(issue.level == PatternValidationResult.FAIL for issue in all_issues):
+            overall_result = PatternValidationResult.FAIL
+        elif any(issue.level == PatternValidationResult.WARN for issue in all_issues):
+            overall_result = PatternValidationResult.WARN
         else:
-            overall_result = ValidationResult.PASS
+            overall_result = PatternValidationResult.PASS
 
         # Check certification readiness
         certification_ready = (
-            level == ValidationLevel.CERTIFICATION
-            and overall_result in [ValidationResult.PASS, ValidationResult.WARN]
+            level == PatternValidationLevel.CERTIFICATION
+            and overall_result
+            in [PatternValidationResult.PASS, PatternValidationResult.WARN]
             and not any(
-                issue.level in [ValidationResult.ERROR, ValidationResult.FAIL]
+                issue.level
+                in [PatternValidationResult.ERROR, PatternValidationResult.FAIL]
                 for issue in all_issues
             )
         )
@@ -848,10 +861,10 @@ class PatternValidationFramework:
         """Display validation report in console."""
         # Summary panel
         status_color = {
-            ValidationResult.PASS: "green",
-            ValidationResult.WARN: "yellow",
-            ValidationResult.FAIL: "red",
-            ValidationResult.ERROR: "red",
+            PatternValidationResult.PASS: "green",
+            PatternValidationResult.WARN: "yellow",
+            PatternValidationResult.FAIL: "red",
+            PatternValidationResult.ERROR: "red",
         }
 
         summary = Panel(
@@ -890,7 +903,7 @@ class PatternValidationFramework:
             self.console.print(issues_table)
 
         # Certification status
-        if report.validation_level == ValidationLevel.CERTIFICATION:
+        if report.validation_level == PatternValidationLevel.CERTIFICATION:
             cert_status = "✅ Ready" if report.certification_ready else "❌ Not Ready"
             self.console.print(f"Certification Status: {cert_status}")
 
@@ -962,7 +975,7 @@ class PatternValidationFramework:
     ) -> PatternValidationReport:
         """Run certification tests."""
         return self._validate_pattern_comprehensive(
-            pattern, ValidationLevel.CERTIFICATION
+            pattern, PatternValidationLevel.CERTIFICATION
         )
 
     def _display_certification_results(self, report: PatternValidationReport):

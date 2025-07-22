@@ -15,7 +15,7 @@ from cognivault.config.agent_configs import (
     PromptConfig,
     BehavioralConfig,
     OutputConfig,
-    ExecutionConfig,
+    AgentExecutionConfig,
     RefinerConfig,
     CriticConfig,
     HistorianConfig,
@@ -74,33 +74,33 @@ class TestBaseConfigurations:
             OutputConfig(confidence_threshold=1.1)
 
     def test_execution_config_defaults(self):
-        """Test ExecutionConfig default values."""
-        config = ExecutionConfig()
+        """Test AgentExecutionConfig default values."""
+        config = AgentExecutionConfig()
         assert config.timeout_seconds == 30
         assert config.max_retries == 3
         assert config.enable_caching is True
 
     def test_execution_config_validation(self):
-        """Test ExecutionConfig validation constraints."""
+        """Test AgentExecutionConfig validation constraints."""
         # Valid timeout
-        config = ExecutionConfig(timeout_seconds=60)
+        config = AgentExecutionConfig(timeout_seconds=60)
         assert config.timeout_seconds == 60
 
         # Invalid timeout - too low
         with pytest.raises(ValueError):
-            ExecutionConfig(timeout_seconds=0)
+            AgentExecutionConfig(timeout_seconds=0)
 
         # Invalid timeout - too high
         with pytest.raises(ValueError):
-            ExecutionConfig(timeout_seconds=400)
+            AgentExecutionConfig(timeout_seconds=400)
 
         # Valid retries
-        config = ExecutionConfig(max_retries=5)
+        config = AgentExecutionConfig(max_retries=5)
         assert config.max_retries == 5
 
         # Invalid retries - too high
         with pytest.raises(ValueError):
-            ExecutionConfig(max_retries=15)
+            AgentExecutionConfig(max_retries=15)
 
 
 class TestRefinerConfig:
@@ -115,7 +115,7 @@ class TestRefinerConfig:
         assert isinstance(config.prompt_config, PromptConfig)
         assert isinstance(config.behavioral_config, BehavioralConfig)
         assert isinstance(config.output_config, OutputConfig)
-        assert isinstance(config.execution_config, ExecutionConfig)
+        assert isinstance(config.execution_config, AgentExecutionConfig)
 
     def test_refiner_config_custom_values(self):
         """Test RefinerConfig with custom values."""

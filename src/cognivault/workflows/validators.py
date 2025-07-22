@@ -5,7 +5,7 @@ This module provides comprehensive validation for workflow definitions using
 Pydantic's schema-based validation system, replacing manual validation logic
 with declarative, type-safe validation rules.
 
-Provides both schema-level validation (automatic via Pydantic) and business
+Provides both schema-level validation (automatic via Pydantic) and businessyes
 logic validation for complex workflow constraints and dependencies.
 """
 
@@ -25,7 +25,7 @@ from cognivault.workflows.definition import (
 )
 
 
-class ValidationLevel(str, Enum):
+class WorkflowValidationLevel(str, Enum):
     """Validation strictness levels."""
 
     BASIC = "basic"  # Essential workflow integrity checks
@@ -60,11 +60,11 @@ class ValidationIssue(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class ValidationResult(BaseModel):
+class WorkflowValidationResult(BaseModel):
     """Comprehensive validation result with detailed issue tracking."""
 
     is_valid: bool = Field(description="Whether the workflow passed validation")
-    validation_level: ValidationLevel = Field(
+    validation_level: WorkflowValidationLevel = Field(
         description="Level of validation performed"
     )
     issues: List[ValidationIssue] = Field(
@@ -107,8 +107,9 @@ class ValidationResult(BaseModel):
 class WorkflowValidationConfig(BaseModel):
     """Configuration for workflow validation behavior."""
 
-    validation_level: ValidationLevel = Field(
-        default=ValidationLevel.STANDARD, description="Level of validation to perform"
+    validation_level: WorkflowValidationLevel = Field(
+        default=WorkflowValidationLevel.STANDARD,
+        description="Level of validation to perform",
     )
     fail_on_warnings: bool = Field(
         default=False, description="Whether to fail validation on warnings"
@@ -160,7 +161,9 @@ class WorkflowValidator(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    def validate_workflow(self, workflow: WorkflowDefinition) -> ValidationResult:
+    def validate_workflow(
+        self, workflow: WorkflowDefinition
+    ) -> WorkflowValidationResult:
         """
         Perform comprehensive validation of a workflow definition.
 
@@ -181,9 +184,9 @@ class WorkflowValidator(BaseModel):
 
         # Standard validation
         if self.config.validation_level in [
-            ValidationLevel.STANDARD,
-            ValidationLevel.STRICT,
-            ValidationLevel.PEDANTIC,
+            WorkflowValidationLevel.STANDARD,
+            WorkflowValidationLevel.STRICT,
+            WorkflowValidationLevel.PEDANTIC,
         ]:
             issues.extend(self._validate_flow_integrity(workflow))
             issues.extend(self._validate_node_references(workflow))
@@ -191,14 +194,14 @@ class WorkflowValidator(BaseModel):
 
         # Strict validation
         if self.config.validation_level in [
-            ValidationLevel.STRICT,
-            ValidationLevel.PEDANTIC,
+            WorkflowValidationLevel.STRICT,
+            WorkflowValidationLevel.PEDANTIC,
         ]:
             issues.extend(self._validate_advanced_constraints(workflow))
             issues.extend(self._validate_performance_considerations(workflow))
 
         # Pedantic validation
-        if self.config.validation_level == ValidationLevel.PEDANTIC:
+        if self.config.validation_level == WorkflowValidationLevel.PEDANTIC:
             issues.extend(self._validate_style_conventions(workflow))
             issues.extend(self._validate_best_practices(workflow))
 
@@ -238,7 +241,7 @@ class WorkflowValidator(BaseModel):
             "categories": list(set(node.category for node in workflow.nodes)),
         }
 
-        return ValidationResult(
+        return WorkflowValidationResult(
             is_valid=is_valid,
             validation_level=self.config.validation_level,
             issues=issues,
@@ -725,33 +728,41 @@ class WorkflowValidator(BaseModel):
 # Convenience functions for common validation scenarios
 
 
-def validate_workflow_basic(workflow: WorkflowDefinition) -> ValidationResult:
+def validate_workflow_basic(workflow: WorkflowDefinition) -> WorkflowValidationResult:
     """Perform basic validation on a workflow."""
     validator = WorkflowValidator(
-        config=WorkflowValidationConfig(validation_level=ValidationLevel.BASIC)
+        config=WorkflowValidationConfig(validation_level=WorkflowValidationLevel.BASIC)
     )
     return validator.validate_workflow(workflow)
 
 
-def validate_workflow_standard(workflow: WorkflowDefinition) -> ValidationResult:
+def validate_workflow_standard(
+    workflow: WorkflowDefinition,
+) -> WorkflowValidationResult:
     """Perform standard validation on a workflow."""
     validator = WorkflowValidator(
-        config=WorkflowValidationConfig(validation_level=ValidationLevel.STANDARD)
+        config=WorkflowValidationConfig(
+            validation_level=WorkflowValidationLevel.STANDARD
+        )
     )
     return validator.validate_workflow(workflow)
 
 
-def validate_workflow_strict(workflow: WorkflowDefinition) -> ValidationResult:
+def validate_workflow_strict(workflow: WorkflowDefinition) -> WorkflowValidationResult:
     """Perform strict validation on a workflow."""
     validator = WorkflowValidator(
-        config=WorkflowValidationConfig(validation_level=ValidationLevel.STRICT)
+        config=WorkflowValidationConfig(validation_level=WorkflowValidationLevel.STRICT)
     )
     return validator.validate_workflow(workflow)
 
 
-def validate_workflow_pedantic(workflow: WorkflowDefinition) -> ValidationResult:
+def validate_workflow_pedantic(
+    workflow: WorkflowDefinition,
+) -> WorkflowValidationResult:
     """Perform pedantic validation on a workflow."""
     validator = WorkflowValidator(
-        config=WorkflowValidationConfig(validation_level=ValidationLevel.PEDANTIC)
+        config=WorkflowValidationConfig(
+            validation_level=WorkflowValidationLevel.PEDANTIC
+        )
     )
     return validator.validate_workflow(workflow)

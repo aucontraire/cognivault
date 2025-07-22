@@ -8,9 +8,9 @@ conversion of agents into LangGraph-compatible nodes.
 
 import time
 from typing import Dict, Any, Optional, List, Callable
-from dataclasses import dataclass
 from abc import ABC
 
+from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent, LangGraphNodeDefinition
 from cognivault.exceptions import StateTransitionError
@@ -19,27 +19,91 @@ from cognivault.observability import get_logger
 logger = get_logger(__name__)
 
 
-@dataclass
-class NodeExecutionResult:
-    """Result of a node execution with metadata."""
+class NodeExecutionResult(BaseModel):
+    """
+    Result of a node execution with metadata.
 
-    context: AgentContext
-    success: bool
-    execution_time_ms: float
-    node_id: str
-    step_id: Optional[str] = None
-    error: Optional[Exception] = None
-    metadata: Optional[Dict[str, Any]] = None
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    context: AgentContext = Field(..., description="The agent context after execution")
+    success: bool = Field(..., description="Whether the node execution was successful")
+    execution_time_ms: float = Field(
+        ...,
+        description="Execution time in milliseconds",
+        ge=0.0,
+        json_schema_extra={"example": 1250.5},
+    )
+    node_id: str = Field(
+        ...,
+        description="Unique identifier for the executed node",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "refiner_node"},
+    )
+    step_id: Optional[str] = Field(
+        default=None,
+        description="Optional step identifier for workflow tracking",
+        max_length=100,
+        json_schema_extra={"example": "step_1"},
+    )
+    error: Optional[Exception] = Field(
+        default=None, description="Exception that occurred during execution, if any"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Additional execution metadata",
+        json_schema_extra={
+            "example": {
+                "retry_count": 0,
+                "resource_usage": {"cpu": 45.2, "memory_mb": 128},
+            }
+        },
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For AgentContext and Exception objects
+    )
 
 
-@dataclass
-class NodeConfiguration:
-    """Configuration for node execution."""
+class NodeConfiguration(BaseModel):
+    """
+    Configuration for node execution.
 
-    timeout_seconds: Optional[float] = None
-    retry_enabled: bool = True
-    step_id: Optional[str] = None
-    custom_config: Optional[Dict[str, Any]] = None
+    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
+    serialization, and integration with the CogniVault Pydantic ecosystem.
+    """
+
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Execution timeout in seconds",
+        ge=0.001,  # Allow very short timeouts for testing
+        le=3600.0,  # Max 1 hour
+        json_schema_extra={"example": 30.0},
+    )
+    retry_enabled: bool = Field(
+        default=True, description="Whether retry is enabled for this node execution"
+    )
+    step_id: Optional[str] = Field(
+        default=None,
+        description="Step identifier for workflow tracking",
+        max_length=100,
+        json_schema_extra={"example": "step_refine_query"},
+    )
+    custom_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Custom configuration parameters for the node",
+        json_schema_extra={"example": {"model_temperature": 0.7, "max_tokens": 1000}},
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        arbitrary_types_allowed=True,  # For any custom types in custom_config
+    )
 
 
 class LangGraphNodeAdapter(ABC):

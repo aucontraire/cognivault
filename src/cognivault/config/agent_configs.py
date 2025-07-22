@@ -69,7 +69,7 @@ class OutputConfig(BaseModel):
     )
 
 
-class ExecutionConfig(BaseModel):
+class AgentExecutionConfig(BaseModel):
     """Base configuration for execution behavior."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
@@ -108,7 +108,9 @@ class RefinerConfig(BaseModel):
         default_factory=lambda: BehavioralConfig()
     )
     output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: ExecutionConfig = Field(default_factory=lambda: ExecutionConfig())
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig()
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "RefinerConfig":
@@ -167,7 +169,9 @@ class CriticConfig(BaseModel):
         default_factory=lambda: BehavioralConfig()
     )
     output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: ExecutionConfig = Field(default_factory=lambda: ExecutionConfig())
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig()
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "CriticConfig":
@@ -224,7 +228,9 @@ class HistorianConfig(BaseModel):
         default_factory=lambda: BehavioralConfig()
     )
     output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: ExecutionConfig = Field(default_factory=lambda: ExecutionConfig())
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig()
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "HistorianConfig":
@@ -285,7 +291,9 @@ class SynthesisConfig(BaseModel):
         default_factory=lambda: BehavioralConfig()
     )
     output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: ExecutionConfig = Field(default_factory=lambda: ExecutionConfig())
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig()
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "SynthesisConfig":

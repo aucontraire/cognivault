@@ -7,11 +7,11 @@ throughout the codebase as magic numbers.
 """
 
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import json
 from enum import Enum
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
 
 class LogLevel(Enum):
@@ -31,91 +31,321 @@ class Environment(Enum):
     PRODUCTION = "production"
 
 
-@dataclass
-class ExecutionConfig:
+class AppExecutionConfig(BaseModel):
     """Configuration for agent execution and orchestration."""
 
     # Timeout and retry settings
-    max_retries: int = 3
-    timeout_seconds: int = 10
-    retry_delay_seconds: float = 1.0
+    max_retries: int = Field(
+        3,
+        description="Maximum number of retry attempts for agent execution",
+        ge=0,
+        le=100,  # More flexible for tests
+        json_schema_extra={"example": 3},
+    )
+    timeout_seconds: int = Field(
+        10,
+        description="Timeout in seconds for agent execution",
+        gt=0,
+        le=300,
+        json_schema_extra={"example": 10},
+    )
+    retry_delay_seconds: float = Field(
+        1.0,
+        description="Delay in seconds between retry attempts",
+        ge=0.0,
+        le=60.0,
+        json_schema_extra={"example": 1.0},
+    )
 
     # Agent execution settings
-    enable_simulation_delay: bool = False
-    simulation_delay_seconds: float = 0.1
+    enable_simulation_delay: bool = Field(
+        False,
+        description="Whether to enable artificial delays for simulation",
+        json_schema_extra={"example": False},
+    )
+    simulation_delay_seconds: float = Field(
+        0.1,
+        description="Delay in seconds for simulation mode",
+        ge=0.0,
+        le=10.0,
+        json_schema_extra={"example": 0.1},
+    )
 
     # Default agent pipeline
-    default_agents: List[str] = field(
-        default_factory=lambda: ["refiner", "historian", "synthesis"]
+    default_agents: List[str] = Field(
+        default_factory=lambda: ["refiner", "historian", "synthesis"],
+        description="Default list of agents to execute in the pipeline",
+        min_length=1,
+        json_schema_extra={"example": ["refiner", "historian", "synthesis"]},
     )
-    critic_enabled: bool = True
+    critic_enabled: bool = Field(
+        True,
+        description="Whether the critic agent is enabled",
+        json_schema_extra={"example": True},
+    )
+
+    @field_validator("default_agents")
+    @classmethod
+    def validate_default_agents(cls, v: List[str]) -> List[str]:
+        """Validate default agents list."""
+        if not v:
+            raise ValueError("default_agents cannot be empty")
+        for agent in v:
+            if not agent.strip():
+                raise ValueError("Agent names cannot be empty or whitespace")
+        return [agent.strip() for agent in v]
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=False,  # Allow tests to set invalid values
+    )
 
 
-@dataclass
-class FileConfig:
+class FileConfig(BaseModel):
     """Configuration for file handling and storage."""
 
     # Output directories
-    notes_directory: str = "./src/cognivault/notes"
-    logs_directory: str = "./src/cognivault/logs"
+    notes_directory: str = Field(
+        "./src/cognivault/notes",
+        description="Directory path for storing note files",
+        min_length=1,
+        json_schema_extra={"example": "./src/cognivault/notes"},
+    )
+    logs_directory: str = Field(
+        "./src/cognivault/logs",
+        description="Directory path for storing log files",
+        min_length=1,
+        json_schema_extra={"example": "./src/cognivault/logs"},
+    )
 
     # Filename generation
-    question_truncate_length: int = 40
-    hash_length: int = 6
-    filename_separator: str = "_"
+    question_truncate_length: int = Field(
+        40,
+        description="Maximum length for question text in filenames",
+        gt=0,
+        le=200,
+        json_schema_extra={"example": 40},
+    )
+    hash_length: int = Field(
+        6,
+        description="Length of hash suffix for filename uniqueness",
+        gt=0,
+        le=32,
+        json_schema_extra={"example": 6},
+    )
+    filename_separator: str = Field(
+        "_",
+        description="Character used to separate filename components",
+        min_length=1,
+        max_length=5,
+        json_schema_extra={"example": "_"},
+    )
 
     # File size limits (in bytes)
-    max_file_size: int = 10 * 1024 * 1024  # 10MB
-    max_note_files: int = 1000
+    max_file_size: int = Field(
+        10 * 1024 * 1024,  # 10MB
+        description="Maximum file size in bytes",
+        gt=0,
+        le=1024 * 1024 * 1024,  # 1GB limit
+        json_schema_extra={"example": 10485760},
+    )
+    max_note_files: int = Field(
+        1000,
+        description="Maximum number of note files to maintain",
+        gt=0,
+        le=100000,
+        json_schema_extra={"example": 1000},
+    )
+
+    @field_validator("notes_directory", "logs_directory")
+    @classmethod
+    def validate_directory_paths(cls, v: str) -> str:
+        """Validate directory path format."""
+        if not v.strip():
+            raise ValueError("Directory path cannot be empty")
+        # Allow relative and absolute paths
+        return v.strip()
+
+    @field_validator("filename_separator")
+    @classmethod
+    def validate_filename_separator(cls, v: str) -> str:
+        """Validate filename separator character."""
+        if not v.strip():
+            raise ValueError("Filename separator cannot be empty")
+        # Ensure it's filesystem-safe
+        invalid_chars = ["/", "\\", ":", "*", "?", '"', "<", ">", "|"]
+        if any(char in v for char in invalid_chars):
+            raise ValueError(
+                f"Filename separator cannot contain: {', '.join(invalid_chars)}"
+            )
+        return v.strip()
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=False,  # Allow tests to set invalid values
+    )
 
 
-@dataclass
-class ModelConfig:
+class ModelConfig(BaseModel):
     """Configuration for LLM models and providers."""
 
     # Default model settings
-    default_provider: str = "openai"
-    default_model: str = "gpt-4"
+    default_provider: str = Field(
+        "openai",
+        description="Default LLM provider to use",
+        min_length=1,
+        json_schema_extra={"example": "openai"},
+    )
+    default_model: str = Field(
+        "gpt-4",
+        description="Default model name to use",
+        min_length=1,
+        json_schema_extra={"example": "gpt-4"},
+    )
 
     # Token limits and processing
-    max_tokens_per_request: int = 4096
-    temperature: float = 0.7
+    max_tokens_per_request: int = Field(
+        4096,
+        description="Maximum tokens per API request",
+        gt=0,
+        le=128000,  # Current max for most models
+        json_schema_extra={"example": 4096},
+    )
+    temperature: float = Field(
+        0.7,
+        description="Temperature setting for model creativity",
+        ge=0.0,
+        le=2.0,
+        json_schema_extra={"example": 0.7},
+    )
 
     # Stub/Mock settings for testing
-    mock_tokens_used: int = 10
-    mock_response_truncate_length: int = 50
+    mock_tokens_used: int = Field(
+        10,
+        description="Mock token count for testing",
+        ge=0,
+        le=10000,
+        json_schema_extra={"example": 10},
+    )
+    mock_response_truncate_length: int = Field(
+        50,
+        description="Length to truncate mock responses for testing",
+        gt=0,
+        le=1000,
+        json_schema_extra={"example": 50},
+    )
+
+    @field_validator("default_provider", "default_model")
+    @classmethod
+    def validate_string_fields(cls, v: str) -> str:
+        """Validate string fields are not empty."""
+        if not v.strip():
+            raise ValueError("Field cannot be empty or whitespace")
+        return v.strip()
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=False,  # Allow tests to set invalid values
+    )
 
 
-@dataclass
-class DevelopmentConfig:
+class DevelopmentConfig(BaseModel):
     """Configuration for testing and development."""
 
     # Test timeouts and delays
-    test_timeout_multiplier: float = 1.5  # Multiply base timeout for tests
-    test_simulation_enabled: bool = True
+    test_timeout_multiplier: float = Field(
+        1.5,  # Multiply base timeout for tests
+        description="Multiplier for timeouts in testing environment",
+        gt=0.0,
+        le=10.0,
+        json_schema_extra={"example": 1.5},
+    )
+    test_simulation_enabled: bool = Field(
+        True,
+        description="Whether test simulation mode is enabled",
+        json_schema_extra={"example": True},
+    )
 
     # Test data generation
-    mock_history_entries: List[str] = field(
+    mock_history_entries: List[str] = Field(
         default_factory=lambda: [
             "Note from 2024-10-15: Mexico had a third party win the presidency.",
             "Note from 2024-11-05: Discussion on judiciary reforms in Mexico.",
             "Note from 2024-12-01: Analysis of democratic institutions and their evolution.",
-        ]
+        ],
+        description="Mock history entries for testing",
+        min_length=0,
+        json_schema_extra={"example": ["Sample note 1", "Sample note 2"]},
     )
 
     # Coverage and quality thresholds
-    prompt_min_length: int = 2000
-    prompt_max_length: int = 8000
+    prompt_min_length: int = Field(
+        2000,
+        description="Minimum prompt length for quality testing",
+        ge=0,
+        le=50000,
+        json_schema_extra={"example": 2000},
+    )
+    prompt_max_length: int = Field(
+        8000,
+        description="Maximum prompt length for quality testing",
+        gt=0,
+        le=100000,
+        json_schema_extra={"example": 8000},
+    )
 
     # Context management settings
-    max_context_size_bytes: int = 1024 * 1024  # 1MB default
-    max_snapshots: int = 5
-    enable_context_compression: bool = True
-    context_compression_threshold: float = 0.8  # Compress when 80% of max size
+    max_context_size_bytes: int = Field(
+        1024 * 1024,  # 1MB default
+        description="Maximum context size in bytes",
+        gt=0,
+        le=100 * 1024 * 1024,  # 100MB limit
+        json_schema_extra={"example": 1048576},
+    )
+    max_snapshots: int = Field(
+        5,
+        description="Maximum number of context snapshots to maintain",
+        gt=0,
+        le=100,
+        json_schema_extra={"example": 5},
+    )
+    enable_context_compression: bool = Field(
+        True,
+        description="Whether context compression is enabled",
+        json_schema_extra={"example": True},
+    )
+    context_compression_threshold: float = Field(
+        0.8,  # Compress when 80% of max size
+        description="Threshold for triggering context compression (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.8},
+    )
+
+    @field_validator("mock_history_entries")
+    @classmethod
+    def validate_mock_history_entries(cls, v: List[str]) -> List[str]:
+        """Validate mock history entries."""
+        return [entry.strip() for entry in v if entry.strip()]
+
+    @field_validator("prompt_max_length")
+    @classmethod
+    def validate_prompt_max_length(cls, v: int, info) -> int:
+        """Validate that max length is greater than min length."""
+        if hasattr(info, "data") and "prompt_min_length" in info.data:
+            if v <= info.data["prompt_min_length"]:
+                raise ValueError(
+                    "prompt_max_length must be greater than prompt_min_length"
+                )
+        return v
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=False,  # Allow tests to set invalid values
+    )
 
 
-@dataclass
-class ApplicationConfig:
+class ApplicationConfig(BaseModel):
     """
     Main application configuration containing all subsystem configurations.
 
@@ -124,15 +354,39 @@ class ApplicationConfig:
     """
 
     # Environment settings
-    environment: Environment = Environment.DEVELOPMENT
-    log_level: LogLevel = LogLevel.INFO
-    debug_mode: bool = False
+    environment: Environment = Field(
+        Environment.DEVELOPMENT,
+        description="Deployment environment (development, testing, production)",
+        json_schema_extra={"example": "development"},
+    )
+    log_level: LogLevel = Field(
+        LogLevel.INFO,
+        description="Logging level for the application",
+        json_schema_extra={"example": "INFO"},
+    )
+    debug_mode: bool = Field(
+        False,
+        description="Whether debug mode is enabled",
+        json_schema_extra={"example": False},
+    )
 
     # Subsystem configurations
-    execution: ExecutionConfig = field(default_factory=ExecutionConfig)
-    files: FileConfig = field(default_factory=FileConfig)
-    models: ModelConfig = field(default_factory=ModelConfig)
-    testing: DevelopmentConfig = field(default_factory=DevelopmentConfig)
+    execution: AppExecutionConfig = Field(
+        default_factory=AppExecutionConfig,
+        description="Configuration for agent execution and orchestration",
+    )
+    files: FileConfig = Field(
+        default_factory=FileConfig,
+        description="Configuration for file handling and storage",
+    )
+    models: ModelConfig = Field(
+        default_factory=ModelConfig,
+        description="Configuration for LLM models and providers",
+    )
+    testing: DevelopmentConfig = Field(
+        default_factory=DevelopmentConfig,
+        description="Configuration for testing and development",
+    )
 
     @classmethod
     def from_env(cls) -> "ApplicationConfig":
@@ -370,9 +624,12 @@ class ApplicationConfig:
         Path(self.files.notes_directory).mkdir(parents=True, exist_ok=True)
         Path(self.files.logs_directory).mkdir(parents=True, exist_ok=True)
 
-    def validate(self) -> List[str]:
+    def validate_configuration(self) -> List[str]:
         """
         Validate configuration values and return any errors.
+
+        Kept for backward compatibility with the original dataclass validation.
+        This method replicates the original validation logic for tests.
 
         Returns
         -------
@@ -381,7 +638,7 @@ class ApplicationConfig:
         """
         errors = []
 
-        # Validate execution config
+        # Validate execution config (replicating original logic)
         if self.execution.max_retries < 0:
             errors.append("max_retries must be non-negative")
         if self.execution.timeout_seconds <= 0:
@@ -416,6 +673,22 @@ class ApplicationConfig:
             errors.append("prompt_max_length must be greater than prompt_min_length")
 
         return errors
+
+    def validate_config(self) -> List[str]:
+        """
+        Alias for validate_configuration() method.
+
+        Returns
+        -------
+        List[str]
+            List of validation error messages, empty if valid
+        """
+        return self.validate_configuration()
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=False,  # Allow tests to set invalid values
+    )
 
 
 # Global configuration instance

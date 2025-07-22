@@ -105,11 +105,11 @@ class TestNodeExecutionContext:
             )
             assert context.confidence_score == score
 
-        # Invalid confidence scores
+        # Invalid confidence scores now handled by Pydantic validation
+        from pydantic import ValidationError
+
         for invalid_score in [-0.1, 1.1, 2.0]:
-            with pytest.raises(
-                ValueError, match="Confidence score must be between 0.0 and 1.0"
-            ):
+            with pytest.raises(ValidationError):
                 NodeExecutionContext(
                     correlation_id="corr",
                     workflow_id="wf",
@@ -375,15 +375,52 @@ class TestBaseAdvancedNode:
 
         node = TestNode(mock_agent_metadata, "validation_node")
 
-        # Test with empty context fields
-        invalid_context = NodeExecutionContext(
-            correlation_id="",
-            workflow_id="",
-            cognitive_classification={},
-            task_classification=None,
+        # Now with Pydantic, invalid construction fails at creation time
+        # Test that Pydantic prevents creation of invalid contexts
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            NodeExecutionContext(
+                correlation_id="",
+                workflow_id="",
+                cognitive_classification={},
+                task_classification=None,
+            )
+
+        # Verify the expected validation errors
+        validation_error = exc_info.value
+        error_messages = [str(error) for error in validation_error.errors()]
+        assert any(
+            "String should have at least 1 character" in msg for msg in error_messages
+        )
+        assert any(
+            "correlation_id" in str(error) for error in validation_error.errors()
+        )
+        assert any("workflow_id" in str(error) for error in validation_error.errors())
+        assert any(
+            "task_classification" in str(error) for error in validation_error.errors()
         )
 
-        errors = node.validate_context(invalid_context)
+        # Test validate_context method with a properly constructed context that has logically missing fields
+        # Since Pydantic enforces validation on assignment too, we need to create a context using object.__setattr__
+        # or test the validate_context method directly with mocked attributes
+
+        # Create a valid context first
+        mock_task = Mock(spec=TaskClassification)
+        mock_task.to_dict.return_value = {"complexity": "medium"}
+        valid_context = NodeExecutionContext(
+            correlation_id="valid_id",
+            workflow_id="valid_workflow",
+            cognitive_classification={},
+            task_classification=mock_task,
+        )
+
+        # Bypass Pydantic validation to set empty/None values for testing validate_context logic
+        object.__setattr__(valid_context, "correlation_id", "")
+        object.__setattr__(valid_context, "workflow_id", "")
+        object.__setattr__(valid_context, "task_classification", None)
+
+        errors = node.validate_context(valid_context)
 
         assert "Missing correlation_id in context" in errors
         assert "Missing workflow_id in context" in errors

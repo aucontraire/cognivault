@@ -35,22 +35,12 @@ class TestMultiAxisClassificationPropagation:
     @pytest.fixture
     def task_classification(self):
         """Create a rich task classification."""
-        task_class = Mock(spec=TaskClassification)
-        task_class.complexity_score = 0.85
-        task_class.domain = "ai_governance"
-        task_class.urgency = "medium"
-        task_class.expertise_required = ["technical", "policy", "ethics"]
-        task_class.estimated_effort = "high"
-        task_class.to_dict = Mock(
-            return_value={
-                "complexity_score": 0.85,
-                "domain": "ai_governance",
-                "urgency": "medium",
-                "expertise_required": ["technical", "policy", "ethics"],
-                "estimated_effort": "high",
-            }
+        return TaskClassification(
+            task_type="evaluate",
+            domain="ai_governance",
+            complexity="complex",
+            urgency="high",
         )
-        return task_class
 
     @pytest.fixture
     def cognitive_classification(self):
@@ -62,8 +52,8 @@ class TestMultiAxisClassificationPropagation:
             "execution": "processor",
             "role": "intermediate",
             "context": "transformation",
-            "confidence_threshold": 0.85,
-            "quality_requirements": ["accuracy", "completeness", "coherence"],
+            "confidence_threshold": "0.85",
+            "quality_requirements": "accuracy,completeness,coherence",
         }
 
     @pytest.fixture
@@ -146,7 +136,14 @@ class TestMultiAxisClassificationPropagation:
         decision_node = DecisionNode(
             decision_metadata,
             "classification_router",
-            [DecisionCriteria("complexity", lambda ctx: 0.85, 1.0, 0.8)],
+            [
+                DecisionCriteria(
+                    name="complexity",
+                    evaluator=lambda ctx: 0.85,
+                    weight=1.0,
+                    threshold=0.8,
+                )
+            ],
             {"complex_path": ["expert_analysis"], "simple_path": ["basic_analysis"]},
         )
 
@@ -164,10 +161,10 @@ class TestMultiAxisClassificationPropagation:
             "quality_gatekeeper",
             [
                 ValidationCriteria(
-                    "has_content",
-                    lambda data: len(data.get("content", "")) > 10,
-                    1.0,
-                    True,
+                    name="has_content",
+                    validator=lambda data: len(data.get("content", "")) > 10,
+                    weight=1.0,
+                    required=True,
                 )
             ],
         )
@@ -250,7 +247,7 @@ class TestMultiAxisClassificationPropagation:
                             "economics",
                         ],
                         "classification_preserved": cognitive_classification,
-                        "task_context": task_classification.to_dict(),
+                        "task_context": task_classification.model_dump(),
                     },
                 }
             }
@@ -323,9 +320,15 @@ class TestMultiAxisClassificationPropagation:
             DecisionCriteria(
                 name="complexity_routing",
                 evaluator=lambda ctx: (
-                    ctx.task_classification.complexity_score
+                    0.9
                     if ctx.task_classification
-                    else 0.5
+                    and ctx.task_classification.complexity == "complex"
+                    else (
+                        0.5
+                        if ctx.task_classification
+                        and ctx.task_classification.complexity == "moderate"
+                        else 0.1
+                    )
                 ),
                 weight=1.5,
                 threshold=0.7,
@@ -393,7 +396,7 @@ class TestMultiAxisClassificationPropagation:
             assert criterion_scores["cognitive_speed_routing"]["score"] == 0.9
             assert criterion_scores["cognitive_speed_routing"]["passed"] is True
 
-            assert criterion_scores["complexity_routing"]["score"] == 0.85
+            assert criterion_scores["complexity_routing"]["score"] == 0.9
             assert criterion_scores["complexity_routing"]["passed"] is True
 
             assert criterion_scores["context_routing"]["score"] == 0.8
@@ -408,7 +411,11 @@ class TestMultiAxisClassificationPropagation:
         decision_node = DecisionNode(
             decision_metadata,  # bounded_context = "routing"
             "context_router",
-            [DecisionCriteria("basic", lambda ctx: 0.8, 1.0, 0.5)],
+            [
+                DecisionCriteria(
+                    name="basic", evaluator=lambda ctx: 0.8, weight=1.0, threshold=0.5
+                )
+            ],
             {"transform_path": ["transformer"]},
         )
 
@@ -426,10 +433,11 @@ class TestMultiAxisClassificationPropagation:
             "context_reflector",
             [
                 ValidationCriteria(
-                    "context_check",
-                    lambda data: "bounded_context_trace" in data.get("metadata", {}),
-                    1.0,
-                    True,
+                    name="context_check",
+                    validator=lambda data: "bounded_context_trace"
+                    in data.get("metadata", {}),
+                    weight=1.0,
+                    required=True,
                 )
             ],
         )
@@ -439,7 +447,7 @@ class TestMultiAxisClassificationPropagation:
             workflow_id="context-boundary-test",
             correlation_id="context-correlation",
             cognitive_classification={"context": "routing"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="transform"),
         )
 
         context.available_inputs = {
@@ -468,7 +476,7 @@ class TestMultiAxisClassificationPropagation:
                 workflow_id=context.workflow_id,
                 correlation_id=context.correlation_id,
                 cognitive_classification={"context": "transformation"},
-                task_classification=Mock(),
+                task_classification=TaskClassification(task_type="synthesize"),
             )
 
             agg_context.available_inputs = {
@@ -495,7 +503,7 @@ class TestMultiAxisClassificationPropagation:
                 workflow_id=context.workflow_id,
                 correlation_id=context.correlation_id,
                 cognitive_classification={"context": "reflection"},
-                task_classification=Mock(),
+                task_classification=TaskClassification(task_type="evaluate"),
             )
 
             # Add reflection to context trace
@@ -553,7 +561,7 @@ class TestClassificationConsistency:
             workflow_id="consistency-test",
             correlation_id="consistency-correlation",
             cognitive_classification=classification,
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="synthesize"),
         )
 
         # Create inputs that preserve classification consistency
@@ -614,7 +622,7 @@ class TestClassificationConsistency:
             workflow_id="mismatch-test",
             correlation_id="mismatch-correlation",
             cognitive_classification={"speed": "fast", "depth": "shallow"},
-            task_classification=Mock(),
+            task_classification=TaskClassification(task_type="compare"),
         )
 
         # Create inputs with mismatched classifications
@@ -685,7 +693,9 @@ class TestWorkflowMetadataIntegrity:
             workflow_id=workflow_metadata["workflow_id"],
             correlation_id=workflow_metadata["correlation_id"],
             cognitive_classification=workflow_metadata["classification"],
-            task_classification=Mock(),
+            task_classification=TaskClassification(
+                task_type="synthesize", complexity="complex"
+            ),
         )
 
         context.available_inputs = {

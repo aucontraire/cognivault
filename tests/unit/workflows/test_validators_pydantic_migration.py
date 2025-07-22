@@ -13,10 +13,10 @@ from typing import Dict, Any, Optional, List
 from cognivault.workflows.validators import (
     WorkflowValidator,
     WorkflowValidationConfig,
-    ValidationLevel,
+    WorkflowValidationLevel,
     ValidationIssueType,
     ValidationIssue,
-    ValidationResult,
+    WorkflowValidationResult,
     validate_workflow_basic,
     validate_workflow_standard,
     validate_workflow_strict,
@@ -138,17 +138,17 @@ class TestValidationIssue:
             )
 
 
-class TestValidationResult:
+class TestWorkflowValidationResult:
     """Test ValidationResult Pydantic model."""
 
     def test_basic_creation(self):
         """Test basic ValidationResult creation."""
-        result = ValidationResult(
-            is_valid=True, validation_level=ValidationLevel.STANDARD
+        result = WorkflowValidationResult(
+            is_valid=True, validation_level=WorkflowValidationLevel.STANDARD
         )
 
         assert result.is_valid is True
-        assert result.validation_level == ValidationLevel.STANDARD
+        assert result.validation_level == WorkflowValidationLevel.STANDARD
         assert result.issues == []
         assert result.summary == {}
         assert result.workflow_metadata == {}
@@ -172,9 +172,9 @@ class TestValidationResult:
             ),
         ]
 
-        result = ValidationResult(
+        result = WorkflowValidationResult(
             is_valid=False,
-            validation_level=ValidationLevel.STRICT,
+            validation_level=WorkflowValidationLevel.STRICT,
             issues=issues,
             summary={"errors": 1, "warnings": 1},
         )
@@ -186,7 +186,9 @@ class TestValidationResult:
     def test_has_errors(self):
         """Test has_errors() method."""
         # No errors
-        result = ValidationResult(is_valid=True, validation_level=ValidationLevel.BASIC)
+        result = WorkflowValidationResult(
+            is_valid=True, validation_level=WorkflowValidationLevel.BASIC
+        )
         assert not result.has_errors()
 
         # With errors
@@ -197,15 +199,19 @@ class TestValidationResult:
             location="test",
             rule_id="ERR_001",
         )
-        result_with_errors = ValidationResult(
-            is_valid=False, validation_level=ValidationLevel.BASIC, issues=[error_issue]
+        result_with_errors = WorkflowValidationResult(
+            is_valid=False,
+            validation_level=WorkflowValidationLevel.BASIC,
+            issues=[error_issue],
         )
         assert result_with_errors.has_errors()
 
     def test_has_warnings(self):
         """Test has_warnings() method."""
         # No warnings
-        result = ValidationResult(is_valid=True, validation_level=ValidationLevel.BASIC)
+        result = WorkflowValidationResult(
+            is_valid=True, validation_level=WorkflowValidationLevel.BASIC
+        )
         assert not result.has_warnings()
 
         # With warnings
@@ -216,9 +222,9 @@ class TestValidationResult:
             location="test",
             rule_id="WARN_001",
         )
-        result_with_warnings = ValidationResult(
+        result_with_warnings = WorkflowValidationResult(
             is_valid=True,
-            validation_level=ValidationLevel.BASIC,
+            validation_level=WorkflowValidationLevel.BASIC,
             issues=[warning_issue],
         )
         assert result_with_warnings.has_warnings()
@@ -249,8 +255,10 @@ class TestValidationResult:
             ),
         ]
 
-        result = ValidationResult(
-            is_valid=False, validation_level=ValidationLevel.STANDARD, issues=issues
+        result = WorkflowValidationResult(
+            is_valid=False,
+            validation_level=WorkflowValidationLevel.STANDARD,
+            issues=issues,
         )
 
         errors = result.get_issues_by_type(ValidationIssueType.ERROR)
@@ -266,7 +274,9 @@ class TestValidationResult:
     def test_get_highest_severity(self):
         """Test get_highest_severity() method."""
         # No issues
-        result = ValidationResult(is_valid=True, validation_level=ValidationLevel.BASIC)
+        result = WorkflowValidationResult(
+            is_valid=True, validation_level=WorkflowValidationLevel.BASIC
+        )
         assert result.get_highest_severity() == 0
 
         # With issues
@@ -294,8 +304,10 @@ class TestValidationResult:
             ),
         ]
 
-        result_with_issues = ValidationResult(
-            is_valid=False, validation_level=ValidationLevel.STANDARD, issues=issues
+        result_with_issues = WorkflowValidationResult(
+            is_valid=False,
+            validation_level=WorkflowValidationLevel.STANDARD,
+            issues=issues,
         )
         assert result_with_issues.get_highest_severity() == 9
 
@@ -307,7 +319,7 @@ class TestWorkflowValidationConfig:
         """Test default configuration values."""
         config = WorkflowValidationConfig()
 
-        assert config.validation_level == ValidationLevel.STANDARD
+        assert config.validation_level == WorkflowValidationLevel.STANDARD
         assert config.fail_on_warnings is False
         assert config.max_nodes == 100
         assert config.max_edges == 500
@@ -322,7 +334,7 @@ class TestWorkflowValidationConfig:
     def test_custom_values(self):
         """Test custom configuration values."""
         config = WorkflowValidationConfig(
-            validation_level=ValidationLevel.STRICT,
+            validation_level=WorkflowValidationLevel.STRICT,
             fail_on_warnings=True,
             max_nodes=50,
             max_edges=200,
@@ -330,7 +342,7 @@ class TestWorkflowValidationConfig:
             validate_naming_conventions=True,
         )
 
-        assert config.validation_level == ValidationLevel.STRICT
+        assert config.validation_level == WorkflowValidationLevel.STRICT
         assert config.fail_on_warnings is True
         assert config.max_nodes == 50
         assert config.max_edges == 200
@@ -360,15 +372,15 @@ class TestWorkflowValidator:
     def test_basic_initialization(self):
         """Test basic validator initialization."""
         validator = WorkflowValidator()
-        assert validator.config.validation_level == ValidationLevel.STANDARD
+        assert validator.config.validation_level == WorkflowValidationLevel.STANDARD
 
     def test_custom_config_initialization(self):
         """Test validator with custom configuration."""
         config = WorkflowValidationConfig(
-            validation_level=ValidationLevel.STRICT, fail_on_warnings=True
+            validation_level=WorkflowValidationLevel.STRICT, fail_on_warnings=True
         )
         validator = WorkflowValidator(config=config)
-        assert validator.config.validation_level == ValidationLevel.STRICT
+        assert validator.config.validation_level == WorkflowValidationLevel.STRICT
         assert validator.config.fail_on_warnings is True
 
     def test_validate_valid_workflow(self):
@@ -379,7 +391,7 @@ class TestWorkflowValidator:
         result = validator.validate_workflow(workflow)
 
         assert result.is_valid is True
-        assert result.validation_level == ValidationLevel.STANDARD
+        assert result.validation_level == WorkflowValidationLevel.STANDARD
         assert len(result.issues) == 0
         assert result.summary.get("errors", 0) == 0
         assert "node_count" in result.workflow_metadata
@@ -495,36 +507,42 @@ class TestWorkflowValidator:
 
         # Basic validation
         basic_validator = WorkflowValidator(
-            config=WorkflowValidationConfig(validation_level=ValidationLevel.BASIC)
+            config=WorkflowValidationConfig(
+                validation_level=WorkflowValidationLevel.BASIC
+            )
         )
         basic_result = basic_validator.validate_workflow(workflow)
 
         # Standard validation
         standard_validator = WorkflowValidator(
-            config=WorkflowValidationConfig(validation_level=ValidationLevel.STANDARD)
+            config=WorkflowValidationConfig(
+                validation_level=WorkflowValidationLevel.STANDARD
+            )
         )
         standard_result = standard_validator.validate_workflow(workflow)
 
         # Strict validation
         strict_validator = WorkflowValidator(
-            config=WorkflowValidationConfig(validation_level=ValidationLevel.STRICT)
+            config=WorkflowValidationConfig(
+                validation_level=WorkflowValidationLevel.STRICT
+            )
         )
         strict_result = strict_validator.validate_workflow(workflow)
 
         # Pedantic validation with naming conventions enabled
         pedantic_validator = WorkflowValidator(
             config=WorkflowValidationConfig(
-                validation_level=ValidationLevel.PEDANTIC,
+                validation_level=WorkflowValidationLevel.PEDANTIC,
                 validate_naming_conventions=True,
             )
         )
         pedantic_result = pedantic_validator.validate_workflow(workflow)
 
         # Higher validation levels should generally find more issues (or at least the same number)
-        assert basic_result.validation_level == ValidationLevel.BASIC
-        assert standard_result.validation_level == ValidationLevel.STANDARD
-        assert strict_result.validation_level == ValidationLevel.STRICT
-        assert pedantic_result.validation_level == ValidationLevel.PEDANTIC
+        assert basic_result.validation_level == WorkflowValidationLevel.BASIC
+        assert standard_result.validation_level == WorkflowValidationLevel.STANDARD
+        assert strict_result.validation_level == WorkflowValidationLevel.STRICT
+        assert pedantic_result.validation_level == WorkflowValidationLevel.PEDANTIC
 
     def test_workflow_size_limits(self):
         """Test workflow size limit validation."""
@@ -574,14 +592,14 @@ class TestWorkflowValidator:
 
         # Test with fail_on_warnings=False
         config_allow_warnings = WorkflowValidationConfig(
-            validation_level=ValidationLevel.PEDANTIC, fail_on_warnings=False
+            validation_level=WorkflowValidationLevel.PEDANTIC, fail_on_warnings=False
         )
         validator_allow = WorkflowValidator(config=config_allow_warnings)
         result_allow = validator_allow.validate_workflow(workflow)
 
         # Test with fail_on_warnings=True
         config_fail_warnings = WorkflowValidationConfig(
-            validation_level=ValidationLevel.PEDANTIC, fail_on_warnings=True
+            validation_level=WorkflowValidationLevel.PEDANTIC, fail_on_warnings=True
         )
         validator_fail = WorkflowValidator(config=config_fail_warnings)
         result_fail = validator_fail.validate_workflow(workflow)
@@ -640,32 +658,32 @@ class TestConvenienceFunctions:
         workflow = create_test_workflow()
         result = validate_workflow_basic(workflow)
 
-        assert isinstance(result, ValidationResult)
-        assert result.validation_level == ValidationLevel.BASIC
+        assert isinstance(result, WorkflowValidationResult)
+        assert result.validation_level == WorkflowValidationLevel.BASIC
 
     def test_validate_workflow_standard(self):
         """Test validate_workflow_standard convenience function."""
         workflow = create_test_workflow()
         result = validate_workflow_standard(workflow)
 
-        assert isinstance(result, ValidationResult)
-        assert result.validation_level == ValidationLevel.STANDARD
+        assert isinstance(result, WorkflowValidationResult)
+        assert result.validation_level == WorkflowValidationLevel.STANDARD
 
     def test_validate_workflow_strict(self):
         """Test validate_workflow_strict convenience function."""
         workflow = create_test_workflow()
         result = validate_workflow_strict(workflow)
 
-        assert isinstance(result, ValidationResult)
-        assert result.validation_level == ValidationLevel.STRICT
+        assert isinstance(result, WorkflowValidationResult)
+        assert result.validation_level == WorkflowValidationLevel.STRICT
 
     def test_validate_workflow_pedantic(self):
         """Test validate_workflow_pedantic convenience function."""
         workflow = create_test_workflow()
         result = validate_workflow_pedantic(workflow)
 
-        assert isinstance(result, ValidationResult)
-        assert result.validation_level == ValidationLevel.PEDANTIC
+        assert isinstance(result, WorkflowValidationResult)
+        assert result.validation_level == WorkflowValidationLevel.PEDANTIC
 
 
 class TestAdvancedValidationFeatures:
@@ -733,7 +751,8 @@ class TestAdvancedValidationFeatures:
 
         validator = WorkflowValidator(
             config=WorkflowValidationConfig(
-                validation_level=ValidationLevel.PEDANTIC, require_terminal_nodes=True
+                validation_level=WorkflowValidationLevel.PEDANTIC,
+                require_terminal_nodes=True,
             )
         )
         result = validator.validate_workflow(problematic_workflow)
@@ -778,7 +797,8 @@ class TestAdvancedValidationFeatures:
         )
 
         config = WorkflowValidationConfig(
-            validation_level=ValidationLevel.STRICT, validate_performance_hints=True
+            validation_level=WorkflowValidationLevel.STRICT,
+            validate_performance_hints=True,
         )
         validator = WorkflowValidator(config=config)
         result = validator.validate_workflow(workflow)
@@ -805,7 +825,8 @@ class TestAdvancedValidationFeatures:
         workflow = create_test_workflow(nodes=invalid_nodes, entry_point="valid_node")
 
         config = WorkflowValidationConfig(
-            validation_level=ValidationLevel.PEDANTIC, validate_naming_conventions=True
+            validation_level=WorkflowValidationLevel.PEDANTIC,
+            validate_naming_conventions=True,
         )
         validator = WorkflowValidator(config=config)
         result = validator.validate_workflow(workflow)
@@ -843,7 +864,9 @@ class TestAdvancedValidationFeatures:
         )
 
         validator = WorkflowValidator(
-            config=WorkflowValidationConfig(validation_level=ValidationLevel.STRICT)
+            config=WorkflowValidationConfig(
+                validation_level=WorkflowValidationLevel.STRICT
+            )
         )
         result = validator.validate_workflow(workflow)
 
