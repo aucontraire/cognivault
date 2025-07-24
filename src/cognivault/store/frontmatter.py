@@ -80,6 +80,20 @@ class AgentExecutionResult(BaseModel):
                 self.confidence_level = AgentConfidenceLevel.VERY_HIGH
 
 
+class WorkflowExecutionMetadata(BaseModel):
+    """Workflow execution details for tracking execution context."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    workflow_id: Optional[str] = None
+    execution_id: Optional[str] = None
+    execution_time_seconds: Optional[float] = None
+    success: Optional[bool] = None
+    nodes_executed: Optional[List[str]] = Field(default_factory=list)
+    event_correlation_id: Optional[str] = None
+    node_execution_order: Optional[List[str]] = Field(default_factory=list)
+
+
 class EnhancedFrontmatter(BaseModel):
     """
     Enhanced frontmatter schema for CogniVault notes.
@@ -101,6 +115,9 @@ class EnhancedFrontmatter(BaseModel):
 
     # Agent Execution Results
     agents: Dict[str, AgentExecutionResult] = Field(default_factory=dict)
+
+    # Workflow Execution Metadata
+    workflow_metadata: Optional[WorkflowExecutionMetadata] = None
 
     # Topic and Classification
     topics: List[str] = Field(default_factory=list)

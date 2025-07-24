@@ -8,6 +8,7 @@ from .frontmatter import (
     EnhancedFrontmatter,
     AgentExecutionResult,
     AgentStatus,
+    WorkflowExecutionMetadata,
     frontmatter_to_yaml_dict,
     TopicTaxonomy,
 )
@@ -40,6 +41,7 @@ class MarkdownExporter:
         topics: Optional[List[str]] = None,
         domain: Optional[str] = None,
         related_queries: Optional[List[str]] = None,
+        workflow_metadata: Optional[WorkflowExecutionMetadata] = None,
     ) -> str:
         """
         Export a structured agent interaction to a Markdown file.
@@ -91,6 +93,7 @@ class MarkdownExporter:
             topics,
             domain,
             related_queries,
+            workflow_metadata,
         )
 
         # Calculate content metrics
@@ -123,6 +126,7 @@ class MarkdownExporter:
         topics: Optional[List[str]] = None,
         domain: Optional[str] = None,
         related_queries: Optional[List[str]] = None,
+        workflow_metadata: Optional[WorkflowExecutionMetadata] = None,
     ) -> EnhancedFrontmatter:
         """Build enhanced frontmatter with comprehensive metadata."""
 
@@ -157,6 +161,10 @@ class MarkdownExporter:
         # Add related queries
         if related_queries:
             frontmatter.related_queries.extend(related_queries)
+
+        # Add workflow metadata
+        if workflow_metadata:
+            frontmatter.workflow_metadata = workflow_metadata
 
         return frontmatter
 

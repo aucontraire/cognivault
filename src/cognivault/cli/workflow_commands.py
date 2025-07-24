@@ -24,6 +24,7 @@ from cognivault.context import AgentContext
 from cognivault.workflows import WorkflowDefinition
 from cognivault.workflows.executor import DeclarativeOrchestrator
 from cognivault.store.wiki_adapter import MarkdownExporter
+from cognivault.store.frontmatter import WorkflowExecutionMetadata
 from cognivault.store.topic_manager import TopicManager
 from cognivault.config.openai_config import OpenAIConfig
 from cognivault.llm.openai import OpenAIChatLLM
@@ -190,22 +191,23 @@ async def _run_workflow_async(
                     # Convert non-string values to string representation
                     filtered_agent_outputs[key] = str(value)
 
-            # Add workflow metadata as a formatted string
-            workflow_metadata_str = f"""Workflow Execution Details:
-- Workflow ID: {result.workflow_id}
-- Execution ID: {result.execution_id}
-- Execution Time: {result.execution_time_seconds:.2f} seconds
-- Success: {result.success}
-- Nodes Executed: {", ".join(result.node_execution_order)}
-- Event Correlation ID: {result.event_correlation_id}"""
-
-            filtered_agent_outputs["workflow_metadata"] = workflow_metadata_str
+            # Create structured workflow metadata
+            workflow_metadata = WorkflowExecutionMetadata(
+                workflow_id=result.workflow_id,
+                execution_id=result.execution_id,
+                execution_time_seconds=result.execution_time_seconds,
+                success=result.success,
+                nodes_executed=result.node_execution_order,
+                event_correlation_id=result.event_correlation_id,
+                node_execution_order=result.node_execution_order,
+            )
 
             md_path = exporter.export(
                 agent_outputs=filtered_agent_outputs,
                 question=query,
                 topics=suggested_topics,
                 domain=suggested_domain,
+                workflow_metadata=workflow_metadata,
             )
 
             if output_format != "json":

@@ -778,14 +778,15 @@ class TestWorkflowMarkdownExport:
             mock_exporter.assert_called_once()
             mock_exporter_instance.export.assert_called_once()
 
-            # Verify enhanced metadata was added
+            # Verify workflow metadata was passed as separate parameter
             call_args = mock_exporter_instance.export.call_args
-            agent_outputs = call_args[1]["agent_outputs"]
-            assert "workflow_metadata" in agent_outputs
-            # The metadata is now a formatted string, so check it contains the key information
-            metadata_str = agent_outputs["workflow_metadata"]
-            assert "export-test-123" in metadata_str
-            assert "exec-456" in metadata_str
+            # Check that workflow_metadata is passed as a keyword argument
+            assert "workflow_metadata" in call_args[1]
+            workflow_metadata = call_args[1]["workflow_metadata"]
+            assert workflow_metadata is not None
+            # Verify the metadata contains the expected IDs from sample_result
+            assert workflow_metadata.workflow_id == "export-test-123"
+            assert workflow_metadata.execution_id == "exec-456"
 
     @pytest.mark.asyncio
     async def test_markdown_export_with_topic_analysis(self):
@@ -962,15 +963,18 @@ class TestWorkflowMarkdownExport:
             call_args = mock_exporter_instance.export.call_args
             agent_outputs = call_args[1]["agent_outputs"]
 
-            # Check workflow metadata (now a formatted string)
-            assert "workflow_metadata" in agent_outputs
-            metadata_str = agent_outputs["workflow_metadata"]
-            assert "export-test-123" in metadata_str
-            assert "exec-456" in metadata_str
-            assert "2.50 seconds" in metadata_str
-            assert "True" in metadata_str
-            assert "refiner, critic" in metadata_str
-            assert "corr-789" in metadata_str
+            # Check that workflow_metadata is passed as a keyword argument
+            assert "workflow_metadata" in call_args[1]
+            workflow_metadata = call_args[1]["workflow_metadata"]
+            assert workflow_metadata is not None
+
+            # Verify metadata contains expected values from sample_result
+            assert workflow_metadata.workflow_id == "export-test-123"
+            assert workflow_metadata.execution_id == "exec-456"
+            assert workflow_metadata.execution_time_seconds == 2.5
+            assert workflow_metadata.success is True
+            assert workflow_metadata.node_execution_order == ["refiner", "critic"]
+            assert workflow_metadata.event_correlation_id == "corr-789"
 
             # Check original agent outputs are preserved
             assert "refiner" in agent_outputs

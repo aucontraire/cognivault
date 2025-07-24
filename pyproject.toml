@@ -30,6 +30,14 @@ tiktoken = "*"
 typer = {extras = ["all"], version = "*"}
 pydantic = ">=2.0"
 
+# FastAPI and API Dependencies
+fastapi = "*"
+uvicorn = {extras = ["standard"], version = "*"}
+sqlalchemy = {extras = ["asyncio"], version = ">=2.0"}
+asyncpg = "*"
+alembic = "*"
+redis = "*"
+
 # LangGraph Integration
 langgraph = "0.5.3"
 langchain-core = ">=0.3.0,<0.4.0"
@@ -68,6 +76,7 @@ mypy = "*"
 # Type Hints
 types-psutil = "*"
 types-PyYAML = "*"
+types-redis = "*"
 
 # Testing Mocks for LLMs
 openai-responses = ">=0.12.0"
