@@ -976,6 +976,14 @@ class TestWorkflowMarkdownExport:
             assert workflow_metadata.node_execution_order == ["refiner", "critic"]
             assert workflow_metadata.event_correlation_id == "corr-789"
 
+            # Verify enhanced metadata fields are populated
+            assert workflow_metadata.cognivault_version is not None
+            assert workflow_metadata.config_fingerprint is not None
+            assert workflow_metadata.llm_model is not None
+            assert workflow_metadata.llm_provider == "openai"
+            assert workflow_metadata.total_tokens_used is not None
+            assert workflow_metadata.cost_estimate is not None
+
             # Check original agent outputs are preserved
             assert "refiner" in agent_outputs
             assert "critic" in agent_outputs

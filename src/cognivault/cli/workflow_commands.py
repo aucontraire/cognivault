@@ -191,8 +191,147 @@ async def _run_workflow_async(
                     # Convert non-string values to string representation
                     filtered_agent_outputs[key] = str(value)
 
-            # Create structured workflow metadata
+            # Create enhanced workflow metadata with provenance tracking
+            try:
+                # Get CogniVault version
+                import cognivault
+
+                cognivault_version = getattr(cognivault, "__version__", "unknown")
+            except (ImportError, AttributeError):
+                cognivault_version = "unknown"
+
+            # Get workflow version if available
+            workflow_version = getattr(workflow, "version", "1.0.0")
+
+            # Get LLM configuration
+            openai_config = OpenAIConfig.load()
+            llm_model = openai_config.model
+
+            # Create configuration fingerprint
+            workflow_config = (
+                workflow.model_dump() if hasattr(workflow, "model_dump") else {}
+            )
+            prompt_config = {
+                "model": llm_model
+            }  # Can be enhanced with actual prompt configs
+            config_fingerprint = WorkflowExecutionMetadata.create_config_fingerprint(
+                workflow_config, prompt_config
+            )
+
+            # Extract node execution times from LangGraph state or context metadata
+            node_execution_times = {}
+
+            # Method 1: Try to get timing data from LangGraph state (new approach)
+            if hasattr(result, "final_context") and result.final_context:
+                context = result.final_context
+                # Check if timing data is stored in the final context's state
+                if hasattr(context, "_node_execution_times"):
+                    timing_data = context._node_execution_times
+                    for node_name, timing_info in timing_data.items():
+                        if timing_info.get("completed", False):
+                            node_execution_times[node_name] = timing_info.get(
+                                "execution_time_seconds", 0.0
+                            )
+
+                # Method 2: Check execution_state for direct timing data (new node wrapper approach)
+                elif hasattr(context, "execution_state") and context.execution_state:
+                    # First try to get timing data directly from _node_execution_times
+                    if "_node_execution_times" in context.execution_state:
+                        timing_data = context.execution_state["_node_execution_times"]
+                        node_execution_times.update(timing_data)
+                        if verbose and output_format != "json":
+                            console.print(
+                                f"[green]Debug - Found timing data in execution_state: {timing_data}[/green]"
+                            )
+                    else:
+                        # Fallback: Check for step metadata (original approach)
+                        for key, value in context.execution_state.items():
+                            if key.endswith("_step_metadata") and isinstance(
+                                value, dict
+                            ):
+                                agent_name = key.replace("_step_metadata", "")
+                                start_time_str = value.get("start_time")
+                                end_time_str = value.get("end_time")
+                                if (
+                                    start_time_str
+                                    and end_time_str
+                                    and value.get("completed", False)
+                                ):
+                                    try:
+                                        from datetime import datetime
+
+                                        start_time = datetime.fromisoformat(
+                                            start_time_str.replace("Z", "+00:00")
+                                        )
+                                        end_time = datetime.fromisoformat(
+                                            end_time_str.replace("Z", "+00:00")
+                                        )
+                                        execution_time = (
+                                            end_time - start_time
+                                        ).total_seconds()
+                                        node_execution_times[agent_name] = (
+                                            execution_time
+                                        )
+                                    except (ValueError, AttributeError) as e:
+                                        # Skip this entry if datetime parsing fails
+                                        if verbose and output_format != "json":
+                                            console.print(
+                                                f"[red]Debug - Failed to parse timing for {agent_name}: {e}[/red]"
+                                            )
+                                        continue
+
+            # Method 3: Check execution_metadata for node timing data
+            if not node_execution_times and hasattr(result, "execution_metadata"):
+                metadata = result.execution_metadata
+                if "node_execution_times" in metadata:
+                    node_execution_times = metadata["node_execution_times"]
+
+            # Method 4: Check if result has direct access to timing data
+            if not node_execution_times and hasattr(result, "_node_execution_times"):
+                timing_data = result._node_execution_times
+                for node_name, timing_info in timing_data.items():
+                    if timing_info.get("completed", False):
+                        node_execution_times[node_name] = timing_info.get(
+                            "execution_time_seconds", 0.0
+                        )
+
+            # Method 5: Fallback - Estimate timing from total execution time and node order
+            if (
+                not node_execution_times
+                and hasattr(result, "execution_time_seconds")
+                and hasattr(result, "node_execution_order")
+            ):
+                total_time = result.execution_time_seconds
+                nodes = result.node_execution_order
+                if total_time and nodes:
+                    # Simple estimation: distribute time roughly based on typical agent behavior
+                    # Refiner: ~10%, Critic: ~25%, Historian: ~15%, Synthesis: ~50%
+                    time_distribution = {
+                        "refiner": 0.10,
+                        "critic": 0.25,
+                        "historian": 0.15,
+                        "synthesis": 0.50,
+                    }
+
+                    for node in nodes:
+                        # Use distribution if available, otherwise equal distribution
+                        proportion = time_distribution.get(node, 1.0 / len(nodes))
+                        node_execution_times[node] = total_time * proportion
+
+                    if verbose and output_format != "json":
+                        console.print(
+                            f"[yellow]Debug - Using estimated timing distribution: {node_execution_times}[/yellow]"
+                        )
+
+            # Calculate estimated token usage and cost (placeholder - can be enhanced)
+            estimated_tokens = (
+                len(query) * 4
+                + sum(len(str(output)) for output in filtered_agent_outputs.values())
+                * 4
+            )
+
             workflow_metadata = WorkflowExecutionMetadata(
+                # Core execution tracking
                 workflow_id=result.workflow_id,
                 execution_id=result.execution_id,
                 execution_time_seconds=result.execution_time_seconds,
@@ -200,7 +339,69 @@ async def _run_workflow_async(
                 nodes_executed=result.node_execution_order,
                 event_correlation_id=result.event_correlation_id,
                 node_execution_order=result.node_execution_order,
+                # Enhanced fields
+                node_execution_times=node_execution_times,
+                workflow_version=workflow_version,
+                cognivault_version=cognivault_version,
+                config_fingerprint=config_fingerprint,
+                llm_model=llm_model,
+                llm_provider="openai",
+                total_tokens_used=estimated_tokens,
             )
+
+            # Calculate cost estimate
+            if workflow_metadata.total_tokens_used and workflow_metadata.llm_model:
+                workflow_metadata.cost_estimate = (
+                    workflow_metadata.calculate_cost_estimate(
+                        workflow_metadata.total_tokens_used, workflow_metadata.llm_model
+                    )
+                )
+
+            # Debug logging for node timing data
+            if verbose and output_format != "json":
+                console.print(
+                    f"[yellow]Debug - Node execution times: {node_execution_times}[/yellow]"
+                )
+                console.print(
+                    f"[yellow]Debug - Workflow metadata timing: {workflow_metadata.node_execution_times}[/yellow]"
+                )
+                if hasattr(result, "final_context") and result.final_context:
+                    context = result.final_context
+                    console.print(
+                        f"[cyan]Debug - Context has execution_state: {hasattr(context, 'execution_state')}[/cyan]"
+                    )
+                    console.print(
+                        f"[cyan]Debug - Context has _node_execution_times: {hasattr(context, '_node_execution_times')}[/cyan]"
+                    )
+                    console.print(
+                        f"[cyan]Debug - Result has _node_execution_times: {hasattr(result, '_node_execution_times')}[/cyan]"
+                    )
+                    console.print(
+                        f"[cyan]Debug - Result object type: {type(result)}[/cyan]"
+                    )
+                    console.print(
+                        f"[cyan]Debug - Result object attributes: {[attr for attr in dir(result) if not attr.startswith('__')]}[/cyan]"
+                    )
+                    if hasattr(result, "execution_metadata"):
+                        metadata = result.execution_metadata
+                        console.print(
+                            f"[cyan]Debug - Execution metadata keys: {list(metadata.keys())}[/cyan]"
+                        )
+                        console.print(
+                            f"[cyan]Debug - Execution metadata has node_execution_times: {'node_execution_times' in metadata}[/cyan]"
+                        )
+                        if "node_execution_times" in metadata:
+                            console.print(
+                                f"[cyan]Debug - Node execution times from metadata: {metadata['node_execution_times']}[/cyan]"
+                            )
+                    if hasattr(context, "execution_state") and context.execution_state:
+                        console.print(
+                            f"[cyan]Debug - Execution state keys: {list(context.execution_state.keys())}[/cyan]"
+                        )
+                        for key, value in context.execution_state.items():
+                            console.print(
+                                f"[cyan]Debug - {key}: {type(value)} = {value}[/cyan]"
+                            )
 
             md_path = exporter.export(
                 agent_outputs=filtered_agent_outputs,

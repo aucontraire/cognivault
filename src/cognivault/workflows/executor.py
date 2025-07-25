@@ -14,6 +14,9 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
+from cognivault.observability import get_logger
+
+logger = get_logger(__name__)
 
 # Forward imports to resolve circular dependencies
 if TYPE_CHECKING:
@@ -439,12 +442,33 @@ class WorkflowExecutor:
             end_time = datetime.now(timezone.utc)
             execution_time = (end_time - start_time).total_seconds()
 
+            # Collect node execution timing data for metadata
+            enhanced_metadata = self.composition_result.metadata.copy()
+
+            # Import timing registry functions
+            try:
+                from cognivault.orchestration.node_wrappers import get_timing_registry
+
+                timing_registry = get_timing_registry()
+                node_execution_times = timing_registry.get(execution_id, {})
+                if node_execution_times:
+                    enhanced_metadata["node_execution_times"] = node_execution_times
+                    logger.info(
+                        f"Added node execution times to metadata: {node_execution_times}"
+                    )
+                else:
+                    logger.warning(
+                        f"No timing data found for execution_id: {execution_id}"
+                    )
+            except ImportError as e:
+                logger.warning(f"Could not import timing registry: {e}")
+
             # Create successful result
             result = WorkflowResult(
                 workflow_id=workflow_id,
                 execution_id=execution_id,
                 final_context=final_context,
-                execution_metadata=self.composition_result.metadata,
+                execution_metadata=enhanced_metadata,
                 node_execution_order=self.execution_context.execution_path,
                 execution_time_seconds=execution_time,
                 success=True,

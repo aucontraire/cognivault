@@ -41,6 +41,33 @@ from cognivault.llm.openai import OpenAIChatLLM
 logger = get_logger(__name__)
 
 
+# Global timing registry to store node execution times
+# This allows timing data to be collected across node executions
+# and retrieved when creating workflow results
+_TIMING_REGISTRY: Dict[str, Dict[str, float]] = {}
+
+
+def get_timing_registry():
+    """Get the current timing registry."""
+    return _TIMING_REGISTRY.copy()
+
+
+def clear_timing_registry():
+    """Clear the timing registry for a new workflow execution."""
+    global _TIMING_REGISTRY
+    _TIMING_REGISTRY.clear()
+
+
+def register_node_timing(
+    execution_id: str, node_name: str, execution_time_seconds: float
+):
+    """Register node execution timing data."""
+    global _TIMING_REGISTRY
+    if execution_id not in _TIMING_REGISTRY:
+        _TIMING_REGISTRY[execution_id] = {}
+    _TIMING_REGISTRY[execution_id][node_name] = execution_time_seconds
+
+
 class NodeExecutionError(Exception):
     """Raised when a node execution fails."""
 
@@ -145,20 +172,86 @@ def node_metrics(func):
         node_name = func.__name__.replace("_node", "")
 
         try:
+            print(
+                f"[PRINT DEBUG] Starting execution of {node_name} node"
+            )  # This should definitely appear
+            logger.warning(
+                f"[DEBUG] Starting execution of {node_name} node with args: {[type(arg) for arg in args]}"
+            )
             logger.info(f"Starting execution of {node_name} node")
             result = await func(*args, **kwargs)
 
-            execution_time = (time.time() - start_time) * 1000
+            execution_time_ms = (time.time() - start_time) * 1000
+            execution_time_seconds = execution_time_ms / 1000
             logger.info(
-                f"Completed {node_name} node execution in {execution_time:.2f}ms"
+                f"Completed {node_name} node execution in {execution_time_ms:.2f}ms"
             )
+
+            # Store timing data directly in the result context if available
+            # This ensures timing data is available regardless of the execution path
+            context_updated = False
+
+            # Try to find and update AgentContext in the result
+            if hasattr(result, "get") and "final_context" in result:
+                # If result has a final_context, store timing there
+                final_context = result["final_context"]
+                if hasattr(final_context, "execution_state"):
+                    if "_node_execution_times" not in final_context.execution_state:
+                        final_context.execution_state["_node_execution_times"] = {}
+                    final_context.execution_state["_node_execution_times"][
+                        node_name
+                    ] = execution_time_seconds
+                    context_updated = True
+                    logger.warning(
+                        f"[DEBUG] Stored timing in final_context for {node_name}: {execution_time_seconds:.3f}s"
+                    )
+
+            # Also try to extract execution_id for registry (backup approach)
+            execution_id = None
+            if args and isinstance(args[0], dict):
+                state = args[0]
+                logger.warning(
+                    f"[DEBUG] {node_name} node state keys: {list(state.keys())}"
+                )
+
+                # Try various ways to get execution_id
+                if "execution_metadata" in state:
+                    execution_id = state["execution_metadata"].get("execution_id")
+                elif "execution_id" in state:
+                    execution_id = state["execution_id"]
+                else:
+                    # Check nested structures
+                    for key, value in state.items():
+                        if isinstance(value, dict) and "execution_id" in value:
+                            execution_id = value["execution_id"]
+                            break
+
+            if execution_id:
+                register_node_timing(execution_id, node_name, execution_time_seconds)
+                logger.warning(
+                    f"[DEBUG] Registered timing for {node_name}: {execution_time_seconds:.3f}s (execution_id: {execution_id})"
+                )
+            elif not context_updated:
+                logger.warning(
+                    f"Could not store timing data for {node_name} node - no execution_id and no context access"
+                )
+
+            # Also store timing data in result for immediate access
+            if isinstance(result, dict):
+                if "_node_execution_times" not in result:
+                    result["_node_execution_times"] = {}
+                result["_node_execution_times"][node_name] = {
+                    "execution_time_seconds": execution_time_seconds,
+                    "execution_time_ms": execution_time_ms,
+                    "completed": True,
+                }
 
             return result
 
         except Exception as e:
-            execution_time = (time.time() - start_time) * 1000
+            execution_time_ms = (time.time() - start_time) * 1000
             logger.error(
-                f"Failed {node_name} node execution after {execution_time:.2f}ms: {e}"
+                f"Failed {node_name} node execution after {execution_time_ms:.2f}ms: {e}"
             )
             raise
 

@@ -235,6 +235,17 @@ class LangGraphNodeAdapter(ABC):
                 f"Node {self.node_id} completed successfully in {execution_time_ms:.2f}ms"
             )
 
+            # Store timing data in context for metadata collection
+            if hasattr(final_context, "execution_state"):
+                if "_node_execution_times" not in final_context.execution_state:
+                    final_context.execution_state["_node_execution_times"] = {}
+                final_context.execution_state["_node_execution_times"][self.node_id] = (
+                    execution_time_ms / 1000.0
+                )  # Convert to seconds
+                self.logger.info(
+                    f"[TIMING] Stored timing for {self.node_id}: {execution_time_ms / 1000.0:.3f}s"
+                )
+
             return NodeExecutionResult(
                 context=final_context,
                 success=True,
