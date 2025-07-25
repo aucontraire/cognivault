@@ -339,6 +339,7 @@ async def _run_workflow_async(
                 nodes_executed=result.node_execution_order,
                 event_correlation_id=result.event_correlation_id,
                 node_execution_order=result.node_execution_order,
+                execution_structure=getattr(result, "execution_structure", []),
                 # Enhanced fields
                 node_execution_times=node_execution_times,
                 workflow_version=workflow_version,

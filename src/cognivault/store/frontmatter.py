@@ -8,7 +8,7 @@ including topics, agent status tracking, domain classification, and more.
 import uuid
 import hashlib
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -99,6 +99,10 @@ class WorkflowExecutionMetadata(BaseModel):
     nodes_executed: Optional[List[str]] = Field(default_factory=list)
     event_correlation_id: Optional[str] = None
     node_execution_order: Optional[List[str]] = Field(default_factory=list)
+    execution_structure: Optional[List[Union[str, List[str]]]] = Field(
+        default_factory=list,
+        description="Hierarchical execution order showing parallel groups: ['refiner', ['critic', 'historian'], 'synthesis']",
+    )
 
     # Performance analytics
     node_execution_times: Optional[Dict[str, float]] = Field(default_factory=dict)
