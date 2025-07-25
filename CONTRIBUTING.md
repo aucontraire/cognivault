@@ -441,7 +441,7 @@ git commit --no-verify
 - **Follow up** on your pull requests and issues
 
 ### Getting Help
-- **Check documentation** first (README, CLAUDE.md, ADRs)
+- **Check documentation** first (README, architecture docs, etc.)
 - **Search existing issues** before creating new ones
 - **Provide context** when asking questions
 - **Include error messages** and relevant code

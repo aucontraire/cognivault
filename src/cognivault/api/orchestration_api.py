@@ -356,3 +356,41 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             }
             for wf in workflows[:limit]
         ]
+
+    def find_workflow_by_correlation_id(self, correlation_id: str) -> Optional[str]:
+        """
+        Find workflow_id by correlation_id.
+
+        Args:
+            correlation_id: The correlation ID to search for
+
+        Returns:
+            workflow_id if found, None otherwise
+        """
+        for workflow_id, workflow_data in self._active_workflows.items():
+            request = workflow_data.get("request")
+            if request and getattr(request, "correlation_id", None) == correlation_id:
+                return workflow_id
+        return None
+
+    @ensure_initialized
+    async def get_status_by_correlation_id(self, correlation_id: str) -> StatusResponse:
+        """
+        Get workflow execution status by correlation_id.
+
+        Args:
+            correlation_id: Unique correlation identifier for the request
+
+        Returns:
+            StatusResponse with current status
+
+        Raises:
+            KeyError: Correlation ID not found
+        """
+        workflow_id = self.find_workflow_by_correlation_id(correlation_id)
+        if workflow_id is None:
+            raise KeyError(f"No workflow found for correlation_id: {correlation_id}")
+
+        # Use existing get_status method with workflow_id
+        status_response = await self.get_status(workflow_id)
+        return status_response

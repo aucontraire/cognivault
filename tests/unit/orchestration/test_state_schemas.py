@@ -95,6 +95,7 @@ class TestTypeDefinitions:
         """Test ExecutionMetadata schema structure."""
         metadata: ExecutionMetadata = {
             "execution_id": "exec-123",
+            "correlation_id": "corr-123",
             "start_time": "2023-01-01T00:00:00",
             "orchestrator_type": "langgraph-real",
             "agents_requested": ["refiner", "critic", "historian", "synthesis"],
@@ -103,6 +104,7 @@ class TestTypeDefinitions:
         }
 
         assert metadata["execution_id"] == "exec-123"
+        assert metadata["correlation_id"] == "corr-123"
         assert metadata["start_time"] == "2023-01-01T00:00:00"
         assert metadata["orchestrator_type"] == "langgraph-real"
         assert metadata["agents_requested"] == [
@@ -124,6 +126,7 @@ class TestTypeDefinitions:
             "synthesis": None,
             "execution_metadata": {
                 "execution_id": "exec-123",
+                "correlation_id": "corr-123",
                 "start_time": "2023-01-01T00:00:00",
                 "orchestrator_type": "langgraph-real",
                 "agents_requested": ["refiner"],

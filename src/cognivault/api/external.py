@@ -5,7 +5,7 @@ These APIs form the stable interface that external consumers depend on.
 Breaking changes require migration path and version bump.
 """
 
-from typing import List, Dict
+from typing import List, Dict, Any
 from .base import BaseAPI
 from .decorators import ensure_initialized
 from .models import (
@@ -79,6 +79,40 @@ class OrchestrationAPI(BaseAPI):
             True if successfully cancelled, False if already completed
         """
         raise NotImplementedError("Subclasses must implement cancel_workflow")
+
+    def get_workflow_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get recent workflow execution history.
+
+        Args:
+            limit: Maximum number of results to return
+
+        Returns:
+            List of workflow execution history items
+
+        Note:
+            This method is synchronous for the current in-memory implementation.
+            Future database-backed implementations may need async version.
+        """
+        raise NotImplementedError("Subclasses must implement get_workflow_history")
+
+    @ensure_initialized
+    async def get_status_by_correlation_id(self, correlation_id: str) -> StatusResponse:
+        """
+        Get workflow execution status by correlation_id.
+
+        Args:
+            correlation_id: Unique correlation identifier for the request
+
+        Returns:
+            StatusResponse with current status
+
+        Raises:
+            KeyError: Correlation ID not found
+        """
+        raise NotImplementedError(
+            "Subclasses must implement get_status_by_correlation_id"
+        )
 
 
 class LLMGatewayAPI(BaseAPI):

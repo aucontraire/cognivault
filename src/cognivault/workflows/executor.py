@@ -9,11 +9,14 @@ state management.
 import asyncio
 import uuid
 import time
-from typing import Dict, List, Any, Optional, Callable, TYPE_CHECKING
+from typing import Dict, List, Any, Optional, Callable, TYPE_CHECKING, Union
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field, ConfigDict
 from cognivault.context import AgentContext
+from cognivault.observability import get_logger
+
+logger = get_logger(__name__)
 
 # Forward imports to resolve circular dependencies
 if TYPE_CHECKING:
@@ -136,7 +139,11 @@ class WorkflowResult(BaseModel):
     )
     node_execution_order: List[str] = Field(
         default_factory=list,
-        description="Order in which nodes were executed for debugging and analytics",
+        description="Flat list of nodes in completion order (for backward compatibility)",
+    )
+    execution_structure: List[Union[str, List[str]]] = Field(
+        default_factory=list,
+        description="Hierarchical execution order showing parallel groups: ['refiner', ['critic', 'historian'], 'synthesis']",
     )
     execution_time_seconds: float = Field(
         default=0.0, ge=0, description="Total execution time in seconds"
@@ -221,6 +228,64 @@ class WorkflowResult(BaseModel):
             return [self._convert_sets_to_lists(item) for item in data]
         else:
             return data
+
+    def build_execution_structure(self) -> List[Union[str, List[str]]]:
+        """
+        Build hierarchical execution structure from flat node execution order.
+
+        Uses workflow knowledge to group parallel nodes:
+        - refiner runs first (sequential)
+        - critic and historian run in parallel after refiner
+        - synthesis runs last (sequential)
+
+        Returns
+        -------
+        List[Union[str, List[str]]]
+            Hierarchical structure like ['refiner', ['critic', 'historian'], 'synthesis']
+        """
+        if not self.node_execution_order:
+            return []
+
+        # Known parallel execution pattern for standard 4-agent workflow
+        parallel_groups = {frozenset(["critic", "historian"]): ["critic", "historian"]}
+
+        # Start with flat order
+        flat_order = self.node_execution_order.copy()
+        hierarchical: List[Union[str, List[str]]] = []
+
+        i = 0
+        while i < len(flat_order):
+            current_node = flat_order[i]
+
+            # Check if current node is part of a known parallel group
+            found_parallel_group = None
+            for parallel_set, parallel_list in parallel_groups.items():
+                if current_node in parallel_set:
+                    found_parallel_group = parallel_list
+                    break
+
+            if found_parallel_group:
+                # Collect all nodes from this parallel group that appear consecutively
+                parallel_nodes = []
+                j = i
+                while j < len(flat_order) and flat_order[j] in found_parallel_group:
+                    parallel_nodes.append(flat_order[j])
+                    j += 1
+
+                # If we found multiple parallel nodes, group them
+                if len(parallel_nodes) > 1:
+                    hierarchical.append(parallel_nodes)
+                    i = j  # Skip past all parallel nodes
+                else:
+                    # Single node from parallel group - treat as sequential
+                    hierarchical.append(current_node)
+                    i += 1
+            else:
+                # Sequential node
+                hierarchical.append(current_node)
+                i += 1
+
+        return hierarchical
 
 
 class WorkflowExecutor:
@@ -439,17 +504,41 @@ class WorkflowExecutor:
             end_time = datetime.now(timezone.utc)
             execution_time = (end_time - start_time).total_seconds()
 
+            # Collect node execution timing data for metadata
+            enhanced_metadata = self.composition_result.metadata.copy()
+
+            # Import timing registry functions
+            try:
+                from cognivault.orchestration.node_wrappers import get_timing_registry
+
+                timing_registry = get_timing_registry()
+                node_execution_times = timing_registry.get(execution_id, {})
+                if node_execution_times:
+                    enhanced_metadata["node_execution_times"] = node_execution_times
+                    logger.info(
+                        f"Added node execution times to metadata: {node_execution_times}"
+                    )
+                else:
+                    logger.warning(
+                        f"No timing data found for execution_id: {execution_id}"
+                    )
+            except ImportError as e:
+                logger.warning(f"Could not import timing registry: {e}")
+
             # Create successful result
             result = WorkflowResult(
                 workflow_id=workflow_id,
                 execution_id=execution_id,
                 final_context=final_context,
-                execution_metadata=self.composition_result.metadata,
+                execution_metadata=enhanced_metadata,
                 node_execution_order=self.execution_context.execution_path,
                 execution_time_seconds=execution_time,
                 success=True,
                 event_correlation_id=correlation_id,
             )
+
+            # Build hierarchical execution structure after creation
+            result.execution_structure = result.build_execution_structure()
 
             # Emit workflow completed event
             if self.event_emitter:

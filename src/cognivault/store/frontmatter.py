@@ -6,8 +6,9 @@ including topics, agent status tracking, domain classification, and more.
 """
 
 import uuid
+import hashlib
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -80,6 +81,93 @@ class AgentExecutionResult(BaseModel):
                 self.confidence_level = AgentConfidenceLevel.VERY_HIGH
 
 
+class WorkflowExecutionMetadata(BaseModel):
+    """
+    Comprehensive workflow execution metadata for execution provenance.
+
+    Provides complete audit trail, performance analytics, and reproducibility
+    information for enterprise and scientific use cases.
+    """
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    # Core execution tracking
+    workflow_id: Optional[str] = None
+    execution_id: Optional[str] = None
+    execution_time_seconds: Optional[float] = None
+    success: Optional[bool] = None
+    nodes_executed: Optional[List[str]] = Field(default_factory=list)
+    event_correlation_id: Optional[str] = None
+    node_execution_order: Optional[List[str]] = Field(default_factory=list)
+    execution_structure: Optional[List[Union[str, List[str]]]] = Field(
+        default_factory=list,
+        description="Hierarchical execution order showing parallel groups: ['refiner', ['critic', 'historian'], 'synthesis']",
+    )
+
+    # Performance analytics
+    node_execution_times: Optional[Dict[str, float]] = Field(default_factory=dict)
+
+    # Configuration and versioning
+    workflow_version: Optional[str] = None
+    cognivault_version: Optional[str] = None
+    config_fingerprint: Optional[str] = None  # SHA256 hash of workflow + prompt config
+
+    # LLM tracking with type safety
+    llm_model: Optional[str] = None  # Will be enhanced to use LLMModel enum
+    llm_provider: Optional[str] = None
+    total_tokens_used: Optional[int] = None
+    cost_estimate: Optional[float] = None
+
+    # Quality assessment (future-ready)
+    response_quality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    query_complexity: Optional[str] = None  # "simple", "medium", "complex"
+    logging_level: Optional[str] = None
+
+    @classmethod
+    def create_config_fingerprint(
+        cls, workflow_config: Dict[str, Any], prompt_config: Dict[str, Any]
+    ) -> str:
+        """
+        Create a SHA256 fingerprint from workflow and prompt configuration.
+
+        Args:
+            workflow_config: Workflow definition dictionary
+            prompt_config: Prompt composition configuration
+
+        Returns:
+            SHA256 hash string for configuration fingerprinting
+        """
+        # Combine configs and create deterministic string
+        combined_config = {"workflow": workflow_config, "prompts": prompt_config}
+
+        # Sort keys for deterministic hashing
+        config_str = str(sorted(combined_config.items()))
+        return hashlib.sha256(config_str.encode()).hexdigest()
+
+    def calculate_cost_estimate(self, tokens_used: int, model: str) -> float:
+        """
+        Calculate cost estimate based on token usage and model.
+
+        Args:
+            tokens_used: Total tokens consumed
+            model: LLM model name
+
+        Returns:
+            Estimated cost in USD
+        """
+        # Simplified cost calculation - can be enhanced with real pricing
+        cost_per_1k_tokens = {
+            "gpt-4": 0.03,
+            "gpt-4-turbo": 0.01,
+            "gpt-4o": 0.005,
+            "gpt-4o-mini": 0.00015,
+            "gpt-3.5-turbo": 0.0015,
+        }
+
+        rate = cost_per_1k_tokens.get(model, 0.01)  # Default rate
+        return (tokens_used / 1000) * rate
+
+
 class EnhancedFrontmatter(BaseModel):
     """
     Enhanced frontmatter schema for CogniVault notes.
@@ -101,6 +189,9 @@ class EnhancedFrontmatter(BaseModel):
 
     # Agent Execution Results
     agents: Dict[str, AgentExecutionResult] = Field(default_factory=dict)
+
+    # Workflow Execution Metadata
+    workflow_metadata: Optional[WorkflowExecutionMetadata] = None
 
     # Topic and Classification
     topics: List[str] = Field(default_factory=list)

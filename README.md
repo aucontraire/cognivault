@@ -3,6 +3,8 @@
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Poetry](https://img.shields.io/badge/poetry-managed-blue)
 ![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)
+![API Status](https://img.shields.io/badge/API-operational-brightgreen)
+![WebSocket](https://img.shields.io/badge/WebSocket-streaming-brightgreen)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Markdown Export](https://img.shields.io/badge/markdown-export-green)
 ![Wiki Ready](https://img.shields.io/badge/wiki-ready-blueviolet)
@@ -21,7 +23,7 @@ CogniVault provides a sophisticated orchestration platform grounded in **cogniti
 - **Configurable Prompt Composition**: YAML-driven agent behavior customization without code changes
 - **Enhanced Routing System**: OPERATIONAL algorithm-driven agent selection with performance optimization and constraint validation
 
-**Status**: V1 fully functional system with complete multi-agent workflows, LangGraph orchestration, configurable prompt composition, and comprehensive observability - a research-grade foundation for advanced multi-agent applications.
+**Status**: V1 fully functional system with complete multi-agent workflows, LangGraph orchestration, configurable prompt composition, and comprehensive observability. **Phase 1A Complete**: FastAPI service layer with WebSocket real-time streaming and Docker development environment.
 
 > **📚 Research Foundations**: See [RESEARCH.md](src/cognivault/docs/RESEARCH.md) for comprehensive cognitive science foundations including distributed cognition theory, dual-process theory, and society of mind principles that inform the architecture.
 > 
@@ -111,6 +113,9 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🌊 **Event-driven architecture**: Comprehensive event system with workflow tracking, metrics collection, and observability
 - 📄 **Markdown-ready output**: Integration-friendly output for personal wikis and knowledge management systems
 - 🔄 **Swappable LLM backends**: Plug-and-play support for OpenAI or stubs via configuration
+- 🌐 **API Service Layer**: FastAPI-based service layer with 9 functional endpoints and comprehensive testing
+- ⚡ **Real-Time Streaming**: WebSocket-based live workflow progress updates with correlation ID filtering
+- 🐳 **Docker Development Environment**: Containerized development setup with hot reload
 
 ### 🔧 **Developer Experience**
 *How you work with CogniVault - tools and interfaces that make development productive*
@@ -123,6 +128,8 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🧪 **Comprehensive testing**: Full test suite with 86% coverage and 3,454+ tests for reliability
 - 🧩 **Pattern validation framework**: OPERATIONAL built-in validation, testing, and certification tools for custom graph patterns (see [Pattern Registry](src/cognivault/docs/PATTERN_REGISTRY.md) for comprehensive pattern documentation)
 - 📤 **Trace export**: JSON export of detailed execution metadata (`--export-trace`) for monitoring
+- 🌐 **API Manual Testing**: Comprehensive testing guide for API scenarios and WebSocket connections
+- 🔧 **Docker Development**: Containerized development environment with hot reload
 
 ### 🏗️ **Architecture**
 *How CogniVault is built - comprehensive foundation for reliability and extensibility*
@@ -161,6 +168,9 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🎯 **CLI Integration**: Full command suite - `cognivault main`, `diagnostics`, comprehensive options
 - 🎛️ **Configurable Prompt Composition**: OPERATIONAL YAML-driven agent behavior customization with 662-line PromptComposer
 - 🔍 **Semantic Validation**: OPERATIONAL comprehensive workflow validation (see [Semantic Validation Usage](src/cognivault/docs/SEMANTIC_VALIDATION_USAGE.md))
+- 🌐 **API Service Layer**: 9 FastAPI endpoints functional with comprehensive test coverage
+- ⚡ **WebSocket Real-Time Streaming**: Live workflow progress with correlation ID filtering and event integration
+- 🐳 **Docker Development**: Containerized environment for development
 
 **Example Multi-Agent Execution**:
 ```bash
@@ -196,6 +206,50 @@ nodes:
 ```
 
 CogniVault provides sophisticated multi-agent orchestration with comprehensive observability, advanced node types, and comprehensive reliability patterns.
+
+### 🌐 **API Service Layer** (**Phase 1A Complete** ✅)
+
+**FastAPI Service Infrastructure**
+- **9 Functional Endpoints**: API coverage for workflow execution, topic management, and system monitoring
+  - `POST /api/query` - Execute multi-agent workflows with progress tracking
+  - `GET /api/query/status/{correlation_id}` - Workflow status tracking
+  - `GET /api/query/history` - Execution history with in-memory storage
+  - `GET /api/topics` - Dynamic topic discovery using keyword extraction
+  - `GET /api/topics/{id}/wiki` - Knowledge synthesis from workflow outputs
+  - `GET /api/workflows` - Workflow discovery from filesystem scanning
+  - `GET /api/workflows/{id}` - Individual workflow details
+  - `WS /ws/query/{correlation_id}` - Real-time workflow progress streaming
+  - `WS /ws/health` - WebSocket health monitoring
+
+**Real-Time WebSocket Streaming**
+- **Live Progress Updates**: Real-time workflow execution progress (0-100%) with stage-based calculation
+- **Correlation ID Filtering**: Targeted event streaming for specific workflow executions
+- **Event Integration**: Integration with existing event system
+- **Connection Management**: Thread-safe connection management with automatic cleanup
+- **50 Comprehensive Tests**: Full WebSocket functionality coverage
+
+**Docker Development Environment**
+- **Development Setup**: Containerized development environment with DRY configuration
+- **Hot Reload Support**: Development volumes for immediate code iteration
+- **Service Dependencies**: Orchestration with health checks for database and cache services
+- **Testing Support**: Profile-based testing with service dependency management
+
+**Current Implementation**
+- **167+ Passing Tests**: Comprehensive API coverage with real workflow integration
+- **Real LLM Integration**: All endpoints work with actual workflow execution data
+- **Manual Testing Guide**: [Complete API testing documentation](src/cognivault/docs/API_MANUAL_TESTING_GUIDE.md) for all endpoints and WebSocket scenarios
+- **External Integration**: Platform ready for external consumer integration
+
+**Technical Implementation**
+- **Zero Breaking Changes**: All existing functionality preserved during API service implementation
+- **Type-Safe Implementation**: Pydantic validation throughout API layer
+- **Event-Driven Design**: Event emission and correlation tracking across all endpoints
+- **Memory Management**: Thread-safe operations with asyncio locks and resource cleanup
+
+**Current Limitations**
+- **In-Memory Storage**: Topic discovery and workflow history use in-memory storage (database integration planned for Phase 1B)
+- **File-Based Workflows**: Workflow discovery scans filesystem for YAML files
+- **Keyword-Based Topics**: Topic clustering uses keyword extraction (semantic embeddings planned for Phase 1B)
 
 ### 🎯 **Advanced Pydantic Migration** (OPERATIONAL)
 
@@ -277,6 +331,8 @@ CogniVault is organized into focused modules following cognitive science princip
 - **`cli/`** - Full-featured command-line interface with comprehensive options
 
 > **🏛️ Architecture Documentation**: See [ARCHITECTURE.md](src/cognivault/docs/architecture/ARCHITECTURE.md) and the complete [ADR collection](src/cognivault/docs/architecture/) for detailed architectural decisions, patterns, and implementation strategies.
+
+---
 
 ---
 
@@ -1608,6 +1664,7 @@ It’s designed as a memory-enhanced thinking partner that integrates cleanly wi
 
 ## 🔭 Roadmap
 
+### ✅ **Phase 1A Complete** - API Service Layer Foundation
 - [x] Agent toggles via CLI (`--agents=name1,name2`)
 - [x] Asynchronous agent execution
 - [x] **Enterprise Pydantic Migration**: Complete migration to modern Pydantic v2 BaseModels with enterprise-grade validation
@@ -1619,10 +1676,25 @@ It’s designed as a memory-enhanced thinking partner that integrates cleanly wi
 - [x] **TypedDict State Management**: Type-safe state schemas with mypy compliance (OPERATIONAL)
 - [x] **Circuit Breaker Patterns**: Robust error handling and resilience throughout the system (OPERATIONAL)
 - [x] Markdown exporter for wiki integration
+- [x] **FastAPI Service Layer**: 9 production-ready API endpoints with comprehensive testing
+- [x] **WebSocket Real-Time Streaming**: Live workflow progress updates with correlation ID filtering
+- [x] **Docker Development Environment**: Expert-validated production-grade development setup
+- [x] **API Manual Testing Guide**: Complete testing documentation for real-world scenarios
+
+### 🎯 **Current Phase 1B** - Database Integration & Authentication
+*See [PHASE_1B_DATABASE_AUTHENTICATION_IMPLEMENTATION.md](src/cognivault/docs/github/PHASE_1B_DATABASE_AUTHENTICATION_IMPLEMENTATION.md) for detailed implementation plan*
+
+- [ ] **PostgreSQL + pgvector Integration**: Persistent storage with vector embeddings for semantic search
+- [ ] **API Authentication System**: API key management with rate limiting and usage tracking
+- [ ] **Enhanced TopicAgent**: Semantic embeddings with text-embedding-3-large integration
+- [ ] **Production Deployment Features**: Multi-stage Docker builds and comprehensive health checks
+
+### 🔮 **Future Phases** - Platform Evolution
 - [ ] **Advanced Conditional Routing**: Custom graph builders and sophisticated routing patterns
-- [ ] Optional file/vector store persistence
-- [ ] API or microservice agent wrappers (e.g. FastAPI)
-- [ ] Streamlit UI or Jupyter notebook support
+- [ ] **GraphRAG Knowledge System**: Advanced knowledge graph exploration and semantic relationships
+- [ ] **Community Plugin Architecture**: Framework for community-contributed agents and configurations
+- [ ] **Enterprise Features**: RBAC, multi-tenant workspaces, advanced analytics
+- [ ] **Streamlit UI or Jupyter notebook support**: Interactive web interfaces for workflow management
 
 ---
 

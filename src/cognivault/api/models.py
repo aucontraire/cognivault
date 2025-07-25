@@ -437,3 +437,643 @@ class InternalAgentMetrics(BaseModel):
     timestamp: datetime = Field(..., description="Timestamp of the execution")
 
     model_config = ConfigDict(extra="allow")  # Internal schemas can be more flexible
+
+
+# EXTERNAL SCHEMA
+class WorkflowHistoryItem(BaseModel):
+    """Individual workflow history entry - v1.0.0"""
+
+    workflow_id: str = Field(
+        ...,
+        description="Unique identifier for the workflow execution",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    status: str = Field(
+        ...,
+        description="Workflow execution status",
+        pattern=r"^(completed|failed|running|cancelled)$",
+        json_schema_extra={"example": "completed"},
+    )
+    query: str = Field(
+        ...,
+        description="Original query (truncated for display)",
+        max_length=200,
+        json_schema_extra={"example": "Analyze the impact of climate change..."},
+    )
+    start_time: float = Field(
+        ...,
+        description="Workflow start time as Unix timestamp",
+        ge=0.0,
+        json_schema_extra={"example": 1703097600.0},
+    )
+    execution_time_seconds: float = Field(
+        ...,
+        description="Total execution time in seconds",
+        ge=0.0,
+        json_schema_extra={"example": 12.5},
+    )
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        """Validate workflow status values."""
+        valid_statuses = {"completed", "failed", "running", "cancelled"}
+        if v not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "workflow_id": self.workflow_id,
+            "status": self.status,
+            "query": self.query,
+            "start_time": self.start_time,
+            "execution_time_seconds": self.execution_time_seconds,
+        }
+
+
+# EXTERNAL SCHEMA
+class WorkflowHistoryResponse(BaseModel):
+    """External workflow history response - v1.0.0"""
+
+    workflows: List[WorkflowHistoryItem] = Field(
+        ...,
+        description="List of workflow execution history items",
+        json_schema_extra={
+            "example": [
+                {
+                    "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "status": "completed",
+                    "query": "Analyze the impact of climate change...",
+                    "start_time": 1703097600.0,
+                    "execution_time_seconds": 12.5,
+                }
+            ]
+        },
+    )
+    total: int = Field(
+        ...,
+        description="Total number of workflows available (not just returned)",
+        ge=0,
+        json_schema_extra={"example": 150},
+    )
+    limit: int = Field(
+        ...,
+        description="Maximum number of results requested",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+    offset: int = Field(
+        ...,
+        description="Number of results skipped",
+        ge=0,
+        json_schema_extra={"example": 0},
+    )
+    has_more: bool = Field(
+        ...,
+        description="Whether there are more results beyond this page",
+        json_schema_extra={"example": True},
+    )
+
+    @field_validator("limit")
+    @classmethod
+    def validate_limit(cls, v: int) -> int:
+        """Validate limit is within acceptable range."""
+        if v < 1 or v > 100:
+            raise ValueError("Limit must be between 1 and 100")
+        return v
+
+    @model_validator(mode="after")
+    def validate_pagination_consistency(self) -> "WorkflowHistoryResponse":
+        """Validate pagination parameters are consistent."""
+        if self.offset < 0:
+            raise ValueError("Offset must be non-negative")
+
+        # Check has_more consistency
+        expected_has_more = (self.offset + len(self.workflows)) < self.total
+        if self.has_more != expected_has_more:
+            # Fix has_more to be consistent
+            self.has_more = expected_has_more
+
+        return self
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "workflows": [wf.to_dict() for wf in self.workflows],
+            "total": self.total,
+            "limit": self.limit,
+            "offset": self.offset,
+            "has_more": self.has_more,
+        }
+
+
+# EXTERNAL SCHEMA
+class TopicSummary(BaseModel):
+    """Individual topic summary entry - v1.0.0"""
+
+    topic_id: str = Field(
+        ...,
+        description="Unique identifier for the topic",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    name: str = Field(
+        ...,
+        description="Human-readable topic name",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "Machine Learning Fundamentals"},
+    )
+    description: str = Field(
+        ...,
+        description="Brief topic description",
+        max_length=500,
+        json_schema_extra={
+            "example": "Core concepts and principles of machine learning algorithms"
+        },
+    )
+    query_count: int = Field(
+        ...,
+        description="Number of queries related to this topic",
+        ge=0,
+        json_schema_extra={"example": 15},
+    )
+    last_updated: float = Field(
+        ...,
+        description="Last update time as Unix timestamp",
+        ge=0.0,
+        json_schema_extra={"example": 1703097600.0},
+    )
+    similarity_score: Optional[float] = Field(
+        None,
+        description="Similarity score for search results (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate topic name format."""
+        if not v.strip():
+            raise ValueError("Topic name cannot be empty or whitespace")
+        return v.strip()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "topic_id": self.topic_id,
+            "name": self.name,
+            "description": self.description,
+            "query_count": self.query_count,
+            "last_updated": self.last_updated,
+            "similarity_score": self.similarity_score,
+        }
+
+
+# EXTERNAL SCHEMA
+class TopicsResponse(BaseModel):
+    """External topics discovery response - v1.0.0"""
+
+    topics: List[TopicSummary] = Field(
+        ...,
+        description="List of topic summaries",
+        json_schema_extra={
+            "example": [
+                {
+                    "topic_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Machine Learning Fundamentals",
+                    "description": "Core concepts and principles of machine learning",
+                    "query_count": 15,
+                    "last_updated": 1703097600.0,
+                    "similarity_score": 0.85,
+                }
+            ]
+        },
+    )
+    total: int = Field(
+        ...,
+        description="Total number of topics available (not just returned)",
+        ge=0,
+        json_schema_extra={"example": 42},
+    )
+    limit: int = Field(
+        ...,
+        description="Maximum number of results requested",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+    offset: int = Field(
+        ...,
+        description="Number of results skipped",
+        ge=0,
+        json_schema_extra={"example": 0},
+    )
+    has_more: bool = Field(
+        ...,
+        description="Whether there are more results beyond this page",
+        json_schema_extra={"example": True},
+    )
+    search_query: Optional[str] = Field(
+        None,
+        description="Search query used for filtering (if any)",
+        max_length=200,
+        json_schema_extra={"example": "machine learning"},
+    )
+
+    @field_validator("limit")
+    @classmethod
+    def validate_limit(cls, v: int) -> int:
+        """Validate limit is within acceptable range."""
+        if v < 1 or v > 100:
+            raise ValueError("Limit must be between 1 and 100")
+        return v
+
+    @model_validator(mode="after")
+    def validate_pagination_consistency(self) -> "TopicsResponse":
+        """Validate pagination parameters are consistent."""
+        if self.offset < 0:
+            raise ValueError("Offset must be non-negative")
+
+        # Check has_more consistency
+        expected_has_more = (self.offset + len(self.topics)) < self.total
+        if self.has_more != expected_has_more:
+            # Fix has_more to be consistent
+            self.has_more = expected_has_more
+
+        return self
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "topics": [topic.to_dict() for topic in self.topics],
+            "total": self.total,
+            "limit": self.limit,
+            "offset": self.offset,
+            "has_more": self.has_more,
+            "search_query": self.search_query,
+        }
+
+
+# EXTERNAL SCHEMA
+class TopicWikiResponse(BaseModel):
+    """External topic wiki knowledge response - v1.0.0"""
+
+    topic_id: str = Field(
+        ...,
+        description="Unique identifier for the topic",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    topic_name: str = Field(
+        ...,
+        description="Human-readable topic name",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "Machine Learning Fundamentals"},
+    )
+    content: str = Field(
+        ...,
+        description="Synthesized knowledge content for the topic",
+        min_length=1,
+        max_length=10000,
+        json_schema_extra={
+            "example": "Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed..."
+        },
+    )
+    last_updated: float = Field(
+        ...,
+        description="Last update time as Unix timestamp",
+        ge=0.0,
+        json_schema_extra={"example": 1703097600.0},
+    )
+    sources: List[str] = Field(
+        ...,
+        description="List of source workflow IDs that contributed to this knowledge",
+        max_length=50,  # Limit number of sources
+        json_schema_extra={
+            "example": [
+                "550e8400-e29b-41d4-a716-446655440001",
+                "550e8400-e29b-41d4-a716-446655440002",
+            ]
+        },
+    )
+    query_count: int = Field(
+        ...,
+        description="Number of queries that contributed to this topic knowledge",
+        ge=0,
+        json_schema_extra={"example": 15},
+    )
+    confidence_score: float = Field(
+        ...,
+        description="Confidence score for the synthesized content (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.92},
+    )
+
+    @field_validator("sources")
+    @classmethod
+    def validate_sources(cls, v: List[str]) -> List[str]:
+        """Validate source workflow IDs."""
+        for source_id in v:
+            if not re.match(r"^[a-f0-9-]{36}$", source_id):
+                raise ValueError(f"Invalid source workflow ID format: {source_id}")
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_sources = []
+        for source in v:
+            if source not in seen:
+                seen.add(source)
+                unique_sources.append(source)
+
+        return unique_sources
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        """Validate content format."""
+        content = v.strip()
+        if not content:
+            raise ValueError("Content cannot be empty or whitespace")
+        return content
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "topic_id": self.topic_id,
+            "topic_name": self.topic_name,
+            "content": self.content,
+            "last_updated": self.last_updated,
+            "sources": self.sources,
+            "query_count": self.query_count,
+            "confidence_score": self.confidence_score,
+        }
+
+
+# EXTERNAL SCHEMA
+class WorkflowMetadata(BaseModel):
+    """Individual workflow metadata entry - v1.0.0"""
+
+    workflow_id: str = Field(
+        ...,
+        description="Unique identifier for the workflow",
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        json_schema_extra={"example": "academic_research"},
+    )
+    name: str = Field(
+        ...,
+        description="Human-readable workflow name",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "Academic Research Analysis"},
+    )
+    description: str = Field(
+        ...,
+        description="Detailed workflow description",
+        max_length=1000,
+        json_schema_extra={
+            "example": "Comprehensive academic research workflow with peer-review standards"
+        },
+    )
+    version: str = Field(
+        ...,
+        description="Workflow version",
+        pattern=r"^\d+\.\d+\.\d+$",
+        json_schema_extra={"example": "1.0.0"},
+    )
+    category: str = Field(
+        ...,
+        description="Primary workflow category",
+        min_length=1,
+        max_length=50,
+        json_schema_extra={"example": "academic"},
+    )
+    tags: List[str] = Field(
+        ...,
+        description="Workflow tags for filtering and search",
+        max_length=20,  # Limit number of tags
+        json_schema_extra={
+            "example": ["academic", "research", "scholarly", "analysis"]
+        },
+    )
+    created_by: str = Field(
+        ...,
+        description="Workflow author or creator",
+        max_length=100,
+        json_schema_extra={"example": "CogniVault Team"},
+    )
+    created_at: float = Field(
+        ...,
+        description="Creation time as Unix timestamp",
+        ge=0.0,
+        json_schema_extra={"example": 1703097600.0},
+    )
+    estimated_execution_time: str = Field(
+        ...,
+        description="Estimated execution time range",
+        max_length=50,
+        json_schema_extra={"example": "45-60 seconds"},
+    )
+    complexity_level: str = Field(
+        ...,
+        description="Workflow complexity level",
+        pattern=r"^(low|medium|high|expert)$",
+        json_schema_extra={"example": "high"},
+    )
+    node_count: int = Field(
+        ...,
+        description="Number of nodes in the workflow",
+        ge=1,
+        json_schema_extra={"example": 7},
+    )
+    use_cases: List[str] = Field(
+        ...,
+        description="Common use cases for this workflow",
+        max_length=10,  # Limit number of use cases
+        json_schema_extra={"example": ["dissertation_research", "literature_review"]},
+    )
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, v: List[str]) -> List[str]:
+        """Validate workflow tags."""
+        if not v:
+            raise ValueError("At least one tag must be provided")
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_tags = []
+        for tag in v:
+            if not isinstance(tag, str):
+                raise ValueError("All tags must be strings")
+            tag_clean = tag.strip().lower()
+            if not tag_clean:
+                raise ValueError("Tags cannot be empty or whitespace")
+            if len(tag_clean) > 30:
+                raise ValueError("Tags cannot exceed 30 characters")
+            if tag_clean not in seen:
+                seen.add(tag_clean)
+                unique_tags.append(tag_clean)
+
+        return unique_tags
+
+    @field_validator("use_cases")
+    @classmethod
+    def validate_use_cases(cls, v: List[str]) -> List[str]:
+        """Validate use cases."""
+        for use_case in v:
+            if not isinstance(use_case, str):
+                raise ValueError("All use cases must be strings")
+            if not use_case.strip():
+                raise ValueError("Use cases cannot be empty or whitespace")
+            if len(use_case) > 100:
+                raise ValueError("Use cases cannot exceed 100 characters")
+
+        return [uc.strip() for uc in v]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "workflow_id": self.workflow_id,
+            "name": self.name,
+            "description": self.description,
+            "version": self.version,
+            "category": self.category,
+            "tags": self.tags,
+            "created_by": self.created_by,
+            "created_at": self.created_at,
+            "estimated_execution_time": self.estimated_execution_time,
+            "complexity_level": self.complexity_level,
+            "node_count": self.node_count,
+            "use_cases": self.use_cases,
+        }
+
+
+# EXTERNAL SCHEMA
+class WorkflowsResponse(BaseModel):
+    """External workflows discovery response - v1.0.0"""
+
+    workflows: List[WorkflowMetadata] = Field(
+        ...,
+        description="List of available workflow metadata",
+        json_schema_extra={
+            "example": [
+                {
+                    "workflow_id": "academic_research",
+                    "name": "Academic Research Analysis",
+                    "description": "Comprehensive academic research workflow",
+                    "version": "1.0.0",
+                    "category": "academic",
+                    "tags": ["academic", "research", "scholarly"],
+                    "created_by": "CogniVault Team",
+                    "created_at": 1703097600.0,
+                    "estimated_execution_time": "45-60 seconds",
+                    "complexity_level": "high",
+                    "node_count": 7,
+                    "use_cases": ["dissertation_research", "literature_review"],
+                }
+            ]
+        },
+    )
+    categories: List[str] = Field(
+        ...,
+        description="Available workflow categories for filtering",
+        json_schema_extra={"example": ["academic", "legal", "business", "general"]},
+    )
+    total: int = Field(
+        ...,
+        description="Total number of workflows available (not just returned)",
+        ge=0,
+        json_schema_extra={"example": 25},
+    )
+    limit: int = Field(
+        ...,
+        description="Maximum number of results requested",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+    offset: int = Field(
+        ...,
+        description="Number of results skipped",
+        ge=0,
+        json_schema_extra={"example": 0},
+    )
+    has_more: bool = Field(
+        ...,
+        description="Whether there are more results beyond this page",
+        json_schema_extra={"example": True},
+    )
+    search_query: Optional[str] = Field(
+        None,
+        description="Search query used for filtering (if any)",
+        max_length=200,
+        json_schema_extra={"example": "academic research"},
+    )
+    category_filter: Optional[str] = Field(
+        None,
+        description="Category filter applied (if any)",
+        max_length=50,
+        json_schema_extra={"example": "academic"},
+    )
+    complexity_filter: Optional[str] = Field(
+        None,
+        description="Complexity filter applied (if any)",
+        pattern=r"^(low|medium|high|expert)$",
+        json_schema_extra={"example": "high"},
+    )
+
+    @field_validator("limit")
+    @classmethod
+    def validate_limit(cls, v: int) -> int:
+        """Validate limit is within acceptable range."""
+        if v < 1 or v > 100:
+            raise ValueError("Limit must be between 1 and 100")
+        return v
+
+    @model_validator(mode="after")
+    def validate_pagination_consistency(self) -> "WorkflowsResponse":
+        """Validate pagination parameters are consistent."""
+        if self.offset < 0:
+            raise ValueError("Offset must be non-negative")
+
+        # Check has_more consistency
+        expected_has_more = (self.offset + len(self.workflows)) < self.total
+        if self.has_more != expected_has_more:
+            # Fix has_more to be consistent
+            self.has_more = expected_has_more
+
+        return self
+
+    @field_validator("categories")
+    @classmethod
+    def validate_categories(cls, v: List[str]) -> List[str]:
+        """Validate and normalize categories."""
+        if not v:
+            return []
+
+        # Remove duplicates and normalize
+        unique_categories = list(set(cat.strip().lower() for cat in v if cat.strip()))
+        return sorted(unique_categories)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "workflows": [wf.to_dict() for wf in self.workflows],
+            "categories": self.categories,
+            "total": self.total,
+            "limit": self.limit,
+            "offset": self.offset,
+            "has_more": self.has_more,
+            "search_query": self.search_query,
+            "category_filter": self.category_filter,
+            "complexity_filter": self.complexity_filter,
+        }

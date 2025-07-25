@@ -151,6 +151,9 @@ class ExecutionMetadata(TypedDict):
     execution_id: str
     """Unique identifier for this execution."""
 
+    correlation_id: Optional[str]
+    """Correlation ID for event tracking and WebSocket filtering."""
+
     start_time: str
     """ISO timestamp when execution started."""
 
@@ -226,7 +229,9 @@ AgentOutput = Union[RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutpu
 """Union type for any agent output schema."""
 
 
-def create_initial_state(query: str, execution_id: str) -> CogniVaultState:
+def create_initial_state(
+    query: str, execution_id: str, correlation_id: Optional[str] = None
+) -> CogniVaultState:
     """
     Create initial LangGraph state for execution.
 
@@ -252,6 +257,7 @@ def create_initial_state(query: str, execution_id: str) -> CogniVaultState:
         synthesis=None,
         execution_metadata=ExecutionMetadata(
             execution_id=execution_id,
+            correlation_id=correlation_id,
             start_time=now,
             orchestrator_type="langgraph-real",
             agents_requested=["refiner", "critic", "historian", "synthesis"],

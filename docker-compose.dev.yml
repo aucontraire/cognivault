@@ -1,0 +1,85 @@
+# Common environment variables to reduce duplication
+x-common-env: &common-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cognivault}:${POSTGRES_PASSWORD:-cognivault_dev}@postgres:5432/${POSTGRES_DB:-cognivault}
+  REDIS_URL: redis://redis:6379/0
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4}
+  LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cognivault}
+      POSTGRES_USER: ${POSTGRES_USER:-cognivault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cognivault_dev}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cognivault} -d ${POSTGRES_DB:-cognivault}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  cognivault-api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src  # Development hot reload
+      - ./examples:/app/examples
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./poetry.lock:/app/poetry.lock
+    restart: unless-stopped
+    command: ["poetry", "run", "uvicorn", "cognivault.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    command: ["pytest", "tests/", "-v"]
+    tty: true
+    environment:
+      <<: *common-env
+    depends_on:
+      cognivault-api:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./poetry.lock:/app/poetry.lock
+    profiles:
+      - test
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: cognivault-network
