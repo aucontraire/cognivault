@@ -569,3 +569,153 @@ class WorkflowHistoryResponse(BaseModel):
             "offset": self.offset,
             "has_more": self.has_more,
         }
+
+
+# EXTERNAL SCHEMA
+class TopicSummary(BaseModel):
+    """Individual topic summary entry - v1.0.0"""
+
+    topic_id: str = Field(
+        ...,
+        description="Unique identifier for the topic",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    name: str = Field(
+        ...,
+        description="Human-readable topic name",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "Machine Learning Fundamentals"},
+    )
+    description: str = Field(
+        ...,
+        description="Brief topic description",
+        max_length=500,
+        json_schema_extra={
+            "example": "Core concepts and principles of machine learning algorithms"
+        },
+    )
+    query_count: int = Field(
+        ...,
+        description="Number of queries related to this topic",
+        ge=0,
+        json_schema_extra={"example": 15},
+    )
+    last_updated: float = Field(
+        ...,
+        description="Last update time as Unix timestamp",
+        ge=0.0,
+        json_schema_extra={"example": 1703097600.0},
+    )
+    similarity_score: Optional[float] = Field(
+        None,
+        description="Similarity score for search results (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.85},
+    )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate topic name format."""
+        if not v.strip():
+            raise ValueError("Topic name cannot be empty or whitespace")
+        return v.strip()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "topic_id": self.topic_id,
+            "name": self.name,
+            "description": self.description,
+            "query_count": self.query_count,
+            "last_updated": self.last_updated,
+            "similarity_score": self.similarity_score,
+        }
+
+
+# EXTERNAL SCHEMA
+class TopicsResponse(BaseModel):
+    """External topics discovery response - v1.0.0"""
+
+    topics: List[TopicSummary] = Field(
+        ...,
+        description="List of topic summaries",
+        json_schema_extra={
+            "example": [
+                {
+                    "topic_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Machine Learning Fundamentals",
+                    "description": "Core concepts and principles of machine learning",
+                    "query_count": 15,
+                    "last_updated": 1703097600.0,
+                    "similarity_score": 0.85,
+                }
+            ]
+        },
+    )
+    total: int = Field(
+        ...,
+        description="Total number of topics available (not just returned)",
+        ge=0,
+        json_schema_extra={"example": 42},
+    )
+    limit: int = Field(
+        ...,
+        description="Maximum number of results requested",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+    offset: int = Field(
+        ...,
+        description="Number of results skipped",
+        ge=0,
+        json_schema_extra={"example": 0},
+    )
+    has_more: bool = Field(
+        ...,
+        description="Whether there are more results beyond this page",
+        json_schema_extra={"example": True},
+    )
+    search_query: Optional[str] = Field(
+        None,
+        description="Search query used for filtering (if any)",
+        max_length=200,
+        json_schema_extra={"example": "machine learning"},
+    )
+
+    @field_validator("limit")
+    @classmethod
+    def validate_limit(cls, v: int) -> int:
+        """Validate limit is within acceptable range."""
+        if v < 1 or v > 100:
+            raise ValueError("Limit must be between 1 and 100")
+        return v
+
+    @model_validator(mode="after")
+    def validate_pagination_consistency(self) -> "TopicsResponse":
+        """Validate pagination parameters are consistent."""
+        if self.offset < 0:
+            raise ValueError("Offset must be non-negative")
+
+        # Check has_more consistency
+        expected_has_more = (self.offset + len(self.topics)) < self.total
+        if self.has_more != expected_has_more:
+            # Fix has_more to be consistent
+            self.has_more = expected_has_more
+
+        return self
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "topics": [topic.to_dict() for topic in self.topics],
+            "total": self.total,
+            "limit": self.limit,
+            "offset": self.offset,
+            "has_more": self.has_more,
+            "search_query": self.search_query,
+        }

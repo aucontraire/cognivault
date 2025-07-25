@@ -8,8 +8,8 @@ Leverages the existing sophisticated API architecture in this package.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Import route modules (will be created)
-from cognivault.api.routes import health, query
+# Import route modules
+from cognivault.api.routes import health, query, topics
 
 # Create FastAPI application
 app = FastAPI(
@@ -35,6 +35,7 @@ app.add_middleware(
 # Mount route modules
 app.include_router(health.router, tags=["Health"])
 app.include_router(query.router, prefix="/api", tags=["Query"])
+app.include_router(topics.router, prefix="/api", tags=["Topics"])
 
 
 # Root endpoint
