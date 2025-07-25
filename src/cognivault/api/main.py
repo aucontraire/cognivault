@@ -9,7 +9,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import route modules
-from cognivault.api.routes import health, query, topics
+from cognivault.api.routes import health, query, topics, workflows, websockets
+from cognivault.api.factory import initialize_api, shutdown_api
+from cognivault.observability import get_logger
+
+logger = get_logger(__name__)
 
 # Create FastAPI application
 app = FastAPI(
@@ -36,6 +40,25 @@ app.add_middleware(
 app.include_router(health.router, tags=["Health"])
 app.include_router(query.router, prefix="/api", tags=["Query"])
 app.include_router(topics.router, prefix="/api", tags=["Topics"])
+app.include_router(workflows.router, prefix="/api", tags=["Workflows"])
+app.include_router(websockets.router, tags=["WebSockets"])
+
+
+# Application lifecycle events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the orchestration API on startup."""
+    logger.info("Starting CogniVault API...")
+    await initialize_api()
+    logger.info("CogniVault API startup complete")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean shutdown of orchestration API."""
+    logger.info("Shutting down CogniVault API...")
+    await shutdown_api()
+    logger.info("CogniVault API shutdown complete")
 
 
 # Root endpoint

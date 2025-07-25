@@ -14,6 +14,7 @@ Features:
 """
 
 import time
+import uuid
 from typing import Dict, Any, List, Optional
 
 
@@ -25,6 +26,7 @@ from cognivault.correlation import (
     ensure_correlation_context,
     create_child_span,
     add_trace_metadata,
+    CorrelationContext,
 )
 from cognivault.events import (
     emit_workflow_started,
@@ -209,8 +211,17 @@ class LangGraphOrchestrator:
         config = config or {}
         start_time = time.time()
 
-        # Ensure correlation context exists (create if not present)
-        correlation_ctx = ensure_correlation_context()
+        # Handle correlation context - use provided correlation_id if available
+        provided_correlation_id = config.get("correlation_id") if config else None
+
+        if provided_correlation_id:
+            # Create correlation context with provided correlation_id
+            correlation_ctx = CorrelationContext(
+                correlation_id=provided_correlation_id, workflow_id=str(uuid.uuid4())
+            )
+        else:
+            # Ensure correlation context exists (create if not present)
+            correlation_ctx = ensure_correlation_context()
 
         # Use correlation IDs for execution tracking
         execution_id = correlation_ctx.workflow_id
@@ -283,7 +294,7 @@ class LangGraphOrchestrator:
             thread_id = self.memory_manager.get_thread_id(config.get("thread_id"))
 
             # Create initial LangGraph state
-            initial_state = create_initial_state(query, execution_id)
+            initial_state = create_initial_state(query, execution_id, correlation_id)
 
             # Validate initial state
             if not validate_state_integrity(initial_state):
