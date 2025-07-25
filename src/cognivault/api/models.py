@@ -437,3 +437,135 @@ class InternalAgentMetrics(BaseModel):
     timestamp: datetime = Field(..., description="Timestamp of the execution")
 
     model_config = ConfigDict(extra="allow")  # Internal schemas can be more flexible
+
+
+# EXTERNAL SCHEMA
+class WorkflowHistoryItem(BaseModel):
+    """Individual workflow history entry - v1.0.0"""
+
+    workflow_id: str = Field(
+        ...,
+        description="Unique identifier for the workflow execution",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    status: str = Field(
+        ...,
+        description="Workflow execution status",
+        pattern=r"^(completed|failed|running|cancelled)$",
+        json_schema_extra={"example": "completed"},
+    )
+    query: str = Field(
+        ...,
+        description="Original query (truncated for display)",
+        max_length=200,
+        json_schema_extra={"example": "Analyze the impact of climate change..."},
+    )
+    start_time: float = Field(
+        ...,
+        description="Workflow start time as Unix timestamp",
+        ge=0.0,
+        json_schema_extra={"example": 1703097600.0},
+    )
+    execution_time_seconds: float = Field(
+        ...,
+        description="Total execution time in seconds",
+        ge=0.0,
+        json_schema_extra={"example": 12.5},
+    )
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        """Validate workflow status values."""
+        valid_statuses = {"completed", "failed", "running", "cancelled"}
+        if v not in valid_statuses:
+            raise ValueError(f"Status must be one of: {valid_statuses}")
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "workflow_id": self.workflow_id,
+            "status": self.status,
+            "query": self.query,
+            "start_time": self.start_time,
+            "execution_time_seconds": self.execution_time_seconds,
+        }
+
+
+# EXTERNAL SCHEMA
+class WorkflowHistoryResponse(BaseModel):
+    """External workflow history response - v1.0.0"""
+
+    workflows: List[WorkflowHistoryItem] = Field(
+        ...,
+        description="List of workflow execution history items",
+        json_schema_extra={
+            "example": [
+                {
+                    "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "status": "completed",
+                    "query": "Analyze the impact of climate change...",
+                    "start_time": 1703097600.0,
+                    "execution_time_seconds": 12.5,
+                }
+            ]
+        },
+    )
+    total: int = Field(
+        ...,
+        description="Total number of workflows available (not just returned)",
+        ge=0,
+        json_schema_extra={"example": 150},
+    )
+    limit: int = Field(
+        ...,
+        description="Maximum number of results requested",
+        ge=1,
+        le=100,
+        json_schema_extra={"example": 10},
+    )
+    offset: int = Field(
+        ...,
+        description="Number of results skipped",
+        ge=0,
+        json_schema_extra={"example": 0},
+    )
+    has_more: bool = Field(
+        ...,
+        description="Whether there are more results beyond this page",
+        json_schema_extra={"example": True},
+    )
+
+    @field_validator("limit")
+    @classmethod
+    def validate_limit(cls, v: int) -> int:
+        """Validate limit is within acceptable range."""
+        if v < 1 or v > 100:
+            raise ValueError("Limit must be between 1 and 100")
+        return v
+
+    @model_validator(mode="after")
+    def validate_pagination_consistency(self) -> "WorkflowHistoryResponse":
+        """Validate pagination parameters are consistent."""
+        if self.offset < 0:
+            raise ValueError("Offset must be non-negative")
+
+        # Check has_more consistency
+        expected_has_more = (self.offset + len(self.workflows)) < self.total
+        if self.has_more != expected_has_more:
+            # Fix has_more to be consistent
+            self.has_more = expected_has_more
+
+        return self
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "workflows": [wf.to_dict() for wf in self.workflows],
+            "total": self.total,
+            "limit": self.limit,
+            "offset": self.offset,
+            "has_more": self.has_more,
+        }

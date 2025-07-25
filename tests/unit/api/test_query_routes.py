@@ -5,11 +5,16 @@ Tests the web layer query endpoints using existing API models and factory patter
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, Mock
 from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
-from cognivault.api.models import WorkflowRequest, WorkflowResponse
+from cognivault.api.models import (
+    WorkflowRequest,
+    WorkflowResponse,
+    WorkflowHistoryResponse,
+    WorkflowHistoryItem,
+)
 
 
 class TestQueryRoutes:
@@ -176,30 +181,318 @@ class TestQueryRoutes:
         assert "message" in data
         assert "not yet implemented" in data["message"].lower()
 
-    def test_get_query_history_placeholder(self):
-        """Test query history endpoint (placeholder implementation)."""
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_success(self, mock_get_api):
+        """Test successful query history retrieval."""
+        # Setup mock orchestration API with history data
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "What is machine learning?",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440002",
+                "status": "failed",
+                "query": "Analyze climate change impact on agriculture with detailed methodology",
+                "start_time": 1703097550.0,
+                "execution_time": 8.2,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
         response = self.client.get("/api/query/history")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Verify placeholder response structure
-        assert data["queries"] == []
-        assert data["total"] == 0
-        assert data["limit"] == 10  # Default value
-        assert data["offset"] == 0  # Default value
-        assert "message" in data
+        # Verify response structure matches WorkflowHistoryResponse
+        assert "workflows" in data
+        assert "total" in data
+        assert "limit" in data
+        assert "offset" in data
+        assert "has_more" in data
 
-    def test_get_query_history_with_parameters(self):
+        # Verify default pagination
+        assert data["limit"] == 10
+        assert data["offset"] == 0
+        assert data["total"] == 2
+        assert data["has_more"] is False
+
+        # Verify workflow history items
+        workflows = data["workflows"]
+        assert len(workflows) == 2
+
+        # Check first workflow
+        first = workflows[0]
+        assert first["workflow_id"] == "550e8400-e29b-41d4-a716-446655440001"
+        assert first["status"] == "completed"
+        assert first["query"] == "What is machine learning?"
+        assert first["start_time"] == 1703097600.0
+        assert first["execution_time_seconds"] == 12.5
+
+        # Check second workflow (truncated query)
+        second = workflows[1]
+        assert second["workflow_id"] == "550e8400-e29b-41d4-a716-446655440002"
+        assert second["status"] == "failed"
+        assert "climate change" in second["query"]
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_with_custom_parameters(self, mock_get_api):
         """Test query history endpoint with custom limit and offset."""
-        response = self.client.get("/api/query/history?limit=20&offset=5")
+        # Setup mock with more data to test pagination
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": f"550e8400-e29b-41d4-a716-44665544{i:04d}",
+                "status": "completed" if i % 2 == 0 else "failed",
+                "query": f"Test query {i}",
+                "start_time": 1703097600.0 + i,
+                "execution_time": 10.0 + i,
+            }
+            for i in range(25)  # Create 25 workflows
+        ]
+        mock_api.get_workflow_history.return_value = mock_history[
+            :15
+        ]  # Return first 15 for limit=5, offset=10
+        mock_get_api.return_value = mock_api
+
+        response = self.client.get("/api/query/history?limit=5&offset=10")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Verify parameters are respected
-        assert data["limit"] == 20
+        # Verify custom parameters are respected
+        assert data["limit"] == 5
+        assert data["offset"] == 10
+        assert data["total"] == 15  # Based on mock return
+        assert data["has_more"] is False  # 10 + 5 = 15, which equals total
+
+        # Verify we get exactly 5 workflows (after offset)
+        workflows = data["workflows"]
+        assert len(workflows) == 5
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_with_pagination_has_more(self, mock_get_api):
+        """Test query history pagination with has_more=True."""
+        mock_api = Mock()
+        # Create 25 workflows, return first 20 for limit=10, offset=5
+        mock_history = [
+            {
+                "workflow_id": f"550e8400-e29b-41d4-a716-44665544{i:04d}",
+                "status": "completed",
+                "query": f"Test query {i}",
+                "start_time": 1703097600.0,
+                "execution_time": 10.0,
+            }
+            for i in range(20)
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        response = self.client.get("/api/query/history?limit=10&offset=5")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["limit"] == 10
         assert data["offset"] == 5
+        assert data["total"] == 20
+        # offset(5) + returned(10) = 15, which is < total(20), so has_more=True
+        assert data["has_more"] is True
+
+        workflows = data["workflows"]
+        assert len(workflows) == 10
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_empty_results(self, mock_get_api):
+        """Test query history with no workflows."""
+        mock_api = Mock()
+        mock_api.get_workflow_history.return_value = []
+        mock_get_api.return_value = mock_api
+
+        response = self.client.get("/api/query/history")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["workflows"] == []
+        assert data["total"] == 0
+        assert data["limit"] == 10
+        assert data["offset"] == 0
+        assert data["has_more"] is False
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_orchestration_failure(self, mock_get_api):
+        """Test query history when orchestration API fails."""
+        mock_get_api.side_effect = Exception("Orchestration API unavailable")
+
+        response = self.client.get("/api/query/history")
+
+        assert response.status_code == 500
+        data = response.json()
+
+        # Verify error response structure
+        assert "detail" in data
+        detail = data["detail"]
+        assert detail["error"] == "Failed to retrieve workflow history"
+        assert "Orchestration API unavailable" in detail["message"]
+        assert detail["type"] == "Exception"
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_with_invalid_workflow_data(self, mock_get_api):
+        """Test query history with malformed workflow data."""
+        mock_api = Mock()
+        # Include one valid and one invalid workflow
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "Valid workflow",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            },
+            {
+                # Missing required fields to test error handling
+                "workflow_id": "invalid-id",
+                "status": "completed",
+                # Missing query, start_time, execution_time
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440003",
+                "status": "failed",
+                "query": "Another valid workflow",
+                "start_time": 1703097650.0,
+                "execution_time": 8.0,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        response = self.client.get("/api/query/history")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should return only valid workflows (1st and 3rd)
+        workflows = data["workflows"]
+        assert len(workflows) == 2
+        assert workflows[0]["workflow_id"] == "550e8400-e29b-41d4-a716-446655440001"
+        assert workflows[1]["workflow_id"] == "550e8400-e29b-41d4-a716-446655440003"
+
+    def test_get_query_history_parameter_validation(self):
+        """Test query history parameter validation."""
+        # Test invalid limit (too high)
+        response = self.client.get("/api/query/history?limit=101")
+        assert response.status_code == 422
+
+        # Test invalid limit (too low)
+        response = self.client.get("/api/query/history?limit=0")
+        assert response.status_code == 422
+
+        # Test invalid offset (negative)
+        response = self.client.get("/api/query/history?offset=-1")
+        assert response.status_code == 422
+
+        # Test non-integer parameters
+        response = self.client.get("/api/query/history?limit=abc")
+        assert response.status_code == 422
+
+        response = self.client.get("/api/query/history?offset=xyz")
+        assert response.status_code == 422
+
+    @patch("cognivault.api.routes.query.logger")
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_logging(self, mock_get_api, mock_logger):
+        """Test that query history retrieval logs appropriately."""
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "Test query",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            }
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        response = self.client.get("/api/query/history?limit=5&offset=0")
+
+        assert response.status_code == 200
+
+        # Verify logging calls
+        # Should have info log for start and completion
+        assert mock_logger.info.call_count == 2
+
+        # Check start log
+        start_log = mock_logger.info.call_args_list[0][0][0]
+        assert "Fetching workflow history" in start_log
+        assert "limit=5" in start_log
+        assert "offset=0" in start_log
+
+        # Check completion log
+        completion_log = mock_logger.info.call_args_list[1][0][0]
+        assert "Workflow history retrieved" in completion_log
+        assert "1 items" in completion_log
+        assert "total=1" in completion_log
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_history_status_variations(self, mock_get_api):
+        """Test query history with different workflow statuses."""
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "Completed workflow",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440002",
+                "status": "failed",
+                "query": "Failed workflow",
+                "start_time": 1703097550.0,
+                "execution_time": 8.2,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440003",
+                "status": "running",
+                "query": "Running workflow",
+                "start_time": 1703097650.0,
+                "execution_time": 5.0,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440004",
+                "status": "cancelled",
+                "query": "Cancelled workflow",
+                "start_time": 1703097500.0,
+                "execution_time": 2.1,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        response = self.client.get("/api/query/history")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        workflows = data["workflows"]
+        assert len(workflows) == 4
+
+        # Verify all status types are handled
+        statuses = [wf["status"] for wf in workflows]
+        assert "completed" in statuses
+        assert "failed" in statuses
+        assert "running" in statuses
+        assert "cancelled" in statuses
 
     @patch("cognivault.api.routes.query.logger")
     @patch("cognivault.api.routes.query.get_orchestration_api")
