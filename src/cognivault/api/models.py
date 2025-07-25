@@ -719,3 +719,100 @@ class TopicsResponse(BaseModel):
             "has_more": self.has_more,
             "search_query": self.search_query,
         }
+
+
+# EXTERNAL SCHEMA
+class TopicWikiResponse(BaseModel):
+    """External topic wiki knowledge response - v1.0.0"""
+
+    topic_id: str = Field(
+        ...,
+        description="Unique identifier for the topic",
+        pattern=r"^[a-f0-9-]{36}$",  # UUID format
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
+    topic_name: str = Field(
+        ...,
+        description="Human-readable topic name",
+        min_length=1,
+        max_length=100,
+        json_schema_extra={"example": "Machine Learning Fundamentals"},
+    )
+    content: str = Field(
+        ...,
+        description="Synthesized knowledge content for the topic",
+        min_length=1,
+        max_length=10000,
+        json_schema_extra={
+            "example": "Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed..."
+        },
+    )
+    last_updated: float = Field(
+        ...,
+        description="Last update time as Unix timestamp",
+        ge=0.0,
+        json_schema_extra={"example": 1703097600.0},
+    )
+    sources: List[str] = Field(
+        ...,
+        description="List of source workflow IDs that contributed to this knowledge",
+        max_length=50,  # Limit number of sources
+        json_schema_extra={
+            "example": [
+                "550e8400-e29b-41d4-a716-446655440001",
+                "550e8400-e29b-41d4-a716-446655440002",
+            ]
+        },
+    )
+    query_count: int = Field(
+        ...,
+        description="Number of queries that contributed to this topic knowledge",
+        ge=0,
+        json_schema_extra={"example": 15},
+    )
+    confidence_score: float = Field(
+        ...,
+        description="Confidence score for the synthesized content (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"example": 0.92},
+    )
+
+    @field_validator("sources")
+    @classmethod
+    def validate_sources(cls, v: List[str]) -> List[str]:
+        """Validate source workflow IDs."""
+        for source_id in v:
+            if not re.match(r"^[a-f0-9-]{36}$", source_id):
+                raise ValueError(f"Invalid source workflow ID format: {source_id}")
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_sources = []
+        for source in v:
+            if source not in seen:
+                seen.add(source)
+                unique_sources.append(source)
+
+        return unique_sources
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        """Validate content format."""
+        content = v.strip()
+        if not content:
+            raise ValueError("Content cannot be empty or whitespace")
+        return content
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "topic_id": self.topic_id,
+            "topic_name": self.topic_name,
+            "content": self.content,
+            "last_updated": self.last_updated,
+            "sources": self.sources,
+            "query_count": self.query_count,
+            "confidence_score": self.confidence_score,
+        }

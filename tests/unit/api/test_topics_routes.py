@@ -9,7 +9,7 @@ from unittest.mock import patch, Mock
 from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
-from cognivault.api.models import TopicSummary, TopicsResponse
+from cognivault.api.models import TopicSummary, TopicsResponse, TopicWikiResponse
 
 
 class TestTopicsRoutes:
@@ -484,3 +484,425 @@ class TestTopicsRoutes:
         # Verify FastAPI validation error format
         assert "detail" in data
         assert isinstance(data["detail"], list)  # FastAPI validation errors are lists
+
+
+class TestTopicWikiRoutes:
+    """Test suite for topic wiki knowledge retrieval endpoints."""
+
+    def setup_method(self):
+        """Set up test client for each test."""
+        self.client = TestClient(app)
+
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_get_topic_wiki_success(self, mock_get_api):
+        """Test successful topic wiki knowledge retrieval."""
+        # Setup mock orchestration API
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "What is machine learning and how does it work?",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440002",
+                "status": "completed",
+                "query": "Explain machine learning algorithms for beginners",
+                "start_time": 1703097550.0,
+                "execution_time": 15.2,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        # First, we need to get a topic ID by calling the topics endpoint
+        topics_response = self.client.get("/api/topics")
+        assert topics_response.status_code == 200
+        topics_data = topics_response.json()
+
+        # Should have at least one topic
+        assert len(topics_data["topics"]) > 0
+        topic_id = topics_data["topics"][0]["topic_id"]
+
+        # Now test the wiki endpoint
+        response = self.client.get(f"/api/topics/{topic_id}/wiki")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify response structure matches TopicWikiResponse
+        assert "topic_id" in data
+        assert "topic_name" in data
+        assert "content" in data
+        assert "last_updated" in data
+        assert "sources" in data
+        assert "query_count" in data
+        assert "confidence_score" in data
+
+        # Verify field types and constraints
+        assert data["topic_id"] == topic_id
+        assert isinstance(data["topic_name"], str)
+        assert len(data["topic_name"]) > 0
+        assert isinstance(data["content"], str)
+        assert len(data["content"]) > 0
+        assert isinstance(data["last_updated"], float)
+        assert isinstance(data["sources"], list)
+        assert isinstance(data["query_count"], int)
+        assert data["query_count"] >= 0
+        assert isinstance(data["confidence_score"], float)
+        assert 0.0 <= data["confidence_score"] <= 1.0
+
+        # Verify sources are valid UUIDs if present
+        for source_id in data["sources"]:
+            assert isinstance(source_id, str)
+            assert len(source_id) == 36  # UUID format
+
+    def test_get_topic_wiki_invalid_uuid_format(self):
+        """Test topic wiki with invalid UUID format."""
+        invalid_topic_id = "invalid-uuid-format"
+        response = self.client.get(f"/api/topics/{invalid_topic_id}/wiki")
+
+        assert response.status_code == 422
+        data = response.json()
+
+        assert "detail" in data
+        detail = data["detail"]
+        assert detail["error"] == "Invalid topic ID format"
+        assert detail["topic_id"] == invalid_topic_id
+
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_get_topic_wiki_topic_not_found(self, mock_get_api):
+        """Test topic wiki when topic ID is not found."""
+        # Setup mock with empty history so no topics are discovered
+        mock_api = Mock()
+        mock_api.get_workflow_history.return_value = []
+        mock_get_api.return_value = mock_api
+
+        # Use a valid UUID format but non-existent topic
+        nonexistent_topic_id = "550e8400-e29b-41d4-a716-446655440999"
+        response = self.client.get(f"/api/topics/{nonexistent_topic_id}/wiki")
+
+        assert response.status_code == 404
+        data = response.json()
+
+        assert "detail" in data
+        detail = data["detail"]
+        assert detail["error"] == "Topic not found"
+        assert detail["topic_id"] == nonexistent_topic_id
+
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_get_topic_wiki_with_minimal_data(self, mock_get_api):
+        """Test topic wiki with minimal workflow data."""
+        # Setup mock with one simple workflow
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "Simple test query",
+                "start_time": 1703097600.0,
+                "execution_time": 5.0,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        # Get a topic first
+        topics_response = self.client.get("/api/topics")
+        assert topics_response.status_code == 200
+        topics_data = topics_response.json()
+
+        if len(topics_data["topics"]) > 0:
+            topic_id = topics_data["topics"][0]["topic_id"]
+
+            # Test wiki endpoint
+            response = self.client.get(f"/api/topics/{topic_id}/wiki")
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Should have basic content even with minimal data
+            assert len(data["content"]) > 0
+            assert data["confidence_score"] > 0.0
+            assert data["query_count"] >= 0
+
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_get_topic_wiki_with_multiple_related_workflows(self, mock_get_api):
+        """Test topic wiki with multiple related workflows."""
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "What is machine learning?",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440002",
+                "status": "completed",
+                "query": "How does machine learning work?",
+                "start_time": 1703097550.0,
+                "execution_time": 15.2,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440003",
+                "status": "completed",
+                "query": "Machine learning algorithms explained",
+                "start_time": 1703097500.0,
+                "execution_time": 18.7,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440004",
+                "status": "completed",
+                "query": "Unrelated topic about cooking",  # Should not match
+                "start_time": 1703097450.0,
+                "execution_time": 10.0,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        # Get topics first
+        topics_response = self.client.get("/api/topics")
+        assert topics_response.status_code == 200
+        topics_data = topics_response.json()
+
+        # Find machine learning topic
+        ml_topic = None
+        for topic in topics_data["topics"]:
+            if (
+                "machine" in topic["name"].lower()
+                or "learning" in topic["name"].lower()
+            ):
+                ml_topic = topic
+                break
+
+        if ml_topic:
+            # Test wiki for machine learning topic
+            response = self.client.get(f"/api/topics/{ml_topic['topic_id']}/wiki")
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Should have higher confidence with multiple related workflows
+            assert data["confidence_score"] > 0.2
+            assert len(data["sources"]) >= 2  # Should have multiple sources
+            assert (
+                "machine" in data["content"].lower()
+                or "learning" in data["content"].lower()
+            )
+
+    @patch("cognivault.api.routes.topics.topic_service.find_topic_by_id")
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_get_topic_wiki_orchestration_failure(self, mock_get_api, mock_find_topic):
+        """Test topic wiki when orchestration API fails during knowledge synthesis."""
+        # Create a mock topic to return
+        from cognivault.api.models import TopicSummary
+
+        mock_topic = TopicSummary(
+            topic_id="550e8400-e29b-41d4-a716-446655440001",
+            name="Machine Learning",
+            description="Test topic for failure scenario",
+            query_count=1,
+            last_updated=1703097600.0,
+            similarity_score=1.0,
+        )
+        mock_find_topic.return_value = mock_topic
+
+        # Make orchestration API fail during synthesis
+        mock_get_api.side_effect = Exception("Orchestration API unavailable")
+
+        # Test wiki endpoint - should return fallback content due to exception
+        response = self.client.get(f"/api/topics/{mock_topic.topic_id}/wiki")
+
+        assert response.status_code == 200  # Fallback content should be provided
+        data = response.json()
+
+        # Should have fallback content
+        assert len(data["content"]) > 0
+        assert data["confidence_score"] == 0.5  # Default fallback confidence
+        assert "This topic represents" in data["content"]  # Should be fallback content
+        assert data["topic_id"] == mock_topic.topic_id
+        assert data["topic_name"] == mock_topic.name
+
+    @patch("cognivault.api.routes.topics.logger")
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_get_topic_wiki_logging(self, mock_get_api, mock_logger):
+        """Test that topic wiki retrieval logs appropriately."""
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "Test query for logging",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        # Get a topic first
+        topics_response = self.client.get("/api/topics")
+        if topics_response.status_code == 200:
+            topics_data = topics_response.json()
+            if len(topics_data["topics"]) > 0:
+                topic_id = topics_data["topics"][0]["topic_id"]
+
+                response = self.client.get(f"/api/topics/{topic_id}/wiki")
+
+                assert response.status_code == 200
+
+                # Verify logging calls
+                assert mock_logger.info.call_count >= 2
+
+                # Check for start log
+                info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+                start_logs = [
+                    log for log in info_calls if "Retrieving topic wiki" in log
+                ]
+                assert len(start_logs) > 0
+
+                # Check for completion log
+                completion_logs = [
+                    log for log in info_calls if "Topic wiki retrieved" in log
+                ]
+                assert len(completion_logs) > 0
+
+    def test_get_topic_wiki_edge_cases(self):
+        """Test topic wiki endpoint with edge case inputs."""
+        # Test with various invalid formats
+        invalid_ids = [
+            "123",  # Too short
+            "not-a-uuid-at-all",  # Invalid format
+            "550e8400-e29b-41d4-a716-446655440000-extra",  # Too long
+            "550e8400-e29b-41d4-a716-44665544000g",  # Invalid character
+        ]
+
+        for invalid_id in invalid_ids:
+            response = self.client.get(f"/api/topics/{invalid_id}/wiki")
+            assert response.status_code == 422
+            data = response.json()
+            assert "detail" in data
+            assert data["detail"]["error"] == "Invalid topic ID format"
+
+        # Test empty string separately - FastAPI treats this as a different route
+        response = self.client.get("/api/topics//wiki")  # Double slash for empty
+        assert response.status_code == 404  # FastAPI route not found
+
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_topic_wiki_content_synthesis_quality(self, mock_get_api):
+        """Test the quality and structure of synthesized wiki content."""
+        mock_api = Mock()
+        mock_history = [
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
+                "status": "completed",
+                "query": "What are the fundamentals of machine learning?",
+                "start_time": 1703097600.0,
+                "execution_time": 12.5,
+            },
+            {
+                "workflow_id": "550e8400-e29b-41d4-a716-446655440002",
+                "status": "completed",
+                "query": "How do machine learning algorithms work?",
+                "start_time": 1703097550.0,
+                "execution_time": 15.2,
+            },
+        ]
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        # Get topics and find ML topic
+        topics_response = self.client.get("/api/topics")
+        assert topics_response.status_code == 200
+        topics_data = topics_response.json()
+
+        ml_topic = None
+        for topic in topics_data["topics"]:
+            if (
+                "machine" in topic["name"].lower()
+                or "learning" in topic["name"].lower()
+            ):
+                ml_topic = topic
+                break
+
+        if ml_topic:
+            response = self.client.get(f"/api/topics/{ml_topic['topic_id']}/wiki")
+
+            assert response.status_code == 200
+            data = response.json()
+
+            content = data["content"]
+
+            # Content quality checks
+            assert len(content) > 100  # Should be substantial
+            assert len(content.split()) > 20  # Should have multiple words
+            assert "\n" in content  # Should have structure (paragraphs)
+
+            # Should contain topic-relevant keywords
+            content_lower = content.lower()
+            assert any(
+                keyword in content_lower
+                for keyword in ["machine", "learning", "analysis"]
+            )
+
+    @patch("cognivault.api.routes.topics.get_orchestration_api")
+    def test_topic_wiki_source_tracking(self, mock_get_api):
+        """Test that topic wiki properly tracks source workflows."""
+        mock_api = Mock()
+
+        # Create workflows with distinct IDs
+        workflow_ids = [
+            "550e8400-e29b-41d4-a716-446655440001",
+            "550e8400-e29b-41d4-a716-446655440002",
+            "550e8400-e29b-41d4-a716-446655440003",
+        ]
+
+        mock_history = []
+        for i, wf_id in enumerate(workflow_ids):
+            mock_history.append(
+                {
+                    "workflow_id": wf_id,
+                    "status": "completed",
+                    "query": f"Machine learning query {i + 1}",
+                    "start_time": 1703097600.0 + i,
+                    "execution_time": 10.0 + i,
+                }
+            )
+
+        mock_api.get_workflow_history.return_value = mock_history
+        mock_get_api.return_value = mock_api
+
+        # Get topics and find ML topic
+        topics_response = self.client.get("/api/topics")
+        assert topics_response.status_code == 200
+        topics_data = topics_response.json()
+
+        ml_topic = None
+        for topic in topics_data["topics"]:
+            if (
+                "machine" in topic["name"].lower()
+                or "learning" in topic["name"].lower()
+            ):
+                ml_topic = topic
+                break
+
+        if ml_topic:
+            response = self.client.get(f"/api/topics/{ml_topic['topic_id']}/wiki")
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # Should track source workflows
+            sources = data["sources"]
+            assert len(sources) > 0
+            assert len(sources) <= len(workflow_ids)
+
+            # All sources should be valid UUIDs
+            for source in sources:
+                assert len(source) == 36
+                assert source in workflow_ids
