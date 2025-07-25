@@ -13,6 +13,7 @@ from cognivault.api.models import (
     WorkflowResponse,
     WorkflowHistoryResponse,
     WorkflowHistoryItem,
+    StatusResponse,
 )
 from cognivault.api.factory import get_orchestration_api
 from cognivault.observability import get_logger
@@ -60,8 +61,8 @@ async def execute_query(request: WorkflowRequest) -> WorkflowResponse:
         )
 
 
-@router.get("/query/status/{correlation_id}")
-async def get_query_status(correlation_id: str) -> Dict[str, Any]:
+@router.get("/query/status/{correlation_id}", response_model=StatusResponse)
+async def get_query_status(correlation_id: str) -> StatusResponse:
     """
     Get the status of a previously submitted query.
 
@@ -69,18 +70,49 @@ async def get_query_status(correlation_id: str) -> Dict[str, Any]:
         correlation_id: Unique identifier for the query execution
 
     Returns:
-        Status information for the specified query
+        StatusResponse with current workflow status and progress information
 
-    Note:
-        This is a placeholder for future async execution support
+    Raises:
+        HTTPException: If correlation_id is not found or API unavailable
     """
-    # TODO: Implement query status tracking
-    # For now, return basic response
-    return {
-        "correlation_id": correlation_id,
-        "status": "completed",  # Placeholder - will be dynamic
-        "message": "Status tracking not yet implemented",
-    }
+    try:
+        logger.info(f"Getting status for correlation_id: {correlation_id}")
+
+        # Get orchestration API instance
+        orchestration_api = get_orchestration_api()
+
+        # Get status using correlation_id to workflow_id mapping
+        status_response = await orchestration_api.get_status_by_correlation_id(
+            correlation_id
+        )
+
+        logger.info(
+            f"Status retrieved for correlation_id {correlation_id}: "
+            f"workflow_id={status_response.workflow_id}, status={status_response.status}"
+        )
+
+        return status_response
+
+    except KeyError as e:
+        logger.warning(f"Correlation ID not found: {correlation_id}")
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Correlation ID not found",
+                "message": str(e),
+                "correlation_id": correlation_id,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to get status for correlation_id {correlation_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to retrieve workflow status",
+                "message": str(e),
+                "type": type(e).__name__,
+            },
+        )
 
 
 @router.get("/query/history", response_model=WorkflowHistoryResponse)

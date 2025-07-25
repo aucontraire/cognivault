@@ -96,6 +96,24 @@ class OrchestrationAPI(BaseAPI):
         """
         raise NotImplementedError("Subclasses must implement get_workflow_history")
 
+    @ensure_initialized
+    async def get_status_by_correlation_id(self, correlation_id: str) -> StatusResponse:
+        """
+        Get workflow execution status by correlation_id.
+
+        Args:
+            correlation_id: Unique correlation identifier for the request
+
+        Returns:
+            StatusResponse with current status
+
+        Raises:
+            KeyError: Correlation ID not found
+        """
+        raise NotImplementedError(
+            "Subclasses must implement get_status_by_correlation_id"
+        )
+
 
 class LLMGatewayAPI(BaseAPI):
     """

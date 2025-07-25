@@ -14,6 +14,7 @@ from cognivault.api.models import (
     WorkflowResponse,
     WorkflowHistoryResponse,
     WorkflowHistoryItem,
+    StatusResponse,
 )
 
 
@@ -167,19 +168,267 @@ class TestQueryRoutes:
         assert "Query executed successfully" in completion_log
         assert "log-test-123" in completion_log
 
-    def test_get_query_status_placeholder(self):
-        """Test query status endpoint (placeholder implementation)."""
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_success(self, mock_get_api):
+        """Test successful query status retrieval by correlation_id."""
+        # Setup mock orchestration API with status data
+        mock_api = AsyncMock()
+        mock_status = StatusResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440001",
+            status="running",
+            progress_percentage=75.0,
+            current_agent="critic",
+            estimated_completion_seconds=15.5,
+        )
+        mock_api.get_status_by_correlation_id.return_value = mock_status
+        mock_get_api.return_value = mock_api
+
         correlation_id = "test-correlation-456"
         response = self.client.get(f"/api/query/status/{correlation_id}")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Verify placeholder response structure
-        assert data["correlation_id"] == correlation_id
-        assert data["status"] == "completed"  # Placeholder value
-        assert "message" in data
-        assert "not yet implemented" in data["message"].lower()
+        # Verify response structure matches StatusResponse
+        assert data["workflow_id"] == "550e8400-e29b-41d4-a716-446655440001"
+        assert data["status"] == "running"
+        assert data["progress_percentage"] == 75.0
+        assert data["current_agent"] == "critic"
+        assert data["estimated_completion_seconds"] == 15.5
+
+        # Verify API was called with correct correlation_id
+        mock_api.get_status_by_correlation_id.assert_called_once_with(correlation_id)
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_completed_workflow(self, mock_get_api):
+        """Test query status for completed workflow."""
+        mock_api = AsyncMock()
+        mock_status = StatusResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440002",
+            status="completed",
+            progress_percentage=100.0,
+            current_agent=None,
+            estimated_completion_seconds=None,
+        )
+        mock_api.get_status_by_correlation_id.return_value = mock_status
+        mock_get_api.return_value = mock_api
+
+        correlation_id = "completed-correlation-789"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["workflow_id"] == "550e8400-e29b-41d4-a716-446655440002"
+        assert data["status"] == "completed"
+        assert data["progress_percentage"] == 100.0
+        assert data["current_agent"] is None
+        assert data["estimated_completion_seconds"] is None
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_failed_workflow(self, mock_get_api):
+        """Test query status for failed workflow."""
+        mock_api = AsyncMock()
+        mock_status = StatusResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440003",
+            status="failed",
+            progress_percentage=45.0,
+            current_agent=None,
+            estimated_completion_seconds=None,
+        )
+        mock_api.get_status_by_correlation_id.return_value = mock_status
+        mock_get_api.return_value = mock_api
+
+        correlation_id = "failed-correlation-101"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["status"] == "failed"
+        assert data["progress_percentage"] == 45.0
+        assert data["current_agent"] is None
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_correlation_id_not_found(self, mock_get_api):
+        """Test query status when correlation_id is not found."""
+        mock_api = AsyncMock()
+        mock_api.get_status_by_correlation_id.side_effect = KeyError(
+            "No workflow found for correlation_id: nonexistent-id"
+        )
+        mock_get_api.return_value = mock_api
+
+        correlation_id = "nonexistent-id"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 404
+        data = response.json()
+
+        # Verify error response structure
+        assert "detail" in data
+        detail = data["detail"]
+        assert detail["error"] == "Correlation ID not found"
+        assert detail["correlation_id"] == correlation_id
+        assert "No workflow found" in detail["message"]
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_orchestration_api_failure(self, mock_get_api):
+        """Test query status when orchestration API fails."""
+        mock_get_api.side_effect = Exception("Orchestration API unavailable")
+
+        correlation_id = "test-correlation-500"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 500
+        data = response.json()
+
+        # Verify error response structure
+        assert "detail" in data
+        detail = data["detail"]
+        assert detail["error"] == "Failed to retrieve workflow status"
+        assert "Orchestration API unavailable" in detail["message"]
+        assert detail["type"] == "Exception"
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_api_method_failure(self, mock_get_api):
+        """Test query status when get_status_by_correlation_id method fails."""
+        mock_api = AsyncMock()
+        mock_api.get_status_by_correlation_id.side_effect = RuntimeError(
+            "Database connection timeout"
+        )
+        mock_get_api.return_value = mock_api
+
+        correlation_id = "timeout-correlation-123"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 500
+        data = response.json()
+
+        detail = data["detail"]
+        assert detail["error"] == "Failed to retrieve workflow status"
+        assert "Database connection timeout" in detail["message"]
+        assert detail["type"] == "RuntimeError"
+
+    @patch("cognivault.api.routes.query.logger")
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_logging(self, mock_get_api, mock_logger):
+        """Test that query status retrieval logs appropriately."""
+        mock_api = AsyncMock()
+        mock_status = StatusResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440001",
+            status="running",
+            progress_percentage=65.0,
+            current_agent="synthesis",
+            estimated_completion_seconds=8.5,
+        )
+        mock_api.get_status_by_correlation_id.return_value = mock_status
+        mock_get_api.return_value = mock_api
+
+        correlation_id = "logging-test-correlation"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 200
+
+        # Verify logging calls
+        assert mock_logger.info.call_count == 2
+
+        # Check start log
+        start_log = mock_logger.info.call_args_list[0][0][0]
+        assert "Getting status for correlation_id" in start_log
+        assert correlation_id in start_log
+
+        # Check completion log
+        completion_log = mock_logger.info.call_args_list[1][0][0]
+        assert "Status retrieved for correlation_id" in completion_log
+        assert correlation_id in completion_log
+        assert "workflow_id=550e8400-e29b-41d4-a716-446655440001" in completion_log
+        assert "status=running" in completion_log
+
+    @patch("cognivault.api.routes.query.logger")
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_error_logging(self, mock_get_api, mock_logger):
+        """Test that query status errors are logged properly."""
+        error_message = "Workflow execution interrupted"
+        mock_api = AsyncMock()
+        mock_api.get_status_by_correlation_id.side_effect = Exception(error_message)
+        mock_get_api.return_value = mock_api
+
+        correlation_id = "error-logging-test"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 500
+
+        # Verify error was logged
+        mock_logger.error.assert_called_once()
+        logged_message = mock_logger.error.call_args[0][0]
+        assert "Failed to get status for correlation_id" in logged_message
+        assert correlation_id in logged_message
+
+    @patch("cognivault.api.routes.query.logger")
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_not_found_logging(self, mock_get_api, mock_logger):
+        """Test that correlation ID not found cases are logged as warnings."""
+        mock_api = AsyncMock()
+        mock_api.get_status_by_correlation_id.side_effect = KeyError(
+            "No workflow found for correlation_id: missing-correlation"
+        )
+        mock_get_api.return_value = mock_api
+
+        correlation_id = "missing-correlation"
+        response = self.client.get(f"/api/query/status/{correlation_id}")
+
+        assert response.status_code == 404
+
+        # Verify warning was logged for not found case
+        mock_logger.warning.assert_called_once()
+        logged_message = mock_logger.warning.call_args[0][0]
+        assert "Correlation ID not found" in logged_message
+        assert correlation_id in logged_message
+
+    @patch("cognivault.api.routes.query.get_orchestration_api")
+    def test_get_query_status_multiple_statuses(self, mock_get_api):
+        """Test query status endpoint with various workflow statuses."""
+        mock_api = AsyncMock()
+        mock_get_api.return_value = mock_api
+
+        # Test different status scenarios
+        test_cases = [
+            {
+                "correlation_id": "running-workflow",
+                "status": StatusResponse(
+                    workflow_id="550e8400-e29b-41d4-a716-446655440001",
+                    status="running",
+                    progress_percentage=30.0,
+                    current_agent="refiner",
+                    estimated_completion_seconds=25.0,
+                ),
+            },
+            {
+                "correlation_id": "cancelled-workflow",
+                "status": StatusResponse(
+                    workflow_id="550e8400-e29b-41d4-a716-446655440002",
+                    status="cancelled",
+                    progress_percentage=50.0,
+                    current_agent=None,
+                    estimated_completion_seconds=None,
+                ),
+            },
+        ]
+
+        for test_case in test_cases:
+            mock_api.get_status_by_correlation_id.return_value = test_case["status"]
+
+            response = self.client.get(
+                f"/api/query/status/{test_case['correlation_id']}"
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == test_case["status"].status
+            assert data["workflow_id"] == test_case["status"].workflow_id
+            assert (
+                data["progress_percentage"] == test_case["status"].progress_percentage
+            )
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
     def test_get_query_history_success(self, mock_get_api):
