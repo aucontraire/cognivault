@@ -28,6 +28,7 @@ from cognivault.orchestration.state_schemas import (
     CriticOutput,
     HistorianOutput,
     CogniVaultState,
+    CogniVaultContext,
 )
 
 
@@ -455,6 +456,25 @@ class TestConvertStateToContext:
                 )
 
 
+def create_test_runtime(
+    thread_id: str = "test_thread",
+    execution_id: str = "test_execution",
+    query: str = "test query",
+    correlation_id: str = "test_correlation",
+    enable_checkpoints: bool = False,
+) -> Mock:
+    """Create mock Runtime[CogniVaultContext] for testing."""
+    mock_runtime = Mock()
+    mock_runtime.context = CogniVaultContext(
+        thread_id=thread_id,
+        execution_id=execution_id,
+        query=query,
+        correlation_id=correlation_id,
+        enable_checkpoints=enable_checkpoints,
+    )
+    return mock_runtime
+
+
 class TestRefinerNode:
     """Test refiner_node function."""
 
@@ -462,6 +482,12 @@ class TestRefinerNode:
     async def test_refiner_node_success(self):
         """Test successful refiner node execution."""
         state = create_initial_state("What is AI?", "exec-refiner")
+        runtime = create_test_runtime(
+            thread_id="test_refiner_success",
+            execution_id="exec-refiner",
+            query="What is AI?",
+            correlation_id="test_correlation",
+        )
 
         mock_agent = MockAgent("Refiner", "AI is artificial intelligence")
 
@@ -469,7 +495,7 @@ class TestRefinerNode:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
-            result_state = await refiner_node(state)
+            result_state = await refiner_node(state, runtime)
 
             assert result_state["refiner"] is not None
             assert (
@@ -484,6 +510,12 @@ class TestRefinerNode:
     async def test_refiner_node_failure(self):
         """Test refiner node handling failure."""
         state = create_initial_state("Test query", "exec-refiner-fail")
+        runtime = create_test_runtime(
+            thread_id="test_refiner_failure",
+            execution_id="exec-refiner-fail",
+            query="Test query",
+            correlation_id="test_correlation",
+        )
 
         mock_agent = MockAgent("Refiner", should_fail=True)
 
@@ -492,7 +524,7 @@ class TestRefinerNode:
             return_value=mock_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Refiner execution failed"):
-                await refiner_node(state)
+                await refiner_node(state, runtime)
 
 
 class TestCriticNode:
@@ -502,6 +534,12 @@ class TestCriticNode:
     async def test_critic_node_success(self) -> None:
         """Test successful critic node execution."""
         state = create_initial_state("Test query", "exec-critic")
+        runtime = create_test_runtime(
+            thread_id="test_critic_success",
+            execution_id="exec-critic",
+            query="Test query",
+            correlation_id="test_correlation",
+        )
 
         # Add refiner output (required dependency)
         refiner_output: RefinerOutput = {
@@ -519,7 +557,7 @@ class TestCriticNode:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
-            result_state = await critic_node(state)
+            result_state = await critic_node(state, runtime)
 
             assert result_state["critic"] is not None
             assert result_state["critic"]["critique"] == "Good analysis"
@@ -531,16 +569,26 @@ class TestCriticNode:
     async def test_critic_node_missing_dependency(self):
         """Test critic node fails without refiner output."""
         state = create_initial_state("Test query", "exec-critic-missing")
+        runtime = create_test_runtime(
+            thread_id="test_critic_missing",
+            execution_id="exec-critic-missing",
+            query="Test query",
+        )
 
         with pytest.raises(
             NodeExecutionError, match="Critic node requires refiner output"
         ):
-            await critic_node(state)
+            await critic_node(state, runtime)
 
     @pytest.mark.asyncio
     async def test_critic_node_failure(self) -> None:
         """Test critic node handling failure."""
         state = create_initial_state("Test query", "exec-critic-fail")
+        runtime = create_test_runtime(
+            thread_id="test_critic_failure",
+            execution_id="exec-critic-fail",
+            query="Test query",
+        )
 
         # Add refiner output
         refiner_output: RefinerOutput = {
@@ -559,7 +607,7 @@ class TestCriticNode:
             return_value=mock_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Critic execution failed"):
-                await critic_node(state)
+                await critic_node(state, runtime)
 
 
 class TestSynthesisNode:
@@ -569,6 +617,11 @@ class TestSynthesisNode:
     async def test_synthesis_node_success(self) -> None:
         """Test successful synthesis node execution."""
         state = create_initial_state("Test query", "exec-synthesis")
+        runtime = create_test_runtime(
+            thread_id="test_synthesis_success",
+            execution_id="exec-synthesis",
+            query="Test query",
+        )
 
         # Add required dependencies
         refiner_output: RefinerOutput = {
@@ -611,7 +664,7 @@ class TestSynthesisNode:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_agent,
         ):
-            result_state = await synthesis_node(state)
+            result_state = await synthesis_node(state, runtime)
 
             assert result_state["synthesis"] is not None
             assert result_state["synthesis"]["final_analysis"] == "Final synthesis"
@@ -629,16 +682,26 @@ class TestSynthesisNode:
     async def test_synthesis_node_missing_refiner_dependency(self):
         """Test synthesis node fails without refiner output."""
         state = create_initial_state("Test query", "exec-synthesis-missing")
+        runtime = create_test_runtime(
+            thread_id="test_synthesis_missing_refiner",
+            execution_id="exec-synthesis-missing",
+            query="Test query",
+        )
 
         with pytest.raises(
             NodeExecutionError, match="Synthesis node requires refiner output"
         ):
-            await synthesis_node(state)
+            await synthesis_node(state, runtime)
 
     @pytest.mark.asyncio
     async def test_synthesis_node_missing_critic_dependency(self) -> None:
         """Test synthesis node fails without critic output."""
         state = create_initial_state("Test query", "exec-synthesis-missing")
+        runtime = create_test_runtime(
+            thread_id="test_synthesis_missing_critic",
+            execution_id="exec-synthesis-missing",
+            query="Test query",
+        )
 
         # Add refiner but not critic
         refiner_output: RefinerOutput = {
@@ -653,12 +716,17 @@ class TestSynthesisNode:
         with pytest.raises(
             NodeExecutionError, match="Synthesis node requires critic output"
         ):
-            await synthesis_node(state)
+            await synthesis_node(state, runtime)
 
     @pytest.mark.asyncio
     async def test_synthesis_node_missing_historian_dependency(self) -> None:
         """Test synthesis node fails without historian output."""
         state = create_initial_state("Test query", "exec-synthesis-missing")
+        runtime = create_test_runtime(
+            thread_id="test_synthesis_missing_historian",
+            execution_id="exec-synthesis-missing",
+            query="Test query",
+        )
 
         # Add refiner and critic but not historian
         refiner_output: RefinerOutput = {
@@ -684,12 +752,17 @@ class TestSynthesisNode:
         with pytest.raises(
             NodeExecutionError, match="Synthesis node requires historian output"
         ):
-            await synthesis_node(state)
+            await synthesis_node(state, runtime)
 
     @pytest.mark.asyncio
     async def test_synthesis_node_failure(self) -> None:
         """Test synthesis node handling failure."""
         state = create_initial_state("Test query", "exec-synthesis-fail")
+        runtime = create_test_runtime(
+            thread_id="test_synthesis_failure",
+            execution_id="exec-synthesis-fail",
+            query="Test query",
+        )
 
         # Add required dependencies
         refiner_output: RefinerOutput = {
@@ -733,7 +806,7 @@ class TestSynthesisNode:
             return_value=mock_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Synthesis execution failed"):
-                await synthesis_node(state)
+                await synthesis_node(state, runtime)
 
 
 class TestHandleNodeTimeout:
@@ -905,6 +978,12 @@ class TestIntegration:
     async def test_full_node_pipeline(self):
         """Test complete node execution pipeline."""
         state = create_initial_state("What is machine learning?", "exec-pipeline")
+        runtime = create_test_runtime(
+            thread_id="test_pipeline",
+            execution_id="exec-pipeline",
+            query="What is machine learning?",
+            correlation_id="test_correlation",
+        )
 
         # Create mock agents
         refiner_agent = MockAgent("Refiner", "Machine learning is a subset of AI")
@@ -930,25 +1009,25 @@ class TestIntegration:
             side_effect=create_mock_agent,
         ):
             # Execute refiner
-            refiner_updates = await refiner_node(state)
+            refiner_updates = await refiner_node(state, runtime)
             state = self._merge_state_updates(state, refiner_updates)
             assert state["refiner"] is not None
             assert "refiner" in state["successful_agents"]
 
             # Execute critic
-            critic_updates = await critic_node(state)
+            critic_updates = await critic_node(state, runtime)
             state = self._merge_state_updates(state, critic_updates)
             assert state["critic"] is not None
             assert "critic" in state["successful_agents"]
 
             # Execute historian
-            historian_updates = await historian_node(state)
+            historian_updates = await historian_node(state, runtime)
             state = self._merge_state_updates(state, historian_updates)
             assert state["historian"] is not None
             assert "historian" in state["successful_agents"]
 
             # Execute synthesis
-            synthesis_updates = await synthesis_node(state)
+            synthesis_updates = await synthesis_node(state, runtime)
             state = self._merge_state_updates(state, synthesis_updates)
             assert state["synthesis"] is not None
             assert "synthesis" in state["successful_agents"]
@@ -962,6 +1041,12 @@ class TestIntegration:
     async def test_node_failure_handling(self):
         """Test node failure handling in pipeline."""
         state = create_initial_state("Test query", "exec-failure")
+        runtime = create_test_runtime(
+            thread_id="test_failure",
+            execution_id="exec-failure",
+            query="Test query",
+            correlation_id="test_correlation",
+        )
 
         # Refiner succeeds, critic fails
         refiner_agent = MockAgent("Refiner", "Success")
@@ -980,17 +1065,23 @@ class TestIntegration:
             side_effect=create_mock_agent,
         ):
             # Execute refiner (should succeed)
-            state = await refiner_node(state)
+            state = await refiner_node(state, runtime)
             assert "refiner" in state["successful_agents"]
 
             # Execute critic (should fail)
             with pytest.raises(NodeExecutionError):
-                await critic_node(state)
+                await critic_node(state, runtime)
 
     @pytest.mark.asyncio
     async def test_node_decorators_integration(self):
         """Test that node decorators work together properly."""
         state = create_initial_state("Test query", "exec-decorators")
+        runtime = create_test_runtime(
+            thread_id="test_decorators",
+            execution_id="exec-decorators",
+            query="Test query",
+            correlation_id="test_correlation",
+        )
 
         mock_agent = MockAgent("Refiner", "Test output")
 
@@ -1000,7 +1091,7 @@ class TestIntegration:
         ):
             with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
                 # Execute node with both decorators
-                result_state = await refiner_node(state)
+                result_state = await refiner_node(state, runtime)
 
                 # Should have metrics logging
                 info_calls = [str(call) for call in mock_logger.info.call_args_list]
