@@ -1,0 +1,260 @@
+"""
+Database models for CogniVault PostgreSQL + pgvector integration.
+
+GraphRAG-ready schema with hierarchical topics, vector embeddings,
+and semantic relationship tracking.
+"""
+
+import uuid
+from uuid import UUID as UUID_TYPE
+
+from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
+from sqlalchemy import (
+    ARRAY,
+    UUID,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.sql import func
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Topic(Base):
+    """
+    Topics table with hierarchical support and vector embeddings.
+
+    Designed for GraphRAG readiness with parent-child relationships
+    and semantic similarity search via pgvector.
+    """
+
+    __tablename__ = "topics"
+
+    # Primary identification
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+
+    # Hierarchical topic organization (GraphRAG prep)
+    parent_topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=True)
+    parent = relationship("Topic", remote_side=[id], backref="children")
+
+    # Vector embedding for semantic similarity (text-embedding-3-large)
+    embedding = Column(Vector(1536), nullable=True)
+
+    # Metadata and timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Performance indexes
+    __table_args__ = (
+        Index("idx_topics_name", "name"),
+        Index("idx_topics_parent", "parent_topic_id"),
+        Index(
+            "idx_topics_embedding",
+            "embedding",
+            postgresql_using="ivfflat",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+
+class Question(Base):
+    """
+    Questions table with graph-friendly relationships and execution metadata.
+
+    Stores workflow queries with DAG execution paths and semantic relationships
+    for future GraphRAG integration.
+    """
+
+    __tablename__ = "questions"
+
+    # Primary identification
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    query = Column(Text, nullable=False)
+
+    # Topic and semantic relationships
+    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=True)
+    topic = relationship("Topic", backref="questions")
+
+    # Future GraphRAG edge: IS_SIMILAR_TO relationship
+    similar_to = Column(UUID(as_uuid=True), ForeignKey("questions.id"), nullable=True)
+    similar_question = relationship(
+        "Question", remote_side=[id], backref="similar_questions"
+    )
+
+    # Workflow execution tracking
+    correlation_id = Column(String(255), unique=True, nullable=True)
+    execution_id = Column(String(255), nullable=True)  # For efficient filtering
+    nodes_executed = Column(ARRAY(String), nullable=True)  # type: ignore  # DAG execution path
+
+    # Rich metadata storage (workflow results, agent outputs, performance)
+    execution_metadata = Column(JSONB, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Performance indexes
+    __table_args__ = (
+        Index("idx_questions_correlation", "correlation_id"),
+        Index("idx_questions_execution", "execution_id"),
+        Index("idx_questions_topic", "topic_id"),
+        Index("idx_questions_similar", "similar_to"),
+        Index(
+            "idx_questions_execution_metadata",
+            "execution_metadata",
+            postgresql_using="gin",
+        ),
+        Index("idx_questions_created", "created_at"),
+    )
+
+
+class WikiEntry(Base):
+    """
+    Wiki entries table with versioning and knowledge lineage tracking.
+
+    Supports knowledge evolution with version history and multi-source
+    synthesis for collaborative knowledge building.
+    """
+
+    __tablename__ = "wiki_entries"
+
+    # Primary identification
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Topic and source relationships
+    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=False)
+    topic = relationship("Topic", backref="wiki_entries")
+
+    question_id = Column(UUID(as_uuid=True), ForeignKey("questions.id"), nullable=True)
+    source_question = relationship("Question", backref="wiki_entries")
+
+    # Content and versioning
+    content = Column(Text, nullable=False)
+    version = Column(Integer, default=1)
+
+    # Knowledge evolution tracking
+    supersedes = Column(
+        UUID(as_uuid=True), ForeignKey("wiki_entries.id"), nullable=True
+    )
+    superseded_entry = relationship(
+        "WikiEntry", remote_side=[id], backref="superseding_entries"
+    )
+
+    # Multi-source synthesis
+    sources = Column(ARRAY(UUID), nullable=True)  # type: ignore  # Contributing question IDs
+    related_topics = Column(ARRAY(UUID), nullable=True)  # type: ignore  # Multi-topic relationships
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Performance indexes
+    __table_args__ = (
+        Index("idx_wiki_topic_version", "topic_id", "version"),
+        Index("idx_wiki_source_question", "question_id"),
+        Index("idx_wiki_supersedes", "supersedes"),
+        Index("idx_wiki_created", "created_at"),
+    )
+
+
+class APIKey(Base):
+    """
+    API keys table for authentication and usage tracking.
+
+    Supports rate limiting, quotas, and usage analytics for
+    production API access control.
+    """
+
+    __tablename__ = "api_keys"
+
+    # Primary identification
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key_hash = Column(String(255), nullable=False, unique=True)
+
+    # Metadata
+    name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+
+    # Usage control
+    rate_limit = Column(Integer, default=100)  # requests per minute
+    daily_quota = Column(Integer, default=1000)
+    usage_count = Column(Integer, default=0)
+
+    # Status and lifecycle
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Performance indexes
+    __table_args__ = (
+        Index("idx_api_keys_hash", "key_hash"),
+        Index(
+            "idx_api_keys_active",
+            "is_active",
+            postgresql_where=Column("is_active"),
+        ),
+        Index("idx_api_keys_expires", "expires_at"),
+    )
+
+
+class SemanticLink(Base):
+    """
+    Semantic relationships table for future GraphRAG integration.
+
+    Tracks relationships between entities (topics, questions, wiki entries)
+    with weighted connections for knowledge graph construction.
+    """
+
+    __tablename__ = "semantic_links"
+
+    # Primary identification
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Source entity
+    from_entity_type = Column(
+        String(50), nullable=False
+    )  # 'topic', 'question', 'wiki_entry'
+    from_entity_id = Column(UUID(as_uuid=True), nullable=False)
+
+    # Target entity
+    to_entity_type = Column(String(50), nullable=False)
+    to_entity_id = Column(UUID(as_uuid=True), nullable=False)
+
+    # Relationship metadata
+    relation = Column(
+        String(100), nullable=False
+    )  # 'refines', 'related_to', 'derived_from'
+    weight = Column(Float, default=1.0)  # Relationship strength
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Performance indexes for graph traversal
+    __table_args__ = (
+        Index("idx_semantic_from", "from_entity_type", "from_entity_id"),
+        Index("idx_semantic_to", "to_entity_type", "to_entity_id"),
+        Index("idx_semantic_relation", "relation"),
+        Index("idx_semantic_weight", "weight"),
+    )
+
+
+# Convenience type definitions for application use
+TopicModel = Topic
+QuestionModel = Question
+WikiEntryModel = WikiEntry
+APIKeyModel = APIKey
+SemanticLinkModel = SemanticLink
