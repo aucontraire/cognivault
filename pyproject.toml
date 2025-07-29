@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cognivault"
-version = "0.9.0-beta.6"
+version = "0.9.1"
 description = "A composable DAG orchestration platform for multi-agent systems with declarative workflows, advanced node types, and intelligent routing"
 authors = ["aucontraire"]
 license = "AGPL-3.0"
@@ -29,6 +29,7 @@ openai = "1.92.3"
 tiktoken = "*"
 typer = {extras = ["all"], version = "*"}
 pydantic = ">=2.0"
+pydantic-ai = "^0.0.14"
 
 # FastAPI and API Dependencies
 fastapi = "*"
@@ -60,6 +61,8 @@ watchdog = "*"
 rich = "*"
 python-dotenv = "*"
 psutil = "*"
+pgvector = "^0.4.1"
+psycopg2-binary = "^2.9.10"
 
 [tool.poetry.group.dev.dependencies]
 # Testing

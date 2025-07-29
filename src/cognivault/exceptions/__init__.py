@@ -203,6 +203,7 @@ from .llm_errors import (
     LLMContextLimitError,
     LLMModelNotFoundError,
     LLMServerError,
+    LLMValidationError,
 )
 from .config_errors import (
     ConfigurationError,
@@ -255,6 +256,7 @@ __all__ = [
     "LLMContextLimitError",
     "LLMModelNotFoundError",
     "LLMServerError",
+    "LLMValidationError",
     # Configuration errors
     "ConfigurationError",
     "ConfigValidationError",

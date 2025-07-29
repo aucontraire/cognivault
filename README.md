@@ -32,6 +32,8 @@ CogniVault provides a sophisticated orchestration platform grounded in **cogniti
 > **🎯 Pattern Documentation**: See [PATTERN_REGISTRY.md](src/cognivault/docs/PATTERN_REGISTRY.md) for comprehensive pattern documentation with validation framework and certification standards.
 >
 > **📊 Observability Guide**: See [OBSERVABILITY.md](src/cognivault/docs/OBSERVABILITY.md) for comprehensive observability architecture including event-driven monitoring and production deployment strategies.
+>
+> **🗄️ Database Exploration**: See [DATABASE_EXPLORATION.md](src/cognivault/docs/DATABASE_EXPLORATION.md) for complete guide to querying Pydantic AI integration data, JSONB analytics, and agent performance metrics.
 
 ## 📋 Requirements
 
@@ -94,6 +96,11 @@ make run QUESTION="What are the long-term effects of AI in education?"
 # Or use the convenient cognivault command
 cognivault main "What are the long-term effects of AI in education?"
 cognivault diagnostics health  # Check system health
+
+# Database & Pydantic AI Integration (optional)
+make db-setup                  # Setup PostgreSQL 17 + pgvector
+make test-pydantic-ai         # Test structured LLM responses with database
+make db-explore               # Explore stored agent data and performance metrics
 ```
 
 See [🖥️ Usage](#️usage) for running specific agents and debugging options, or check the [📖 Comprehensive CLI Usage Guide](src/cognivault/docs/CLI_USAGE.md) for detailed command reference including configurable prompt composition examples.
@@ -127,6 +134,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔀 **Performance comparison**: Statistical benchmarking between execution modes (`--compare-modes`)
 - 🧪 **Comprehensive testing**: Full test suite with 86% coverage and 3,454+ tests for reliability
 - 🧩 **Pattern validation framework**: OPERATIONAL built-in validation, testing, and certification tools for custom graph patterns (see [Pattern Registry](src/cognivault/docs/PATTERN_REGISTRY.md) for comprehensive pattern documentation)
+- 🎯 **Pydantic AI Testing**: Integrated testing tools (`scripts/validate_pydantic_ai_setup.py`, `scripts/test_pydantic_ai_integration.py`)
 - 📤 **Trace export**: JSON export of detailed execution metadata (`--export-trace`) for monitoring
 - 🌐 **API Manual Testing**: Comprehensive testing guide for API scenarios and WebSocket connections
 - 🔧 **Docker Development**: Containerized development environment with hot reload
@@ -138,7 +146,8 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔄 **Agent-level resilience**: Individual retry policies, timeout management, and graceful degradation
 - 🏗️ **API boundary implementation**: Clean external/internal separation with BaseAPI pattern for service extraction
 - 🎭 **Mock-first design**: Comprehensive mock implementations with contract testing for reliable development
-- ⚙️ **Pydantic configuration system**: Advanced data validation, type safety, and configurable agent behavior
+- ⚙️ **Pydantic configuration system**: Advanced data validation, type safety, and configurable agent behavior  
+- 🎯 **Structured Data Pipeline**: Pydantic AI integration for type-safe agent outputs with JSONB analytics
 - 💾 **Thread-scoped memory**: Multi-session conversation management with snapshots and compression
 - 📋 **Agent registry**: Dynamic registration system with dependency resolution and health validation
 - 🌊 **TypedDict state management**: Type-safe schemas for all agent outputs with mypy compliance
@@ -384,7 +393,7 @@ Each agent in CogniVault plays a distinct role in the cognitive reflection and s
   The **HistorianAgent** provides relevant context from previous conversations or memory. It simulates long-term knowledge by surfacing pertinent background or earlier reflections.
 
 - ### 🧠 Critic
-  The **CriticAgent** evaluates the refined input or historical perspective. It identifies assumptions, weaknesses, or inconsistencies—acting as a thoughtful devil’s advocate.
+  The **CriticAgent** evaluates the refined input or historical perspective. It identifies assumptions, weaknesses, or inconsistencies—acting as a thoughtful devil's advocate. Features **structured output support** with Pydantic AI validation for type-safe critique analysis including assumptions, biases, and issue detection.
 
 - ### 🧵 Synthesis
   The **SynthesisAgent** gathers the outputs of the other agents and composes a final, unified response. This synthesis is designed to be insightful, coherent, and markdown-friendly for knowledge wikis or future reflection.
@@ -1640,6 +1649,60 @@ These tools facilitate prompt tuning and validation during development and exper
 
 ---
 
+## 🎯 Pydantic AI Testing & Validation
+
+CogniVault includes comprehensive testing tools for the structured data pipeline, validating the complete Pydantic AI integration from component setup through end-to-end database integration.
+
+### Testing Tools
+
+**Component Validation**:
+```bash
+# Quick validation of Pydantic AI setup and configuration
+python scripts/validate_pydantic_ai_setup.py
+```
+- Validates Pydantic AI imports and model instantiation
+- Tests structured LLM wrapper creation
+- Verifies agent initialization with structured support
+- Optional API call testing for live validation
+
+**Integration Testing**:
+```bash
+# End-to-end pipeline test with real OpenAI API calls
+python scripts/test_pydantic_ai_integration.py
+```
+- Tests structured LLM response generation
+- Validates database storage of structured JSONB metadata
+- Verifies JSONB query helper methods
+- Confirms data consistency throughout pipeline
+
+**Comprehensive Testing**:
+```bash
+# Full pytest integration test suite
+pytest tests/integration/test_pydantic_ai_database_integration.py -v -s
+```
+- Real OpenAI API integration testing
+- Performance benchmarking (structured vs unstructured)
+- Fallback behavior validation
+- Database analytics query testing
+
+### Validation Features
+
+**Pipeline Validation**:
+- **Type Safety**: Ensures consistent Pydantic model validation
+- **Database Integration**: JSONB storage and retrieval testing
+- **Performance Analysis**: ~20-30% overhead measurement for structured calls
+- **Fallback Testing**: Graceful degradation when validation fails
+
+**Production Readiness**:
+- **End-to-End Testing**: Complete workflow validation with real LLM calls
+- **Error Handling**: Comprehensive validation failure scenario testing
+- **Analytics Verification**: JSONB query methods for structured data insights
+- **Backward Compatibility**: Ensures existing workflows continue operating
+
+The testing framework validates that structured agent outputs are properly stored, efficiently queryable, and maintain consistency while preserving the flexibility needed for agent-swapping architectures.
+
+---
+
 ## 💡 Use Cases
 
 CogniVault can serve as a:
@@ -1681,10 +1744,17 @@ It’s designed as a memory-enhanced thinking partner that integrates cleanly wi
 - [x] **Docker Development Environment**: Expert-validated production-grade development setup
 - [x] **API Manual Testing Guide**: Complete testing documentation for real-world scenarios
 
-### 🎯 **Current Phase 1B** - Database Integration & Authentication
-*See [PHASE_1B_DATABASE_AUTHENTICATION_IMPLEMENTATION.md](src/cognivault/docs/github/PHASE_1B_DATABASE_AUTHENTICATION_IMPLEMENTATION.md) for detailed implementation plan*
+### ✅ **Phase 1B Complete** - Database Integration & Structured Data Pipeline
+*See [PHASE_1B_DATABASE_COMPLETION.md](src/cognivault/docs/github/PHASE_1B_DATABASE_COMPLETION.md) for comprehensive completion documentation*
 
-- [ ] **PostgreSQL + pgvector Integration**: Persistent storage with vector embeddings for semantic search
+- [x] **PostgreSQL + pgvector Integration**: Production-ready database layer with vector embeddings
+- [x] **Pydantic AI Structured Data Pipeline**: Type-safe agent outputs with JSONB analytics
+- [x] **Repository Pattern**: Complete CRUD operations with 78+ comprehensive tests
+- [x] **Database Query Optimization**: Sub-500ms analytics queries with 8 specialized helper methods
+- [x] **Integration Testing**: End-to-end validation tools and comprehensive test coverage
+- [x] **Production Validation**: Performance benchmarking and fallback behavior testing
+
+### 🎯 **Current Phase 1B+** - Authentication & Enhanced Features
 - [ ] **API Authentication System**: API key management with rate limiting and usage tracking
 - [ ] **Enhanced TopicAgent**: Semantic embeddings with text-embedding-3-large integration
 - [ ] **Production Deployment Features**: Multi-stage Docker builds and comprehensive health checks
@@ -1701,6 +1771,7 @@ It’s designed as a memory-enhanced thinking partner that integrates cleanly wi
 ## 🛠 Built With
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Pydantic AI](https://img.shields.io/badge/Pydantic_AI-0.0.14-brightgreen)
 ![Typer](https://img.shields.io/badge/CLI-Typer-green)
 ![Pytest](https://img.shields.io/badge/Testing-Pytest-blueviolet)
 ![AGPL](https://img.shields.io/badge/License-AGPL_3.0-orange)

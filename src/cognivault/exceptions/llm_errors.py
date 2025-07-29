@@ -435,3 +435,70 @@ class LLMServerError(LLMError):
             f"❌ {self.agent_id or 'LLM'} failed: {self.llm_provider} server error (HTTP {self.http_status})\n"
             f"💡 Tip: This is a provider issue. The system will retry automatically."
         )
+
+
+class LLMValidationError(LLMError):
+    """
+    Exception raised when LLM response validation fails.
+
+    Represents structured response parsing failures when using Pydantic AI
+    or other structured output formats. These errors indicate the LLM
+    returned content that doesn't match the expected schema.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        model_name: str,
+        validation_errors: Optional[list[str]] = None,
+        expected_schema: Optional[str] = None,
+        actual_response: Optional[str] = None,
+        step_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        cause: Optional[Exception] = None,
+    ):
+        context = context or {}
+        context.update(
+            {
+                "model_name": model_name,
+                "validation_errors": validation_errors or [],
+                "expected_schema": expected_schema,
+                "actual_response": actual_response,
+                "response_parsing_failure": True,
+            }
+        )
+
+        super().__init__(
+            message=message,
+            llm_provider="openai",  # Currently assumes OpenAI, could be parameterized
+            error_code="llm_validation_error",
+            severity=ErrorSeverity.MEDIUM,
+            retry_policy=RetryPolicy.BACKOFF,  # Validation failures may succeed on retry
+            context=context,
+            step_id=step_id,
+            agent_id=agent_id,
+            cause=cause,
+            api_error_code="validation_failed",
+        )
+        self.model_name = model_name
+        self.validation_errors = validation_errors or []
+        self.expected_schema = expected_schema
+        self.actual_response = actual_response
+
+    def get_user_message(self) -> str:
+        """Get user-friendly error message with validation guidance."""
+        error_count = len(self.validation_errors)
+        base_msg = (
+            f"❌ {self.agent_id or 'LLM'} failed: Response validation failed "
+            f"({error_count} error{'s' if error_count != 1 else ''})\n"
+            f"💡 Tip: The system will retry with a clearer prompt."
+        )
+
+        if self.validation_errors:
+            # Show first validation error for context
+            first_error = self.validation_errors[0]
+            if len(first_error) < 100:  # Only show if reasonably short
+                base_msg += f"\n   Detail: {first_error}"
+
+        return base_msg

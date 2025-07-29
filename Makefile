@@ -1,4 +1,4 @@
-.PHONY: install test run run-safe lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-%
+.PHONY: install test run run-safe lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore test-integration test-pydantic-ai
 
 install:
 	bash scripts/setup.sh
@@ -58,3 +58,70 @@ test-agent-%:
 
 run-agent-cli-%:
 	poetry run python -m cognivault.agents.$*.main $(ARGS)
+
+# Database Management
+db-check-deps:
+	@echo "🔍 Checking system dependencies..."
+	@which psql >/dev/null || (echo "❌ PostgreSQL client not installed. Install with: brew install postgresql@17" && exit 1)
+	@which pg_ctl >/dev/null || (echo "❌ PostgreSQL server tools not found" && exit 1)
+	@brew list pgvector >/dev/null 2>&1 || (echo "❌ pgvector not installed. Install with: brew install pgvector" && exit 1)
+	@echo "✅ All system dependencies available!"
+
+db-status:
+	@echo "🔍 Checking PostgreSQL status..."
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" pg_ctl status -D /opt/homebrew/var/postgresql@17 2>/dev/null || echo "❌ PostgreSQL not running"
+	@echo "📊 Checking databases:"
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" psql -l 2>/dev/null | grep cognivault || echo "❌ CogniVault database not found"
+
+db-create:
+	@echo "🚀 Creating CogniVault database..."
+	@echo "🔧 Creating postgres superuser role..."
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" createuser -s postgres 2>/dev/null || echo "⚠️  postgres role may already exist"
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" createdb cognivault 2>/dev/null || echo "⚠️  Database 'cognivault' may already exist"
+	@echo "🔧 Installing pgvector extension..."
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" psql -d cognivault -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || \
+	(echo "❌ pgvector extension not available. Install with:" && \
+	 echo "   brew install pgvector" && \
+	 echo "   Then run 'make db-create' again" && \
+	 exit 1)
+	@echo "🔧 Running database migrations..."
+	@poetry run alembic upgrade head
+	@echo "✅ Database setup complete!"
+
+db-drop:
+	@echo "⚠️  Dropping CogniVault database..."
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" dropdb cognivault 2>/dev/null || echo "ℹ️  Database 'cognivault' doesn't exist"
+	@echo "✅ Database dropped!"
+
+db-reset: db-drop db-create
+	@echo "🔄 Database reset complete!"
+
+db-setup: 
+	@echo "🔧 Setting up CogniVault database environment..."
+	@$(MAKE) db-check-deps
+	@$(MAKE) db-status
+	@$(MAKE) db-create
+	@echo "✅ Database environment ready for testing!"
+
+db-explore:
+	@echo "🔍 Exploring CogniVault database..."
+	@echo "📊 Recent Questions:"
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" psql -d cognivault -c "SELECT id, query, correlation_id, created_at FROM questions ORDER BY created_at DESC LIMIT 5;"
+	@echo ""
+	@echo "🤖 Agent Performance Summary:"
+	@PATH="/opt/homebrew/opt/postgresql@17/bin:$$PATH" psql -d cognivault -c "SELECT execution_metadata->'agent_outputs'->'critic'->>'confidence' as confidence, execution_metadata->'agent_outputs'->'critic'->>'issues_detected' as issues, execution_metadata->'agent_outputs'->'critic'->>'processing_mode' as mode, execution_metadata->>'total_execution_time_ms' as total_time_ms FROM questions ORDER BY created_at DESC LIMIT 5;"
+	@echo ""
+	@echo "💡 To explore structured data in detail, run:"
+	@echo "   PATH=\"/opt/homebrew/opt/postgresql@17/bin:\$$PATH\" psql -d cognivault"
+
+# Testing Commands
+test-integration:
+	@echo "🧪 Running integration tests (requires database)..."
+	@$(MAKE) db-setup
+	poetry run pytest tests/integration/ -v
+
+test-pydantic-ai:
+	@echo "🤖 Running Pydantic AI integration test..."
+	@$(MAKE) db-setup
+	@echo "🚀 Starting manual Pydantic AI test..."
+	poetry run python scripts/test_pydantic_ai_integration.py
