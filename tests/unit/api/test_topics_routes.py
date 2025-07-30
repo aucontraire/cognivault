@@ -18,9 +18,10 @@ class TestTopicsRoutes:
     def setup_method(self):
         """Set up test client for each test."""
         self.client = TestClient(app)
-        
+
         # Clear topic service cache to prevent test pollution
         from cognivault.api.routes.topics import topic_service
+
         topic_service._topic_cache.clear()
         topic_service._cache_timestamp = 0.0
 
@@ -497,9 +498,10 @@ class TestTopicWikiRoutes:
     def setup_method(self):
         """Set up test client for each test."""
         self.client = TestClient(app)
-        
+
         # Clear topic service cache to prevent test pollution
         from cognivault.api.routes.topics import topic_service
+
         topic_service._topic_cache.clear()
         topic_service._cache_timestamp = 0.0
 
