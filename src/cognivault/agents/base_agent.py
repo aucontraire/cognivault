@@ -455,6 +455,12 @@ class BaseAgent(ABC):
                             # Agent not registered in registry, use None metadata
                             agent_metadata = None
 
+                        # Extract actual agent output content from the result context
+                        agent_output: str = result.agent_outputs.get(self.name, "")
+
+                        # Get token usage information for this agent if available
+                        token_usage = result.get_agent_token_usage(self.name)
+
                         await emit_agent_execution_completed(
                             workflow_id=get_workflow_id() or step_id,
                             agent_name=self.name,
@@ -463,7 +469,15 @@ class BaseAgent(ABC):
                                 "step_id": step_id,
                                 "execution_time_seconds": execution_time,
                                 "attempts_used": retries + 1,
-                                "output_tokens": getattr(result, "token_count", 0),
+                                "agent_output": (
+                                    agent_output[:1000] if agent_output else ""
+                                ),  # Include actual content, truncated for events
+                                "output_length": (
+                                    len(agent_output) if agent_output else 0
+                                ),
+                                "input_tokens": token_usage["input_tokens"],
+                                "output_tokens": token_usage["output_tokens"],
+                                "total_tokens": token_usage["total_tokens"],
                                 "context_size": len(str(result)),
                             },
                             agent_metadata=agent_metadata,

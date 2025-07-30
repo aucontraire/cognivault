@@ -1012,3 +1012,183 @@ def test_node_definition_partial_override():
     assert len(node_def.inputs) == 1  # Default input
     assert len(node_def.outputs) == 1  # Default output
     assert node_def.dependencies == []  # Default empty
+
+
+@pytest.mark.asyncio
+async def test_agent_event_emission_includes_actual_content():
+    """
+    Test PATTERN 2 fix: Agent-level events should include actual agent output content.
+
+    This test verifies that when a base agent emits an agent_execution_completed event,
+    the output_context includes the actual content produced by the agent, not just metadata.
+    """
+    from unittest.mock import patch, AsyncMock
+    from cognivault.context import AgentContext
+
+    class ContentProducingAgent(BaseAgent):
+        """Agent that produces specific content for testing."""
+
+        def __init__(self, name: str = "content_agent"):
+            super().__init__(name)
+
+        async def run(self, context: AgentContext) -> AgentContext:
+            """Produce specific test content."""
+            test_content = (
+                "This is the actual agent output content that should appear in events"
+            )
+            context.add_agent_output(self.name, test_content)
+
+            # Add token usage for comprehensive testing
+            context.add_agent_token_usage(
+                agent_name=self.name,
+                input_tokens=150,
+                output_tokens=75,
+                total_tokens=225,
+            )
+
+            return context
+
+    # Create agent and context
+    agent = ContentProducingAgent("test_content_agent")
+    context = AgentContext(
+        user_id="test_user",
+        session_id="test_session",
+        query="Test query for content verification",
+        workflow_metadata={},
+    )
+
+    # Mock the event emission to capture what gets emitted
+    with patch(
+        "cognivault.agents.base_agent.emit_agent_execution_completed"
+    ) as mock_emit:
+        mock_emit.return_value = AsyncMock()
+
+        # Mock the global functions that provide workflow context
+        with patch(
+            "cognivault.agents.base_agent.get_workflow_id",
+            return_value="test-workflow-123",
+        ):
+            with patch(
+                "cognivault.agents.base_agent.get_correlation_id",
+                return_value="test-correlation-456",
+            ):
+                # Execute the agent
+                result_context = await agent.run_with_retry(context)
+
+                # Verify the agent ran successfully and produced content
+                assert agent.name in result_context.agent_outputs
+                assert (
+                    result_context.agent_outputs[agent.name]
+                    == "This is the actual agent output content that should appear in events"
+                )
+
+                # Verify event emission was called
+                mock_emit.assert_called_once()
+
+                # Extract the call arguments to verify content inclusion
+                call_args, call_kwargs = mock_emit.call_args
+
+                # Verify that agent-level event includes actual content (PATTERN 2 fix)
+                output_context = call_kwargs["output_context"]
+
+                # Key assertions for PATTERN 2 fix
+                assert "agent_output" in output_context, (
+                    "Agent-level event must include actual agent output"
+                )
+                assert (
+                    output_context["agent_output"]
+                    == "This is the actual agent output content that should appear in events"
+                ), "Agent output content must match what the agent produced"
+                assert output_context["output_length"] == 68, (
+                    "Output length must reflect actual content length (68 chars)"
+                )
+
+                # Verify token usage is included (from PATTERN 1 fix)
+                assert output_context["input_tokens"] == 150, (
+                    "Input token count must be included"
+                )
+                assert output_context["output_tokens"] == 75, (
+                    "Output token count must be included"
+                )
+                assert output_context["total_tokens"] == 225, (
+                    "Total token count must be included"
+                )
+
+                # Verify other expected metadata is still present
+                assert "step_id" in output_context
+                assert "execution_time_seconds" in output_context
+                assert "attempts_used" in output_context
+                assert output_context["attempts_used"] == 1  # First attempt succeeded
+
+                # Verify event parameters
+                assert call_kwargs["workflow_id"] == "test-workflow-123"
+                assert call_kwargs["agent_name"] == "test_content_agent"
+                assert call_kwargs["success"] is True
+                assert call_kwargs["correlation_id"] == "test-correlation-456"
+
+
+@pytest.mark.asyncio
+async def test_agent_event_emission_with_empty_content():
+    """
+    Test edge case: Agent that produces no output should handle gracefully.
+    """
+    from unittest.mock import patch, AsyncMock
+    from cognivault.context import AgentContext
+
+    class EmptyContentAgent(BaseAgent):
+        """Agent that produces no content for edge case testing."""
+
+        def __init__(self, name: str = "empty_agent"):
+            super().__init__(name)
+
+        async def run(self, context: AgentContext) -> AgentContext:
+            """Run without producing any agent output."""
+            # Don't add any agent output - test empty content handling
+            return context
+
+    # Create agent and context
+    agent = EmptyContentAgent("test_empty_agent")
+    context = AgentContext(
+        user_id="test_user",
+        session_id="test_session",
+        query="Test query for empty content",
+        workflow_metadata={},
+    )
+
+    # Mock the event emission to capture what gets emitted
+    with patch(
+        "cognivault.agents.base_agent.emit_agent_execution_completed"
+    ) as mock_emit:
+        mock_emit.return_value = AsyncMock()
+
+        with patch(
+            "cognivault.agents.base_agent.get_workflow_id",
+            return_value="test-workflow-empty",
+        ):
+            with patch(
+                "cognivault.agents.base_agent.get_correlation_id",
+                return_value="test-correlation-empty",
+            ):
+                # Execute the agent
+                result_context = await agent.run_with_retry(context)
+
+                # Verify event emission was called
+                mock_emit.assert_called_once()
+
+                # Extract the call arguments
+                call_args, call_kwargs = mock_emit.call_args
+                output_context = call_kwargs["output_context"]
+
+                # Verify graceful handling of empty content
+                assert "agent_output" in output_context
+                assert output_context["agent_output"] == "", (
+                    "Empty content should be empty string"
+                )
+                assert output_context["output_length"] == 0, (
+                    "Empty content length should be 0"
+                )
+
+                # Token usage should still be properly handled (defaults to 0)
+                assert output_context["input_tokens"] == 0
+                assert output_context["output_tokens"] == 0
+                assert output_context["total_tokens"] == 0
