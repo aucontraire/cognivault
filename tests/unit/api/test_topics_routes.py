@@ -18,6 +18,11 @@ class TestTopicsRoutes:
     def setup_method(self):
         """Set up test client for each test."""
         self.client = TestClient(app)
+        
+        # Clear topic service cache to prevent test pollution
+        from cognivault.api.routes.topics import topic_service
+        topic_service._topic_cache.clear()
+        topic_service._cache_timestamp = 0.0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
     def test_get_topics_success(self, mock_get_api):
@@ -492,6 +497,11 @@ class TestTopicWikiRoutes:
     def setup_method(self):
         """Set up test client for each test."""
         self.client = TestClient(app)
+        
+        # Clear topic service cache to prevent test pollution
+        from cognivault.api.routes.topics import topic_service
+        topic_service._topic_cache.clear()
+        topic_service._cache_timestamp = 0.0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
     def test_get_topic_wiki_success(self, mock_get_api):

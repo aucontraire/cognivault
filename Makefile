@@ -1,4 +1,4 @@
-.PHONY: install test run run-safe lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore test-integration test-pydantic-ai
+.PHONY: install test run run-safe lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore db-test-start db-test-stop db-test-status test-integration test-pydantic-ai
 
 install:
 	bash scripts/setup.sh
@@ -60,6 +60,22 @@ run-agent-cli-%:
 	poetry run python -m cognivault.agents.$*.main $(ARGS)
 
 # Database Management
+db-test-start:
+	@echo "🐳 Starting test database container..."
+	docker compose -f docker-compose.dev.yml up postgres -d
+	@echo "⏳ Waiting for database to be healthy..."
+	@timeout 30 sh -c 'until docker compose -f docker-compose.dev.yml ps postgres | grep -q "healthy"; do sleep 1; done'
+	@echo "✅ Test database ready on port 5435!"
+
+db-test-stop:
+	@echo "🛑 Stopping test database container..."
+	docker compose -f docker-compose.dev.yml down postgres
+	@echo "✅ Test database stopped!"
+
+db-test-status:
+	@echo "🔍 Checking test database status..."
+	@docker compose -f docker-compose.dev.yml ps postgres
+
 db-check-deps:
 	@echo "🔍 Checking system dependencies..."
 	@which psql >/dev/null || (echo "❌ PostgreSQL client not installed. Install with: brew install postgresql@17" && exit 1)
@@ -116,12 +132,12 @@ db-explore:
 
 # Testing Commands
 test-integration:
-	@echo "🧪 Running integration tests (requires database)..."
-	@$(MAKE) db-setup
+	@echo "🧪 Running integration tests (requires test database)..."
+	@$(MAKE) db-test-start
 	poetry run pytest tests/integration/ -v
 
 test-pydantic-ai:
 	@echo "🤖 Running Pydantic AI integration test..."
-	@$(MAKE) db-setup
+	@$(MAKE) db-test-start
 	@echo "🚀 Starting manual Pydantic AI test..."
 	poetry run python scripts/test_pydantic_ai_integration.py
