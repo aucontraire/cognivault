@@ -46,6 +46,7 @@ from cognivault.events import (
     emit_agent_execution_completed,
 )
 from cognivault.events.types import EventCategory
+from cognivault.utils.content_truncation import truncate_for_websocket_event
 
 logger = get_logger(__name__)
 
@@ -498,7 +499,9 @@ async def refiner_node(
             agent_name="refiner",
             success=True,
             output_context={
-                "refined_question": str(refiner_raw_output)[:200],
+                "refined_question": truncate_for_websocket_event(
+                    str(refiner_raw_output), "refined_question"
+                ),
                 "node_type": "refiner",
                 "thread_id": thread_id,
                 "execution_id": execution_id,
@@ -698,7 +701,9 @@ async def critic_node(
             agent_name="critic",
             success=True,
             output_context={
-                "critique": str(critic_raw_output)[:200],
+                "critique": truncate_for_websocket_event(
+                    str(critic_raw_output), "critique"
+                ),
                 "node_type": "critic",
                 "thread_id": thread_id,
                 "runtime_context": True,
@@ -876,7 +881,9 @@ async def historian_node(
             agent_name="historian",
             success=True,
             output_context={
-                "historical_summary": str(historian_raw_output)[:200],
+                "historical_summary": truncate_for_websocket_event(
+                    str(historian_raw_output), "historical_summary"
+                ),
                 "node_type": "historian",
                 "thread_id": thread_id,
                 "runtime_context": True,
@@ -1052,7 +1059,9 @@ async def synthesis_node(
             agent_name="synthesis",
             success=True,
             output_context={
-                "final_analysis": str(synthesis_raw_output)[:200],
+                "final_analysis": truncate_for_websocket_event(
+                    str(synthesis_raw_output), "final_analysis"
+                ),
                 "node_type": "synthesis",
                 "thread_id": thread_id,
                 "runtime_context": True,

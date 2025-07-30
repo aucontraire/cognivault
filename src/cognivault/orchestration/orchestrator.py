@@ -215,12 +215,13 @@ class LangGraphOrchestrator:
         config = config or {}
         start_time = time.time()
 
-        # Handle correlation context - use provided correlation_id if available
+        # Handle correlation context - use provided correlation_id and workflow_id if available
         provided_correlation_id = config.get("correlation_id") if config else None
+        provided_workflow_id = config.get("workflow_id") if config else None
 
         if provided_correlation_id:
-            # Create correlation context with provided correlation_id and set contextvars
-            workflow_id = str(uuid.uuid4())
+            # Use provided workflow_id to prevent duplicate ID generation, or create new one if not provided
+            workflow_id = provided_workflow_id or str(uuid.uuid4())
             context_correlation_id.set(provided_correlation_id)
             context_workflow_id.set(workflow_id)
             context_trace_metadata.set({})
