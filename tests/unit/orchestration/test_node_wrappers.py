@@ -399,9 +399,9 @@ class TestConvertStateToContext:
 
             # Check that refiner output is added to context
             assert "refiner" in context.agent_outputs
-            assert "Refiner" in context.agent_outputs
+            assert "refiner" in context.agent_outputs
             assert context.agent_outputs["refiner"] == "Refined test query"
-            assert context.agent_outputs["Refiner"] == "Refined test query"
+            assert context.agent_outputs["refiner"] == "Refined test query"
             assert context.execution_state["refiner_topics"] == ["test", "query"]
             assert context.execution_state["refiner_confidence"] == 0.9
 
@@ -426,9 +426,9 @@ class TestConvertStateToContext:
 
             # Check that critic output is added to context
             assert "critic" in context.agent_outputs
-            assert "Critic" in context.agent_outputs
+            assert "critic" in context.agent_outputs
             assert context.agent_outputs["critic"] == "Good analysis"
-            assert context.agent_outputs["Critic"] == "Good analysis"
+            assert context.agent_outputs["critic"] == "Good analysis"
             assert context.execution_state["critic_suggestions"] == ["Add more details"]
             assert context.execution_state["critic_severity"] == "medium"
 

@@ -692,13 +692,13 @@ class TestHistorianStateConversion:
 
         # Verify historian output is properly converted
         assert "historian" in context.agent_outputs
-        assert "Historian" in context.agent_outputs
+        assert "historian" in context.agent_outputs
         assert (
             context.agent_outputs["historian"]
             == "Test historical context with retrieved notes"
         )
         assert (
-            context.agent_outputs["Historian"]
+            context.agent_outputs["historian"]
             == "Test historical context with retrieved notes"
         )
 
@@ -750,7 +750,7 @@ class TestHistorianStateConversion:
         )
         assert (
             "Historian" not in context.agent_outputs
-            or context.agent_outputs["Historian"] == ""
+            or context.agent_outputs["historian"] == ""
         )
 
 

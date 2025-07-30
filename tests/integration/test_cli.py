@@ -20,7 +20,7 @@ runner = CliRunner()
 async def test_cli_default_execution_mode_is_langgraph_real():
     """Test that the default execution mode is now langgraph-real."""
     fake_context = AgentContext(query="Test default mode")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -58,7 +58,7 @@ async def test_cli_langgraph_mode_removed_error(capsys):
 @pytest.mark.asyncio
 async def test_cli_runs_with_refiner(capsys):
     fake_context = AgentContext(query="Why is democracy shifting?")
-    fake_context.agent_outputs = {"Refiner": "[Refined Note] Democracy is evolving..."}
+    fake_context.agent_outputs = {"refiner": "[Refined Note] Democracy is evolving..."}
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
@@ -76,7 +76,7 @@ async def test_cli_runs_with_export_md(tmp_path, capsys):
     # Create fake context with agent output
     fake_context = AgentContext(query=query)
     fake_context.agent_outputs = {
-        "Refiner": "[Refined Note] Memory plays a crucial role..."
+        "refiner": "[Refined Note] Memory plays a crucial role..."
     }
 
     # Patch both the orchestrator and the MarkdownExporter
@@ -100,8 +100,8 @@ async def test_cli_runs_with_export_md(tmp_path, capsys):
 async def test_cli_runs_with_multiple_agents(capsys):
     fake_context = AgentContext(query="What causes political polarization?")
     fake_context.agent_outputs = {
-        "Refiner": "[Refined Note] Something something politics.",
-        "Critic": "[Critique] Something something bias.",
+        "refiner": "[Refined Note] Something something politics.",
+        "critic": "[Critique] Something something bias.",
     }
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -121,10 +121,10 @@ async def test_cli_runs_with_multiple_agents(capsys):
 async def test_cli_runs_with_all_agents(capsys):
     fake_context = AgentContext(query="Explain democratic backsliding.")
     fake_context.agent_outputs = {
-        "Refiner": "[Refined Note] Democracy is sliding.",
-        "Critic": "[Critique] You're missing economic drivers.",
-        "Historian": "[Historical context]",
-        "Synthesis": "[Synthesis result]",
+        "refiner": "[Refined Note] Democracy is sliding.",
+        "critic": "[Critique] You're missing economic drivers.",
+        "historian": "[Historical context]",
+        "synthesis": "[Synthesis result]",
     }
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -148,7 +148,7 @@ async def test_cli_invalid_log_level(capsys):
 @pytest.mark.asyncio
 async def test_cli_malformed_agents(capsys):
     fake_context = AgentContext(query="Test malformed agents")
-    fake_context.agent_outputs = {"Refiner": "[Refined Note] Cleaned up input."}
+    fake_context.agent_outputs = {"refiner": "[Refined Note] Cleaned up input."}
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
@@ -160,7 +160,7 @@ async def test_cli_malformed_agents(capsys):
 
 def test_cli_main_entrypoint_runs():
     fake_context = AgentContext(query="What is cognitive dissonance?")
-    fake_context.agent_outputs = {"Refiner": "[Refined Note] It's when thoughts clash."}
+    fake_context.agent_outputs = {"refiner": "[Refined Note] It's when thoughts clash."}
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
         return_value=fake_context,
@@ -241,12 +241,12 @@ async def test_cli_dry_run_flag(capsys):
 async def test_cli_trace_flag(capsys):
     """Test the --trace flag functionality."""
     fake_context = AgentContext(query="test query with trace")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
     fake_context.context_id = "test_context_123"
     fake_context.current_size = 1024
-    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.agent_execution_status = {"refiner": "completed"}
     fake_context.execution_edges = [
         {"from_agent": "START", "to_agent": "Refiner", "edge_type": "normal"}
     ]
@@ -268,12 +268,12 @@ async def test_cli_trace_flag(capsys):
 async def test_cli_export_trace_flag(tmp_path):
     """Test the --export-trace flag functionality."""
     fake_context = AgentContext(query="test query for export")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
     fake_context.context_id = "test_export_123"
     fake_context.current_size = 2048
-    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.agent_execution_status = {"refiner": "completed"}
     fake_context.execution_edges = []
     fake_context.conditional_routing = {}
     fake_context.path_metadata = {}
@@ -302,7 +302,7 @@ async def test_cli_export_trace_flag(tmp_path):
 
         assert trace_data["pipeline_id"] == "test_export_123"
         assert trace_data["query"] == "test query for export"
-        assert "Refiner" in trace_data["successful_agents"]
+        assert "refiner" in trace_data["successful_agents"]
         assert trace_data["context_size_bytes"] == 2048
 
 
@@ -310,12 +310,12 @@ async def test_cli_export_trace_flag(tmp_path):
 async def test_cli_trace_with_conditional_routing(capsys):
     """Test trace display with conditional routing information."""
     fake_context = AgentContext(query="test query with routing")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
     fake_context.context_id = "test_routing_123"
     fake_context.current_size = 512
-    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.agent_execution_status = {"refiner": "completed"}
     fake_context.execution_edges = [
         {"from_agent": "Refiner", "to_agent": "Critic", "edge_type": "conditional"}
     ]
@@ -338,12 +338,12 @@ async def test_cli_trace_with_conditional_routing(capsys):
 async def test_cli_trace_with_failed_agents(capsys):
     """Test trace display with failed agents."""
     fake_context = AgentContext(query="test query with failures")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
-    fake_context.failed_agents = {"Critic"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
+    fake_context.failed_agents = {"critic"}
     fake_context.context_id = "test_failure_123"
     fake_context.current_size = 256
-    fake_context.agent_execution_status = {"Refiner": "completed", "Critic": "failed"}
+    fake_context.agent_execution_status = {"refiner": "completed", "critic": "failed"}
 
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -410,12 +410,12 @@ def test_cli_dry_run_typer_interface():
 def test_cli_trace_typer_interface():
     """Test trace flag through typer CLI interface."""
     fake_context = AgentContext(query="test typer trace")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
     fake_context.context_id = "test_typer_123"
     fake_context.current_size = 128
-    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.agent_execution_status = {"refiner": "completed"}
     fake_context.execution_edges = []
 
     with patch(
@@ -440,12 +440,12 @@ def test_cli_trace_typer_interface():
 def test_cli_export_trace_typer_interface():
     """Test export-trace flag through typer CLI interface."""
     fake_context = AgentContext(query="test typer export")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
     fake_context.context_id = "test_typer_export_123"
     fake_context.current_size = 64
-    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.agent_execution_status = {"refiner": "completed"}
     fake_context.execution_edges = []
     fake_context.conditional_routing = {}
     fake_context.path_metadata = {}
@@ -490,12 +490,12 @@ def test_cli_export_trace_typer_interface():
 async def test_cli_combined_flags(capsys, tmp_path):
     """Test combining multiple new flags together."""
     fake_context = AgentContext(query="test combined flags")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
     fake_context.context_id = "test_combined_123"
     fake_context.current_size = 512
-    fake_context.agent_execution_status = {"Refiner": "completed"}
+    fake_context.agent_execution_status = {"refiner": "completed"}
     fake_context.execution_edges = []
     fake_context.conditional_routing = {}
     fake_context.path_metadata = {}
@@ -595,8 +595,8 @@ async def test_cli_execution_mode_invalid():
 async def test_cli_execution_mode_default_legacy(capsys):
     """Test CLI defaults to langgraph-real execution mode when not specified (Phase 1 migration)."""
     fake_context = AgentContext(query="test default execution")
-    fake_context.agent_outputs = {"Refiner": "Default langgraph-real execution"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Default langgraph-real execution"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
 
     with patch(
@@ -907,8 +907,8 @@ def test_create_llm_instance(mock_llm_class, mock_config_load):
 async def test_cli_topic_analysis_with_llm(capsys):
     """Test that CLI passes LLM instance to TopicManager for topic analysis."""
     fake_context = AgentContext(query="Democracy in Mexico and US")
-    fake_context.agent_outputs = {"Refiner": "Democracy analysis output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Democracy analysis output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
 
     # Mock LLM instance
@@ -964,8 +964,8 @@ async def test_cli_topic_analysis_with_llm(capsys):
 async def test_cli_topic_analysis_error_handling(capsys):
     """Test that CLI handles topic analysis errors gracefully."""
     fake_context = AgentContext(query="Test query")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
 
     # Mock LLM instance
@@ -1025,8 +1025,8 @@ async def test_cli_comparison_mode_disabled_after_phase3(capsys):
 async def test_cli_topic_analysis_without_export_md(capsys):
     """Test that topic analysis is only run when export_md is True."""
     fake_context = AgentContext(query="Test query")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
-    fake_context.successful_agents = {"Refiner"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
+    fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
 
     # Mock LLM instance
@@ -1067,7 +1067,7 @@ async def test_cli_topic_analysis_without_export_md(capsys):
 async def test_cli_rollback_functionality():
     """Test CLI rollback functionality with memory checkpoints."""
     fake_context = AgentContext(query="Test rollback")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
 
     # Mock the rollback functionality
     with patch(
@@ -1095,7 +1095,7 @@ async def test_cli_rollback_functionality():
 async def test_cli_checkpoint_management_with_thread_id():
     """Test CLI checkpoint management with custom thread ID."""
     fake_context = AgentContext(query="Test checkpoint thread")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -1239,7 +1239,7 @@ async def test_cli_orchestrator_error_handling():
 async def test_cli_agent_parsing_error_handling():
     """Test CLI error handling for invalid agent specifications."""
     fake_context = AgentContext(query="Test invalid agents")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -1297,7 +1297,7 @@ async def test_cli_comparison_mode_memory_tracking_disabled(capsys):
 async def test_cli_dag_visualization_integration():
     """Test CLI DAG visualization integration."""
     fake_context = AgentContext(query="Test DAG visualization")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch("cognivault.cli.main_commands.cli_visualize_dag") as mock_visualize:
         with patch(
@@ -1323,7 +1323,7 @@ async def test_cli_dag_visualization_integration():
 async def test_cli_dag_visualization_with_file_output():
     """Test CLI DAG visualization with file output."""
     fake_context = AgentContext(query="Test DAG file output")
-    fake_context.agent_outputs = {"Refiner": "Test output", "Critic": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output", "critic": "Test output"}
 
     with patch("cognivault.cli.main_commands.cli_visualize_dag") as mock_visualize:
         with patch(
@@ -1350,7 +1350,7 @@ async def test_cli_dag_visualization_with_file_output():
 async def test_cli_dag_visualization_error_handling(capsys):
     """Test CLI DAG visualization error handling."""
     fake_context = AgentContext(query="Test DAG error")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
         "cognivault.cli.main_commands.cli_visualize_dag",
@@ -1382,9 +1382,9 @@ async def test_cli_complete_workflow_with_all_features():
     """Test complete CLI workflow with all features enabled."""
     fake_context = AgentContext(query="Complete workflow test")
     fake_context.agent_outputs = {
-        "Refiner": "Refined query",
-        "Critic": "Critical analysis",
-        "Synthesis": "Final synthesis",
+        "refiner": "Refined query",
+        "critic": "Critical analysis",
+        "synthesis": "Final synthesis",
     }
 
     with patch(
@@ -1431,7 +1431,7 @@ async def test_cli_error_recovery_workflow():
 async def test_cli_performance_monitoring_integration():
     """Test CLI performance monitoring integration."""
     fake_context = AgentContext(query="Performance test")
-    fake_context.agent_outputs = {"Refiner": "Test output"}
+    fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 from .types import (
     WorkflowEvent,
     EventType,
+    EventCategory,
     WorkflowStartedEvent,
     WorkflowCompletedEvent,
     AgentExecutionStartedEvent,
@@ -156,6 +157,7 @@ async def emit_workflow_started(
 
     event = WorkflowStartedEvent(
         event_type=EventType.WORKFLOW_STARTED,
+        event_category=EventCategory.ORCHESTRATION,  # Workflow events are orchestration-level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -189,6 +191,7 @@ async def emit_workflow_completed(
 
     event = WorkflowCompletedEvent(
         event_type=EventType.WORKFLOW_COMPLETED,
+        event_category=EventCategory.ORCHESTRATION,  # Workflow events are orchestration-level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -212,12 +215,14 @@ async def emit_agent_execution_started(
     agent_metadata: Optional[AgentMetadata] = None,
     correlation_id: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
+    event_category: EventCategory = EventCategory.EXECUTION,
 ) -> None:
     """Emit agent execution started event."""
     emitter = get_global_event_emitter()
 
     event = AgentExecutionStartedEvent(
         event_type=EventType.AGENT_EXECUTION_STARTED,
+        event_category=event_category,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -241,6 +246,7 @@ async def emit_agent_execution_completed(
     error_type: Optional[str] = None,
     correlation_id: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
+    event_category: EventCategory = EventCategory.EXECUTION,
 ) -> None:
     """Emit agent execution completed event."""
     emitter = get_global_event_emitter()
@@ -251,6 +257,7 @@ async def emit_agent_execution_completed(
 
     event = AgentExecutionCompletedEvent(
         event_type=EventType.AGENT_EXECUTION_COMPLETED,
+        event_category=event_category,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -281,6 +288,7 @@ async def emit_routing_decision(
 
     event = RoutingDecisionEvent(
         event_type=EventType.ROUTING_DECISION_MADE,
+        event_category=EventCategory.ORCHESTRATION,  # Routing decisions are orchestration-level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -321,6 +329,7 @@ async def emit_routing_decision_from_object(
     # Create enhanced event with full routing decision data
     event = RoutingDecisionEvent(
         event_type=EventType.ROUTING_DECISION_MADE,
+        event_category=EventCategory.ORCHESTRATION,  # Routing decisions are orchestration-level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -385,6 +394,7 @@ async def emit_health_check_performed(
 
     event = WorkflowEvent(
         event_type=EventType.HEALTH_CHECK_PERFORMED,
+        event_category=EventCategory.ORCHESTRATION,  # Health checks are system/orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -437,6 +447,7 @@ async def emit_api_request_received(
 
     event = WorkflowEvent(
         event_type=EventType.API_REQUEST_RECEIVED,
+        event_category=EventCategory.ORCHESTRATION,  # API events are orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -489,6 +500,7 @@ async def emit_api_response_sent(
 
     event = WorkflowEvent(
         event_type=EventType.API_RESPONSE_SENT,
+        event_category=EventCategory.ORCHESTRATION,  # API events are orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -548,6 +560,7 @@ async def emit_service_boundary_crossed(
 
     event = WorkflowEvent(
         event_type=EventType.SERVICE_BOUNDARY_CROSSED,
+        event_category=EventCategory.ORCHESTRATION,  # Service boundary events are orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -605,6 +618,7 @@ async def emit_decision_made(
 
     event = WorkflowEvent(
         event_type=EventType.DECISION_MADE,
+        event_category=EventCategory.ORCHESTRATION,  # Decision events are orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -662,6 +676,7 @@ async def emit_aggregation_completed(
 
     event = WorkflowEvent(
         event_type=EventType.AGGREGATION_COMPLETED,
+        event_category=EventCategory.ORCHESTRATION,  # Aggregation events are orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -720,6 +735,7 @@ async def emit_validation_completed(
 
     event = WorkflowEvent(
         event_type=EventType.VALIDATION_COMPLETED,
+        event_category=EventCategory.ORCHESTRATION,  # Validation events are orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -775,6 +791,7 @@ async def emit_termination_triggered(
 
     event = WorkflowEvent(
         event_type=EventType.TERMINATION_TRIGGERED,
+        event_category=EventCategory.ORCHESTRATION,  # Termination events are orchestration level
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),

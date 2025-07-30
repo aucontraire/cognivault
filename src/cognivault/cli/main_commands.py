@@ -547,10 +547,18 @@ async def _run_dry_run(orchestrator, console, query, agents_to_run):
 def _display_standard_output(console, context, execution_time):
     """Display standard agent outputs with performance metrics."""
     emoji_map = {
-        "Refiner": "🧠",
-        "Critic": "🤔",
-        "Historian": "🕵️",
-        "Synthesis": "🔗",
+        "refiner": "🧠",
+        "critic": "🤔",
+        "historian": "🕵️",
+        "synthesis": "🔗",
+    }
+
+    # Map for display names (capitalized for user-friendly output)
+    display_name_map = {
+        "refiner": "Refiner",
+        "critic": "Critic",
+        "historian": "Historian",
+        "synthesis": "Synthesis",
     }
 
     # Display performance summary
@@ -564,7 +572,8 @@ def _display_standard_output(console, context, execution_time):
     # Display agent outputs
     for agent_name, output in context.agent_outputs.items():
         emoji = emoji_map.get(agent_name, "🧠")
-        console.print(f"\n{emoji} [bold]{agent_name}:[/bold]")
+        display_name = display_name_map.get(agent_name, agent_name.capitalize())
+        console.print(f"\n{emoji} [bold]{display_name}:[/bold]")
         console.print(output.strip())
 
 
@@ -629,16 +638,25 @@ def _display_detailed_trace(console, context, execution_time):
     # Agent outputs
     console.print("\n📝 [bold]Agent Outputs[/bold]")
     emoji_map = {
-        "Refiner": "🧠",
-        "Critic": "🤔",
-        "Historian": "🕵️",
-        "Synthesis": "🔗",
+        "refiner": "🧠",
+        "critic": "🤔",
+        "historian": "🕵️",
+        "synthesis": "🔗",
+    }
+
+    # Map for display names (capitalized for user-friendly output)
+    display_name_map = {
+        "refiner": "Refiner",
+        "critic": "Critic",
+        "historian": "Historian",
+        "synthesis": "Synthesis",
     }
 
     for agent_name, output in context.agent_outputs.items():
         emoji = emoji_map.get(agent_name, "🧠")
+        display_name = display_name_map.get(agent_name, agent_name.capitalize())
         output_panel = Panel(
-            output.strip(), title=f"{emoji} {agent_name}", border_style="blue"
+            output.strip(), title=f"{emoji} {display_name}", border_style="blue"
         )
         console.print(output_panel)
 

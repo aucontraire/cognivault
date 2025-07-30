@@ -63,7 +63,7 @@ class TestHistorianAgentInitialization:
         # Use llm=None to prevent real API calls during testing
         agent = HistorianAgent(llm=None)
 
-        assert agent.name == "Historian"
+        assert agent.name == "historian"
         assert agent.search_type == "hybrid"
         assert agent.search_engine is not None
         assert agent.llm is None
@@ -73,7 +73,7 @@ class TestHistorianAgentInitialization:
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
 
-        assert agent.name == "Historian"
+        assert agent.name == "historian"
         assert agent.llm is mock_llm
         assert agent.search_type == "hybrid"
 

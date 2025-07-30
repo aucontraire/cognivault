@@ -52,7 +52,7 @@ class HistorianAgent(BaseAgent):
         search_type: str = "hybrid",
         config: Optional[HistorianConfig] = None,
     ):
-        super().__init__("Historian")
+        super().__init__("historian")
 
         # Configuration system - backward compatible
         self.config = config if config is not None else HistorianConfig()

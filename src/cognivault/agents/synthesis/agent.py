@@ -44,7 +44,7 @@ class SynthesisAgent(BaseAgent):
         llm: Optional[Union[LLMInterface, str]] = "default",
         config: Optional[SynthesisConfig] = None,
     ):
-        super().__init__("Synthesis")
+        super().__init__("synthesis")
 
         # Configuration system - backward compatible
         self.config = config if config is not None else SynthesisConfig()

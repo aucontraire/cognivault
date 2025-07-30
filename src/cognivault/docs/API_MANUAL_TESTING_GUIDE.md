@@ -254,7 +254,11 @@ curl -X GET "http://localhost:8000/api/workflows/academic_research"
 
 ## 🔄 WebSocket Real-Time Testing
 
+> **📚 Detailed Documentation**: For comprehensive information about the dual event emission architecture and event types, see [WebSocket Event Streams Documentation](./WEBSOCKET_EVENT_STREAMS.md).
+
 ### **Live Workflow Progress Streaming** ⚡ **REAL-TIME FEATURE**
+
+CogniVault provides **dual-level event granularity** with events from both orchestration (DAG) and agent execution sources. This gives you both high-level workflow progress and detailed agent performance data.
 
 #### Method 1: Browser JavaScript Console
 ```javascript
@@ -348,6 +352,29 @@ wscat -c ws://localhost:8000/ws/query/test-manual-websocket-002
   "progress": 100.0,
   "message": "Workflow completed successfully"
 }
+```
+
+#### **Understanding Dual Event Sources**
+
+**Note**: You may see multiple events for the same agent due to CogniVault's dual emission architecture:
+
+- **Orchestration Events**: From LangGraph DAG execution (hardcoded lowercase agent names)
+- **Execution Events**: From individual agents (includes retry logic, performance metadata)
+
+To distinguish event sources in your client code:
+```javascript
+ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    
+    // Orchestration events have orchestrator metadata
+    if (data.metadata?.orchestrator_type) {
+        console.log(`[ORCHESTRATION] ${data.agent_name}: ${data.status}`);
+    }
+    // Execution events have agent classification metadata  
+    else if (data.metadata?.agent_metadata) {
+        console.log(`[EXECUTION] ${data.agent_name}: ${data.status} (retry: ${data.metadata.execution_count})`);
+    }
+};
 ```
 
 ### **WebSocket Health Monitoring**

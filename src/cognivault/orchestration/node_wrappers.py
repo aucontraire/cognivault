@@ -45,6 +45,7 @@ from cognivault.events import (
     emit_agent_execution_started,
     emit_agent_execution_completed,
 )
+from cognivault.events.types import EventCategory
 
 logger = get_logger(__name__)
 
@@ -444,6 +445,7 @@ async def refiner_node(
     try:
         # ✅ Enhanced event emission with runtime context
         await emit_agent_execution_started(
+            event_category=EventCategory.EXECUTION,
             workflow_id=workflow_id,
             agent_name="refiner",
             input_context={
@@ -475,7 +477,7 @@ async def refiner_node(
         result_context = await agent.run_with_retry(context)
 
         # Extract refiner output (using "Refiner" key, not "refiner")
-        refiner_raw_output = result_context.agent_outputs.get("Refiner", "")
+        refiner_raw_output = result_context.agent_outputs.get("refiner", "")
 
         # Create typed output
         refiner_output = RefinerOutput(
@@ -488,6 +490,7 @@ async def refiner_node(
 
         # ✅ Enhanced completion event emission with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=workflow_id,
             agent_name="refiner",
             success=True,
@@ -552,6 +555,7 @@ async def refiner_node(
 
         # ✅ Enhanced error event emission with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=workflow_id,
             agent_name="refiner",
             success=False,
@@ -632,6 +636,7 @@ async def critic_node(
 
         # Emit agent execution started event with runtime context
         await emit_agent_execution_started(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="critic",
             input_context={
@@ -661,7 +666,7 @@ async def critic_node(
         result_context = await agent.run_with_retry(context)
 
         # Extract critic output (using "Critic" key, not "critic")
-        critic_raw_output = result_context.agent_outputs.get("Critic", "")
+        critic_raw_output = result_context.agent_outputs.get("critic", "")
 
         # Create typed output
         critic_output = CriticOutput(
@@ -676,6 +681,7 @@ async def critic_node(
 
         # Emit agent execution completed event with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="critic",
             success=True,
@@ -708,6 +714,7 @@ async def critic_node(
 
         # Emit agent execution failed event with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="critic",
             success=False,
@@ -781,6 +788,7 @@ async def historian_node(
 
         # Emit agent execution started event with runtime context
         await emit_agent_execution_started(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="historian",
             input_context={
@@ -810,7 +818,7 @@ async def historian_node(
         result_context = await agent.run_with_retry(context)
 
         # Extract historian output (using "Historian" key, not "historian")
-        historian_raw_output = result_context.agent_outputs.get("Historian", "")
+        historian_raw_output = result_context.agent_outputs.get("historian", "")
 
         # Extract retrieved notes from context
         retrieved_notes = getattr(result_context, "retrieved_notes", [])
@@ -844,6 +852,7 @@ async def historian_node(
 
         # Emit agent execution completed event with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="historian",
             success=True,
@@ -877,6 +886,7 @@ async def historian_node(
 
         # Emit agent execution failed event with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="historian",
             success=False,
@@ -954,6 +964,7 @@ async def synthesis_node(
 
         # Emit agent execution started event with runtime context
         await emit_agent_execution_started(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="synthesis",
             input_context={
@@ -983,7 +994,7 @@ async def synthesis_node(
         result_context = await agent.run_with_retry(context)
 
         # Extract synthesis output (using "Synthesis" key, not "synthesis")
-        synthesis_raw_output = result_context.agent_outputs.get("Synthesis", "")
+        synthesis_raw_output = result_context.agent_outputs.get("synthesis", "")
 
         # Determine sources used
         sources_used = []
@@ -1010,6 +1021,7 @@ async def synthesis_node(
 
         # Emit agent execution completed event with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="synthesis",
             success=True,
@@ -1043,6 +1055,7 @@ async def synthesis_node(
 
         # Emit agent execution failed event with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
             agent_name="synthesis",
             success=False,

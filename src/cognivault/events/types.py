@@ -15,6 +15,18 @@ from pydantic import BaseModel, Field, field_validator, model_validator, ConfigD
 from cognivault.agents.metadata import AgentMetadata, TaskClassification
 
 
+class EventCategory(Enum):
+    """
+    Event category taxonomy for distinguishing event sources.
+
+    This enum differentiates between orchestration-level events (DAG execution)
+    and execution-level events (individual agent internals).
+    """
+
+    ORCHESTRATION = "orchestration"  # From node wrappers, DAG orchestration
+    EXECUTION = "execution"  # From individual agents, retry logic, performance
+
+
 class EventType(Enum):
     """Comprehensive event type taxonomy for observability."""
 
@@ -67,6 +79,11 @@ class WorkflowEvent(BaseModel):
         ...,
         description="Type of event being recorded",
         json_schema_extra={"example": "workflow.started"},
+    )
+    event_category: EventCategory = Field(
+        ...,
+        description="Category of event source (orchestration vs execution)",
+        json_schema_extra={"example": "orchestration"},
     )
     workflow_id: str = Field(
         ...,
@@ -217,6 +234,11 @@ class WorkflowEvent(BaseModel):
                 if hasattr(self.event_type, "value")
                 else self.event_type
             ),
+            "event_category": (
+                self.event_category.value
+                if hasattr(self.event_category, "value")
+                else self.event_category
+            ),
             "timestamp": self.timestamp.isoformat(),
             "workflow_id": self.workflow_id,
             "correlation_id": self.correlation_id,
@@ -256,6 +278,9 @@ class WorkflowEvent(BaseModel):
         return cls(
             event_id=data["event_id"],
             event_type=EventType(data["event_type"]),
+            event_category=EventCategory(
+                data.get("event_category", "orchestration")
+            ),  # Default for backward compatibility
             timestamp=datetime.fromisoformat(data["timestamp"]),
             workflow_id=data["workflow_id"],
             correlation_id=data.get("correlation_id"),
@@ -287,6 +312,11 @@ class WorkflowStartedEvent(WorkflowEvent):
         default=EventType.WORKFLOW_STARTED,
         description="Type of event being recorded",
         json_schema_extra={"example": "workflow.started"},
+    )
+    event_category: EventCategory = Field(
+        default=EventCategory.ORCHESTRATION,
+        description="Category of event source (workflow events are orchestration-level)",
+        json_schema_extra={"example": "orchestration"},
     )
     query: str = Field(
         "",
@@ -333,6 +363,11 @@ class WorkflowCompletedEvent(WorkflowEvent):
         default=EventType.WORKFLOW_COMPLETED,
         description="Type of event being recorded",
         json_schema_extra={"example": "workflow.completed"},
+    )
+    event_category: EventCategory = Field(
+        default=EventCategory.ORCHESTRATION,
+        description="Category of event source (workflow events are orchestration-level)",
+        json_schema_extra={"example": "orchestration"},
     )
     status: str = Field(
         "",
@@ -402,6 +437,11 @@ class AgentExecutionStartedEvent(WorkflowEvent):
         description="Type of event being recorded",
         json_schema_extra={"example": "agent.execution.started"},
     )
+    event_category: EventCategory = Field(
+        default=EventCategory.EXECUTION,
+        description="Category of event source (defaults to execution, override for orchestration)",
+        json_schema_extra={"example": "execution"},
+    )
     agent_name: str = Field(
         "",
         description="Name of the agent starting execution",
@@ -439,6 +479,11 @@ class AgentExecutionCompletedEvent(WorkflowEvent):
         default=EventType.AGENT_EXECUTION_COMPLETED,
         description="Type of event being recorded",
         json_schema_extra={"example": "agent.execution.completed"},
+    )
+    event_category: EventCategory = Field(
+        default=EventCategory.EXECUTION,
+        description="Category of event source (defaults to execution, override for orchestration)",
+        json_schema_extra={"example": "execution"},
     )
     agent_name: str = Field(
         "",
@@ -483,6 +528,11 @@ class RoutingDecisionEvent(WorkflowEvent):
         default=EventType.ROUTING_DECISION_MADE,
         description="Type of event being recorded",
         json_schema_extra={"example": "routing.decision.made"},
+    )
+    event_category: EventCategory = Field(
+        default=EventCategory.ORCHESTRATION,
+        description="Category of event source (routing decisions are orchestration-level)",
+        json_schema_extra={"example": "orchestration"},
     )
     selected_agents: List[str] = Field(
         default_factory=list,

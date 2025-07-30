@@ -26,7 +26,7 @@ class TestSynthesisAgentErrorHandling:
 
         # Should set llm to None for invalid interface
         assert agent.llm is None
-        assert agent.name == "Synthesis"
+        assert agent.name == "synthesis"
 
     def test_init_with_object_without_generate_method(self):
         """Test initialization with object that doesn't have generate method."""
@@ -44,7 +44,7 @@ class TestSynthesisAgentErrorHandling:
         agent = SynthesisAgent(llm=None)
 
         assert agent.llm is None
-        assert agent.name == "Synthesis"
+        assert agent.name == "synthesis"
 
     @pytest.mark.asyncio
     async def test_run_with_fallback_synthesis_no_llm(self):

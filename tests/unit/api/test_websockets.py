@@ -17,7 +17,7 @@ from cognivault.api.websockets import (
     WebSocketEventSink,
     websocket_manager,
 )
-from cognivault.events.types import WorkflowEvent, EventType
+from cognivault.events.types import WorkflowEvent, EventType, EventCategory
 from cognivault.events.emitter import get_global_event_emitter
 
 
@@ -231,6 +231,7 @@ class TestWebSocketEventSink:
 
         defaults = {
             "event_type": event_type,
+            "event_category": EventCategory.ORCHESTRATION,  # Default for test events
             "workflow_id": "test-workflow-123",
             "correlation_id": self.correlation_id,
             "data": {"agent_name": agent_name, "status": status},

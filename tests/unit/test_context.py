@@ -3,15 +3,15 @@ from cognivault.context import AgentContext
 
 def test_add_and_get_agent_output():
     context = AgentContext(query="What is democracy?")
-    context.add_agent_output("Refiner", "Structured explanation of democracy.")
+    context.add_agent_output("refiner", "Structured explanation of democracy.")
 
-    assert "Refiner" in context.agent_outputs
-    assert context.get_output("Refiner") == "Structured explanation of democracy."
+    assert "refiner" in context.agent_outputs
+    assert context.get_output("refiner") == "Structured explanation of democracy."
 
 
 def test_get_output_returns_none_for_missing_agent():
     context = AgentContext(query="History of voting rights?")
-    assert context.get_output("Historian") is None
+    assert context.get_output("historian") is None
 
 
 def test_retrieved_notes_are_optional():
@@ -49,13 +49,13 @@ def test_set_and_get_final_synthesis():
 def test_log_trace():
     context = AgentContext(query="History of AI")
     context.log_trace(
-        "Historian", input_data="Query: History", output_data="AI history summary"
+        "historian", input_data="Query: History", output_data="AI history summary"
     )
 
-    assert "Historian" in context.agent_trace
-    assert isinstance(context.agent_trace["Historian"], list)
-    assert context.agent_trace["Historian"][0]["input"] == "Query: History"
-    assert "timestamp" in context.agent_trace["Historian"][0]
+    assert "historian" in context.agent_trace
+    assert isinstance(context.agent_trace["historian"], list)
+    assert context.agent_trace["historian"][0]["input"] == "Query: History"
+    assert "timestamp" in context.agent_trace["historian"][0]
 
 
 def test_start_agent_execution():

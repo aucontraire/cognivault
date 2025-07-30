@@ -171,9 +171,9 @@ class TestCriticAgentConfig:
         )
 
         # Should add critique to context
-        assert "Critic" in result_context.agent_outputs
+        assert "critic" in result_context.agent_outputs
         assert (
-            result_context.agent_outputs["Critic"]
+            result_context.agent_outputs["critic"]
             == "Detailed critique of the refined query"
         )
 
@@ -203,8 +203,8 @@ class TestCriticAgentConfig:
         result_context = await agent.run(context)
 
         # Should work and add output
-        assert "Critic" in result_context.agent_outputs
-        assert result_context.agent_outputs["Critic"] == "Standard critique"
+        assert "critic" in result_context.agent_outputs
+        assert result_context.agent_outputs["critic"] == "Standard critique"
 
         # Should call LLM generate (system prompt will be default or composed)
         mock_llm.generate.assert_called_once()
@@ -227,8 +227,8 @@ class TestCriticAgentConfig:
         result_context = await agent.run(context)
 
         # Should handle missing refiner output
-        assert "Critic" in result_context.agent_outputs
-        assert "No refined output available" in result_context.agent_outputs["Critic"]
+        assert "critic" in result_context.agent_outputs
+        assert "No refined output available" in result_context.agent_outputs["critic"]
 
         # Should not call LLM when no refiner output
         mock_llm.generate.assert_not_called()

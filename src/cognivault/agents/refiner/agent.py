@@ -43,7 +43,7 @@ class RefinerAgent(BaseAgent):
             Configuration for agent behavior. If None, uses default configuration.
             Maintains backward compatibility - existing code continues to work.
         """
-        super().__init__("Refiner")
+        super().__init__("refiner")
         self.llm: LLMInterface = llm
 
         # Configuration system - backward compatible

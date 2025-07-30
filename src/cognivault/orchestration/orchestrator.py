@@ -27,6 +27,9 @@ from cognivault.correlation import (
     create_child_span,
     add_trace_metadata,
     CorrelationContext,
+    context_correlation_id,
+    context_workflow_id,
+    context_trace_metadata,
 )
 from cognivault.events import (
     emit_workflow_started,
@@ -216,9 +219,15 @@ class LangGraphOrchestrator:
         provided_correlation_id = config.get("correlation_id") if config else None
 
         if provided_correlation_id:
-            # Create correlation context with provided correlation_id
+            # Create correlation context with provided correlation_id and set contextvars
+            workflow_id = str(uuid.uuid4())
+            context_correlation_id.set(provided_correlation_id)
+            context_workflow_id.set(workflow_id)
+            context_trace_metadata.set({})
             correlation_ctx = CorrelationContext(
-                correlation_id=provided_correlation_id, workflow_id=str(uuid.uuid4())
+                correlation_id=provided_correlation_id,
+                workflow_id=workflow_id,
+                metadata={},
             )
         else:
             # Ensure correlation context exists (create if not present)

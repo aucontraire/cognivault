@@ -253,8 +253,8 @@ class TestHistorianAgentConfig:
                 result_context = await agent.run(context)
 
                 # Should complete without errors and preserve existing behavior
-                assert "Historian" in result_context.agent_outputs
-                assert isinstance(result_context.agent_outputs["Historian"], str)
+                assert "historian" in result_context.agent_outputs
+                assert isinstance(result_context.agent_outputs["historian"], str)
 
     def test_default_llm_creation_with_config(self):
         """Test that default LLM creation works with config integration."""

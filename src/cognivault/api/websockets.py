@@ -206,9 +206,12 @@ class WebSocketEventSink(EventSink):
         Args:
             event: The workflow event to potentially broadcast
         """
-        # Log event for debugging correlation issues
+        # Enhanced debugging for agent events
+        agent_name = getattr(event, "agent_name", None)
         logger.debug(
-            f"WebSocket sink received event: {event.event_type.value} for {event.correlation_id}"
+            f"WebSocket sink received event: {event.event_type.value} "
+            f"for correlation_id={event.correlation_id}, agent_name={agent_name}, "
+            f"target_correlation_id={self.target_correlation_id}"
         )
 
         # Only broadcast events for our target correlation ID
@@ -221,27 +224,49 @@ class WebSocketEventSink(EventSink):
         # Prepare event data for WebSocket broadcast
         event_data = {
             "type": event.event_type.value,
+            "category": (
+                event_category.value
+                if (event_category := getattr(event, "event_category", None))
+                is not None
+                and hasattr(event_category, "value")
+                else "unknown"
+            ),
             "timestamp": (
                 event.timestamp.isoformat()
                 if hasattr(event.timestamp, "isoformat")
                 else event.timestamp
             ),
             "correlation_id": event.correlation_id,
-            "agent_name": event.data.get("agent_name"),
-            "status": event.data.get("status"),
+            "agent_name": getattr(event, "agent_name", None)
+            or event.data.get("agent_name"),
+            "status": self._derive_event_status(event),
             "progress": progress,
             "message": self._get_user_friendly_message(event),
             "metadata": {
-                "execution_time_ms": event.data.get("execution_time_ms")
-                or getattr(event, "execution_time_ms", None),
-                "memory_usage_mb": event.data.get("memory_usage_mb")
-                or getattr(event, "memory_usage_mb", None),
-                "node_count": event.data.get("node_count")
-                or getattr(event, "node_count", None),
-                "error_type": event.data.get("error_type")
-                or getattr(event, "error_type", None),
-                "error_message": event.data.get("error_message")
-                or getattr(event, "error_message", None),
+                "execution_time_ms": getattr(event, "execution_time_ms", None)
+                or event.data.get("execution_time_ms"),
+                "memory_usage_mb": getattr(event, "memory_usage_mb", None)
+                or event.data.get("memory_usage_mb"),
+                "node_count": event.data.get("node_count"),
+                "error_type": getattr(event, "error_type", None)
+                or event.data.get("error_type"),
+                "error_message": getattr(event, "error_message", None)
+                or event.data.get("error_message"),
+                # Add additional structured metadata from agent events
+                "success": getattr(event, "success", None),
+                "agent_metadata": (
+                    getattr(event, "agent_metadata").to_dict()
+                    if getattr(event, "agent_metadata", None) is not None
+                    else None
+                ),
+                "input_context": getattr(event, "input_context", None),
+                "output_context": getattr(event, "output_context", None),
+                # Add workflow-specific metadata
+                "workflow_id": getattr(event, "workflow_id", None),
+                "query": getattr(event, "query", None) or event.data.get("query"),
+                "agents_requested": getattr(event, "agents_requested", None)
+                or event.data.get("agents_requested"),
+                "orchestrator_type": event.data.get("orchestrator_type"),
             },
         }
 
@@ -301,7 +326,9 @@ class WebSocketEventSink(EventSink):
         }
 
         event_type = event.event_type.value
-        agent_name = event.data.get("agent_name", "unknown")
+        agent_name = getattr(event, "agent_name", None) or event.data.get(
+            "agent_name", "unknown"
+        )
 
         if event_type in progress_map:
             progress_value = progress_map[event_type]
@@ -326,8 +353,12 @@ class WebSocketEventSink(EventSink):
             Human-readable message describing the event
         """
         event_type = event.event_type.value
-        agent_name = event.data.get("agent_name", "system")
-        status = event.data.get("status", "processing")
+        agent_name = getattr(event, "agent_name", None) or event.data.get(
+            "agent_name", "system"
+        )
+        status = getattr(event, "status", None) or event.data.get(
+            "status", "processing"
+        )
 
         message_templates = {
             "workflow.started": "Workflow execution started",
@@ -354,6 +385,62 @@ class WebSocketEventSink(EventSink):
             base_message += f" ({status})"
 
         return base_message
+
+    def _derive_event_status(self, event: WorkflowEvent) -> str:
+        """
+        Derive meaningful status from event type and context.
+
+        Args:
+            event: The workflow event
+
+        Returns:
+            Meaningful status string based on event context
+        """
+        # Check for explicit status first
+        explicit_status = getattr(event, "status", None) or event.data.get("status")
+        if explicit_status:
+            return explicit_status
+
+        # Derive status based on event type
+        event_type = event.event_type.value
+
+        # Agent execution events
+        if event_type == "agent.execution.started":
+            return "running"
+        elif event_type == "agent.execution.completed":
+            success = getattr(event, "success", None) or event.data.get("success")
+            if success is not None:
+                return "completed" if success else "failed"
+            # Fallback: check for error indicators
+            if getattr(event, "error_message", None) or event.data.get("error_message"):
+                return "failed"
+            return "completed"
+        elif event_type == "agent.execution.failed":
+            return "failed"
+
+        # Workflow events
+        elif event_type == "workflow.started":
+            return "starting"
+        elif event_type == "workflow.completed":
+            return "completed"
+        elif event_type == "workflow.failed":
+            return "failed"
+        elif event_type == "workflow.cancelled":
+            return "cancelled"
+
+        # Routing and decision events
+        elif event_type == "routing.decision.made":
+            return "decided"
+        elif event_type.startswith("node."):
+            if "started" in event_type:
+                return "running"
+            elif "completed" in event_type:
+                return "completed"
+            elif "made" in event_type:
+                return "decided"
+
+        # Default status for unknown events
+        return "processing"
 
 
 # Global WebSocket manager instance

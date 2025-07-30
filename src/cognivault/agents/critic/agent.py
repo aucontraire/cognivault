@@ -52,7 +52,7 @@ class CriticAgent(BaseAgent):
             Configuration for agent behavior. If None, uses default configuration.
             Maintains backward compatibility - existing code continues to work.
         """
-        super().__init__("Critic")
+        super().__init__("critic")
         self.llm = llm
 
         # Configuration system - backward compatible

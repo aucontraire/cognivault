@@ -143,10 +143,10 @@ class TestPydanticAIDatabaseIntegration:
 
         # Validate structured output was created
         assert "structured_outputs" in enhanced_context.execution_state
-        assert "Critic" in enhanced_context.execution_state["structured_outputs"]
+        assert "critic" in enhanced_context.execution_state["structured_outputs"]
 
         structured_output = enhanced_context.execution_state["structured_outputs"][
-            "Critic"
+            "critic"
         ]
         assert isinstance(structured_output, CriticOutput)
 
@@ -326,16 +326,16 @@ class TestPydanticAIDatabaseIntegration:
 
             # Validate that we got some form of output (structured or fallback)
             assert (
-                "Critic" in enhanced_context.agent_outputs
+                "critic" in enhanced_context.agent_outputs
             )  # Basic output should always exist
 
             if (
                 "structured_outputs" in enhanced_context.execution_state
-                and "Critic" in enhanced_context.execution_state["structured_outputs"]
+                and "critic" in enhanced_context.execution_state["structured_outputs"]
             ):
                 structured_output = enhanced_context.execution_state[
                     "structured_outputs"
-                ]["Critic"]
+                ]["critic"]
                 assert isinstance(structured_output, CriticOutput)
                 print(
                     f"✅ Structured response succeeded: {structured_output.confidence} confidence"
@@ -352,14 +352,14 @@ class TestPydanticAIDatabaseIntegration:
                 "agent_outputs": {
                     "critic": (
                         enhanced_context.execution_state["structured_outputs"]
-                        .get("Critic", {})
+                        .get("critic", {})
                         .model_dump()
                         if "structured_outputs" in enhanced_context.execution_state
-                        and "Critic"
+                        and "critic"
                         in enhanced_context.execution_state["structured_outputs"]
                         else {
                             "fallback_response": enhanced_context.agent_outputs[
-                                "Critic"
+                                "critic"
                             ]
                         }
                     )
@@ -367,7 +367,7 @@ class TestPydanticAIDatabaseIntegration:
                 "success": True,
                 "fallback_used": not (
                     "structured_outputs" in enhanced_context.execution_state
-                    and "Critic"
+                    and "critic"
                     in enhanced_context.execution_state["structured_outputs"]
                 ),
             }
@@ -429,7 +429,7 @@ class TestPydanticAIDatabaseIntegration:
 
                 if (
                     "structured_outputs" in structured_context.execution_state
-                    and "Critic"
+                    and "critic"
                     in structured_context.execution_state["structured_outputs"]
                 ):
                     structured_success_count += 1
