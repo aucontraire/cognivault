@@ -61,7 +61,7 @@ def create_test_runtime(
 class MockHistorianAgent(BaseAgent):
     """Mock historian agent for testing."""
 
-    def __init__(self, name: str = "Historian", should_fail: bool = False):
+    def __init__(self, name: str = "historian", should_fail: bool = False):
         super().__init__(name)
         self.should_fail = should_fail
         self.execution_count = 0

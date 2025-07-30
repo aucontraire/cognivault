@@ -61,6 +61,9 @@ META_INSIGHTS: Multiple perspectives improve accuracy, Historical context provid
 
         mock_response = Mock()
         mock_response.text = response_text
+        mock_response.tokens_used = 250
+        mock_response.input_tokens = 150
+        mock_response.output_tokens = 100
         return mock_response
 
     async def agenerate(self, prompt: str, **kwargs) -> Mock:

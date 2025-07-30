@@ -213,7 +213,11 @@ class OpenAIChatLLM(LLMInterface):
                 raise ValueError("Missing 'usage.total_tokens' in response")
 
             text = choice.message.content or ""
+
+            # Extract detailed token usage information
             tokens_used = response.usage.total_tokens if response.usage else None
+            input_tokens = response.usage.prompt_tokens if response.usage else None
+            output_tokens = response.usage.completion_tokens if response.usage else None
             finish_reason = choice.finish_reason
 
             # Calculate LLM call duration and record metrics
@@ -274,6 +278,8 @@ class OpenAIChatLLM(LLMInterface):
             return LLMResponse(
                 text=text,
                 tokens_used=tokens_used,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
                 model_name=self.model,
                 finish_reason=finish_reason,
             )

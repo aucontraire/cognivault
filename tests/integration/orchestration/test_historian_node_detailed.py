@@ -75,7 +75,7 @@ def reset_circuit_breaker():
 class ControlledHistorianAgent(BaseAgent):
     """Historian agent with controlled behavior for testing."""
 
-    def __init__(self, name: str = "Historian", behavior: str = "success"):
+    def __init__(self, name: str = "historian", behavior: str = "success"):
         # Disable retries for controlled failure testing
         from cognivault.agents.base_agent import RetryConfig
 
@@ -237,7 +237,7 @@ class TestHistorianNodeCircuitBreaker:
 
         # Create agent that fails first, then succeeds (disable retries for circuit breaker testing)
         class FailThenSucceedAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 from cognivault.agents.base_agent import RetryConfig
 
                 super().__init__(
@@ -571,7 +571,7 @@ class TestHistorianNodeEdgeCases:
         """Test handling of zero confidence results."""
 
         class ZeroConfidenceAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -609,7 +609,7 @@ class TestHistorianNodeEdgeCases:
         """Test handling of maximum search results."""
 
         class MaxResultsAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -779,7 +779,7 @@ class TestHistorianNodePerformance:
 
         # Create agent with very short execution time
         class FastAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:

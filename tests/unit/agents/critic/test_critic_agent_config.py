@@ -145,9 +145,12 @@ class TestCriticAgentConfig:
         mock_composer.compose_critic_prompt.return_value = mock_composed_prompt
         mock_composer.validate_composition.return_value = True
 
-        # Mock LLM response
+        # Mock LLM response with token usage
         mock_response = Mock()
         mock_response.text = "Detailed critique of the refined query"
+        mock_response.tokens_used = 150
+        mock_response.input_tokens = 100
+        mock_response.output_tokens = 50
         mock_llm.generate = Mock(return_value=mock_response)
 
         config = CriticConfig(analysis_depth="deep")
@@ -182,9 +185,12 @@ class TestCriticAgentConfig:
         """Test that run method works with original behavior (no config)."""
         mock_llm = Mock(spec=LLMInterface)
 
-        # Mock LLM response
+        # Mock LLM response with token usage
         mock_response = Mock()
         mock_response.text = "Standard critique"
+        mock_response.tokens_used = 120
+        mock_response.input_tokens = 80
+        mock_response.output_tokens = 40
         mock_llm.generate = Mock(return_value=mock_response)
 
         # Create agent without config (backward compatibility)

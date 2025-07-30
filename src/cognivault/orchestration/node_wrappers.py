@@ -488,7 +488,10 @@ async def refiner_node(
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # ✅ Enhanced completion event emission with runtime context
+        # Get token usage information from agent context
+        refiner_token_usage = result_context.get_agent_token_usage("refiner")
+
+        # ✅ Enhanced completion event emission with runtime context and token usage
         await emit_agent_execution_completed(
             event_category=EventCategory.EXECUTION,
             workflow_id=workflow_id,
@@ -501,6 +504,10 @@ async def refiner_node(
                 "execution_id": execution_id,
                 "confidence": refiner_output["confidence"],
                 "topics_count": len(refiner_output["topics"]),
+                # Add token usage to output context for WebSocket events
+                "input_tokens": refiner_token_usage["input_tokens"],
+                "output_tokens": refiner_token_usage["output_tokens"],
+                "total_tokens": refiner_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
             metadata={
@@ -517,6 +524,8 @@ async def refiner_node(
                     "topics_identified": len(refiner_output["topics"]),
                     "processing_notes": bool(refiner_output["processing_notes"]),
                 },
+                # Add token usage to metadata as well for comprehensive tracking
+                "token_usage": refiner_token_usage,
             },
         )
 
@@ -679,7 +688,10 @@ async def critic_node(
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Emit agent execution completed event with runtime context
+        # Get token usage information from agent context
+        critic_token_usage = result_context.get_agent_token_usage("critic")
+
+        # Emit agent execution completed event with runtime context and token usage
         await emit_agent_execution_completed(
             event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
@@ -691,6 +703,10 @@ async def critic_node(
                 "thread_id": thread_id,
                 "runtime_context": True,
                 "confidence": critic_output["confidence"],
+                # Add token usage to output context for WebSocket events
+                "input_tokens": critic_token_usage["input_tokens"],
+                "output_tokens": critic_token_usage["output_tokens"],
+                "total_tokens": critic_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
             metadata={
@@ -850,7 +866,10 @@ async def historian_node(
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Emit agent execution completed event with runtime context
+        # Get token usage information from agent context
+        historian_token_usage = result_context.get_agent_token_usage("historian")
+
+        # Emit agent execution completed event with runtime context and token usage
         await emit_agent_execution_completed(
             event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
@@ -863,6 +882,10 @@ async def historian_node(
                 "runtime_context": True,
                 "confidence": historian_output["confidence"],
                 "search_strategy": historian_output["search_strategy"],
+                # Add token usage to output context for WebSocket events
+                "input_tokens": historian_token_usage["input_tokens"],
+                "output_tokens": historian_token_usage["output_tokens"],
+                "total_tokens": historian_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
             metadata={
@@ -1019,7 +1042,10 @@ async def synthesis_node(
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Emit agent execution completed event with runtime context
+        # Get token usage information from agent context
+        synthesis_token_usage = result_context.get_agent_token_usage("synthesis")
+
+        # Emit agent execution completed event with runtime context and token usage
         await emit_agent_execution_completed(
             event_category=EventCategory.EXECUTION,
             workflow_id=execution_id,
@@ -1032,6 +1058,10 @@ async def synthesis_node(
                 "runtime_context": True,
                 "confidence": synthesis_output["confidence"],
                 "sources_used": synthesis_output["sources_used"],
+                # Add token usage to output context for WebSocket events
+                "input_tokens": synthesis_token_usage["input_tokens"],
+                "output_tokens": synthesis_token_usage["output_tokens"],
+                "total_tokens": synthesis_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
             metadata={

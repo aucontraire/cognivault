@@ -240,6 +240,31 @@ class SynthesisAgent(BaseAgent):
                 else str(llm_response)
             )
 
+            # Track token usage for analysis (first LLM call)
+            if (
+                hasattr(llm_response, "tokens_used")
+                and llm_response.tokens_used is not None
+            ):
+                # Use detailed token breakdown if available
+                input_tokens = getattr(llm_response, "input_tokens", None) or 0
+                output_tokens = getattr(llm_response, "output_tokens", None) or 0
+                total_tokens = llm_response.tokens_used
+
+                # For synthesis, we accumulate token usage across multiple LLM calls
+                existing_usage = context.get_agent_token_usage(self.name)
+
+                context.add_agent_token_usage(
+                    agent_name=self.name,
+                    input_tokens=existing_usage["input_tokens"] + input_tokens,
+                    output_tokens=existing_usage["output_tokens"] + output_tokens,
+                    total_tokens=existing_usage["total_tokens"] + total_tokens,
+                )
+
+                logger.debug(
+                    f"[{self.name}] Analysis token usage - "
+                    f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
+                )
+
             # Parse analysis response
             analysis = self._parse_analysis_response(response_text)
 
@@ -272,6 +297,32 @@ class SynthesisAgent(BaseAgent):
                 if hasattr(llm_response, "text")
                 else str(llm_response)
             )
+
+            # Track token usage for synthesis (second LLM call - accumulate)
+            if (
+                hasattr(llm_response, "tokens_used")
+                and llm_response.tokens_used is not None
+            ):
+                # Use detailed token breakdown if available
+                input_tokens = getattr(llm_response, "input_tokens", None) or 0
+                output_tokens = getattr(llm_response, "output_tokens", None) or 0
+                total_tokens = llm_response.tokens_used
+
+                # Accumulate with existing usage from analysis call
+                existing_usage = context.get_agent_token_usage(self.name)
+
+                context.add_agent_token_usage(
+                    agent_name=self.name,
+                    input_tokens=existing_usage["input_tokens"] + input_tokens,
+                    output_tokens=existing_usage["output_tokens"] + output_tokens,
+                    total_tokens=existing_usage["total_tokens"] + total_tokens,
+                )
+
+                logger.debug(
+                    f"[{self.name}] Synthesis token usage - "
+                    f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}. "
+                    f"Total accumulated: {existing_usage['total_tokens'] + total_tokens}"
+                )
 
             logger.debug(
                 f"[{self.name}] LLM synthesis completed: {len(synthesis_text)} characters"

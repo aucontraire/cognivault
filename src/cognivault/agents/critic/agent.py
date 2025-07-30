@@ -140,6 +140,35 @@ class CriticAgent(BaseAgent):
             )
             if hasattr(response, "text"):
                 critique = response.text.strip()
+
+                # Record token usage if available from LLM response
+                if (
+                    hasattr(response, "tokens_used")
+                    and response.tokens_used is not None
+                ):
+                    # Use detailed token breakdown if available, otherwise fall back to total
+                    input_tokens = getattr(response, "input_tokens", None) or 0
+                    output_tokens = getattr(response, "output_tokens", None) or 0
+                    total_tokens = response.tokens_used
+
+                    # Ensure consistency: if we have detailed breakdown, use it for total
+                    if input_tokens and output_tokens:
+                        total_tokens = input_tokens + output_tokens
+
+                    context.add_agent_token_usage(
+                        agent_name=self.name,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        total_tokens=total_tokens,
+                    )
+                    self.logger.debug(
+                        f"[{self.name}] Token usage recorded - "
+                        f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
+                    )
+                else:
+                    self.logger.debug(
+                        f"[{self.name}] No token usage information available from LLM response"
+                    )
             else:
                 # Handle streaming response (shouldn't happen with current usage)
                 critique = "Error: received streaming response instead of text response"

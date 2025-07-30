@@ -48,6 +48,9 @@ class MockLLM(LLMInterface):
 
         mock_response = Mock()
         mock_response.text = response_text
+        mock_response.tokens_used = 180
+        mock_response.input_tokens = 120
+        mock_response.output_tokens = 60
         return mock_response
 
     async def agenerate(self, prompt: str, **kwargs) -> Mock:

@@ -226,10 +226,13 @@ flow:
         try:
             workflow = WorkflowDefinition.from_yaml_file(temp_path)
 
-            # Create mock LLM with predictable responses
+            # Create mock LLM with predictable responses and token usage
             mock_llm = Mock()
             mock_response = Mock()
             mock_response.text = "Mock agent response"
+            mock_response.tokens_used = 200
+            mock_response.input_tokens = 120
+            mock_response.output_tokens = 80
             mock_llm.generate = Mock(return_value=mock_response)
 
             # Test RefinerAgent execution

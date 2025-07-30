@@ -11,7 +11,11 @@ class LLMResponse:
     text : str
         The generated text content.
     tokens_used : Optional[int]
-        Number of tokens consumed, if known.
+        Total number of tokens consumed, if known (for backward compatibility).
+    input_tokens : Optional[int]
+        Number of input tokens consumed, if known.
+    output_tokens : Optional[int]
+        Number of output tokens generated, if known.
     model_name : Optional[str]
         Identifier of the model used.
     finish_reason : Optional[str]
@@ -22,11 +26,15 @@ class LLMResponse:
         self,
         text: str,
         tokens_used: Optional[int] = None,
+        input_tokens: Optional[int] = None,
+        output_tokens: Optional[int] = None,
         model_name: Optional[str] = None,
         finish_reason: Optional[str] = None,
     ):
         self.text = text
         self.tokens_used = tokens_used
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
         self.model_name = model_name
         self.finish_reason = finish_reason
 

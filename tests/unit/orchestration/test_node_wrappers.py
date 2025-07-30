@@ -489,7 +489,7 @@ class TestRefinerNode:
             correlation_id="test_correlation",
         )
 
-        mock_agent = MockAgent("Refiner", "AI is artificial intelligence")
+        mock_agent = MockAgent("refiner", "AI is artificial intelligence")
 
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
@@ -551,7 +551,7 @@ class TestCriticNode:
         }
         state["refiner"] = refiner_output
 
-        mock_agent = MockAgent("Critic", "Good analysis")
+        mock_agent = MockAgent("critic", "Good analysis")
 
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
@@ -658,7 +658,7 @@ class TestSynthesisNode:
         }
         state["historian"] = historian_output
 
-        mock_agent = MockAgent("Synthesis", "Final synthesis")
+        mock_agent = MockAgent("synthesis", "Final synthesis")
 
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
