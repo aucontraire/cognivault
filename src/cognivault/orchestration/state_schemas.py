@@ -14,6 +14,7 @@ Design Principles:
 
 from typing import TypedDict, List, Dict, Any, Optional, Union, Annotated
 from datetime import datetime, timezone
+from dataclasses import dataclass
 import operator
 
 
@@ -472,6 +473,22 @@ def record_agent_error(
     return new_state
 
 
+@dataclass
+class CogniVaultContext:
+    """
+    Context schema for CogniVault LangGraph execution.
+
+    This context is passed to all nodes during graph execution,
+    providing thread-scoped information and configuration.
+    """
+
+    thread_id: str
+    execution_id: str
+    query: str
+    correlation_id: Optional[str] = None
+    enable_checkpoints: bool = False
+
+
 # Export commonly used types for convenience
 __all__ = [
     "CogniVaultState",
@@ -482,6 +499,7 @@ __all__ = [
     "SynthesisOutput",
     "AgentOutput",
     "ExecutionMetadata",
+    "CogniVaultContext",
     "create_initial_state",
     "validate_state_integrity",
     "get_agent_output",

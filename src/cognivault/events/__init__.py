@@ -9,6 +9,7 @@ event sinks for observability and future service extraction.
 from .types import (
     WorkflowEvent,
     EventType,
+    EventCategory,
     WorkflowStartedEvent,
     WorkflowCompletedEvent,
     AgentExecutionStartedEvent,
@@ -44,6 +45,7 @@ __all__ = [
     # Core event types
     "WorkflowEvent",
     "EventType",
+    "EventCategory",
     "WorkflowStartedEvent",
     "WorkflowCompletedEvent",
     "AgentExecutionStartedEvent",

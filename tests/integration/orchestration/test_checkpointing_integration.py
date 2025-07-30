@@ -131,12 +131,14 @@ class TestMemoryManagerIntegration:
         # Verify memory manager was used
         assert orchestrator.memory_manager.is_enabled()
 
-        # Mock compiled graph should have been called with thread config
+        # Mock compiled graph should have been called with context (LangGraph 0.6.0 Context API)
         mock_compiled_graph.ainvoke.assert_called_once()
         call_args = mock_compiled_graph.ainvoke.call_args
-        assert "config" in call_args[1]
-        assert "configurable" in call_args[1]["config"]
-        assert "thread_id" in call_args[1]["config"]["configurable"]
+        assert "context" in call_args[1]
+        context = call_args[1]["context"]
+        assert hasattr(context, "thread_id")
+        assert hasattr(context, "enable_checkpoints")
+        assert context.enable_checkpoints is True
 
     @pytest.mark.asyncio
     async def test_orchestrator_checkpoints_disabled_flow(

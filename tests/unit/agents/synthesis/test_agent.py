@@ -61,6 +61,9 @@ META_INSIGHTS: Multiple perspectives improve accuracy, Historical context provid
 
         mock_response = Mock()
         mock_response.text = response_text
+        mock_response.tokens_used = 250
+        mock_response.input_tokens = 150
+        mock_response.output_tokens = 100
         return mock_response
 
     async def agenerate(self, prompt: str, **kwargs) -> Mock:
@@ -76,7 +79,7 @@ class TestSynthesisAgentInitialization:
         # Use llm=None to prevent real API calls during testing
         agent = SynthesisAgent(llm=None)
 
-        assert agent.name == "Synthesis"
+        assert agent.name == "synthesis"
         assert agent.llm is None
 
     def test_initialization_with_custom_llm(self):
@@ -84,14 +87,14 @@ class TestSynthesisAgentInitialization:
         mock_llm = MockLLM()
         agent = SynthesisAgent(llm=mock_llm)
 
-        assert agent.name == "Synthesis"
+        assert agent.name == "synthesis"
         assert agent.llm is mock_llm
 
     def test_initialization_with_none_llm(self):
         """Test initialization with explicit None LLM."""
         agent = SynthesisAgent(llm=None)
 
-        assert agent.name == "Synthesis"
+        assert agent.name == "synthesis"
         assert agent.llm is None
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
@@ -529,7 +532,7 @@ class TestSynthesisAgentSynthesis:
         assert "Comprehensive Analysis: test query" in formatted_output
         assert "Key Topics:" in formatted_output
         assert "Primary Themes:" in formatted_output
-        assert "Synthesis" in formatted_output
+        assert "synthesis" in formatted_output
         assert synthesis_result in formatted_output
         assert "Meta-Insights" in formatted_output
 

@@ -12,12 +12,13 @@ This test suite covers:
 
 import pytest
 from typing import cast
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, Mock
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
+    CogniVaultContext,
     HistorianOutput,
     RefinerOutput,
     CriticOutput,
@@ -38,10 +39,29 @@ from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.diagnostics.visualize_dag import DAGVisualizer, DAGVisualizationConfig
 
 
+def create_test_runtime(
+    thread_id: str = "test_thread",
+    execution_id: str = "test_execution",
+    query: str = "test query",
+    correlation_id: str = "test_correlation",
+    enable_checkpoints: bool = False,
+) -> Mock:
+    """Create a mock runtime for testing with CogniVaultContext."""
+    mock_runtime = Mock()
+    mock_runtime.context = CogniVaultContext(
+        thread_id=thread_id,
+        execution_id=execution_id,
+        query=query,
+        correlation_id=correlation_id,
+        enable_checkpoints=enable_checkpoints,
+    )
+    return mock_runtime
+
+
 class MockHistorianAgent(BaseAgent):
     """Mock historian agent for testing."""
 
-    def __init__(self, name: str = "Historian", should_fail: bool = False):
+    def __init__(self, name: str = "historian", should_fail: bool = False):
         super().__init__(name)
         self.should_fail = should_fail
         self.execution_count = 0
@@ -391,11 +411,13 @@ class TestHistorianNode:
         self, initial_state, mock_historian_agent
     ):
         """Test basic historian node execution."""
+        runtime = create_test_runtime()
+
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_historian_agent,
         ):
-            result_state = await historian_node(initial_state)
+            result_state = await historian_node(initial_state, runtime)
 
             # Verify historian output is added
             assert result_state["historian"] is not None
@@ -413,35 +435,39 @@ class TestHistorianNode:
         """Test that historian node validates dependencies."""
         # Create state without refiner output
         state = create_initial_state("Test query", "exec-123")
+        runtime = create_test_runtime()
 
         # Should fail without refiner output
         with pytest.raises(
             NodeExecutionError, match="Historian node requires refiner output"
         ):
-            await historian_node(state)
+            await historian_node(state, runtime)
 
     @pytest.mark.asyncio
     async def test_historian_node_failure_handling(self, initial_state):
         """Test historian node failure handling."""
         failing_agent = MockHistorianAgent(should_fail=True)
+        runtime = create_test_runtime()
 
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
             with pytest.raises(NodeExecutionError, match="Historian execution failed"):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
     async def test_historian_node_output_format(
         self, initial_state, mock_historian_agent
     ):
         """Test that historian node produces correctly formatted output."""
+        runtime = create_test_runtime()
+
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=mock_historian_agent,
         ):
-            result_state = await historian_node(initial_state)
+            result_state = await historian_node(initial_state, runtime)
 
             historian_output = result_state["historian"]
 
@@ -473,6 +499,7 @@ class TestHistorianNode:
     async def test_historian_node_context_conversion(self, initial_state) -> None:
         """Test that historian node properly converts state to context."""
         mock_agent = MockHistorianAgent()
+        runtime = create_test_runtime()
 
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
@@ -491,7 +518,7 @@ class TestHistorianNode:
 
             state_with_critic = set_agent_output(initial_state, "critic", critic_output)
 
-            result_state = await historian_node(state_with_critic)
+            result_state = await historian_node(state_with_critic, runtime)
 
             # Verify historian output is added (node returns partial state)
             assert result_state["historian"] is not None
@@ -665,13 +692,13 @@ class TestHistorianStateConversion:
 
         # Verify historian output is properly converted
         assert "historian" in context.agent_outputs
-        assert "Historian" in context.agent_outputs
+        assert "historian" in context.agent_outputs
         assert (
             context.agent_outputs["historian"]
             == "Test historical context with retrieved notes"
         )
         assert (
-            context.agent_outputs["Historian"]
+            context.agent_outputs["historian"]
             == "Test historical context with retrieved notes"
         )
 
@@ -723,7 +750,7 @@ class TestHistorianStateConversion:
         )
         assert (
             "Historian" not in context.agent_outputs
-            or context.agent_outputs["Historian"] == ""
+            or context.agent_outputs["historian"] == ""
         )
 
 

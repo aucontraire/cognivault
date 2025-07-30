@@ -187,6 +187,8 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             config = request.execution_config or {}
             if request.correlation_id:
                 config["correlation_id"] = request.correlation_id
+            # Pass the workflow_id to orchestrator to prevent duplicate ID generation
+            config["workflow_id"] = workflow_id
             if request.agents:
                 config["agents"] = request.agents
 

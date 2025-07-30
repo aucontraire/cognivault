@@ -53,8 +53,8 @@ async def test_critic_with_refiner_output():
     )
 
     # Verify output was added to context
-    assert "Critic" in updated_context.agent_outputs
-    output = updated_context.agent_outputs["Critic"]
+    assert "critic" in updated_context.agent_outputs
+    output = updated_context.agent_outputs["critic"]
     assert "Assumes 'fair' is objectively measurable" in output
     assert "Confidence: Medium" in output
 
@@ -72,8 +72,8 @@ async def test_critic_without_refiner_output():
     mock_llm.generate.assert_not_called()
 
     # Verify fallback message was used
-    assert "Critic" in updated_context.agent_outputs
-    output = updated_context.agent_outputs["Critic"]
+    assert "critic" in updated_context.agent_outputs
+    output = updated_context.agent_outputs["critic"]
     assert "No refined output available from RefinerAgent to critique" in output
 
 
@@ -91,8 +91,8 @@ async def test_critic_with_empty_refiner_output():
     mock_llm.generate.assert_not_called()
 
     # Verify fallback message was used
-    assert "Critic" in updated_context.agent_outputs
-    output = updated_context.agent_outputs["Critic"]
+    assert "critic" in updated_context.agent_outputs
+    output = updated_context.agent_outputs["critic"]
     assert "No refined output available from RefinerAgent to critique" in output
 
 
@@ -130,8 +130,8 @@ async def test_critic_complex_query_analysis():
     )
 
     # Verify structured output
-    assert "Critic" in updated_context.agent_outputs
-    output = updated_context.agent_outputs["Critic"]
+    assert "critic" in updated_context.agent_outputs
+    output = updated_context.agent_outputs["critic"]
     assert "• Assumptions:" in output
     assert "• Gaps:" in output
     assert "• Biases:" in output
@@ -156,8 +156,8 @@ async def test_critic_well_scoped_query():
     updated_context = await agent.run(context)
 
     # Verify minimal critique format
-    assert "Critic" in updated_context.agent_outputs
-    output = updated_context.agent_outputs["Critic"]
+    assert "critic" in updated_context.agent_outputs
+    output = updated_context.agent_outputs["critic"]
     assert "well-scoped and neutral" in output
     assert "No significant critique needed" in output
     assert "Confidence: High" in output
@@ -176,7 +176,7 @@ async def test_critic_logging_behavior():
 
     # Test that the agent can run without errors (logging tested implicitly)
     updated_context = await agent.run(context)
-    assert "Critic" in updated_context.agent_outputs
+    assert "critic" in updated_context.agent_outputs
 
 
 @pytest.mark.asyncio
@@ -192,8 +192,8 @@ async def test_critic_context_tracing():
     updated_context = await agent.run(context)
 
     # Verify output was added and context updated
-    assert "Critic" in updated_context.agent_outputs
-    assert updated_context.agent_outputs["Critic"] == "Test critique for tracing"
+    assert "critic" in updated_context.agent_outputs
+    assert updated_context.agent_outputs["critic"] == "Test critique for tracing"
 
 
 @pytest.mark.asyncio
@@ -225,7 +225,7 @@ async def test_critic_agent_name():
     """Test that CriticAgent has the correct name."""
     mock_llm = create_mock_llm("Name test")
     agent = CriticAgent(llm=mock_llm)
-    assert agent.name == "Critic"
+    assert agent.name == "critic"
 
 
 @pytest.mark.asyncio
@@ -241,7 +241,7 @@ async def test_critic_response_stripping():
     agent = CriticAgent(llm=mock_llm)
     updated_context = await agent.run(context)
 
-    output = updated_context.agent_outputs["Critic"]
+    output = updated_context.agent_outputs["critic"]
     assert output == "Critique with extra whitespace"
     assert not output.startswith(" ")
     assert not output.endswith(" ")
@@ -261,5 +261,5 @@ async def test_critic_non_text_response():
     agent = CriticAgent(llm=mock_llm)
     updated_context = await agent.run(context)
 
-    output = updated_context.agent_outputs["Critic"]
+    output = updated_context.agent_outputs["critic"]
     assert output == "Error: received streaming response instead of text response"

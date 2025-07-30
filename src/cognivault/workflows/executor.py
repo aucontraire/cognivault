@@ -467,11 +467,12 @@ class WorkflowExecutor:
         # Emit workflow started event
         if self.event_emitter:
             try:
-                from cognivault.events import WorkflowEvent, EventType
+                from cognivault.events import WorkflowEvent, EventType, EventCategory
 
                 await self.event_emitter.emit(
                     WorkflowEvent(
                         event_type=EventType.WORKFLOW_STARTED,
+                        event_category=EventCategory.ORCHESTRATION,
                         workflow_id=workflow_id,
                         correlation_id=correlation_id,
                         data={
@@ -543,11 +544,16 @@ class WorkflowExecutor:
             # Emit workflow completed event
             if self.event_emitter:
                 try:
-                    from cognivault.events import WorkflowEvent, EventType
+                    from cognivault.events import (
+                        WorkflowEvent,
+                        EventType,
+                        EventCategory,
+                    )
 
                     await self.event_emitter.emit(
                         WorkflowEvent(
                             event_type=EventType.WORKFLOW_COMPLETED,
+                            event_category=EventCategory.ORCHESTRATION,
                             workflow_id=workflow_id,
                             correlation_id=correlation_id,
                             data={
@@ -573,11 +579,16 @@ class WorkflowExecutor:
             # Emit workflow failed event
             if self.event_emitter:
                 try:
-                    from cognivault.events import WorkflowEvent, EventType
+                    from cognivault.events import (
+                        WorkflowEvent,
+                        EventType,
+                        EventCategory,
+                    )
 
                     await self.event_emitter.emit(
                         WorkflowEvent(
                             event_type=EventType.WORKFLOW_FAILED,
+                            event_category=EventCategory.ORCHESTRATION,
                             workflow_id=workflow_id,
                             correlation_id=correlation_id,
                             data={
@@ -657,11 +668,16 @@ class WorkflowExecutor:
             # Emit workflow execution started event
             if self.event_emitter:
                 try:
-                    from cognivault.events import WorkflowEvent, EventType
+                    from cognivault.events import (
+                        WorkflowEvent,
+                        EventType,
+                        EventCategory,
+                    )
 
                     await self.event_emitter.emit(
                         WorkflowEvent(
                             event_type=EventType.WORKFLOW_STARTED,
+                            event_category=EventCategory.ORCHESTRATION,
                             workflow_id=workflow_id,
                             correlation_id=self.execution_context.correlation_id,
                             data={
@@ -708,6 +724,7 @@ class WorkflowExecutor:
                     await self.event_emitter.emit(
                         WorkflowEvent(
                             event_type=EventType.WORKFLOW_COMPLETED,
+                            event_category=EventCategory.ORCHESTRATION,
                             workflow_id=workflow_id,
                             correlation_id=self.execution_context.correlation_id,
                             data={
@@ -729,11 +746,16 @@ class WorkflowExecutor:
             # Emit workflow execution failed event
             if self.event_emitter:
                 try:
-                    from cognivault.events import WorkflowEvent, EventType
+                    from cognivault.events import (
+                        WorkflowEvent,
+                        EventType,
+                        EventCategory,
+                    )
 
                     await self.event_emitter.emit(
                         WorkflowEvent(
                             event_type=EventType.WORKFLOW_FAILED,
+                            event_category=EventCategory.ORCHESTRATION,
                             workflow_id=workflow_id,
                             correlation_id=self.execution_context.correlation_id,
                             data={
@@ -887,11 +909,16 @@ class DeclarativeOrchestrator:
 
             if self.event_emitter:
                 try:
-                    from cognivault.events import WorkflowEvent, EventType
+                    from cognivault.events import (
+                        WorkflowEvent,
+                        EventType,
+                        EventCategory,
+                    )
 
                     await self.event_emitter.emit(
                         WorkflowEvent(
                             event_type=EventType.WORKFLOW_FAILED,
+                            event_category=EventCategory.ORCHESTRATION,
                             workflow_id=workflow.workflow_id,
                             data={
                                 "execution_id": execution_id,

@@ -14,12 +14,13 @@ import pytest
 import asyncio
 import time
 from typing import List
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
+    CogniVaultContext,
     RefinerOutput,
     create_initial_state,
     set_agent_output,
@@ -30,6 +31,25 @@ from cognivault.orchestration.node_wrappers import (
     circuit_breaker,
     node_metrics,
 )
+
+
+def create_test_runtime(
+    thread_id: str = "test_thread",
+    execution_id: str = "test_execution",
+    query: str = "test query",
+    correlation_id: str = "test_correlation",
+    enable_checkpoints: bool = False,
+) -> Mock:
+    """Create a mock runtime for testing with CogniVaultContext."""
+    mock_runtime = Mock()
+    mock_runtime.context = CogniVaultContext(
+        thread_id=thread_id,
+        execution_id=execution_id,
+        query=query,
+        correlation_id=correlation_id,
+        enable_checkpoints=enable_checkpoints,
+    )
+    return mock_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +75,7 @@ def reset_circuit_breaker():
 class ControlledHistorianAgent(BaseAgent):
     """Historian agent with controlled behavior for testing."""
 
-    def __init__(self, name: str = "Historian", behavior: str = "success"):
+    def __init__(self, name: str = "historian", behavior: str = "success"):
         # Disable retries for controlled failure testing
         from cognivault.agents.base_agent import RetryConfig
 
@@ -155,21 +175,23 @@ class TestHistorianNodeCircuitBreaker:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
+            runtime = create_test_runtime()
+
             # First failure
             with pytest.raises(NodeExecutionError):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
             # Second failure
             with pytest.raises(NodeExecutionError):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
             # Third failure - should open circuit breaker
             with pytest.raises(NodeExecutionError):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
             # Fourth attempt - should fail due to circuit breaker
             with pytest.raises(NodeExecutionError, match="Circuit breaker open"):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_reset_after_timeout(self, initial_state):
@@ -182,30 +204,32 @@ class TestHistorianNodeCircuitBreaker:
         # Create a version with shorter timeout
         @circuit_breaker(max_failures=2, reset_timeout=0.1)
         @node_metrics
-        async def test_historian_node(state):
-            return await original_historian_node.__wrapped__.__wrapped__(state)
+        async def test_historian_node(state, runtime):
+            return await original_historian_node.__wrapped__.__wrapped__(state, runtime)
 
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=failing_agent,
         ):
+            runtime = create_test_runtime()
+
             # Trigger circuit breaker
             with pytest.raises(NodeExecutionError):
-                await test_historian_node(initial_state)
+                await test_historian_node(initial_state, runtime)
 
             with pytest.raises(NodeExecutionError):
-                await test_historian_node(initial_state)
+                await test_historian_node(initial_state, runtime)
 
             # Should be open now
             with pytest.raises(NodeExecutionError, match="Circuit breaker open"):
-                await test_historian_node(initial_state)
+                await test_historian_node(initial_state, runtime)
 
             # Wait for reset
             await asyncio.sleep(0.2)
 
             # Should work again (will still fail, but not due to circuit breaker)
             with pytest.raises(NodeExecutionError):
-                await test_historian_node(initial_state)
+                await test_historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_success_resets_count(self, initial_state):
@@ -213,7 +237,7 @@ class TestHistorianNodeCircuitBreaker:
 
         # Create agent that fails first, then succeeds (disable retries for circuit breaker testing)
         class FailThenSucceedAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 from cognivault.agents.base_agent import RetryConfig
 
                 super().__init__(
@@ -248,12 +272,14 @@ class TestHistorianNodeCircuitBreaker:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=agent,
         ):
+            runtime = create_test_runtime()
+
             # First call should fail after exhausting retries
             with pytest.raises(NodeExecutionError):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
             # Second call should succeed
-            result_state = await historian_node(initial_state)
+            result_state = await historian_node(initial_state, runtime)
             assert result_state["historian"] is not None
             assert (
                 result_state["historian"]["historical_summary"]
@@ -261,7 +287,7 @@ class TestHistorianNodeCircuitBreaker:
             )
 
             # Third call should also succeed (failure count was reset)
-            result_state = await historian_node(initial_state)
+            result_state = await historian_node(initial_state, runtime)
             assert result_state["historian"] is not None
 
 
@@ -292,7 +318,8 @@ class TestHistorianNodeMetrics:
         ):
             # Capture log output to verify metrics
             with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
-                result_state = await historian_node(initial_state)
+                runtime = create_test_runtime()
+                result_state = await historian_node(initial_state, runtime)
 
                 # Verify success metrics were logged
                 mock_logger.info.assert_any_call("Starting execution of historian node")
@@ -318,8 +345,9 @@ class TestHistorianNodeMetrics:
             return_value=failing_agent,
         ):
             with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
+                runtime = create_test_runtime()
                 with pytest.raises(NodeExecutionError):
-                    await historian_node(initial_state)
+                    await historian_node(initial_state, runtime)
 
                 # Verify failure metrics were logged
                 mock_logger.info.assert_any_call("Starting execution of historian node")
@@ -350,8 +378,9 @@ class TestHistorianNodeMetrics:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=slow_agent,
         ):
+            runtime = create_test_runtime()
             start_time = time.time()
-            result_state = await historian_node(initial_state)
+            result_state = await historian_node(initial_state, runtime)
             end_time = time.time()
 
             # Verify execution took expected time
@@ -388,8 +417,9 @@ class TestHistorianNodeErrorHandling:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=memory_error_agent,
         ):
+            runtime = create_test_runtime()
             with pytest.raises(NodeExecutionError, match="Historian execution failed"):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
     async def test_timeout_error_handling(self, initial_state):
@@ -400,8 +430,9 @@ class TestHistorianNodeErrorHandling:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=timeout_agent,
         ):
+            runtime = create_test_runtime()
             with pytest.raises(NodeExecutionError, match="Historian execution failed"):
-                await historian_node(initial_state)
+                await historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
     async def test_partial_failure_handling(self, initial_state):
@@ -412,8 +443,10 @@ class TestHistorianNodeErrorHandling:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=partial_failure_agent,
         ):
+            runtime = create_test_runtime()
+
             # First execution should succeed with partial data
-            result_state = await historian_node(initial_state)
+            result_state = await historian_node(initial_state, runtime)
             assert result_state["historian"] is not None
             assert (
                 result_state["historian"]["historical_summary"]
@@ -423,7 +456,7 @@ class TestHistorianNodeErrorHandling:
             assert result_state["historian"]["filtered_results_count"] == 0
 
             # Second execution should also succeed with same partial data
-            result_state2 = await historian_node(initial_state)
+            result_state2 = await historian_node(initial_state, runtime)
             assert result_state2["historian"] is not None
             assert (
                 result_state2["historian"]["historical_summary"]
@@ -442,8 +475,9 @@ class TestHistorianNodeErrorHandling:
             with patch(
                 "cognivault.orchestration.node_wrappers.record_agent_error"
             ) as mock_record:
+                runtime = create_test_runtime()
                 with pytest.raises(NodeExecutionError):
-                    await historian_node(initial_state)
+                    await historian_node(initial_state, runtime)
 
                 # Verify error was recorded
                 mock_record.assert_called_once()
@@ -480,7 +514,8 @@ class TestHistorianNodeEdgeCases:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
-            result_state = await historian_node(initial_state)
+            runtime = create_test_runtime()
+            result_state = await historian_node(initial_state, runtime)
 
             # Should still execute successfully
             assert result_state["historian"] is not None
@@ -502,7 +537,8 @@ class TestHistorianNodeEdgeCases:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
-            result_state = await historian_node(initial_state)
+            runtime = create_test_runtime()
+            result_state = await historian_node(initial_state, runtime)
 
             # Should handle long query gracefully
             assert result_state["historian"] is not None
@@ -517,7 +553,8 @@ class TestHistorianNodeEdgeCases:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=no_llm_agent,
         ):
-            result_state = await historian_node(initial_state)
+            runtime = create_test_runtime()
+            result_state = await historian_node(initial_state, runtime)
 
             # Should succeed with fallback behavior
             assert result_state["historian"] is not None
@@ -534,7 +571,7 @@ class TestHistorianNodeEdgeCases:
         """Test handling of zero confidence results."""
 
         class ZeroConfidenceAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -558,7 +595,8 @@ class TestHistorianNodeEdgeCases:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=zero_conf_agent,
         ):
-            result_state = await historian_node(initial_state)
+            runtime = create_test_runtime()
+            result_state = await historian_node(initial_state, runtime)
 
             # Should handle zero confidence gracefully
             assert result_state["historian"] is not None
@@ -571,7 +609,7 @@ class TestHistorianNodeEdgeCases:
         """Test handling of maximum search results."""
 
         class MaxResultsAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -598,7 +636,8 @@ class TestHistorianNodeEdgeCases:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=max_results_agent,
         ):
-            result_state = await historian_node(initial_state)
+            runtime = create_test_runtime()
+            result_state = await historian_node(initial_state, runtime)
 
             # Should handle maximum results gracefully
             assert result_state["historian"] is not None
@@ -617,7 +656,8 @@ class TestHistorianNodeEdgeCases:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
-            result_state = await historian_node(initial_state)
+            runtime = create_test_runtime()
+            result_state = await historian_node(initial_state, runtime)
 
             # Original state should be unchanged
             assert initial_state["historian"] is None
@@ -639,11 +679,13 @@ class TestHistorianNodeEdgeCases:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
+            runtime = create_test_runtime()
+
             # Execute multiple concurrent calls
             tasks = [
-                historian_node(initial_state),
-                historian_node(initial_state),
-                historian_node(initial_state),
+                historian_node(initial_state, runtime),
+                historian_node(initial_state, runtime),
+                historian_node(initial_state, runtime),
             ]
 
             results = await asyncio.gather(*tasks)
@@ -687,10 +729,12 @@ class TestHistorianNodePerformance:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=fast_agent,
         ):
+            runtime = create_test_runtime()
+
             # Measure performance for multiple executions
             start_time = time.time()
 
-            tasks = [historian_node(initial_state) for _ in range(10)]
+            tasks = [historian_node(initial_state, runtime) for _ in range(10)]
             results = await asyncio.gather(*tasks)
 
             end_time = time.time()
@@ -716,9 +760,11 @@ class TestHistorianNodePerformance:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=success_agent,
         ):
+            runtime = create_test_runtime()
+
             # Execute many times to detect memory leaks
             for i in range(100):
-                result_state = await historian_node(initial_state)
+                result_state = await historian_node(initial_state, runtime)
                 assert result_state["historian"] is not None
 
                 # Clear result to help with garbage collection
@@ -733,7 +779,7 @@ class TestHistorianNodePerformance:
 
         # Create agent with very short execution time
         class FastAgent(BaseAgent):
-            def __init__(self, name: str = "Historian"):
+            def __init__(self, name: str = "historian"):
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -758,8 +804,9 @@ class TestHistorianNodePerformance:
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
             return_value=fast_agent,
         ):
+            runtime = create_test_runtime()
             start_time = time.time()
-            result_state = await historian_node(initial_state)
+            result_state = await historian_node(initial_state, runtime)
             end_time = time.time()
 
             # Should complete very quickly

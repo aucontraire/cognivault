@@ -1,8 +1,8 @@
 # CogniVault System Architecture
 
-**Version**: 1.0  
+**Version**: 1.1  
 **Document Status**: Current  
-**Last Updated**: July 25, 2025  
+**Last Updated**: July 29, 2025  
 **Target Audience**: Software Engineers, System Architects, Technical Leads
 
 > **📚 Research Foundations**: This architecture is grounded in cognitive science research detailed in [RESEARCH.md](../RESEARCH.md), including distributed cognition theory, dual-process theory, and society of mind principles.
@@ -21,19 +21,23 @@ The architecture is informed by cognitive science research (see [RESEARCH.md](..
 
 **Key Capabilities:**
 - Multi-agent pipeline with parallel execution (4 core agents) grounded in cognitive science research
-- LangGraph 0.5.3-based DAG orchestration with advanced node types (see [AAD-002](AAD-002-Multi-Axis-Classification-And-Advanced-Node-Types.md))
+- LangGraph 0.6.0-based DAG orchestration with Runtime Context API and advanced node types (see [AAD-002](AAD-002-Multi-Axis-Classification-And-Advanced-Node-Types.md))
 - YAML-driven configurable agent behaviors (see [ADR-006](ADR-006-Configurable-Prompt-Composition-Architecture.md))
 - Event-driven architecture with comprehensive observability (see [ADR-005](ADR-005-Event-Driven-Architecture-Implementation.md))
 - External/internal API boundaries for service extraction readiness (see [ADR-004](ADR-004-API-Boundary-Implementation-Strategy.md))
 - Enterprise-grade CLI tooling with diagnostic capabilities
 - **FastAPI Service Layer**: 9 functional endpoints with WebSocket real-time streaming (Phase 1A Complete)
-- **Docker Development Environment**: Containerized development setup
+- **Docker Production Environment**: Multi-stage containerized setup with health checks (Phase 1B Complete)
+- **PostgreSQL 17 + pgvector**: Production database with vector search capabilities (Phase 1B Complete)
+- **LangGraph 0.6.0 Runtime Context API**: Enhanced thread-scoped execution tracking
 
 **System Maturity:**
-- 86% test coverage with 3,454+ automated tests
+- 86% test coverage with 3,716+ automated tests (3716/3717 passing)
 - Production-ready with circuit breaker patterns and error handling
-- Real LLM integration with OpenAI GPT models
+- Real LLM integration with OpenAI GPT models and Pydantic AI structured validation
 - **Phase 1A Complete**: API service layer functional with 167+ passing tests
+- **Phase 1B Complete**: Database infrastructure, Docker production setup, Pydantic AI integration
+- **LangGraph 0.6.0 Migration Complete**: Runtime Context API with enhanced observability
 - **External Integration Ready**: Platform ready for ChronoVista and other external consumer integration
 
 ---
@@ -76,7 +80,10 @@ See [LANDSCAPE.md](../LANDSCAPE.md) for positioning relative to other multi-agen
 - **Enterprise-ready reliability** with circuit breakers and error handling
 - **✅ API Service Layer**: 9 FastAPI endpoints functional with real workflow integration
 - **✅ WebSocket Real-Time Streaming**: Live workflow progress updates with 50 comprehensive tests
-- **✅ Docker Development Environment**: Containerized development setup
+- **✅ Docker Production Environment**: Multi-stage containerized setup with health checks and security
+- **✅ PostgreSQL 17 Database Integration**: Production database with pgvector, 78 comprehensive tests
+- **✅ Pydantic AI Structured Data**: Type-safe agent outputs with JSONB analytics capabilities
+- **✅ LangGraph 0.6.0 Runtime Context API**: Thread-scoped execution tracking with enhanced observability
 - **✅ External Integration Ready**: Platform ready for external consumer integration
 
 ---
@@ -101,7 +108,7 @@ graph TB
     
     subgraph "Orchestration Core"
         LGO["🔀 LangGraphOrchestrator<br/>(954 lines)"]
-        SG["📊 StateGraph 0.5.3"]
+        SG["📊 StateGraph 0.6.0<br/>Runtime Context API"]
         GF["🏭 GraphFactory"]
         MS["💾 MemorySaver"]
     end
@@ -196,7 +203,8 @@ The following sections describe each major component in detail, starting from th
 #### LangGraphOrchestrator
 **Purpose**: Production StateGraph execution engine (see [ADR-001](ADR-001-Graph-Pattern-Architecture.md))  
 **Key Features**:
-- StateGraph-based DAG execution with real LangGraph 0.5.3 integration
+- StateGraph-based DAG execution with real LangGraph 0.6.0 integration
+- **Runtime Context API**: Thread-scoped execution tracking with enhanced observability
 - Parallel processing of independent agents
 - Type-safe state management with comprehensive TypedDict schemas
 - Circuit breaker patterns and robust error handling (see [ADR-003](ADR-003-Legacy-Cleanup-And-Future-Ready-Architecture.md))
@@ -769,14 +777,15 @@ PluginCapabilityEvent(
 
 ### 9.1 LangGraph Integration Choice
 
-**Decision**: Adopt LangGraph 0.5.3 as the primary orchestration engine
+**Decision**: Adopt LangGraph 0.6.0 as the primary orchestration engine (migrated from 0.5.3)
 
 **Rationale**:
-- **Stability**: Latest stable version in the 0.5.x series with refined APIs
-- **Feature Completeness**: Includes StateGraph, conditional routing, and memory checkpointing
-- **Python 3.12 Compatibility**: Supports development environment requirements
+- **Enhanced Context API**: Runtime Context API provides thread-scoped execution tracking
+- **Improved Observability**: Better correlation ID propagation and structured logging
+- **Backward Compatibility**: Smooth migration path from 0.5.3 with minimal breaking changes
+- **Python 3.12 Compatibility**: Maintains development environment requirements
 - **Pydantic v2 Support**: Compatible with existing data validation system
-- **Production Readiness**: Mature feature set with comprehensive error handling
+- **Production Readiness**: Enhanced feature set with comprehensive error handling
 
 **Alternatives Considered**:
 - Custom orchestration engine: Rejected due to development overhead
@@ -854,7 +863,7 @@ The architecture is grounded in **Dual-Process Theory** from cognitive science:
 ### 10.2 Orchestration Framework
 
 **LangGraph Integration**:
-- **LangGraph**: 0.5.3 (Current production version)
+- **LangGraph**: 0.6.0 (Current production version, migrated from 0.5.3)
 - **Purpose**: Real DAG execution for production-ready orchestration
 - **Compatibility**: Python >=3.9, Pydantic v2, async/await support
 - **Status**: Complete integration with LangGraphOrchestrator as primary engine

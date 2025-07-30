@@ -145,9 +145,12 @@ class TestCriticAgentConfig:
         mock_composer.compose_critic_prompt.return_value = mock_composed_prompt
         mock_composer.validate_composition.return_value = True
 
-        # Mock LLM response
+        # Mock LLM response with token usage
         mock_response = Mock()
         mock_response.text = "Detailed critique of the refined query"
+        mock_response.tokens_used = 150
+        mock_response.input_tokens = 100
+        mock_response.output_tokens = 50
         mock_llm.generate = Mock(return_value=mock_response)
 
         config = CriticConfig(analysis_depth="deep")
@@ -171,9 +174,9 @@ class TestCriticAgentConfig:
         )
 
         # Should add critique to context
-        assert "Critic" in result_context.agent_outputs
+        assert "critic" in result_context.agent_outputs
         assert (
-            result_context.agent_outputs["Critic"]
+            result_context.agent_outputs["critic"]
             == "Detailed critique of the refined query"
         )
 
@@ -182,9 +185,12 @@ class TestCriticAgentConfig:
         """Test that run method works with original behavior (no config)."""
         mock_llm = Mock(spec=LLMInterface)
 
-        # Mock LLM response
+        # Mock LLM response with token usage
         mock_response = Mock()
         mock_response.text = "Standard critique"
+        mock_response.tokens_used = 120
+        mock_response.input_tokens = 80
+        mock_response.output_tokens = 40
         mock_llm.generate = Mock(return_value=mock_response)
 
         # Create agent without config (backward compatibility)
@@ -203,8 +209,8 @@ class TestCriticAgentConfig:
         result_context = await agent.run(context)
 
         # Should work and add output
-        assert "Critic" in result_context.agent_outputs
-        assert result_context.agent_outputs["Critic"] == "Standard critique"
+        assert "critic" in result_context.agent_outputs
+        assert result_context.agent_outputs["critic"] == "Standard critique"
 
         # Should call LLM generate (system prompt will be default or composed)
         mock_llm.generate.assert_called_once()
@@ -227,8 +233,8 @@ class TestCriticAgentConfig:
         result_context = await agent.run(context)
 
         # Should handle missing refiner output
-        assert "Critic" in result_context.agent_outputs
-        assert "No refined output available" in result_context.agent_outputs["Critic"]
+        assert "critic" in result_context.agent_outputs
+        assert "No refined output available" in result_context.agent_outputs["critic"]
 
         # Should not call LLM when no refiner output
         mock_llm.generate.assert_not_called()

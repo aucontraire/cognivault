@@ -482,12 +482,12 @@ class TestCLIDisplayFunctions:
     def test_export_trace_data(self):
         """Test trace data export."""
         context = AgentContext(
-            query="Export test query", agent_outputs={"Refiner": "Exported output"}
+            query="Export test query", agent_outputs={"refiner": "Exported output"}
         )
         context.context_id = "export-123"
-        context.successful_agents = {"Refiner"}
+        context.successful_agents = {"refiner"}
         context.failed_agents = set()
-        context.agent_execution_status = {"Refiner": "completed"}
+        context.agent_execution_status = {"refiner": "completed"}
         context.execution_edges = []
         context.conditional_routing = {}
         context.path_metadata = {}
@@ -512,7 +512,7 @@ class TestCLIDisplayFunctions:
             assert trace_data["pipeline_id"] == "export-123"
             assert trace_data["execution_time_seconds"] == 2.3
             assert trace_data["query"] == "Export test query"
-            assert "Refiner" in trace_data["agent_outputs"]
+            assert "refiner" in trace_data["agent_outputs"]
             assert "timestamp" in trace_data
 
         finally:

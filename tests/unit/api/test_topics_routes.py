@@ -19,6 +19,12 @@ class TestTopicsRoutes:
         """Set up test client for each test."""
         self.client = TestClient(app)
 
+        # Clear topic service cache to prevent test pollution
+        from cognivault.api.routes.topics import topic_service
+
+        topic_service._topic_cache.clear()
+        topic_service._cache_timestamp = 0.0
+
     @patch("cognivault.api.routes.topics.get_orchestration_api")
     def test_get_topics_success(self, mock_get_api):
         """Test successful topics discovery with mock workflow history."""
@@ -121,22 +127,22 @@ class TestTopicsRoutes:
         mock_api.get_workflow_history.return_value = mock_history
         mock_get_api.return_value = mock_api
 
-        # Test search for machine learning topics
-        response = self.client.get("/api/topics?search=learning")
+        # Test search for machine-related topics
+        response = self.client.get("/api/topics?search=machine")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data["search_query"] == "learning"
+        assert data["search_query"] == "machine"
 
-        # Should find topics related to learning
+        # Should find topics related to machine
         topics = data["topics"]
         assert len(topics) > 0
 
         # Check that returned topics are relevant to search
         topic_texts = [t["name"] + " " + t["description"] for t in topics]
-        learning_topics = [text for text in topic_texts if "learning" in text.lower()]
-        assert len(learning_topics) > 0
+        machine_topics = [text for text in topic_texts if "machine" in text.lower()]
+        assert len(machine_topics) > 0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
     def test_get_topics_with_pagination(self, mock_get_api):
@@ -492,6 +498,12 @@ class TestTopicWikiRoutes:
     def setup_method(self):
         """Set up test client for each test."""
         self.client = TestClient(app)
+
+        # Clear topic service cache to prevent test pollution
+        from cognivault.api.routes.topics import topic_service
+
+        topic_service._topic_cache.clear()
+        topic_service._cache_timestamp = 0.0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
     def test_get_topic_wiki_success(self, mock_get_api):

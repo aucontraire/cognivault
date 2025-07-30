@@ -48,6 +48,9 @@ class MockLLM(LLMInterface):
 
         mock_response = Mock()
         mock_response.text = response_text
+        mock_response.tokens_used = 180
+        mock_response.input_tokens = 120
+        mock_response.output_tokens = 60
         return mock_response
 
     async def agenerate(self, prompt: str, **kwargs) -> Mock:
@@ -63,7 +66,7 @@ class TestHistorianAgentInitialization:
         # Use llm=None to prevent real API calls during testing
         agent = HistorianAgent(llm=None)
 
-        assert agent.name == "Historian"
+        assert agent.name == "historian"
         assert agent.search_type == "hybrid"
         assert agent.search_engine is not None
         assert agent.llm is None
@@ -73,7 +76,7 @@ class TestHistorianAgentInitialization:
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
 
-        assert agent.name == "Historian"
+        assert agent.name == "historian"
         assert agent.llm is mock_llm
         assert agent.search_type == "hybrid"
 

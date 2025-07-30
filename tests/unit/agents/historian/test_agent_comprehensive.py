@@ -27,7 +27,7 @@ class TestHistorianAgentErrorHandling:
 
         # Should set llm to None for invalid interface
         assert agent.llm is None
-        assert agent.name == "Historian"
+        assert agent.name == "historian"
         assert agent.search_type == "hybrid"
 
     def test_init_with_object_without_generate_method(self):
@@ -46,7 +46,7 @@ class TestHistorianAgentErrorHandling:
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
         assert agent.llm is None
-        assert agent.name == "Historian"
+        assert agent.name == "historian"
 
     @pytest.mark.asyncio
     async def test_run_with_search_exception_and_mock_fallback(self):

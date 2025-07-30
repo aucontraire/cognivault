@@ -181,9 +181,9 @@ class TestSynthesisAgentConfig:
         result_context = await agent.run(context)
 
         # Should complete without errors and preserve existing behavior
-        assert "Synthesis" in result_context.agent_outputs
-        assert isinstance(result_context.agent_outputs["Synthesis"], str)
-        assert len(result_context.agent_outputs["Synthesis"]) > 0
+        assert "synthesis" in result_context.agent_outputs
+        assert isinstance(result_context.agent_outputs["synthesis"], str)
+        assert len(result_context.agent_outputs["synthesis"]) > 0
 
     @pytest.mark.asyncio
     async def test_run_method_with_no_llm_fallback(self):
@@ -204,8 +204,8 @@ class TestSynthesisAgentConfig:
         result_context = await agent.run(context)
 
         # Should use fallback synthesis
-        assert "Synthesis" in result_context.agent_outputs
-        synthesis_output = result_context.agent_outputs["Synthesis"]
+        assert "synthesis" in result_context.agent_outputs
+        synthesis_output = result_context.agent_outputs["synthesis"]
         assert "Test fallback query" in synthesis_output
         assert "Refined output" in synthesis_output
         assert "Critical output" in synthesis_output
@@ -335,7 +335,7 @@ class TestSynthesisAgentConfig:
         result_context = await agent.run(context)
 
         # Should have emergency fallback output
-        assert "Synthesis" in result_context.agent_outputs
-        synthesis_output = result_context.agent_outputs["Synthesis"]
+        assert "synthesis" in result_context.agent_outputs
+        synthesis_output = result_context.agent_outputs["synthesis"]
         assert "Test emergency fallback" in synthesis_output
         assert "Test output" in synthesis_output

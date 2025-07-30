@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
 from cognivault.api.websockets import WebSocketEventSink, websocket_manager
-from cognivault.events.types import WorkflowEvent, EventType
+from cognivault.events.types import WorkflowEvent, EventType, EventCategory
 from cognivault.events.emitter import get_global_event_emitter
 from cognivault.events.sinks import ConsoleEventSink, InMemoryEventSink
 
@@ -65,6 +65,7 @@ class TestWebSocketEventSystemIntegration:
         # Emit event
         event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,
+            event_category=EventCategory.ORCHESTRATION,
             workflow_id="test-workflow-123",
             correlation_id=self.correlation_id,
         )
@@ -90,6 +91,7 @@ class TestWebSocketEventSystemIntegration:
         # Emit event with matching correlation ID
         matching_event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,
+            event_category=EventCategory.ORCHESTRATION,
             workflow_id="test-workflow-123",
             correlation_id=self.correlation_id,
             data={"agent_name": "test_agent", "status": "started"},
@@ -104,6 +106,7 @@ class TestWebSocketEventSystemIntegration:
         # Emit event with different correlation ID
         non_matching_event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,
+            event_category=EventCategory.ORCHESTRATION,
             workflow_id="test-workflow-123",
             correlation_id="different-correlation-id",
             data={"agent_name": "test_agent", "status": "started"},
@@ -215,6 +218,7 @@ class TestWebSocketEventSystemIntegration:
         # Emit event
         event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,
+            event_category=EventCategory.ORCHESTRATION,
             workflow_id="test-workflow-123",
             correlation_id=self.correlation_id,
             data={"agent_name": "test_agent", "status": "started"},
@@ -269,6 +273,7 @@ class TestWebSocketEventSystemIntegration:
         for event_type in event_types_to_test:
             event = WorkflowEvent(
                 event_type=event_type,
+                event_category=EventCategory.ORCHESTRATION,
                 workflow_id="test-workflow-123",
                 correlation_id=self.correlation_id,
                 data={"agent_name": "test_agent", "status": "test_status"},
@@ -303,6 +308,7 @@ class TestWebSocketEventSystemIntegration:
         # Create event with rich metadata
         event = WorkflowEvent(
             event_type=EventType.AGENT_EXECUTION_COMPLETED,
+            event_category=EventCategory.EXECUTION,
             workflow_id="test-workflow-123",
             correlation_id=self.correlation_id,
             data={"agent_name": "test_agent", "status": "completed"},
@@ -342,3 +348,117 @@ class TestWebSocketEventSystemIntegration:
         assert "node_count" not in metadata or metadata.get("node_count") is None
         assert "error_type" not in metadata or metadata.get("error_type") is None
         assert "error_message" not in metadata or metadata.get("error_message") is None
+
+    @pytest.mark.asyncio
+    async def test_websocket_events_include_category_field(self):
+        """Test that WebSocket events include the event category field for dual emission architecture."""
+        mock_manager = Mock()
+        mock_manager.broadcast_event = AsyncMock()
+        websocket_sink = WebSocketEventSink(mock_manager, self.correlation_id)
+
+        # Test orchestration event
+        orchestration_event = WorkflowEvent(
+            event_type=EventType.WORKFLOW_STARTED,
+            event_category=EventCategory.ORCHESTRATION,
+            workflow_id="test-orchestration",
+            correlation_id=self.correlation_id,
+            data={"query": "test query"},
+        )
+
+        await websocket_sink.emit(orchestration_event)
+
+        call_args = mock_manager.broadcast_event.call_args
+        event_data = call_args[0][1]
+
+        # Verify orchestration event has category field
+        assert "category" in event_data, "WebSocket event missing category field"
+        assert event_data["category"] == "orchestration"
+        assert event_data["type"] == "workflow.started"
+
+        # Reset mock for next test
+        mock_manager.broadcast_event.reset_mock()
+
+        # Test execution event
+        execution_event = WorkflowEvent(
+            event_type=EventType.AGENT_EXECUTION_STARTED,
+            event_category=EventCategory.EXECUTION,
+            workflow_id="test-execution",
+            correlation_id=self.correlation_id,
+            data={"agent_name": "refiner", "step": "execution_internal"},
+        )
+
+        await websocket_sink.emit(execution_event)
+
+        call_args = mock_manager.broadcast_event.call_args
+        event_data = call_args[0][1]
+
+        # Verify execution event has category field
+        assert "category" in event_data, "WebSocket event missing category field"
+        assert event_data["category"] == "execution"
+        assert event_data["type"] == "agent.execution.started"
+
+    @pytest.mark.asyncio
+    async def test_websocket_dual_emission_architecture(self):
+        """Test WebSocket handling of dual event emission (orchestration vs execution)."""
+        mock_manager = Mock()
+        captured_events = []
+
+        async def capture_event(correlation_id, event_data):
+            captured_events.append(event_data)
+
+        mock_manager.broadcast_event = AsyncMock(side_effect=capture_event)
+        websocket_sink = WebSocketEventSink(mock_manager, self.correlation_id)
+
+        # Simulate dual emission: same agent, same event type, different categories
+        # This represents node wrapper (orchestration) and individual agent (execution) events
+
+        # Orchestration-level agent event (from node wrapper)
+        orchestration_agent_event = WorkflowEvent(
+            event_type=EventType.AGENT_EXECUTION_STARTED,
+            event_category=EventCategory.ORCHESTRATION,
+            workflow_id="dual-emission-test",
+            correlation_id=self.correlation_id,
+            data={"agent_name": "refiner", "step": "node_wrapper_execution"},
+        )
+
+        # Execution-level agent event (from individual agent)
+        execution_agent_event = WorkflowEvent(
+            event_type=EventType.AGENT_EXECUTION_STARTED,
+            event_category=EventCategory.EXECUTION,
+            workflow_id="dual-emission-test",
+            correlation_id=self.correlation_id,
+            data={"agent_name": "refiner", "step": "agent_internal_execution"},
+        )
+
+        # Emit both events
+        await websocket_sink.emit(orchestration_agent_event)
+        await websocket_sink.emit(execution_agent_event)
+
+        # Verify both events were captured
+        assert len(captured_events) == 2
+
+        # Analyze captured events
+        orchestration_events = [
+            e for e in captured_events if e.get("category") == "orchestration"
+        ]
+        execution_events = [
+            e for e in captured_events if e.get("category") == "execution"
+        ]
+
+        assert len(orchestration_events) == 1, "Should have one orchestration event"
+        assert len(execution_events) == 1, "Should have one execution event"
+
+        # Both should be same event type but different categories
+        assert orchestration_events[0]["type"] == "agent.execution.started"
+        assert execution_events[0]["type"] == "agent.execution.started"
+        assert orchestration_events[0]["agent_name"] == "refiner"
+        assert execution_events[0]["agent_name"] == "refiner"
+
+        # Categories should be different
+        assert orchestration_events[0]["category"] != execution_events[0]["category"]
+
+        # WebSocket consumers can now distinguish between the two event sources
+        assert (
+            orchestration_events[0]["category"] == "orchestration"
+        )  # From node wrappers
+        assert execution_events[0]["category"] == "execution"  # From individual agents

@@ -24,9 +24,9 @@ async def test_refiner_agent_adds_output():
     updated_context = await agent.run(context)
 
     # Verify agent added output to context
-    assert "Refiner" in updated_context.agent_outputs
-    assert "Refined query:" in updated_context.agent_outputs["Refiner"]
-    assert "transform educational practices" in updated_context.agent_outputs["Refiner"]
+    assert "refiner" in updated_context.agent_outputs
+    assert "Refined query:" in updated_context.agent_outputs["refiner"]
+    assert "transform educational practices" in updated_context.agent_outputs["refiner"]
 
     # Verify system prompt was used in LLM call
     mock_llm.generate.assert_called_once()
@@ -54,9 +54,9 @@ async def test_refiner_agent_unchanged_query():
     updated_context = await agent.run(context)
 
     # Verify unchanged queries are handled properly
-    assert "Refiner" in updated_context.agent_outputs
-    assert "[Unchanged]" in updated_context.agent_outputs["Refiner"]
-    assert "income inequality" in updated_context.agent_outputs["Refiner"]
+    assert "refiner" in updated_context.agent_outputs
+    assert "[Unchanged]" in updated_context.agent_outputs["refiner"]
+    assert "income inequality" in updated_context.agent_outputs["refiner"]
 
 
 @pytest.mark.asyncio
@@ -111,8 +111,8 @@ async def test_refiner_handles_nonsense_query():
         updated_context = await agent.run(context)
 
         # Verify fallback behavior
-        assert "Refiner" in updated_context.agent_outputs
-        output = updated_context.agent_outputs["Refiner"]
+        assert "refiner" in updated_context.agent_outputs
+        output = updated_context.agent_outputs["refiner"]
         assert f"Refined query: {expected_fallback}" == output
 
         # Verify system prompt was used
@@ -171,8 +171,8 @@ async def test_refiner_agent_with_simulation_delay():
         assert (end_time - start_time) >= 0.01
 
         # Verify normal functionality still works
-        assert "Refiner" in result_context.agent_outputs
-        output = result_context.agent_outputs["Refiner"]
+        assert "refiner" in result_context.agent_outputs
+        output = result_context.agent_outputs["refiner"]
         assert "refined" in output.lower()
 
     finally:

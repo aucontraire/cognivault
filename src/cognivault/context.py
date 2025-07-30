@@ -191,6 +191,23 @@ class AgentContext(BaseModel):
         default_factory=dict, description="Execution path metadata"
     )
 
+    # Token usage tracking for LLM resource monitoring
+    agent_token_usage: Dict[str, Dict[str, int]] = Field(
+        default_factory=dict,
+        description="Token usage tracking per agent: {agent_name: {input_tokens: int, output_tokens: int, total_tokens: int}}",
+    )
+    total_input_tokens: int = Field(
+        default=0, ge=0, description="Total input tokens consumed across all agents"
+    )
+    total_output_tokens: int = Field(
+        default=0, ge=0, description="Total output tokens generated across all agents"
+    )
+    total_tokens: int = Field(
+        default=0,
+        ge=0,
+        description="Total tokens (input + output) consumed across all agents",
+    )
+
     # General metadata for API integration and tracing
     metadata: Dict[str, Any] = Field(
         default_factory=dict, description="General context metadata"
@@ -330,6 +347,91 @@ class AgentContext(BaseModel):
         logger.debug(
             f"Context size after adding {agent_name}: {self.current_size} bytes"
         )
+
+    def add_agent_token_usage(
+        self,
+        agent_name: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        total_tokens: Optional[int] = None,
+    ) -> None:
+        """
+        Add token usage information for a specific agent.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent that consumed tokens
+        input_tokens : int, default=0
+            Number of input tokens consumed
+        output_tokens : int, default=0
+            Number of output tokens generated
+        total_tokens : Optional[int], default=None
+            Total tokens consumed. If None, calculated as input_tokens + output_tokens
+        """
+        if input_tokens < 0 or output_tokens < 0:
+            raise ValueError("Token counts cannot be negative")
+
+        if total_tokens is None:
+            total_tokens = input_tokens + output_tokens
+        elif total_tokens < 0:
+            raise ValueError("Total tokens cannot be negative")
+
+        # Store agent-specific token usage
+        self.agent_token_usage[agent_name] = {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+        }
+
+        # Update total counters
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
+        self.total_tokens += total_tokens
+
+        logger.debug(
+            f"Token usage recorded for agent '{agent_name}': "
+            f"input={input_tokens}, output={output_tokens}, total={total_tokens}"
+        )
+
+    def get_agent_token_usage(self, agent_name: str) -> Dict[str, int]:
+        """
+        Get token usage information for a specific agent.
+
+        Parameters
+        ----------
+        agent_name : str
+            Name of the agent
+
+        Returns
+        -------
+        Dict[str, int]
+            Dictionary with keys: input_tokens, output_tokens, total_tokens
+            Returns zeros if agent has no recorded token usage
+        """
+        return self.agent_token_usage.get(
+            agent_name,
+            {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            },
+        )
+
+    def get_total_token_usage(self) -> Dict[str, int]:
+        """
+        Get total token usage across all agents.
+
+        Returns
+        -------
+        Dict[str, int]
+            Dictionary with total input_tokens, output_tokens, and total_tokens
+        """
+        return {
+            "input_tokens": self.total_input_tokens,
+            "output_tokens": self.total_output_tokens,
+            "total_tokens": self.total_tokens,
+        }
 
     def log_trace(
         self,

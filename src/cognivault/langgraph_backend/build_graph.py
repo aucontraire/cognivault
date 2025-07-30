@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from langgraph.graph import StateGraph, END
 
-from cognivault.orchestration.state_schemas import CogniVaultState
+from cognivault.orchestration.state_schemas import CogniVaultState, CogniVaultContext
 from cognivault.orchestration.node_wrappers import (
     refiner_node,
     critic_node,
@@ -171,9 +171,7 @@ class GraphFactory:
             self.logger.error(error_msg)
             raise GraphBuildError(error_msg) from e
 
-    def _create_state_graph(
-        self, config: GraphConfig, pattern: GraphPattern
-    ) -> StateGraph:
+    def _create_state_graph(self, config: GraphConfig, pattern: GraphPattern) -> Any:
         """
         Create the StateGraph with nodes and edges.
 
@@ -189,8 +187,10 @@ class GraphFactory:
         StateGraph
             Configured StateGraph (not yet compiled)
         """
-        # Create StateGraph with CogniVaultState schema
-        graph = StateGraph(CogniVaultState)
+        # Create StateGraph with CogniVaultState and CogniVaultContext schemas for LangGraph 0.6.0
+        graph = StateGraph(
+            state_schema=CogniVaultState, context_schema=CogniVaultContext
+        )
 
         # Add nodes for requested agents
         self._add_nodes(graph, config.agents_to_run)
@@ -200,7 +200,7 @@ class GraphFactory:
 
         return graph
 
-    def _add_nodes(self, graph: StateGraph, agents_to_run: List[str]) -> None:
+    def _add_nodes(self, graph: Any, agents_to_run: List[str]) -> None:
         """
         Add agent nodes to the StateGraph.
 
@@ -221,7 +221,7 @@ class GraphFactory:
             self.logger.debug(f"Added node: {agent_key}")
 
     def _add_edges(
-        self, graph: StateGraph, agents_to_run: List[str], pattern: GraphPattern
+        self, graph: Any, agents_to_run: List[str], pattern: GraphPattern
     ) -> None:
         """
         Add edges to the StateGraph based on pattern.

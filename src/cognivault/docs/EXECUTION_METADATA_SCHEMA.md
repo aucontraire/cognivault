@@ -2,6 +2,8 @@
 
 This document describes the structured execution metadata schema used in CogniVault's PostgreSQL JSONB `execution_metadata` field, powered by Pydantic AI for validated agent outputs.
 
+> **📡 Real-time Events**: For real-time monitoring of workflow execution, see [WebSocket Event Streams Documentation](./WEBSOCKET_EVENT_STREAMS.md) which provides dual-level event granularity from both orchestration and agent execution sources.
+
 ## Overview
 
 The `execution_metadata` field in the `questions` table stores structured information about workflow executions using Pydantic models for validation and consistency. This approach provides:

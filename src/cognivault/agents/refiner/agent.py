@@ -43,7 +43,7 @@ class RefinerAgent(BaseAgent):
             Configuration for agent behavior. If None, uses default configuration.
             Maintains backward compatibility - existing code continues to work.
         """
-        super().__init__("Refiner")
+        super().__init__("refiner")
         self.llm: LLMInterface = llm
 
         # Configuration system - backward compatible
@@ -136,7 +136,35 @@ class RefinerAgent(BaseAgent):
 
         logger.debug(f"[{self.name}] Output: {refined_output}")
 
+        # Add agent output
         context.add_agent_output(self.name, refined_output)
+
+        # Record token usage if available from LLM response
+        if hasattr(response, "tokens_used") and response.tokens_used is not None:
+            # Use detailed token breakdown if available, otherwise fall back to total
+            input_tokens = getattr(response, "input_tokens", None) or 0
+            output_tokens = getattr(response, "output_tokens", None) or 0
+            total_tokens = response.tokens_used
+
+            # Ensure consistency: if we have detailed breakdown, use it for total
+            if input_tokens and output_tokens:
+                total_tokens = input_tokens + output_tokens
+
+            context.add_agent_token_usage(
+                agent_name=self.name,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=total_tokens,
+            )
+            logger.debug(
+                f"[{self.name}] Token usage recorded - "
+                f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
+            )
+        else:
+            logger.debug(
+                f"[{self.name}] No token usage information available from LLM response"
+            )
+
         context.log_trace(self.name, input_data=query, output_data=refined_output)
         return context
 

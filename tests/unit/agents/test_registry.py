@@ -103,7 +103,7 @@ class TestAgentRegistry:
         agent = registry.create_agent("historian")
 
         assert agent is not None
-        assert agent.name == "Historian"
+        assert agent.name == "historian"
 
     def test_create_agent_with_llm(self):
         """Test creating agent that requires LLM."""
@@ -114,7 +114,7 @@ class TestAgentRegistry:
         agent = registry.create_agent("refiner", llm=mock_llm)
 
         assert agent is not None
-        assert agent.name == "Refiner"
+        assert agent.name == "refiner"
         assert hasattr(agent, "llm")
         assert agent.llm == mock_llm
 
@@ -272,7 +272,7 @@ class TestGlobalRegistry:
         agent = create_agent("refiner", llm=mock_llm)
 
         assert agent is not None
-        assert agent.name == "Refiner"
+        assert agent.name == "refiner"
 
 
 class TestRegistryWithOrchestrator:
@@ -314,5 +314,5 @@ class TestRegistryWithOrchestrator:
             agent = registry.create_agent(agent_name, llm=mock_llm)
             assert agent is not None
             # Verify agent name matches expected format
-            expected_name = agent_name.capitalize()
+            expected_name = agent_name.lower()
             assert agent.name == expected_name

@@ -22,12 +22,15 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from functools import wraps
 
+from langgraph.runtime import Runtime
+
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
 from cognivault.orchestration.state_bridge import AgentContextStateBridge
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
+    CogniVaultContext,
     RefinerOutput,
     CriticOutput,
     HistorianOutput,
@@ -42,6 +45,8 @@ from cognivault.events import (
     emit_agent_execution_started,
     emit_agent_execution_completed,
 )
+from cognivault.events.types import EventCategory
+from cognivault.utils.content_truncation import truncate_for_websocket_event
 
 logger = get_logger(__name__)
 
@@ -396,7 +401,9 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
 
 @circuit_breaker(max_failures=3, reset_timeout=300.0)
 @node_metrics
-async def refiner_node(state: CogniVaultState) -> Dict[str, Any]:
+async def refiner_node(
+    state: CogniVaultState, runtime: Runtime[CogniVaultContext]
+) -> Dict[str, Any]:
     """
     LangGraph node wrapper for RefinerAgent.
 
@@ -407,32 +414,58 @@ async def refiner_node(state: CogniVaultState) -> Dict[str, Any]:
     ----------
     state : CogniVaultState
         Current LangGraph state
+    runtime : Runtime[CogniVaultContext]
+        LangGraph runtime context with thread and execution information
 
     Returns
     -------
     CogniVaultState
         Updated state with RefinerOutput
     """
-    logger.info("Executing refiner node")
+    # ✅ Type-safe context access (LangGraph 0.6.0 Runtime API)
+    thread_id = runtime.context.thread_id
+    execution_id = runtime.context.execution_id
+    original_query = runtime.context.query
+    correlation_id = runtime.context.correlation_id
+    checkpoint_enabled = runtime.context.enable_checkpoints
 
-    # Get workflow and correlation info from state
-    execution_metadata = state.get("execution_metadata", {})
-    workflow_id = (
-        execution_metadata.get("execution_id")
-        or get_workflow_id()
-        or "unknown-workflow"
+    logger.info(
+        f"Executing refiner node in thread {thread_id}",
+        extra={
+            "thread_id": thread_id,
+            "execution_id": execution_id,
+            "correlation_id": correlation_id,
+            "query_length": len(original_query or ""),
+            "checkpoint_enabled": checkpoint_enabled,
+        },
     )
-    # Get correlation_id from state metadata, fallback to context
-    correlation_id = execution_metadata.get("correlation_id") or get_correlation_id()
+
+    # Backward compatibility: use execution_id as workflow_id
+    workflow_id = execution_id
 
     try:
-        # Emit agent execution started event
+        # ✅ Enhanced event emission with runtime context
         await emit_agent_execution_started(
+            event_category=EventCategory.EXECUTION,
             workflow_id=workflow_id,
             agent_name="refiner",
-            input_context={"query": state.get("query", ""), "node_type": "refiner"},
+            input_context={
+                "query": original_query or state.get("query", ""),
+                "node_type": "refiner",
+                "thread_id": thread_id,
+                "execution_id": execution_id,
+            },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_context": {
+                    "thread_id": thread_id,
+                    "execution_id": execution_id,
+                    "checkpoint_enabled": checkpoint_enabled,
+                    "query_length": len(original_query or ""),
+                },
+            },
         )
 
         # Create agent
@@ -445,7 +478,7 @@ async def refiner_node(state: CogniVaultState) -> Dict[str, Any]:
         result_context = await agent.run_with_retry(context)
 
         # Extract refiner output (using "Refiner" key, not "refiner")
-        refiner_raw_output = result_context.agent_outputs.get("Refiner", "")
+        refiner_raw_output = result_context.agent_outputs.get("refiner", "")
 
         # Create typed output
         refiner_output = RefinerOutput(
@@ -456,39 +489,111 @@ async def refiner_node(state: CogniVaultState) -> Dict[str, Any]:
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Emit agent execution completed event
+        # Get token usage information from agent context
+        refiner_token_usage = result_context.get_agent_token_usage("refiner")
+
+        # ✅ Enhanced completion event emission with runtime context and token usage
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=workflow_id,
             agent_name="refiner",
             success=True,
             output_context={
-                "refined_question": str(refiner_raw_output)[:200],
+                "refined_question": truncate_for_websocket_event(
+                    str(refiner_raw_output), "refined_question"
+                ),
                 "node_type": "refiner",
+                "thread_id": thread_id,
+                "execution_id": execution_id,
+                "confidence": refiner_output["confidence"],
+                "topics_count": len(refiner_output["topics"]),
+                # Add token usage to output context for WebSocket events
+                "input_tokens": refiner_token_usage["input_tokens"],
+                "output_tokens": refiner_token_usage["output_tokens"],
+                "total_tokens": refiner_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_context": {
+                    "thread_id": thread_id,
+                    "execution_id": execution_id,
+                    "checkpoint_enabled": checkpoint_enabled,
+                    "original_query": original_query,
+                },
+                "output_metadata": {
+                    "confidence": refiner_output["confidence"],
+                    "topics_identified": len(refiner_output["topics"]),
+                    "processing_notes": bool(refiner_output["processing_notes"]),
+                },
+                # Add token usage to metadata as well for comprehensive tracking
+                "token_usage": refiner_token_usage,
+            },
         )
 
-        # Return state update with agent output and success tracking
-        logger.info("Refiner node completed successfully")
+        # ✅ Enhanced success logging with runtime context
+        logger.info(
+            f"Refiner node completed successfully for thread {thread_id}",
+            extra={
+                "thread_id": thread_id,
+                "execution_id": execution_id,
+                "correlation_id": correlation_id,
+                "confidence": refiner_output["confidence"],
+                "topics_count": len(refiner_output["topics"]),
+                "query_length": len(original_query or ""),
+                "checkpoint_enabled": checkpoint_enabled,
+            },
+        )
         return {
             "refiner": refiner_output,
             "successful_agents": ["refiner"],
         }
 
     except Exception as e:
-        logger.error(f"Refiner node failed: {e}")
+        # ✅ Enhanced error logging with runtime context
+        logger.error(
+            f"Refiner node failed for thread {thread_id}: {e}",
+            extra={
+                "thread_id": thread_id,
+                "execution_id": execution_id,
+                "correlation_id": correlation_id,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "checkpoint_enabled": checkpoint_enabled,
+                "query_length": len(original_query or ""),
+            },
+        )
 
-        # Emit agent execution failed event
+        # ✅ Enhanced error event emission with runtime context
         await emit_agent_execution_completed(
+            event_category=EventCategory.EXECUTION,
             workflow_id=workflow_id,
             agent_name="refiner",
             success=False,
-            output_context={"error": str(e), "node_type": "refiner"},
+            output_context={
+                "error": str(e),
+                "node_type": "refiner",
+                "thread_id": thread_id,
+                "execution_id": execution_id,
+            },
             error_message=str(e),
             error_type=type(e).__name__,
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_context": {
+                    "thread_id": thread_id,
+                    "execution_id": execution_id,
+                    "checkpoint_enabled": checkpoint_enabled,
+                    "original_query": original_query,
+                },
+                "error_context": {
+                    "error_type": type(e).__name__,
+                    "query_length": len(original_query or ""),
+                },
+            },
         )
 
         error_state = record_agent_error(state, "refiner", e)
@@ -497,7 +602,9 @@ async def refiner_node(state: CogniVaultState) -> Dict[str, Any]:
 
 @circuit_breaker(max_failures=3, reset_timeout=300.0)
 @node_metrics
-async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
+async def critic_node(
+    state: CogniVaultState, runtime: Runtime[CogniVaultContext]
+) -> Dict[str, Any]:
     """
     LangGraph node wrapper for CriticAgent.
 
@@ -508,40 +615,57 @@ async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
     ----------
     state : CogniVaultState
         Current LangGraph state (must contain refiner output)
+    runtime : Runtime[CogniVaultContext]
+        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with CriticOutput
     """
-    logger.info("Executing critic node")
+    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    thread_id = runtime.context.thread_id
+    execution_id = runtime.context.execution_id
+    original_query = runtime.context.query
+    correlation_id = runtime.context.correlation_id
+    checkpoint_enabled = runtime.context.enable_checkpoints
 
-    # Get workflow and correlation info from state
-    execution_metadata = state.get("execution_metadata", {})
-    workflow_id = (
-        execution_metadata.get("execution_id")
-        or get_workflow_id()
-        or "unknown-workflow"
+    logger.info(
+        f"Executing critic node in thread {thread_id}",
+        extra={
+            "thread_id": thread_id,
+            "execution_id": execution_id,
+            "correlation_id": correlation_id,
+            "query_length": len(original_query or ""),
+            "checkpoint_enabled": checkpoint_enabled,
+        },
     )
-    # Get correlation_id from state metadata, fallback to context
-    correlation_id = execution_metadata.get("correlation_id") or get_correlation_id()
 
     try:
         # Validate dependencies
         if not state.get("refiner"):
             raise NodeExecutionError("Critic node requires refiner output")
 
-        # Emit agent execution started event
+        # Emit agent execution started event with runtime context
         await emit_agent_execution_started(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="critic",
             input_context={
-                "query": state.get("query", ""),
+                "query": original_query or "",
                 "has_refiner_output": True,
                 "node_type": "critic",
+                "thread_id": thread_id,
+                "runtime_context": True,
             },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         # Create agent
@@ -554,7 +678,7 @@ async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
         result_context = await agent.run_with_retry(context)
 
         # Extract critic output (using "Critic" key, not "critic")
-        critic_raw_output = result_context.agent_outputs.get("Critic", "")
+        critic_raw_output = result_context.agent_outputs.get("critic", "")
 
         # Create typed output
         critic_output = CriticOutput(
@@ -567,17 +691,36 @@ async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Emit agent execution completed event
+        # Get token usage information from agent context
+        critic_token_usage = result_context.get_agent_token_usage("critic")
+
+        # Emit agent execution completed event with runtime context and token usage
         await emit_agent_execution_completed(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="critic",
             success=True,
             output_context={
-                "critique": str(critic_raw_output)[:200],
+                "critique": truncate_for_websocket_event(
+                    str(critic_raw_output), "critique"
+                ),
                 "node_type": "critic",
+                "thread_id": thread_id,
+                "runtime_context": True,
+                "confidence": critic_output["confidence"],
+                # Add token usage to output context for WebSocket events
+                "input_tokens": critic_token_usage["input_tokens"],
+                "output_tokens": critic_token_usage["output_tokens"],
+                "total_tokens": critic_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         # Return state update with agent output and success tracking
@@ -590,16 +733,28 @@ async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Critic node failed: {e}")
 
-        # Emit agent execution failed event
+        # Emit agent execution failed event with runtime context
         await emit_agent_execution_completed(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="critic",
             success=False,
-            output_context={"error": str(e), "node_type": "critic"},
+            output_context={
+                "error": str(e),
+                "node_type": "critic",
+                "thread_id": thread_id,
+                "runtime_context": True,
+            },
             error_message=str(e),
             error_type=type(e).__name__,
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         error_state = record_agent_error(state, "critic", e)
@@ -608,7 +763,9 @@ async def critic_node(state: CogniVaultState) -> Dict[str, Any]:
 
 @circuit_breaker(max_failures=3, reset_timeout=300.0)
 @node_metrics
-async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
+async def historian_node(
+    state: CogniVaultState, runtime: Runtime[CogniVaultContext]
+) -> Dict[str, Any]:
     """
     LangGraph node wrapper for HistorianAgent.
 
@@ -619,40 +776,57 @@ async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
     ----------
     state : CogniVaultState
         Current LangGraph state (must contain refiner output)
+    runtime : Runtime[CogniVaultContext]
+        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with HistorianOutput
     """
-    logger.info("Executing historian node")
+    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    thread_id = runtime.context.thread_id
+    execution_id = runtime.context.execution_id
+    original_query = runtime.context.query
+    correlation_id = runtime.context.correlation_id
+    checkpoint_enabled = runtime.context.enable_checkpoints
 
-    # Get workflow and correlation info from state
-    execution_metadata = state.get("execution_metadata", {})
-    workflow_id = (
-        execution_metadata.get("execution_id")
-        or get_workflow_id()
-        or "unknown-workflow"
+    logger.info(
+        f"Executing historian node in thread {thread_id}",
+        extra={
+            "thread_id": thread_id,
+            "execution_id": execution_id,
+            "correlation_id": correlation_id,
+            "query_length": len(original_query or ""),
+            "checkpoint_enabled": checkpoint_enabled,
+        },
     )
-    # Get correlation_id from state metadata, fallback to context
-    correlation_id = execution_metadata.get("correlation_id") or get_correlation_id()
 
     try:
         # Validate dependencies
         if not state.get("refiner"):
             raise NodeExecutionError("Historian node requires refiner output")
 
-        # Emit agent execution started event
+        # Emit agent execution started event with runtime context
         await emit_agent_execution_started(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="historian",
             input_context={
-                "query": state.get("query", ""),
+                "query": original_query or "",
                 "has_refiner_output": True,
                 "node_type": "historian",
+                "thread_id": thread_id,
+                "runtime_context": True,
             },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         # Create agent
@@ -665,7 +839,7 @@ async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
         result_context = await agent.run_with_retry(context)
 
         # Extract historian output (using "Historian" key, not "historian")
-        historian_raw_output = result_context.agent_outputs.get("Historian", "")
+        historian_raw_output = result_context.agent_outputs.get("historian", "")
 
         # Extract retrieved notes from context
         retrieved_notes = getattr(result_context, "retrieved_notes", [])
@@ -697,17 +871,37 @@ async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Emit agent execution completed event
+        # Get token usage information from agent context
+        historian_token_usage = result_context.get_agent_token_usage("historian")
+
+        # Emit agent execution completed event with runtime context and token usage
         await emit_agent_execution_completed(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="historian",
             success=True,
             output_context={
-                "historical_summary": str(historian_raw_output)[:200],
+                "historical_summary": truncate_for_websocket_event(
+                    str(historian_raw_output), "historical_summary"
+                ),
                 "node_type": "historian",
+                "thread_id": thread_id,
+                "runtime_context": True,
+                "confidence": historian_output["confidence"],
+                "search_strategy": historian_output["search_strategy"],
+                # Add token usage to output context for WebSocket events
+                "input_tokens": historian_token_usage["input_tokens"],
+                "output_tokens": historian_token_usage["output_tokens"],
+                "total_tokens": historian_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         # Return state update with agent output and success tracking
@@ -720,16 +914,28 @@ async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Historian node failed: {e}")
 
-        # Emit agent execution failed event
+        # Emit agent execution failed event with runtime context
         await emit_agent_execution_completed(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="historian",
             success=False,
-            output_context={"error": str(e), "node_type": "historian"},
+            output_context={
+                "error": str(e),
+                "node_type": "historian",
+                "thread_id": thread_id,
+                "runtime_context": True,
+            },
             error_message=str(e),
             error_type=type(e).__name__,
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         error_state = record_agent_error(state, "historian", e)
@@ -738,7 +944,9 @@ async def historian_node(state: CogniVaultState) -> Dict[str, Any]:
 
 @circuit_breaker(max_failures=3, reset_timeout=300.0)
 @node_metrics
-async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
+async def synthesis_node(
+    state: CogniVaultState, runtime: Runtime[CogniVaultContext]
+) -> Dict[str, Any]:
     """
     LangGraph node wrapper for SynthesisAgent.
 
@@ -749,23 +957,31 @@ async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
     ----------
     state : CogniVaultState
         Current LangGraph state (must contain refiner, critic, and historian outputs)
+    runtime : Runtime[CogniVaultContext]
+        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with SynthesisOutput
     """
-    logger.info("Executing synthesis node")
+    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    thread_id = runtime.context.thread_id
+    execution_id = runtime.context.execution_id
+    original_query = runtime.context.query
+    correlation_id = runtime.context.correlation_id
+    checkpoint_enabled = runtime.context.enable_checkpoints
 
-    # Get workflow and correlation info from state
-    execution_metadata = state.get("execution_metadata", {})
-    workflow_id = (
-        execution_metadata.get("execution_id")
-        or get_workflow_id()
-        or "unknown-workflow"
+    logger.info(
+        f"Executing synthesis node in thread {thread_id}",
+        extra={
+            "thread_id": thread_id,
+            "execution_id": execution_id,
+            "correlation_id": correlation_id,
+            "query_length": len(original_query or ""),
+            "checkpoint_enabled": checkpoint_enabled,
+        },
     )
-    # Get correlation_id from state metadata, fallback to context
-    correlation_id = execution_metadata.get("correlation_id") or get_correlation_id()
 
     try:
         # Validate dependencies
@@ -776,17 +992,26 @@ async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
         if not state.get("historian"):
             raise NodeExecutionError("Synthesis node requires historian output")
 
-        # Emit agent execution started event
+        # Emit agent execution started event with runtime context
         await emit_agent_execution_started(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="synthesis",
             input_context={
-                "query": state.get("query", ""),
+                "query": original_query or "",
                 "has_all_inputs": True,
                 "node_type": "synthesis",
+                "thread_id": thread_id,
+                "runtime_context": True,
             },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         # Create agent
@@ -799,7 +1024,7 @@ async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
         result_context = await agent.run_with_retry(context)
 
         # Extract synthesis output (using "Synthesis" key, not "synthesis")
-        synthesis_raw_output = result_context.agent_outputs.get("Synthesis", "")
+        synthesis_raw_output = result_context.agent_outputs.get("synthesis", "")
 
         # Determine sources used
         sources_used = []
@@ -824,17 +1049,37 @@ async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Emit agent execution completed event
+        # Get token usage information from agent context
+        synthesis_token_usage = result_context.get_agent_token_usage("synthesis")
+
+        # Emit agent execution completed event with runtime context and token usage
         await emit_agent_execution_completed(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="synthesis",
             success=True,
             output_context={
-                "final_analysis": str(synthesis_raw_output)[:200],
+                "final_analysis": truncate_for_websocket_event(
+                    str(synthesis_raw_output), "final_analysis"
+                ),
                 "node_type": "synthesis",
+                "thread_id": thread_id,
+                "runtime_context": True,
+                "confidence": synthesis_output["confidence"],
+                "sources_used": synthesis_output["sources_used"],
+                # Add token usage to output context for WebSocket events
+                "input_tokens": synthesis_token_usage["input_tokens"],
+                "output_tokens": synthesis_token_usage["output_tokens"],
+                "total_tokens": synthesis_token_usage["total_tokens"],
             },
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         # Return state update with agent output and success tracking
@@ -847,16 +1092,28 @@ async def synthesis_node(state: CogniVaultState) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Synthesis node failed: {e}")
 
-        # Emit agent execution failed event
+        # Emit agent execution failed event with runtime context
         await emit_agent_execution_completed(
-            workflow_id=workflow_id,
+            event_category=EventCategory.EXECUTION,
+            workflow_id=execution_id,
             agent_name="synthesis",
             success=False,
-            output_context={"error": str(e), "node_type": "synthesis"},
+            output_context={
+                "error": str(e),
+                "node_type": "synthesis",
+                "thread_id": thread_id,
+                "runtime_context": True,
+            },
             error_message=str(e),
             error_type=type(e).__name__,
             correlation_id=correlation_id,
-            metadata={"node_execution": True, "orchestrator_type": "langgraph-real"},
+            metadata={
+                "node_execution": True,
+                "orchestrator_type": "langgraph-real",
+                "runtime_api_version": "0.6.0",
+                "thread_id": thread_id,
+                "checkpoint_enabled": checkpoint_enabled,
+            },
         )
 
         error_state = record_agent_error(state, "synthesis", e)

@@ -16,7 +16,7 @@ Features:
 import time
 import uuid
 from typing import Dict, Any, List, Optional
-
+from dataclasses import dataclass
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
@@ -27,6 +27,9 @@ from cognivault.correlation import (
     create_child_span,
     add_trace_metadata,
     CorrelationContext,
+    context_correlation_id,
+    context_workflow_id,
+    context_trace_metadata,
 )
 from cognivault.events import (
     emit_workflow_started,
@@ -36,6 +39,7 @@ from cognivault.events import (
 from cognivault.orchestration.state_bridge import AgentContextStateBridge
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
+    CogniVaultContext,
     RefinerOutput,
     CriticOutput,
     HistorianOutput,
@@ -211,13 +215,20 @@ class LangGraphOrchestrator:
         config = config or {}
         start_time = time.time()
 
-        # Handle correlation context - use provided correlation_id if available
+        # Handle correlation context - use provided correlation_id and workflow_id if available
         provided_correlation_id = config.get("correlation_id") if config else None
+        provided_workflow_id = config.get("workflow_id") if config else None
 
         if provided_correlation_id:
-            # Create correlation context with provided correlation_id
+            # Use provided workflow_id to prevent duplicate ID generation, or create new one if not provided
+            workflow_id = provided_workflow_id or str(uuid.uuid4())
+            context_correlation_id.set(provided_correlation_id)
+            context_workflow_id.set(workflow_id)
+            context_trace_metadata.set({})
             correlation_ctx = CorrelationContext(
-                correlation_id=provided_correlation_id, workflow_id=str(uuid.uuid4())
+                correlation_id=provided_correlation_id,
+                workflow_id=workflow_id,
+                metadata={},
             )
         else:
             # Ensure correlation context exists (create if not present)
@@ -317,13 +328,17 @@ class LangGraphOrchestrator:
                 f"Executing LangGraph StateGraph with thread_id: {thread_id}"
             )
 
-            # Prepare invocation config with thread ID
-            invocation_config = {"configurable": {"thread_id": thread_id}}
-
-            # Run the StateGraph
-            final_state = await compiled_graph.ainvoke(
-                initial_state, config=invocation_config
+            # Create context for LangGraph 0.6.0 execution
+            context = CogniVaultContext(
+                thread_id=thread_id,
+                execution_id=execution_id,
+                query=query,
+                correlation_id=ensure_correlation_context().correlation_id,
+                enable_checkpoints=self.enable_checkpoints,
             )
+
+            # Run the StateGraph with new Context API
+            final_state = await compiled_graph.ainvoke(initial_state, context=context)
 
             # Validate final state
             if not validate_state_integrity(final_state):
@@ -345,11 +360,11 @@ class LangGraphOrchestrator:
                 )
 
             # Convert LangGraph state back to AgentContext
-            context = await self._convert_state_to_context(final_state)
+            agent_context = await self._convert_state_to_context(final_state)
 
             # Add execution metadata with correlation context
             total_time_ms = (time.time() - start_time) * 1000
-            context.execution_state.update(
+            agent_context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
                     "phase": "phase2_1",
@@ -384,7 +399,7 @@ class LangGraphOrchestrator:
                         if len(str(output)) > 200
                         else str(output)
                     )
-                    for agent, output in context.agent_outputs.items()
+                    for agent, output in agent_context.agent_outputs.items()
                 },
                 successful_agents=list(final_state["successful_agents"]),
                 failed_agents=list(final_state["failed_agents"]),
@@ -412,7 +427,7 @@ class LangGraphOrchestrator:
                 f"failed: {len(final_state['failed_agents'])})"
             )
 
-            return context
+            return agent_context
 
         except Exception as e:
             self.failed_executions += 1
@@ -439,8 +454,8 @@ class LangGraphOrchestrator:
             )
 
             # Create fallback context with error information and correlation
-            context = AgentContext(query=query)
-            context.execution_state.update(
+            error_context = AgentContext(query=query)
+            error_context.execution_state.update(
                 {
                     "orchestrator_type": "langgraph-real",
                     "phase": "phase2_1",
@@ -458,7 +473,7 @@ class LangGraphOrchestrator:
             )
 
             # Add error output
-            context.add_agent_output(
+            error_context.add_agent_output(
                 "langgraph_error",
                 f"LangGraph execution failed: {e}\n"
                 f"Execution ID: {execution_id}\n"

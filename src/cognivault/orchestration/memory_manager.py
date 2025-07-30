@@ -283,9 +283,11 @@ class CogniVaultMemoryManager:
         try:
             # Retrieve the actual state data from MemorySaver
             if self.memory_saver:
-                # Use LangGraph MemorySaver to get checkpoint data
+                # Use LangGraph MemorySaver to get checkpoint data with new 0.6.0 API
                 from langgraph.types import RunnableConfig
 
+                # Still use RunnableConfig for backward compatibility with MemorySaver.get_tuple()
+                # The new Context API is primarily for node execution, not checkpoint retrieval
                 config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 
                 # Get the checkpoint tuple from MemorySaver

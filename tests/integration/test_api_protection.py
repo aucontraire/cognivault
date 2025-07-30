@@ -49,8 +49,8 @@ def test_agent_initialization_with_llm_none_is_safe():
 
     assert historian.llm is None
     assert synthesis.llm is None
-    assert historian.name == "Historian"
-    assert synthesis.name == "Synthesis"
+    assert historian.name == "historian"
+    assert synthesis.name == "synthesis"
 
 
 def test_config_loading_works_with_safe_values():

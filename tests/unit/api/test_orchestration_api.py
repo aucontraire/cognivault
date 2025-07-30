@@ -164,10 +164,28 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
             assert response.error_message is None
 
             # Verify orchestrator was called correctly - this is the core functionality
-            mock_orchestrator.run.assert_called_once_with(
-                "Test workflow execution",
-                {"correlation_id": "test-123", "agents": ["refiner", "critic"]},
+            # Note: workflow_id is now passed to prevent duplicate ID generation (PATTERN 5 fix)
+            call_args = mock_orchestrator.run.call_args[0]  # Get positional args
+            call_kwargs = (
+                mock_orchestrator.run.call_args[1]
+                if mock_orchestrator.run.call_args[1]
+                else {}
             )
+            call_config = (
+                call_args[1] if len(call_args) > 1 else call_kwargs.get("config", {})
+            )
+
+            assert call_args[0] == "Test workflow execution"  # Query should match
+            assert (
+                call_config["correlation_id"] == "test-123"
+            )  # Correlation ID should match
+            assert call_config["agents"] == ["refiner", "critic"]  # Agents should match
+            assert (
+                "workflow_id" in call_config
+            )  # Workflow ID should be passed to prevent duplicates
+            assert isinstance(
+                call_config["workflow_id"], str
+            )  # Should be a string UUID
 
             # Verify workflow is tracked - this is part of the API contract
             assert response.workflow_id in api._active_workflows

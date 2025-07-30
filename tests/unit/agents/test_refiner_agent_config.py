@@ -63,8 +63,8 @@ class TestRefinerAgentBackwardCompatibility:
             # Verify LLM was called
             assert self.mock_llm.generate.called
             # Verify output was added to context
-            assert "Refiner" in result.agent_outputs
-            assert "Refined test query" in result.agent_outputs["Refiner"]
+            assert "refiner" in result.agent_outputs
+            assert "Refined test query" in result.agent_outputs["refiner"]
 
 
 class TestRefinerAgentConfiguration:
@@ -205,8 +205,8 @@ class TestRefinerAgentConfiguration:
             assert len(system_prompt_used) > 0
 
             # Verify output
-            assert "Refiner" in result.agent_outputs
-            assert "Enhanced refined query" in result.agent_outputs["Refiner"]
+            assert "refiner" in result.agent_outputs
+            assert "Enhanced refined query" in result.agent_outputs["refiner"]
 
 
 class TestRefinerAgentConfigurationEdgeCases:
@@ -311,7 +311,7 @@ class TestRefinerAgentIntegration:
             result = run_async(agent.run(context))
 
             # Verify execution completed successfully
-            assert "Refiner" in result.agent_outputs
+            assert "refiner" in result.agent_outputs
             assert self.mock_llm.generate.called
 
     def test_config_serialization_roundtrip(self):

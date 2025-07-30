@@ -170,10 +170,15 @@ class TestLangGraphOrchestratorRun:
 
             assert result.execution_state["config"] == config
 
-            # Check that config was passed to ainvoke
+            # Check that context was passed to ainvoke (LangGraph 0.6.0 Context API)
             mock_compiled_graph.ainvoke.assert_called_once()
             call_args = mock_compiled_graph.ainvoke.call_args
-            assert "config" in call_args[1]
+            assert "context" in call_args[1]
+            # Verify context has expected fields
+            context = call_args[1]["context"]
+            assert hasattr(context, "thread_id")
+            assert hasattr(context, "execution_id")
+            assert hasattr(context, "query")
 
     @pytest.mark.asyncio
     async def test_run_with_checkpoints(self):
@@ -193,12 +198,13 @@ class TestLangGraphOrchestratorRun:
         ):
             await orchestrator.run("Test query")
 
-            # Check that checkpointer was included in config
+            # Check that context includes checkpoint information (LangGraph 0.6.0 Context API)
             mock_compiled_graph.ainvoke.assert_called_once()
             call_args = mock_compiled_graph.ainvoke.call_args
-            config = call_args[1]["config"]
-            assert "configurable" in config
-            assert "thread_id" in config["configurable"]
+            context = call_args[1]["context"]
+            assert hasattr(context, "thread_id")
+            assert hasattr(context, "enable_checkpoints")
+            assert context.enable_checkpoints is True
 
     @pytest.mark.asyncio
     async def test_run_with_partial_failure(self):
