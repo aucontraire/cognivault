@@ -223,16 +223,43 @@ class HistorianAgent(BaseAgent):
     async def _search_historical_content(
         self, query: str, context: AgentContext
     ) -> List[SearchResult]:
-        """Search for relevant historical content using the configured search engine."""
+        """Search for relevant historical content using resilient search processing."""
         try:
+            # Import resilient processor
+            from cognivault.agents.historian.resilient_search import (
+                ResilientSearchProcessor,
+            )
+
             # Use configured search limit
             config = get_config()
             search_limit = getattr(config.testing, "historian_search_limit", 10)
 
-            search_results = await self.search_engine.search(query, limit=search_limit)
-            self.logger.debug(
-                f"[{self.name}] Found {len(search_results)} search results"
+            # Create resilient processor with LLM for title generation
+            processor = ResilientSearchProcessor(llm_client=self.llm)
+
+            # Use resilient search processing
+            (
+                search_results,
+                validation_report,
+            ) = await processor.process_search_with_recovery(
+                self.search_engine, query, limit=search_limit
             )
+
+            self.logger.debug(
+                f"[{self.name}] Found {len(search_results)} search results "
+                f"({validation_report.recovered_validations} recovered)"
+            )
+
+            # Log validation issues for monitoring
+            if validation_report.failed_validations > 0:
+                self.logger.warning(
+                    f"[{self.name}] {validation_report.failed_validations} documents failed validation, "
+                    f"{validation_report.recovered_validations} recovered"
+                )
+
+                # Log data quality insights
+                for insight in validation_report.data_quality_insights:
+                    self.logger.info(f"[{self.name}] Data quality insight: {insight}")
 
             return search_results
 
