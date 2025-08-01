@@ -17,6 +17,10 @@ from cognivault.agents.historian.search import SearchFactory, SearchResult
 from cognivault.config.agent_configs import HistorianConfig
 from cognivault.workflows.prompt_composer import PromptComposer
 
+# Database repository imports
+from cognivault.database.session_factory import DatabaseSessionFactory
+from cognivault.database.repositories import RepositoryFactory
+
 logger = logging.getLogger(__name__)
 
 
@@ -72,6 +76,10 @@ class HistorianAgent(BaseAgent):
                 self.llm = None
         self.search_engine = SearchFactory.create_search(search_type)
         self.search_type = search_type
+
+        # Database components for hybrid search
+        self._db_session_factory: Optional[DatabaseSessionFactory] = None
+        self._repository_factory: Optional[RepositoryFactory] = None
 
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
@@ -143,6 +151,35 @@ class HistorianAgent(BaseAgent):
         self.logger.info(
             f"[{self.name}] Configuration updated: {config.search_depth} search depth"
         )
+
+    async def _ensure_database_connection(self) -> Optional[DatabaseSessionFactory]:
+        """Ensure database connection is established and return session factory."""
+        if self._db_session_factory is not None:
+            return self._db_session_factory
+
+        try:
+            # Initialize database session factory if not already done
+            self._db_session_factory = DatabaseSessionFactory()
+
+            # Add timeout for database initialization
+            import asyncio
+
+            await asyncio.wait_for(
+                self._db_session_factory.initialize(),
+                timeout=self.config.search_timeout_seconds,
+            )
+
+            self.logger.debug(f"[{self.name}] Database connection initialized")
+            return self._db_session_factory
+
+        except asyncio.TimeoutError:
+            self.logger.warning(
+                f"[{self.name}] Database initialization timed out after {self.config.search_timeout_seconds}s"
+            )
+            return None
+        except Exception as e:
+            self.logger.warning(f"[{self.name}] Failed to initialize database: {e}")
+            return None
 
     async def run(self, context: AgentContext) -> AgentContext:
         """
@@ -223,16 +260,63 @@ class HistorianAgent(BaseAgent):
     async def _search_historical_content(
         self, query: str, context: AgentContext
     ) -> List[SearchResult]:
-        """Search for relevant historical content using resilient search processing."""
+        """Search for relevant historical content using hybrid file + database search."""
+        all_results: List[SearchResult] = []
+
+        try:
+            # Use configured search limit
+            config = get_config()
+            search_limit = getattr(config.testing, "historian_search_limit", 10)
+
+            # Check if hybrid search is enabled using agent config first, then fallback to testing config
+            enable_hybrid_search = self.config.hybrid_search_enabled or getattr(
+                config.testing, "enable_hybrid_search", False
+            )
+
+            if not enable_hybrid_search:
+                # Legacy mode: file-only search for backward compatibility
+                return await self._search_file_content(query, search_limit)
+
+            # Calculate split between file and database search using configurable ratio
+            file_ratio = self.config.hybrid_search_file_ratio
+            file_limit = max(1, int(search_limit * file_ratio))
+            db_limit = max(1, search_limit - file_limit)
+
+            # Step 1: File-based search using existing resilient processor
+            file_results = await self._search_file_content(query, file_limit)
+            all_results.extend(file_results)
+
+            # Step 2: Database search for additional content
+            db_results = await self._search_database_content(query, db_limit)
+            all_results.extend(db_results)
+
+            # Step 3: Remove duplicates and rank by relevance
+            deduplicated_results = self._deduplicate_search_results(all_results)
+
+            # Limit to search_limit and rank by relevance score
+            final_results = sorted(
+                deduplicated_results, key=lambda r: r.relevance_score, reverse=True
+            )[:search_limit]
+
+            self.logger.debug(
+                f"[{self.name}] Hybrid search: {len(file_results)} file + {len(db_results)} db = "
+                f"{len(final_results)} total results (after deduplication)"
+            )
+
+            return final_results
+
+        except Exception as e:
+            self.logger.error(f"[{self.name}] Hybrid search failed: {e}")
+            # Fallback to file-only search
+            return await self._search_file_content(query, search_limit)
+
+    async def _search_file_content(self, query: str, limit: int) -> List[SearchResult]:
+        """Search file-based content using existing resilient processor."""
         try:
             # Import resilient processor
             from cognivault.agents.historian.resilient_search import (
                 ResilientSearchProcessor,
             )
-
-            # Use configured search limit
-            config = get_config()
-            search_limit = getattr(config.testing, "historian_search_limit", 10)
 
             # Create resilient processor with LLM for title generation
             processor = ResilientSearchProcessor(llm_client=self.llm)
@@ -242,11 +326,11 @@ class HistorianAgent(BaseAgent):
                 search_results,
                 validation_report,
             ) = await processor.process_search_with_recovery(
-                self.search_engine, query, limit=search_limit
+                self.search_engine, query, limit=limit
             )
 
             self.logger.debug(
-                f"[{self.name}] Found {len(search_results)} search results "
+                f"[{self.name}] File search: {len(search_results)} results "
                 f"({validation_report.recovered_validations} recovered)"
             )
 
@@ -264,8 +348,158 @@ class HistorianAgent(BaseAgent):
             return search_results
 
         except Exception as e:
-            self.logger.error(f"[{self.name}] Search failed: {e}")
+            self.logger.error(f"[{self.name}] File search failed: {e}")
             return []
+
+    async def _search_database_content(
+        self, query: str, limit: int
+    ) -> List[SearchResult]:
+        """Search database content using repository pattern."""
+        try:
+            # Ensure database connection
+            session_factory = await self._ensure_database_connection()
+            if session_factory is None:
+                self.logger.debug(
+                    f"[{self.name}] Database not available, skipping database search"
+                )
+                return []
+
+            # Use repository factory context manager
+            async with session_factory.get_repository_factory() as repo_factory:
+                # Get historian document repository
+                doc_repo = repo_factory.historian_documents
+                analytics_repo = repo_factory.historian_search_analytics
+
+                # Perform fulltext search
+                import time
+
+                start_time = time.time()
+
+                documents = await doc_repo.fulltext_search(query, limit=limit)
+
+                execution_time_ms = int((time.time() - start_time) * 1000)
+
+                # Log search analytics
+                await analytics_repo.log_search(
+                    search_query=query,
+                    search_type="database_fulltext",
+                    results_count=len(documents),
+                    execution_time_ms=execution_time_ms,
+                    search_metadata={"limit": limit, "agent": "historian"},
+                )
+
+                # Convert database documents to SearchResult format
+                search_results = []
+                for doc in documents:
+                    # Create metadata with topics and other info
+                    metadata = {
+                        "topics": (
+                            list(doc.document_metadata.get("topics", []))
+                            if doc.document_metadata
+                            else []
+                        ),
+                        "word_count": (
+                            doc.word_count if hasattr(doc, "word_count") else 0
+                        ),
+                        "database_id": str(doc.id),
+                        "source": "database",
+                    }
+
+                    # Create SearchResult compatible with existing code
+                    search_result = SearchResult(
+                        title=doc.title,
+                        excerpt=(
+                            doc.content[:200] + "..."
+                            if len(doc.content) > 200
+                            else doc.content
+                        ),
+                        filepath=doc.source_path or f"db_doc_{doc.id}",
+                        filename=f"document_{doc.id}",
+                        date=(
+                            doc.created_at.strftime("%Y-%m-%d")
+                            if doc.created_at
+                            else "unknown"
+                        ),
+                        match_type="content",
+                        relevance_score=0.8 + self.config.database_relevance_boost,
+                        metadata=metadata,
+                    )
+                    search_results.append(search_result)
+
+                self.logger.debug(
+                    f"[{self.name}] Database search: {len(search_results)} results in {execution_time_ms}ms"
+                )
+                return search_results
+
+        except Exception as e:
+            self.logger.error(f"[{self.name}] Database search failed: {e}")
+            return []
+
+    def _deduplicate_search_results(
+        self, results: List[SearchResult]
+    ) -> List[SearchResult]:
+        """Remove duplicate search results based on configurable similarity threshold."""
+        if not results:
+            return []
+
+        deduplicated: List[SearchResult] = []
+
+        for result in results:
+            is_duplicate = False
+
+            # Check against all existing results for similarity
+            for existing in deduplicated:
+                similarity = self._calculate_result_similarity(result, existing)
+                if similarity >= self.config.deduplication_threshold:
+                    is_duplicate = True
+                    self.logger.debug(
+                        f"[{self.name}] Found duplicate (similarity: {similarity:.2f}): "
+                        f"'{result.title}' vs '{existing.title}'"
+                    )
+                    break
+
+            if not is_duplicate:
+                deduplicated.append(result)
+
+        self.logger.debug(
+            f"[{self.name}] Deduplicated {len(results)} to {len(deduplicated)} results "
+            f"(threshold: {self.config.deduplication_threshold})"
+        )
+        return deduplicated
+
+    def _calculate_result_similarity(
+        self, result1: SearchResult, result2: SearchResult
+    ) -> float:
+        """Calculate similarity between two search results."""
+        # Title similarity (weighted 40%)
+        title_similarity = self._text_similarity(
+            result1.title.lower(), result2.title.lower()
+        )
+
+        # Excerpt similarity (weighted 60%)
+        excerpt_similarity = self._text_similarity(
+            result1.excerpt.lower(), result2.excerpt.lower()
+        )
+
+        # Combined weighted similarity
+        return 0.4 * title_similarity + 0.6 * excerpt_similarity
+
+    def _text_similarity(self, text1: str, text2: str) -> float:
+        """Calculate simple text similarity using character overlap."""
+        if not text1 or not text2:
+            return 0.0
+
+        # Exact match
+        if text1 == text2:
+            return 1.0
+
+        # Character set similarity (Jaccard similarity)
+        set1 = set(text1)
+        set2 = set(text2)
+        intersection = len(set1.intersection(set2))
+        union = len(set1.union(set2))
+
+        return intersection / union if union > 0 else 0.0
 
     async def _analyze_relevance(
         self, query: str, search_results: List[SearchResult], context: AgentContext

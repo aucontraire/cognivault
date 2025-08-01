@@ -222,6 +222,32 @@ class HistorianConfig(BaseModel):
         "recent", description="Scope of memory to search and analyze"
     )
 
+    # Hybrid search configuration
+    hybrid_search_enabled: bool = Field(
+        False, description="Whether to enable hybrid file + database search"
+    )
+    hybrid_search_file_ratio: float = Field(
+        0.6,
+        ge=0.0,
+        le=1.0,
+        description="Ratio of search results from files vs database (0.0-1.0)",
+    )
+    database_relevance_boost: float = Field(
+        0.0,
+        ge=-0.5,
+        le=0.5,
+        description="Relevance score boost for database results (-0.5 to +0.5)",
+    )
+    search_timeout_seconds: int = Field(
+        5, ge=1, le=30, description="Database search timeout in seconds"
+    )
+    deduplication_threshold: float = Field(
+        0.8,
+        ge=0.0,
+        le=1.0,
+        description="Similarity threshold for result deduplication (0.0-1.0)",
+    )
+
     # Nested configurations
     prompt_config: PromptConfig = Field(default_factory=lambda: PromptConfig())
     behavioral_config: BehavioralConfig = Field(
@@ -251,6 +277,18 @@ class HistorianConfig(BaseModel):
         if env_val := os.getenv(f"{prefix}_MEMORY_SCOPE"):
             config["memory_scope"] = env_val
 
+        # Hybrid search environment variables
+        if env_val := os.getenv(f"{prefix}_HYBRID_SEARCH_ENABLED"):
+            config["hybrid_search_enabled"] = env_val.lower() == "true"
+        if env_val := os.getenv(f"{prefix}_HYBRID_SEARCH_FILE_RATIO"):
+            config["hybrid_search_file_ratio"] = float(env_val)
+        if env_val := os.getenv(f"{prefix}_DATABASE_RELEVANCE_BOOST"):
+            config["database_relevance_boost"] = float(env_val)
+        if env_val := os.getenv(f"{prefix}_SEARCH_TIMEOUT_SECONDS"):
+            config["search_timeout_seconds"] = int(env_val)
+        if env_val := os.getenv(f"{prefix}_DEDUPLICATION_THRESHOLD"):
+            config["deduplication_threshold"] = float(env_val)
+
         return cls(**config)
 
     def to_prompt_config(self) -> Dict[str, Any]:
@@ -260,6 +298,11 @@ class HistorianConfig(BaseModel):
             "relevance_threshold": str(self.relevance_threshold),
             "context_expansion": str(self.context_expansion),
             "memory_scope": self.memory_scope,
+            "hybrid_search_enabled": str(self.hybrid_search_enabled),
+            "hybrid_search_file_ratio": str(self.hybrid_search_file_ratio),
+            "database_relevance_boost": str(self.database_relevance_boost),
+            "search_timeout_seconds": str(self.search_timeout_seconds),
+            "deduplication_threshold": str(self.deduplication_threshold),
             "custom_constraints": self.behavioral_config.custom_constraints,
         }
 

@@ -7,8 +7,10 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# Add src directory to Python path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+# Add project root to Python path for imports
+# migrations is now at src/cognivault/database/migrations, so we need to go up 4 levels to reach project root
+project_root = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+sys.path.insert(0, os.path.join(project_root, "src"))
 
 # Import database models and configuration
 from cognivault.database.models import Base
@@ -75,9 +77,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

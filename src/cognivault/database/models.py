@@ -252,9 +252,99 @@ class SemanticLink(Base):
     )
 
 
+class HistorianDocument(Base):
+    """
+    Historian documents table with hybrid search capabilities.
+
+    Supports full-text search, content deduplication, and analytics
+    for enhanced document storage and retrieval in the historian system.
+    """
+
+    __tablename__ = "historian_documents"
+
+    # Primary identification
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String(500), nullable=False)  # Max 500 chars for search validation
+    content = Column(Text, nullable=False)
+
+    # Document metadata and organization
+    source_path = Column(String(1000), nullable=True)  # Original file path or URL
+    content_hash = Column(
+        String(64), nullable=False, unique=True
+    )  # SHA-256 for deduplication
+
+    # Content analytics
+    word_count = Column(Integer, nullable=False, default=0)
+    char_count = Column(Integer, nullable=False, default=0)
+
+    # Flexible metadata as JSONB (using custom attribute name to avoid SQLAlchemy conflict)
+    document_metadata = Column("metadata", JSONB, nullable=False, default=dict)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    last_accessed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Performance indexes
+    __table_args__ = (
+        Index("idx_historian_documents_title", "title"),
+        Index("idx_historian_documents_content_hash", "content_hash", unique=True),
+        Index("idx_historian_documents_created_at", "created_at"),
+        Index("idx_historian_documents_word_count", "word_count"),
+        Index(
+            "idx_historian_documents_metadata",
+            "metadata",
+            postgresql_using="gin",
+        ),
+        Index("idx_historian_documents_title_created", "title", "created_at"),
+    )
+
+
+class HistorianSearchAnalytics(Base):
+    """
+    Analytics for historian search operations.
+
+    Tracks search queries, performance metrics, and usage patterns
+    for monitoring and optimization of the historian search system.
+    """
+
+    __tablename__ = "historian_search_analytics"
+
+    # Primary identification
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Search query details
+    search_query = Column(Text, nullable=False)  # Original search query
+    search_type = Column(String(50), nullable=False)  # fulltext, semantic, hybrid
+
+    # Performance and results tracking
+    results_count = Column(Integer, nullable=False, default=0)
+    execution_time_ms = Column(Integer, nullable=True)  # Query execution time
+
+    # User and session tracking
+    user_session_id = Column(String(100), nullable=True)
+
+    # Flexible search metadata (using custom attribute name to avoid SQLAlchemy conflict)
+    search_metadata = Column("search_metadata", JSONB, nullable=False, default=dict)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Performance indexes for analytics queries
+    __table_args__ = (
+        Index("idx_historian_search_analytics_created_at", "created_at"),
+        Index("idx_historian_search_analytics_search_type", "search_type"),
+        Index("idx_historian_search_analytics_execution_time", "execution_time_ms"),
+    )
+
+
 # Convenience type definitions for application use
 TopicModel = Topic
 QuestionModel = Question
 WikiEntryModel = WikiEntry
 APIKeyModel = APIKey
 SemanticLinkModel = SemanticLink
+HistorianDocumentModel = HistorianDocument
+HistorianSearchAnalyticsModel = HistorianSearchAnalytics
