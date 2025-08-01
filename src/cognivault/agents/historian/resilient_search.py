@@ -398,15 +398,18 @@ class ResilientSearchProcessor:
         try:
             # Check if it's a title validation error by examining error details
             error_str = str(error)
-            error_details = error.errors() if hasattr(error, 'errors') else []
-            
+            error_details = error.errors() if hasattr(error, "errors") else []
+
             # Look for title-related validation errors
             is_title_error = any(
-                "title" in str(err.get("loc", "")).lower() 
+                "title" in str(err.get("loc", "")).lower()
                 or "string_too_long" in str(err.get("type", ""))
                 for err in error_details
-            ) or ("title" in error_str.lower() and ("length" in error_str.lower() or "long" in error_str.lower()))
-            
+            ) or (
+                "title" in error_str.lower()
+                and ("length" in error_str.lower() or "long" in error_str.lower())
+            )
+
             if is_title_error:
                 logger.info(f"Attempting title validation recovery for {filepath}")
 

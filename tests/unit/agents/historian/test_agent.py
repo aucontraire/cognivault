@@ -328,11 +328,13 @@ class TestHistorianAgentExecution:
         # Mock search to raise exception AND mock resilient search to also fail
         agent.search_engine = AsyncMock()
         agent.search_engine.search.side_effect = Exception("Search failed")
-        
+
         # Mock the resilient search to also fail by mocking the parser
-        with patch('cognivault.agents.historian.resilient_search.NotesDirectoryParser') as mock_parser:
+        with patch(
+            "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
+        ) as mock_parser:
             mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
-            
+
             context = AgentContext(query="test query")
             result_context = await agent.run(context)
 
@@ -443,9 +445,11 @@ class TestHistorianAgentSearchIntegration:
         agent.search_engine.search.side_effect = Exception("Search error")
 
         # Mock the resilient search to also fail by mocking the parser
-        with patch('cognivault.agents.historian.resilient_search.NotesDirectoryParser') as mock_parser:
+        with patch(
+            "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
+        ) as mock_parser:
             mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
-            
+
             context = AgentContext(query="test query")
             results = await agent._search_historical_content("test query", context)
 
@@ -890,9 +894,11 @@ class TestHistorianAgentErrorHandling:
         agent.search_engine.search.side_effect = Exception("Complete search failure")
 
         # Mock the resilient search to also fail by mocking the parser
-        with patch('cognivault.agents.historian.resilient_search.NotesDirectoryParser') as mock_parser:
+        with patch(
+            "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
+        ) as mock_parser:
             mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
-            
+
             context = AgentContext(query="test query")
 
             # Should not raise exception
