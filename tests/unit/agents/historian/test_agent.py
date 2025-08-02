@@ -407,9 +407,21 @@ class TestHistorianAgentSearchIntegration:
         shutil.rmtree(self.temp_dir)
 
     @pytest.mark.asyncio
-    async def test_search_historical_content_success(self):
+    @patch("cognivault.agents.historian.agent.get_config")
+    async def test_search_historical_content_success(self, mock_get_config):
         """Test successful historical content search."""
+        # Configure to disable hybrid search for this test to match expected behavior
+        class MockTesting:
+            historian_search_limit = 10
+            enable_hybrid_search = False  # Disable hybrid to test file-only path
+
+        class MockConfig:
+            testing = MockTesting()
+
+        mock_get_config.return_value = MockConfig()
+        
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = False  # Ensure hybrid is disabled
 
         # Mock search results
         expected_results = [
@@ -463,6 +475,7 @@ class TestHistorianAgentSearchIntegration:
         # Create a more sophisticated mock that properly handles getattr
         class MockTesting:
             historian_search_limit = 15
+            enable_hybrid_search = False  # Disable hybrid to test file-only path
 
         class MockConfig:
             testing = MockTesting()
@@ -470,6 +483,7 @@ class TestHistorianAgentSearchIntegration:
         mock_get_config.return_value = MockConfig()
 
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = False  # Ensure hybrid is disabled
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = []
 

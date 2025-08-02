@@ -87,18 +87,19 @@ class TestHistorianHybridSearch:
     async def test_hybrid_search_disabled_fallback(self, mock_get_config):
         """Test that hybrid search falls back to file-only when disabled."""
 
-        # Configure hybrid search to be disabled (default)
+        # Configure hybrid search to be disabled explicitly
         class MockTesting:
             historian_search_limit = 10
-            # enable_hybrid_search defaults to False
+            enable_hybrid_search = False  # Explicitly disable hybrid search
 
         class MockConfig:
             testing = MockTesting()
 
         mock_get_config.return_value = MockConfig()
 
-        # Create agent
+        # Create agent with hybrid search disabled in config
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = False  # Ensure it's disabled at agent level too
 
         # Mock file search results
         file_results = [
