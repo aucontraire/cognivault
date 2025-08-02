@@ -270,7 +270,7 @@ class HistorianAgent(BaseAgent):
 
             # Check if hybrid search is enabled using agent config first, then fallback to testing config
             enable_hybrid_search = self.config.hybrid_search_enabled or getattr(
-                config.testing, "enable_hybrid_search", False
+                config.testing, "enable_hybrid_search", True
             )
 
             if not enable_hybrid_search:
