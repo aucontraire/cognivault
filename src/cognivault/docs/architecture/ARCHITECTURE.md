@@ -250,9 +250,10 @@ The classification system supports dynamic workflow composition, intelligent eve
 - **Configuration**: CriticConfig with domain-specific evaluation criteria
 
 **HistorianAgent**
-- **Purpose**: Context retrieval and memory search
-- **Capabilities**: Intelligent relevance filtering, historical context integration
-- **Configuration**: HistorianConfig with search strategy customization
+- **Purpose**: Context retrieval and memory search with hybrid data source architecture
+- **Capabilities**: Hybrid file + database search, PostgreSQL full-text search, intelligent content deduplication, configurable search ratios, graceful fallback mechanisms
+- **Configuration**: HistorianConfig with hybrid search parameters including file/database ratios, relevance boosting, timeout controls, and similarity thresholds
+- **Advanced Features**: Repository pattern with session management, search analytics tracking, and environment-driven configuration
 
 **SynthesisAgent**
 - **Purpose**: Multi-perspective integration and conflict resolution
@@ -349,12 +350,19 @@ class CriticConfig(BaseModel):
     categories: List[Literal["assumptions", "gaps", "biases"]] = ["assumptions", "gaps", "biases"]
 ```
 
-**HistorianConfig** - Context retrieval behavioral control:
+**HistorianConfig** - Hybrid search and context retrieval behavioral control:
 ```python
 class HistorianConfig(BaseModel):
     search_depth: Literal["basic", "comprehensive", "exhaustive"] = "comprehensive"
     relevance_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     analysis_mode: Literal["factual", "contextual", "analytical"] = "contextual"
+    
+    # Hybrid search configuration
+    hybrid_search_enabled: bool = Field(False, description="Enable hybrid file + database search")
+    hybrid_search_file_ratio: float = Field(0.6, ge=0.0, le=1.0, description="Ratio of file vs database results")
+    database_relevance_boost: float = Field(0.0, ge=-0.5, le=0.5, description="Relevance boost for database results")
+    search_timeout_seconds: int = Field(5, ge=1, le=30, description="Database search timeout")
+    deduplication_threshold: float = Field(0.8, ge=0.0, le=1.0, description="Similarity threshold for deduplication")
 ```
 
 **SynthesisConfig** - Multi-perspective integration behavioral control:
@@ -439,7 +447,41 @@ cognivault diagnostics pattern-validate --custom-pattern ./my_pattern.py
 - Partial state returns for optimized LangGraph execution
 - Comprehensive agent output schemas (RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutput)
 
-### 5.2 Structured Data Pipeline (Pydantic AI Integration)
+### 5.2 Historian Hybrid Search Architecture
+
+The HistorianAgent implements a sophisticated hybrid search system that combines PostgreSQL database search with file-based retrieval for optimal performance and reliability.
+
+#### Hybrid Search Components
+**Repository Pattern Implementation**:
+- **HistorianDocumentRepository**: Complete CRUD operations with PostgreSQL full-text search capabilities
+- **HistorianSearchAnalyticsRepository**: Performance tracking and search metrics collection
+- **DatabaseSessionFactory**: Proper async session management with connection pooling
+
+**Search Strategy Configuration**:
+- **Configurable Search Ratios**: Default 60% file / 40% database split with runtime adjustment
+- **Intelligent Fallback**: Automatic fallback to file-only search when database unavailable
+- **Content Deduplication**: SHA-256 content hashing with Jaccard similarity-based duplicate removal
+- **Relevance Boosting**: Configurable score adjustment for database vs file results
+
+**Database Integration Features**:
+- **PostgreSQL Full-Text Search**: `ts_rank` scoring with English language processing
+- **Search Analytics**: Execution time tracking, result counts, and performance monitoring
+- **Session Management**: Proper async database session handling with cleanup
+- **Environment Configuration**: Runtime configuration through environment variables
+
+#### Configuration Management
+```python
+# Hybrid search configuration example
+config = HistorianConfig(
+    hybrid_search_enabled=True,
+    hybrid_search_file_ratio=0.6,      # 60% file, 40% database
+    database_relevance_boost=0.2,      # +0.2 boost for database results
+    search_timeout_seconds=10,          # Database timeout
+    deduplication_threshold=0.8         # 80% similarity threshold
+)
+```
+
+### 5.3 Structured Data Pipeline (Pydantic AI Integration)
 
 CogniVault implements a comprehensive structured data pipeline that validates agent outputs while maintaining agent-swapping flexibility and backward compatibility.
 
@@ -923,6 +965,12 @@ cognivault/
 │   ├── openai_config.py      # OpenAI API configuration
 │   └── logging_config.py     # Standardized logger setup
 ├── context.py                # AgentContext data container
+├── database/                 # PostgreSQL database integration
+│   ├── models.py             # SQLAlchemy models including HistorianDocument
+│   ├── session_factory.py    # Database session management
+│   └── repositories/         # Repository pattern implementations
+│       ├── historian_document_repository.py     # Historian document CRUD with full-text search
+│       └── historian_search_analytics_repository.py  # Search performance tracking
 ├── llm/                      # LLM interface and implementations
 │   ├── llm_interface.py      # Abstract LLM interface
 │   ├── openai.py             # OpenAI ChatGPT integration
@@ -1016,6 +1064,12 @@ tests/
 - Validation success rate: >90% for well-defined prompts
 - Fallback graceful degradation: <100ms additional latency
 - JSONB query performance: <500ms for complex analytics queries
+
+**Historian Hybrid Search Performance**:
+- Database full-text search: <100ms for typical queries
+- Hybrid search total time: <200ms (file + database combined)
+- Content deduplication: <50ms for similarity calculations
+- Graceful database fallback: <10ms additional overhead when database unavailable
 
 **Scalability Limits**:
 - Single-process execution model (current implementation)

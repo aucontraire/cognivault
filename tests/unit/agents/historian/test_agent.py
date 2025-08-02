@@ -325,30 +325,36 @@ class TestHistorianAgentExecution:
 
         agent = HistorianAgent(llm=None)
 
-        # Mock search to raise exception
+        # Mock search to raise exception AND mock resilient search to also fail
         agent.search_engine = AsyncMock()
         agent.search_engine.search.side_effect = Exception("Search failed")
 
-        context = AgentContext(query="test query")
-        result_context = await agent.run(context)
+        # Mock the resilient search to also fail by mocking the parser
+        with patch(
+            "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
+        ) as mock_parser:
+            mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
 
-        # Should use mock fallback when mock_history_entries exists
-        assert agent.name in result_context.agent_outputs
-        # Check if mock fallback was used
-        if "mock_note_1.md" in str(result_context.retrieved_notes):
-            assert result_context.retrieved_notes == [
-                "mock_note_1.md",
-                "mock_note_2.md",
-            ]
-            assert "fallback data" in result_context.agent_outputs[agent.name]
-        else:
-            # Or regular failure handling if config not working
-            assert (
-                "No historical context available"
-                in result_context.agent_outputs[agent.name]
-                or "No relevant historical context found"
-                in result_context.agent_outputs[agent.name]
-            )
+            context = AgentContext(query="test query")
+            result_context = await agent.run(context)
+
+            # Should use mock fallback when mock_history_entries exists
+            assert agent.name in result_context.agent_outputs
+            # Check if mock fallback was used
+            if "mock_note_1.md" in str(result_context.retrieved_notes):
+                assert result_context.retrieved_notes == [
+                    "mock_note_1.md",
+                    "mock_note_2.md",
+                ]
+                assert "fallback data" in result_context.agent_outputs[agent.name]
+            else:
+                # Or regular failure handling if config not working
+                assert (
+                    "No historical context available"
+                    in result_context.agent_outputs[agent.name]
+                    or "No relevant historical context found"
+                    in result_context.agent_outputs[agent.name]
+                )
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
@@ -401,9 +407,21 @@ class TestHistorianAgentSearchIntegration:
         shutil.rmtree(self.temp_dir)
 
     @pytest.mark.asyncio
-    async def test_search_historical_content_success(self):
+    @patch("cognivault.agents.historian.agent.get_config")
+    async def test_search_historical_content_success(self, mock_get_config):
         """Test successful historical content search."""
+        # Configure to disable hybrid search for this test to match expected behavior
+        class MockTesting:
+            historian_search_limit = 10
+            enable_hybrid_search = False  # Disable hybrid to test file-only path
+
+        class MockConfig:
+            testing = MockTesting()
+
+        mock_get_config.return_value = MockConfig()
+        
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = False  # Ensure hybrid is disabled
 
         # Mock search results
         expected_results = [
@@ -427,7 +445,8 @@ class TestHistorianAgentSearchIntegration:
         results = await agent._search_historical_content("test query", context)
 
         assert results == expected_results
-        agent.search_engine.search.assert_called_once_with("test query", limit=10)
+        # The actual call uses positional argument, not keyword
+        agent.search_engine.search.assert_called_once_with("test query", 10)
 
     @pytest.mark.asyncio
     async def test_search_historical_content_failure(self):
@@ -437,10 +456,16 @@ class TestHistorianAgentSearchIntegration:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.side_effect = Exception("Search error")
 
-        context = AgentContext(query="test query")
-        results = await agent._search_historical_content("test query", context)
+        # Mock the resilient search to also fail by mocking the parser
+        with patch(
+            "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
+        ) as mock_parser:
+            mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
 
-        assert results == []
+            context = AgentContext(query="test query")
+            results = await agent._search_historical_content("test query", context)
+
+            assert results == []
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
@@ -450,6 +475,7 @@ class TestHistorianAgentSearchIntegration:
         # Create a more sophisticated mock that properly handles getattr
         class MockTesting:
             historian_search_limit = 15
+            enable_hybrid_search = False  # Disable hybrid to test file-only path
 
         class MockConfig:
             testing = MockTesting()
@@ -457,13 +483,15 @@ class TestHistorianAgentSearchIntegration:
         mock_get_config.return_value = MockConfig()
 
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = False  # Ensure hybrid is disabled
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = []
 
         context = AgentContext(query="test query")
         await agent._search_historical_content("test query", context)
 
-        agent.search_engine.search.assert_called_once_with("test query", limit=15)
+        # The actual call uses positional argument, not keyword
+        agent.search_engine.search.assert_called_once_with("test query", 15)
 
 
 class TestHistorianAgentRelevanceAnalysis:
@@ -875,23 +903,29 @@ class TestHistorianAgentErrorHandling:
         """Test graceful degradation when search completely fails."""
         agent = HistorianAgent(llm=None)
 
-        # Mock search to raise exception
+        # Mock search to raise exception AND mock resilient search to also fail
         agent.search_engine = AsyncMock()
         agent.search_engine.search.side_effect = Exception("Complete search failure")
 
-        context = AgentContext(query="test query")
+        # Mock the resilient search to also fail by mocking the parser
+        with patch(
+            "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
+        ) as mock_parser:
+            mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
 
-        # Should not raise exception
-        result_context = await agent.run(context)
+            context = AgentContext(query="test query")
 
-        # Should have some output
-        assert agent.name in result_context.agent_outputs
-        output = result_context.agent_outputs[agent.name]
-        # Check for either failure message format
-        assert (
-            "No historical context available" in output
-            or "No relevant historical context found" in output
-        )
+            # Should not raise exception
+            result_context = await agent.run(context)
+
+            # Should have some output
+            assert agent.name in result_context.agent_outputs
+            output = result_context.agent_outputs[agent.name]
+            # Check for either failure message format
+            assert (
+                "No historical context available" in output
+                or "No relevant historical context found" in output
+            )
 
     @pytest.mark.asyncio
     async def test_graceful_degradation_llm_failure(self):

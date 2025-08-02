@@ -34,6 +34,8 @@ CogniVault provides a sophisticated orchestration platform grounded in **cogniti
 > **📊 Observability Guide**: See [OBSERVABILITY.md](src/cognivault/docs/OBSERVABILITY.md) for comprehensive observability architecture including event-driven monitoring and production deployment strategies.
 >
 > **🗄️ Database Exploration**: See [DATABASE_EXPLORATION.md](src/cognivault/docs/DATABASE_EXPLORATION.md) for complete guide to querying Pydantic AI integration data, JSONB analytics, and agent performance metrics.
+>
+> **🔍 Hybrid Search System**: The HistorianAgent features a production-ready hybrid search system combining PostgreSQL full-text search with file-based retrieval, configurable search ratios, intelligent deduplication, and comprehensive fallback mechanisms.
 
 ## 📋 Requirements
 
@@ -390,7 +392,7 @@ Each agent in CogniVault plays a distinct role in the cognitive reflection and s
   The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system. It uses a comprehensive system prompt with passive and active modes to guide its reasoning process. See [`prompts.py`](./src/cognivault/agents/refiner/prompts.py) for implementation details.
 
 - ### 🧾 Historian
-  The **HistorianAgent** provides relevant context from previous conversations or memory. It simulates long-term knowledge by surfacing pertinent background or earlier reflections.
+  The **HistorianAgent** provides relevant context using a sophisticated **hybrid search system** combining file-based and database sources. Features configurable search ratios (60/40 file/database split), PostgreSQL full-text search, intelligent content deduplication, and automatic fallback mechanisms for maximum reliability and performance.
 
 - ### 🧠 Critic
   The **CriticAgent** evaluates the refined input or historical perspective. It identifies assumptions, weaknesses, or inconsistencies—acting as a thoughtful devil's advocate. Features **structured output support** with Pydantic AI validation for type-safe critique analysis including assumptions, biases, and issue detection.

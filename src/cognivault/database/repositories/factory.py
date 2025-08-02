@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from cognivault.observability import get_logger
 
 from .api_key_repository import APIKeyRepository
+from .historian_document_repository import HistorianDocumentRepository
+from .historian_search_analytics_repository import HistorianSearchAnalyticsRepository
 from .question_repository import QuestionRepository
 from .topic_repository import TopicRepository
 from .wiki_repository import WikiRepository
@@ -63,6 +65,24 @@ class RepositoryFactory:
         if "api_keys" not in self._repositories:
             self._repositories["api_keys"] = APIKeyRepository(self.session)
         return self._repositories["api_keys"]
+
+    @property
+    def historian_documents(self) -> HistorianDocumentRepository:
+        """Get historian document repository instance (cached)."""
+        if "historian_documents" not in self._repositories:
+            self._repositories["historian_documents"] = HistorianDocumentRepository(
+                self.session
+            )
+        return self._repositories["historian_documents"]
+
+    @property
+    def historian_search_analytics(self) -> HistorianSearchAnalyticsRepository:
+        """Get historian search analytics repository instance (cached)."""
+        if "historian_search_analytics" not in self._repositories:
+            self._repositories["historian_search_analytics"] = (
+                HistorianSearchAnalyticsRepository(self.session)
+            )
+        return self._repositories["historian_search_analytics"]
 
     async def commit(self) -> None:
         """Commit the current transaction."""
