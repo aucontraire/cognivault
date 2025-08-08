@@ -11,7 +11,14 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 import json
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+    model_validator,
+    ConfigDict,
+    ValidationInfo,
+)
 
 
 class LogLevel(Enum):
@@ -330,7 +337,7 @@ class DevelopmentConfig(BaseModel):
 
     @field_validator("prompt_max_length")
     @classmethod
-    def validate_prompt_max_length(cls, v: int, info) -> int:
+    def validate_prompt_max_length(cls, v: int, info: ValidationInfo) -> int:
         """Validate that max length is greater than min length."""
         if hasattr(info, "data") and "prompt_min_length" in info.data:
             if v <= info.data["prompt_min_length"]:

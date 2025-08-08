@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Tests for diagnostic output formatters.
 
@@ -22,11 +24,11 @@ from cognivault.diagnostics.diagnostics import SystemDiagnostics
 class TestJSONFormatter:
     """Test JSON formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.formatter = JSONFormatter()
 
-    def test_format_health_results(self):
+    def test_format_health_results(self) -> None:
         """Test formatting health results as JSON."""
         timestamp = datetime.now()
         health_results = {
@@ -71,7 +73,7 @@ class TestJSONFormatter:
         assert llm_data["details"]["errors"] == ["timeout"]
         assert llm_data["response_time_ms"] == 150.0
 
-    def test_format_performance_metrics(self):
+    def test_format_performance_metrics(self) -> None:
         """Test formatting performance metrics as JSON."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
@@ -97,7 +99,7 @@ class TestJSONFormatter:
         assert parsed["resources"]["llm_api_calls"] == 10
         assert parsed["resources"]["total_tokens"] == 1500
 
-    def test_format_system_diagnostics(self):
+    def test_format_system_diagnostics(self) -> None:
         """Test formatting complete system diagnostics as JSON."""
         timestamp = datetime.now()
 
@@ -146,7 +148,7 @@ class TestJSONFormatter:
         assert parsed["performance"]["execution"]["total"] == 1
         assert parsed["system_info"]["version"] == "1.0.0"
 
-    def test_format_json_pretty_print(self):
+    def test_format_json_pretty_print(self) -> None:
         """Test JSON formatting with pretty printing."""
         formatter = JSONFormatter(indent=4)
         health_results = {
@@ -173,11 +175,11 @@ class TestJSONFormatter:
 class TestCSVFormatter:
     """Test CSV formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.formatter = CSVFormatter()
 
-    def test_format_health_results_csv(self):
+    def test_format_health_results_csv(self) -> None:
         """Test formatting health results as CSV."""
         timestamp = datetime.now()
         health_results = {
@@ -222,7 +224,7 @@ class TestCSVFormatter:
         assert "degraded" in lines[2]
         assert "150.0" in lines[2]
 
-    def test_format_performance_metrics_csv(self):
+    def test_format_performance_metrics_csv(self) -> None:
         """Test formatting performance metrics as CSV."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
@@ -265,7 +267,7 @@ class TestCSVFormatter:
         assert "750" in data_row
         assert "125.5" in data_row
 
-    def test_format_system_diagnostics_csv(self):
+    def test_format_system_diagnostics_csv(self) -> None:
         """Test formatting system diagnostics as CSV."""
         timestamp = datetime.now()
 
@@ -309,7 +311,7 @@ class TestCSVFormatter:
             "1,1,0,0,1" in formatted
         )  # healthy_components,degraded_components,unhealthy_components,total_executions
 
-    def test_csv_special_characters(self):
+    def test_csv_special_characters(self) -> None:
         """Test CSV formatting handles special characters properly."""
         timestamp = datetime.now()
         health_results = {
@@ -334,11 +336,11 @@ class TestCSVFormatter:
 class TestPrometheusFormatter:
     """Test Prometheus formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.formatter = PrometheusFormatter()
 
-    def test_format_health_results_prometheus(self):
+    def test_format_health_results_prometheus(self) -> None:
         """Test formatting health results as Prometheus metrics."""
         timestamp = datetime.now()
         health_results = {
@@ -385,7 +387,7 @@ class TestPrometheusFormatter:
             in formatted
         )
 
-    def test_format_performance_metrics_prometheus(self):
+    def test_format_performance_metrics_prometheus(self) -> None:
         """Test formatting performance metrics as Prometheus metrics."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
@@ -454,7 +456,7 @@ class TestPrometheusFormatter:
         )
         assert "cognivault_pipeline_duration 500.0" in formatted
 
-    def test_format_system_diagnostics_prometheus(self):
+    def test_format_system_diagnostics_prometheus(self) -> None:
         """Test formatting system diagnostics as Prometheus metrics."""
         timestamp = datetime.now()
 
@@ -503,7 +505,7 @@ class TestPrometheusFormatter:
         assert "cognivault_executions_total 1" in formatted
         assert "cognivault_tokens_consumed_total 100" in formatted
 
-    def test_prometheus_health_status_values(self):
+    def test_prometheus_health_status_values(self) -> None:
         """Test Prometheus health status numeric values."""
         assert self.formatter._health_status_to_value(HealthStatus.HEALTHY) == 1.0
         assert self.formatter._health_status_to_value(HealthStatus.DEGRADED) == 0.5
@@ -514,11 +516,11 @@ class TestPrometheusFormatter:
 class TestInfluxDBFormatter:
     """Test InfluxDB formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.formatter = InfluxDBFormatter()
 
-    def test_format_health_results_influxdb(self):
+    def test_format_health_results_influxdb(self) -> None:
         """Test formatting health results as InfluxDB line protocol."""
         timestamp = datetime.now()
         health_results = {
@@ -566,7 +568,7 @@ class TestInfluxDBFormatter:
         assert "value=0.5" in llm_line
         assert "response_time_ms=150.0" in llm_line
 
-    def test_format_performance_metrics_influxdb(self):
+    def test_format_performance_metrics_influxdb(self) -> None:
         """Test formatting performance metrics as InfluxDB line protocol."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
@@ -601,7 +603,7 @@ class TestInfluxDBFormatter:
         # Should end with timestamp
         assert formatted.strip().endswith(str(int(end_time.timestamp() * 1000000000)))
 
-    def test_format_system_diagnostics_influxdb(self):
+    def test_format_system_diagnostics_influxdb(self) -> None:
         """Test formatting system diagnostics as InfluxDB line protocol."""
         timestamp = datetime.now()
 
@@ -658,7 +660,7 @@ class TestInfluxDBFormatter:
             timestamp_part = line.split()[-1]
             assert timestamp_part.isdigit()
 
-    def test_influxdb_special_characters(self):
+    def test_influxdb_special_characters(self) -> None:
         """Test InfluxDB formatting handles special characters properly."""
         timestamp = datetime.now()
         health_results = {
@@ -677,7 +679,7 @@ class TestInfluxDBFormatter:
         assert "component=test component" in formatted
         assert "value=1.0" in formatted
 
-    def test_influxdb_health_status_values(self):
+    def test_influxdb_health_status_values(self) -> None:
         """Test InfluxDB health status numeric values."""
         assert self.formatter._health_status_to_value(HealthStatus.HEALTHY) == 1.0
         assert self.formatter._health_status_to_value(HealthStatus.DEGRADED) == 0.5
@@ -688,7 +690,7 @@ class TestInfluxDBFormatter:
 class TestFormatterIntegration:
     """Test formatter integration and edge cases."""
 
-    def test_empty_health_results(self):
+    def test_empty_health_results(self) -> None:
         """Test formatters handle empty health results."""
         formatters = [
             JSONFormatter(),
@@ -707,7 +709,7 @@ class TestFormatterIntegration:
                 # Should at least have headers
                 assert "component" in result
 
-    def test_none_values(self):
+    def test_none_values(self) -> None:
         """Test formatters handle None values gracefully."""
         formatters = [
             JSONFormatter(),
@@ -721,7 +723,7 @@ class TestFormatterIntegration:
             assert isinstance(result, str)
             # Should not crash
 
-    def test_formatter_consistency(self):
+    def test_formatter_consistency(self) -> None:
         """Test that all formatters produce consistent data."""
         timestamp = datetime.now()
         health_results = {

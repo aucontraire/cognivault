@@ -7,6 +7,7 @@ Leverages the existing sophisticated API architecture in this package.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Dict
 
 # Import route modules
 from cognivault.api.routes import health, query, topics, workflows, websockets
@@ -46,7 +47,7 @@ app.include_router(websockets.router, tags=["WebSockets"])
 
 # Application lifecycle events
 @app.on_event("startup")
-async def startup_event():
+async def startup_event() -> None:
     """Initialize the orchestration API on startup."""
     logger.info("Starting CogniVault API...")
     await initialize_api()
@@ -54,7 +55,7 @@ async def startup_event():
 
 
 @app.on_event("shutdown")
-async def shutdown_event():
+async def shutdown_event() -> None:
     """Clean shutdown of orchestration API."""
     logger.info("Shutting down CogniVault API...")
     await shutdown_api()
@@ -63,7 +64,7 @@ async def shutdown_event():
 
 # Root endpoint
 @app.get("/")
-async def root():
+async def root() -> Dict[str, str]:
     """Root endpoint providing API information."""
     return {
         "message": "CogniVault API",

@@ -9,6 +9,7 @@ import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import (
+    Any,
     TypeVar,
 )
 
@@ -33,7 +34,7 @@ class DatabaseSessionFactory:
     and resource cleanup for database operations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._session_factory = None
         self._is_initialized = False
 
@@ -125,7 +126,7 @@ class DatabaseSessionFactory:
             yield factory
 
     async def execute_with_session(
-        self, operation: Callable[..., Awaitable[T]], *args, **kwargs
+        self, operation: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
     ) -> T:
         """
         Execute an operation with a managed database session.
@@ -145,7 +146,7 @@ class DatabaseSessionFactory:
             return await operation(session, *args, **kwargs)
 
     async def execute_with_repositories(
-        self, operation: Callable[..., Awaitable[T]], *args, **kwargs
+        self, operation: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
     ) -> T:
         """
         Execute an operation with managed repositories.

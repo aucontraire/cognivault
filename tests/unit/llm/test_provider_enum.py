@@ -6,6 +6,7 @@ of the LLM model and provider enums.
 """
 
 import pytest
+from typing import Any
 from enum import Enum
 
 from cognivault.llm.provider_enum import LLMProvider, LLMModel
@@ -14,12 +15,12 @@ from cognivault.llm.provider_enum import LLMProvider, LLMModel
 class TestLLMProvider:
     """Test suite for LLM provider enumeration."""
 
-    def test_provider_enum_values(self):
+    def test_provider_enum_values(self) -> None:
         """Test that LLM provider enum has expected values."""
         assert LLMProvider.OPENAI == "openai"
         assert LLMProvider.STUB == "stub"
 
-    def test_provider_enum_inheritance(self):
+    def test_provider_enum_inheritance(self) -> None:
         """Test that LLMProvider inherits from str and Enum."""
         assert issubclass(LLMProvider, str)
         assert issubclass(LLMProvider, Enum)
@@ -31,7 +32,7 @@ class TestLLMProvider:
         assert provider == "openai"
         assert provider.value == "openai"
 
-    def test_provider_enum_iteration(self):
+    def test_provider_enum_iteration(self) -> None:
         """Test iteration over provider enum values."""
         providers = list(LLMProvider)
         assert len(providers) == 2
@@ -42,7 +43,7 @@ class TestLLMProvider:
 class TestLLMModel:
     """Test suite for LLM model enumeration."""
 
-    def test_openai_model_values(self):
+    def test_openai_model_values(self) -> None:
         """Test OpenAI model enum values."""
         assert LLMModel.GPT_4 == "gpt-4"
         assert LLMModel.GPT_4_TURBO == "gpt-4-turbo"
@@ -50,7 +51,7 @@ class TestLLMModel:
         assert LLMModel.GPT_4O_MINI == "gpt-4o-mini"
         assert LLMModel.GPT_3_5_TURBO == "gpt-3.5-turbo"
 
-    def test_future_model_values(self):
+    def test_future_model_values(self) -> None:
         """Test future/extensibility model enum values."""
         assert LLMModel.CLAUDE_OPUS == "claude-3-opus"
         assert LLMModel.CLAUDE_SONNET == "claude-3-sonnet"
@@ -58,12 +59,12 @@ class TestLLMModel:
         assert LLMModel.MISTRAL_7B == "mistral-7b"
         assert LLMModel.LLAMA_3 == "llama-3"
 
-    def test_special_model_values(self):
+    def test_special_model_values(self) -> None:
         """Test special model enum values for testing and custom use."""
         assert LLMModel.STUB == "stub"
         assert LLMModel.LOCAL_CUSTOM == "local-custom"
 
-    def test_model_enum_inheritance(self):
+    def test_model_enum_inheritance(self) -> None:
         """Test that LLMModel inherits from str and Enum."""
         assert issubclass(LLMModel, str)
         assert issubclass(LLMModel, Enum)
@@ -75,7 +76,7 @@ class TestLLMModel:
         assert model == "gpt-4"
         assert model.value == "gpt-4"
 
-    def test_model_enum_completeness(self):
+    def test_model_enum_completeness(self) -> None:
         """Test that all expected models are present."""
         models = list(LLMModel)
 
@@ -93,7 +94,7 @@ class TestLLMModel:
         for model in expected_models:
             assert model in models
 
-    def test_model_enum_type_safety(self):
+    def test_model_enum_type_safety(self) -> None:
         """Test type safety benefits of using enum vs raw strings."""
 
         # Enum provides type safety
@@ -116,7 +117,7 @@ class TestLLMModel:
         }
         assert model_costs[LLMModel.GPT_4] == 0.03
 
-    def test_model_categorization(self):
+    def test_model_categorization(self) -> None:
         """Test ability to categorize models by provider."""
         openai_models = [
             LLMModel.GPT_4,
@@ -140,7 +141,7 @@ class TestLLMModel:
         for model in claude_models:
             assert "claude" in model.value.lower()
 
-    def test_model_enum_extensibility(self):
+    def test_model_enum_extensibility(self) -> None:
         """Test that the enum supports future extension patterns."""
         # All models should be strings
         for model in LLMModel:
@@ -156,7 +157,7 @@ class TestLLMModel:
                 model.value.replace("-", "").replace("_", "").replace(".", "").islower()
             )
 
-    def test_enum_serialization_compatibility(self):
+    def test_enum_serialization_compatibility(self) -> None:
         """Test that enums serialize properly for API/JSON usage."""
         model = LLMModel.GPT_4
 
@@ -178,7 +179,7 @@ class TestLLMModel:
 class TestEnumIntegration:
     """Integration tests for provider and model enums."""
 
-    def test_provider_model_mapping(self):
+    def test_provider_model_mapping(self) -> None:
         """Test logical mapping between providers and models."""
         # OpenAI provider should map to OpenAI models
         openai_models = [
@@ -199,7 +200,7 @@ class TestEnumIntegration:
             for model in models:
                 assert isinstance(model, LLMModel)
 
-    def test_cost_calculation_integration(self):
+    def test_cost_calculation_integration(self) -> None:
         """Test integration with cost calculation functionality."""
         # This would integrate with the WorkflowExecutionMetadata cost calculation
         cost_map = {
@@ -219,7 +220,7 @@ class TestEnumIntegration:
         cost = (tokens / 1000) * cost_map[LLMModel.GPT_4_TURBO]
         assert cost == 0.01
 
-    def test_future_provider_extensibility(self):
+    def test_future_provider_extensibility(self) -> None:
         """Test that the design supports adding new providers."""
         # Current enum structure should support easy extension
         providers = list(LLMProvider)

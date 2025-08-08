@@ -8,9 +8,14 @@ and correlation context propagation work end-to-end.
 
 import asyncio
 import pytest
-from unittest.mock import Mock, AsyncMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.agents.registry import get_agent_registry
 from cognivault.events import (
@@ -23,7 +28,7 @@ from cognivault.correlation import trace
 class MockAgent(BaseAgent):
     """Mock agent for testing."""
 
-    def __init__(self, name: str = "MockAgent", should_fail: bool = False):
+    def __init__(self, name: str = "MockAgent", should_fail: bool = False) -> None:
         super().__init__(name)
         self.should_fail = should_fail
 
@@ -38,7 +43,7 @@ class MockAgent(BaseAgent):
 
 
 @pytest.fixture
-def mock_registry():
+def mock_registry() -> Any:
     """Setup mock agent registry with proper cleanup."""
     registry = get_agent_registry()
 
@@ -94,7 +99,7 @@ def mock_registry():
 
 
 @pytest.fixture
-def event_sink():
+def event_sink() -> Any:
     """Setup in-memory event sink for testing."""
     sink = InMemoryEventSink(max_events=100)
 
@@ -111,11 +116,13 @@ def event_sink():
 
 
 @pytest.mark.asyncio
-async def test_agent_event_emission_with_correlation(mock_registry, event_sink):
+async def test_agent_event_emission_with_correlation(
+    mock_registry: Any, event_sink: Any
+) -> None:
     """Test that agent execution emits events with correct correlation context."""
 
     # Create agent context
-    context = AgentContext(query="Test query for event emission")
+    context = AgentContextPatterns.simple_query("Test query for event emission")
 
     # Execute with explicit correlation context
     async with trace(
@@ -163,10 +170,12 @@ async def test_agent_event_emission_with_correlation(mock_registry, event_sink):
 
 
 @pytest.mark.asyncio
-async def test_agent_failure_event_emission(mock_registry, event_sink):
+async def test_agent_failure_event_emission(
+    mock_registry: Any, event_sink: Any
+) -> None:
     """Test that agent failures emit appropriate events."""
 
-    context = AgentContext(query="Test query for failure")
+    context = AgentContextPatterns.simple_query("Test query for failure")
 
     async with trace(correlation_id="test-failure-123") as ctx:
         # Create failing agent
@@ -190,10 +199,12 @@ async def test_agent_failure_event_emission(mock_registry, event_sink):
 
 
 @pytest.mark.asyncio
-async def test_multi_axis_agent_metadata_in_events(mock_registry, event_sink):
+async def test_multi_axis_agent_metadata_in_events(
+    mock_registry: Any, event_sink: Any
+) -> None:
     """Test that events contain proper multi-axis agent metadata."""
 
-    context = AgentContext(query="Test query for metadata")
+    context = AgentContextPatterns.simple_query("Test query for metadata")
 
     async with trace(correlation_id="test-metadata-123") as ctx:
         # Use registry to create agent with metadata
@@ -221,10 +232,12 @@ async def test_multi_axis_agent_metadata_in_events(mock_registry, event_sink):
 
 
 @pytest.mark.asyncio
-async def test_event_filtering_and_statistics(mock_registry, event_sink):
+async def test_event_filtering_and_statistics(
+    mock_registry: Any, event_sink: Any
+) -> None:
     """Test event filtering and statistics collection."""
 
-    context = AgentContext(query="Test query for statistics")
+    context = AgentContextPatterns.simple_query("Test query for statistics")
 
     async with trace(correlation_id="test-stats-123") as ctx:
         # Run multiple agents
@@ -258,10 +271,10 @@ async def test_event_filtering_and_statistics(mock_registry, event_sink):
 
 
 @pytest.mark.asyncio
-async def test_event_serialization(mock_registry, event_sink):
+async def test_event_serialization(mock_registry: Any, event_sink: Any) -> None:
     """Test that events can be serialized and deserialized correctly."""
 
-    context = AgentContext(query="Test query for serialization")
+    context = AgentContextPatterns.simple_query("Test query for serialization")
 
     async with trace(correlation_id="test-serialize-123") as ctx:
         agent = mock_registry.create_agent("test_refiner")
@@ -294,11 +307,11 @@ async def test_event_serialization(mock_registry, event_sink):
 
 
 @pytest.mark.asyncio
-async def test_event_emission_resilience(mock_registry, event_sink):
+async def test_event_emission_resilience(mock_registry: Any, event_sink: Any) -> None:
     """Test that event emission failures don't break agent execution."""
 
     # Create a failing sink
-    failing_sink = Mock()
+    failing_sink: Mock = Mock()
     failing_sink.emit = AsyncMock(side_effect=Exception("Sink failure"))
     failing_sink.close = AsyncMock()
 
@@ -306,7 +319,7 @@ async def test_event_emission_resilience(mock_registry, event_sink):
     emitter.add_sink(failing_sink)
 
     try:
-        context = AgentContext(query="Test resilience")
+        context = AgentContextPatterns.simple_query("Test resilience")
 
         async with trace(correlation_id="test-resilience-123") as ctx:
             agent = MockAgent("resilient_agent")
@@ -329,7 +342,7 @@ if __name__ == "__main__":
     os.environ["COGNIVAULT_EVENTS_IN_MEMORY"] = "true"
 
     # Run a simple test
-    async def simple_test():
+    async def simple_test() -> bool:
         # Setup
         sink = InMemoryEventSink()
         emitter = get_global_event_emitter()
@@ -338,7 +351,7 @@ if __name__ == "__main__":
 
         try:
             # Test basic agent execution
-            context = AgentContext(query="Simple test query")
+            context = AgentContextPatterns.simple_query("Simple test query")
             agent = MockAgent("simple_test_agent")
 
             async with trace(correlation_id="simple-test-123") as ctx:
@@ -359,5 +372,5 @@ if __name__ == "__main__":
             emitter.remove_sink(sink)
 
     # Run the test
-    success = asyncio.run(simple_test())
+    success: bool = asyncio.run(simple_test())
     print(f"Integration test {'PASSED' if success else 'FAILED'}")

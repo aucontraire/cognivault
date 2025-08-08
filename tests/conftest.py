@@ -7,9 +7,12 @@ real API calls or depending on external services.
 
 import pytest
 
+# Import database test manager to register pytest hooks
+from tests.database_test_manager import *
+
 
 @pytest.fixture(autouse=True)
-def safe_test_environment(monkeypatch):
+def safe_test_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     Set up a safe test environment that prevents accidental API calls.
 
@@ -28,8 +31,11 @@ def safe_test_environment(monkeypatch):
 
 
 # Optional: Add a marker for tests that intentionally test LLM creation logic
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     """Configure custom pytest markers."""
     config.addinivalue_line(
         "markers", "llm_creation: mark test as intentionally testing LLM creation logic"
+    )
+    config.addinivalue_line(
+        "markers", "database: mark test as requiring database connection"
     )

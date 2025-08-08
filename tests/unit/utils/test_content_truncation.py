@@ -5,6 +5,7 @@ This tests the smart truncation logic directly to ensure PATTERN 4 fix works cor
 """
 
 import pytest
+from typing import Any
 from cognivault.utils.content_truncation import (
     smart_truncate_content,
     get_content_truncation_limit,
@@ -16,19 +17,19 @@ from cognivault.utils.content_truncation import (
 class TestSmartTruncateContent:
     """Test smart content truncation function."""
 
-    def test_short_content_not_truncated(self):
+    def test_short_content_not_truncated(self) -> None:
         """Short content should be returned unchanged."""
         content = "This is a short message."
         result = smart_truncate_content(content, max_length=100)
         assert result == content
         assert len(result) == len(content)
 
-    def test_empty_content_handled(self):
+    def test_empty_content_handled(self) -> None:
         """Empty content should be handled gracefully."""
         assert smart_truncate_content("", max_length=100) == ""
         assert smart_truncate_content(None, max_length=100) is None
 
-    def test_long_content_truncated(self):
+    def test_long_content_truncated(self) -> None:
         """Long content should be truncated with indicator."""
         content = "This is a very long message that should be truncated because it exceeds the maximum length limit."
         result = smart_truncate_content(content, max_length=50)
@@ -37,7 +38,7 @@ class TestSmartTruncateContent:
         assert result.endswith("...")
         assert result.startswith("This is a very long message")
 
-    def test_word_boundary_preservation(self):
+    def test_word_boundary_preservation(self) -> None:
         """Truncation should preserve word boundaries when possible."""
         content = "This is a sentence with several words that should be truncated."
         result = smart_truncate_content(content, max_length=30, preserve_words=True)
@@ -47,7 +48,7 @@ class TestSmartTruncateContent:
         words_in_result = result.replace("...", "").strip().split()
         assert all(word in content for word in words_in_result)
 
-    def test_sentence_boundary_preservation(self):
+    def test_sentence_boundary_preservation(self) -> None:
         """Truncation should prefer sentence boundaries when available."""
         content = (
             "First sentence. Second sentence with more content. Third sentence here."
@@ -60,7 +61,7 @@ class TestSmartTruncateContent:
         # so it falls back to word boundary preservation
         assert clean_result.endswith(".") or not clean_result.endswith(" ")
 
-    def test_custom_truncation_indicator(self):
+    def test_custom_truncation_indicator(self) -> None:
         """Custom truncation indicators should work."""
         content = "This content will be truncated with a custom indicator."
         result = smart_truncate_content(
@@ -70,7 +71,7 @@ class TestSmartTruncateContent:
         assert result.endswith("[more]")
         assert len(result) <= 20 + len("[more]")
 
-    def test_very_long_content_handling(self):
+    def test_very_long_content_handling(self) -> None:
         """Very long content should be handled efficiently."""
         # Create 2000+ character content (like the WebSocket issue)
         long_content = (
@@ -92,22 +93,22 @@ class TestSmartTruncateContent:
 class TestContentTruncationLimits:
     """Test content-type specific truncation limits."""
 
-    def test_default_limit(self):
+    def test_default_limit(self) -> None:
         """Default limit should be reasonable."""
         assert get_content_truncation_limit("default") == 1000
 
-    def test_content_type_specific_limits(self):
+    def test_content_type_specific_limits(self) -> None:
         """Different content types should have appropriate limits."""
         assert get_content_truncation_limit("refined_question") == 800
         assert get_content_truncation_limit("critique") == 1200
         assert get_content_truncation_limit("historical_summary") == 1500
         assert get_content_truncation_limit("final_analysis") == 2000
 
-    def test_unknown_content_type_uses_default(self):
+    def test_unknown_content_type_uses_default(self) -> None:
         """Unknown content types should use default limit."""
         assert get_content_truncation_limit("unknown") == 1000
 
-    def test_should_truncate_logic(self):
+    def test_should_truncate_logic(self) -> None:
         """Should truncate logic should work correctly."""
         short_content = "Short message"
         long_content = "x" * 2000
@@ -130,7 +131,7 @@ class TestContentTruncationLimits:
 class TestWebSocketEventTruncation:
     """Test the main WebSocket event truncation function."""
 
-    def test_short_content_preserved(self):
+    def test_short_content_preserved(self) -> None:
         """Short content should be preserved completely."""
         content = (
             "Refined query: What are the fundamental principles of machine learning?"
@@ -140,7 +141,7 @@ class TestWebSocketEventTruncation:
         assert result == content
         assert len(result) == len(content)
 
-    def test_long_content_truncated_intelligently(self):
+    def test_long_content_truncated_intelligently(self) -> None:
         """Long content should be truncated intelligently."""
         # Create content longer than refined_question limit (800 chars)
         long_content = (
@@ -170,7 +171,7 @@ class TestWebSocketEventTruncation:
             assert len(result) < len(long_content)  # Should be truncated
             assert result.endswith("...")  # Should have truncation indicator
 
-    def test_different_content_types_different_limits(self):
+    def test_different_content_types_different_limits(self) -> None:
         """Different content types should have different truncation behavior."""
         # Same base content, different limits based on type
         base_content = "x" * 1100  # Longer than most limits
@@ -196,7 +197,7 @@ class TestWebSocketEventTruncation:
         assert len(historical_result) == 1100  # 1100 < 1500 limit
         assert len(final_result) == 1100  # 1100 < 2000 limit
 
-    def test_pattern4_fix_verification(self):
+    def test_pattern4_fix_verification(self) -> None:
         """
         Verify PATTERN 4 fix: No more harsh 200-character truncation.
 

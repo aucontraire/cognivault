@@ -185,7 +185,7 @@ class CogniVaultValidator(SemanticValidator):
     relationships, execution order, and meaningful workflow composition.
     """
 
-    def __init__(self, strict_mode: bool = False):
+    def __init__(self, strict_mode: bool = False) -> None:
         """
         Initialize the CogniVault validator.
 
@@ -395,7 +395,9 @@ class CogniVaultValidator(SemanticValidator):
 class ValidationError(Exception):
     """Raised when semantic validation fails with errors."""
 
-    def __init__(self, message: str, validation_result: SemanticValidationResult):
+    def __init__(
+        self, message: str, validation_result: SemanticValidationResult
+    ) -> None:
         super().__init__(message)
         self.validation_result = validation_result
 

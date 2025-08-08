@@ -55,7 +55,7 @@ class PrototypeDAGExecutor:
         self,
         enable_parallel_execution: bool = False,
         max_execution_time_seconds: float = 300.0,
-    ):
+    ) -> None:
         """
         Initialize the prototype DAG executor.
 
@@ -436,7 +436,7 @@ class PrototypeDAGExecutor:
 
         return list(set(valid_next_nodes))  # Remove duplicates
 
-    def _initialize_llm(self):
+    def _initialize_llm(self) -> OpenAIChatLLM:
         """Initialize LLM for agent creation."""
         llm_config = OpenAIConfig.load()
         return OpenAIChatLLM(
@@ -547,7 +547,7 @@ if __name__ == "__main__":
     # Run the demo if this file is executed directly
     import asyncio
 
-    async def main():
+    async def main() -> None:
         result = await run_prototype_demo()
         print(f"Demo result: {result.success}")
         print(f"Performance: {result.performance_metrics}")

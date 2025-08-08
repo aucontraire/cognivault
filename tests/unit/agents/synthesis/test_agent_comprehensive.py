@@ -7,17 +7,21 @@ focusing on error handling, fallback mechanisms, and import error scenarios.
 
 import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
-from typing import List, Optional, Dict, Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from typing import Any, Dict, List, Optional
 
 from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextPatterns,
+    AgentContextFactory,
+)
 
 
 class TestSynthesisAgentErrorHandling:
     """Test error handling and fallback mechanisms in SynthesisAgent."""
 
-    def test_init_with_invalid_llm_interface(self):
+    def test_init_with_invalid_llm_interface(self) -> None:
         """Test initialization with invalid LLM interface (line 44)."""
         # Test with a string that's not "default" - should be treated as invalid LLM
         invalid_llm = "not_an_llm_interface"
@@ -28,10 +32,10 @@ class TestSynthesisAgentErrorHandling:
         assert agent.llm is None
         assert agent.name == "synthesis"
 
-    def test_init_with_object_without_generate_method(self):
+    def test_init_with_object_without_generate_method(self) -> None:
         """Test initialization with object that doesn't have generate method."""
         # Create a mock object without the generate method
-        invalid_llm_obj = Mock()
+        invalid_llm_obj: Mock = Mock()
         del invalid_llm_obj.generate  # Ensure it doesn't have generate method
 
         agent = SynthesisAgent(llm=invalid_llm_obj)
@@ -39,7 +43,7 @@ class TestSynthesisAgentErrorHandling:
         # Should set llm to None for object without generate method
         assert agent.llm is None
 
-    def test_init_with_none_llm_explicit(self):
+    def test_init_with_none_llm_explicit(self) -> None:
         """Test initialization with explicit None LLM."""
         agent = SynthesisAgent(llm=None)
 
@@ -47,10 +51,10 @@ class TestSynthesisAgentErrorHandling:
         assert agent.name == "synthesis"
 
     @pytest.mark.asyncio
-    async def test_run_with_fallback_synthesis_no_llm(self):
+    async def test_run_with_fallback_synthesis_no_llm(self) -> None:
         """Test run method with fallback synthesis when no LLM available (line 193)."""
         agent = SynthesisAgent(llm=None)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Add some mock agent outputs to context
         context.add_agent_output("refiner", "refined query output")
@@ -71,10 +75,10 @@ class TestSynthesisAgentErrorHandling:
         assert len(output) > 0
 
     @pytest.mark.asyncio
-    async def test_fallback_synthesis_method_directly(self):
+    async def test_fallback_synthesis_method_directly(self) -> None:
         """Test _fallback_synthesis method directly."""
         agent = SynthesisAgent(llm=None)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Create mock outputs
         outputs = {
@@ -97,7 +101,7 @@ class TestSynthesisAgentImportErrorHandling:
     """Test import error handling and fallback prompt scenarios."""
 
     @pytest.mark.asyncio
-    async def test_build_analysis_prompt_import_error(self):
+    async def test_build_analysis_prompt_import_error(self) -> None:
         """Test _build_analysis_prompt with ImportError fallback (lines 314-316)."""
         agent = SynthesisAgent(llm=None)
 
@@ -119,7 +123,7 @@ class TestSynthesisAgentImportErrorHandling:
             assert "THEMES:" in prompt
 
     @pytest.mark.asyncio
-    async def test_build_synthesis_prompt_import_error(self):
+    async def test_build_synthesis_prompt_import_error(self) -> None:
         """Test _build_synthesis_prompt with ImportError fallback (lines 441-443)."""
         agent = SynthesisAgent(llm=None)
 
@@ -143,7 +147,7 @@ class TestSynthesisAgentImportErrorHandling:
             assert "theme1" in prompt
             assert "topic1" in prompt
 
-    def test_parse_analysis_response_exception_handling(self):
+    def test_parse_analysis_response_exception_handling(self) -> None:
         """Test _parse_analysis_response with exception (lines 408-410)."""
         agent = SynthesisAgent(llm=None)
 
@@ -151,7 +155,7 @@ class TestSynthesisAgentImportErrorHandling:
         with patch("cognivault.agents.synthesis.agent.logger.error") as mock_logger:
             # Create a response object that will cause an exception when .strip() is called
             class BadResponse:
-                def strip(self):
+                def strip(self) -> None:
                     raise Exception("Strip method failed")
 
             result = agent._parse_analysis_response(BadResponse())
@@ -166,7 +170,7 @@ class TestSynthesisAgentImportErrorHandling:
             assert "key_topics" in result
             assert "conflicts" in result
 
-    def test_parse_analysis_response_multiline_content(self):
+    def test_parse_analysis_response_multiline_content(self) -> None:
         """Test _parse_analysis_response with multi-line content (lines 402-404)."""
         agent = SynthesisAgent(llm=None)
 
@@ -205,7 +209,7 @@ more conflict details
         all_text = " ".join(all_content)
         assert "continuation line" in all_text or "more theme content" in all_text
 
-    def test_parse_analysis_response_mixed_content(self):
+    def test_parse_analysis_response_mixed_content(self) -> None:
         """Test parsing with mixed single-line and multi-line content."""
         agent = SynthesisAgent(llm=None)
 
@@ -231,7 +235,7 @@ extensive explanation
         assert len(result["key_topics"]) >= 2
         assert len(result["conflicts"]) >= 2
 
-    def test_parse_analysis_response_empty_sections(self):
+    def test_parse_analysis_response_empty_sections(self) -> None:
         """Test parsing with empty sections."""
         agent = SynthesisAgent(llm=None)
 
@@ -253,7 +257,7 @@ CONFLICTS:
         assert "conflicts" in result
         assert len(result["key_topics"]) >= 1
 
-    def test_parse_analysis_response_no_sections(self):
+    def test_parse_analysis_response_no_sections(self) -> None:
         """Test parsing with no recognizable sections."""
         agent = SynthesisAgent(llm=None)
 
@@ -276,9 +280,9 @@ It should not crash the parser.
 class TestSynthesisAgentEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def test_init_with_valid_llm_interface(self):
+    def test_init_with_valid_llm_interface(self) -> None:
         """Test that valid LLM interface is preserved."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate = AsyncMock(return_value="test response")
 
         agent = SynthesisAgent(llm=mock_llm)
@@ -287,10 +291,10 @@ class TestSynthesisAgentEdgeCases:
         assert hasattr(agent.llm, "generate")
 
     @pytest.mark.asyncio
-    async def test_create_default_llm_success(self):
+    async def test_create_default_llm_success(self) -> None:
         """Test successful default LLM creation."""
         with patch("cognivault.llm.openai.OpenAIChatLLM") as mock_llm_class:
-            mock_llm_instance = Mock()
+            mock_llm_instance: Mock = Mock()
             mock_llm_class.return_value = mock_llm_instance
 
             agent = SynthesisAgent(llm="default")
@@ -299,7 +303,7 @@ class TestSynthesisAgentEdgeCases:
             mock_llm_class.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_default_llm_failure(self):
+    async def test_create_default_llm_failure(self) -> None:
         """Test default LLM creation failure."""
         with patch(
             "cognivault.llm.openai.OpenAIChatLLM",
@@ -310,7 +314,7 @@ class TestSynthesisAgentEdgeCases:
             # Should handle exception and set llm to None
             assert agent.llm is None
 
-    def test_logger_is_set_correctly(self):
+    def test_logger_is_set_correctly(self) -> None:
         """Test that logger is properly configured."""
         agent = SynthesisAgent(llm=None)
 
@@ -318,10 +322,10 @@ class TestSynthesisAgentEdgeCases:
         assert "cognivault.agents.synthesis.agent" in agent.logger.name
 
     @pytest.mark.asyncio
-    async def test_run_with_no_agent_outputs(self):
+    async def test_run_with_no_agent_outputs(self) -> None:
         """Test run method with empty agent outputs."""
         agent = SynthesisAgent(llm=None)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # No agent outputs added to context
 
@@ -332,10 +336,10 @@ class TestSynthesisAgentEdgeCases:
         assert result_context.successful_agents == {agent.name}
 
     @pytest.mark.asyncio
-    async def test_fallback_synthesis_with_empty_outputs(self):
+    async def test_fallback_synthesis_with_empty_outputs(self) -> None:
         """Test fallback synthesis with empty outputs."""
         agent = SynthesisAgent(llm=None)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Empty outputs
         outputs = {}
@@ -346,7 +350,7 @@ class TestSynthesisAgentEdgeCases:
         assert isinstance(result, str)
         assert "test query" in result
 
-    def test_build_analysis_prompt_with_empty_outputs(self):
+    def test_build_analysis_prompt_with_empty_outputs(self) -> None:
         """Test building analysis prompt with empty outputs."""
         agent = SynthesisAgent(llm=None)
 
@@ -359,7 +363,7 @@ class TestSynthesisAgentEdgeCases:
         assert isinstance(prompt, str)
         assert "test query" in prompt
 
-    def test_build_synthesis_prompt_with_empty_analysis(self):
+    def test_build_synthesis_prompt_with_empty_analysis(self) -> None:
         """Test building synthesis prompt with empty analysis."""
         agent = SynthesisAgent(llm=None)
 

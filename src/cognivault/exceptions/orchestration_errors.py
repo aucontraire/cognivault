@@ -56,7 +56,7 @@ class OrchestrationError(CogniVaultError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         context = context or {}
         if pipeline_stage:
             context["pipeline_stage"] = pipeline_stage
@@ -92,7 +92,7 @@ class PipelineExecutionError(OrchestrationError):
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         failed_count = len(failed_agents)
         success_count = len(successful_agents)
         total_agents = failed_count + success_count
@@ -176,7 +176,7 @@ class DependencyResolutionError(OrchestrationError):
         message: Optional[str] = None,
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = message or f"Dependency resolution failed: {dependency_issue}"
 
         context = context or {}
@@ -233,7 +233,7 @@ class WorkflowTimeoutError(OrchestrationError):
         message: Optional[str] = None,
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = message or (
             f"Workflow timeout at '{timeout_stage}' after {timeout_seconds}s "
             f"({len(completed_agents)} completed, {len(pending_agents)} pending)"
@@ -306,7 +306,7 @@ class StateTransitionError(OrchestrationError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or f"State transition failed: {transition_type}"
         if from_state and to_state:
             message += f" ({from_state} → {to_state})"
@@ -374,7 +374,7 @@ class CircuitBreakerError(OrchestrationError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = message or (
             f"Circuit breaker open for '{service_name}': "
             f"{failure_count}/{failure_threshold} failures, "
@@ -435,7 +435,7 @@ class ConditionalExecutionError(OrchestrationError):
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or (
             f"Conditional execution failed: {condition_type} "
             f"({failed_condition}) on path '{execution_path.value}'"
@@ -502,7 +502,7 @@ class GracefulDegradationWarning(OrchestrationError):
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or (
             f"Graceful degradation: {degraded_functionality} "
             f"(skipped {len(skipped_agents)} agents, continuing with {len(continuing_agents)})"

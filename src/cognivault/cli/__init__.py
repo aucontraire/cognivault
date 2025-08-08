@@ -127,7 +127,7 @@ def main(
         "--api-mode",
         help="API mode: 'real' (production) or 'mock' (testing)",
     ),
-):
+) -> None:
     """
     Run CogniVault agents based on the provided query and options.
 
@@ -164,7 +164,7 @@ def main(
 
 
 # Import diagnostics from main_commands and add to CLI
-def setup_diagnostics():
+def setup_diagnostics() -> None:
     """Set up diagnostics subcommands."""
     try:
         from cognivault.diagnostics.cli import app as diagnostics_app
@@ -182,7 +182,7 @@ def setup_diagnostics():
 setup_diagnostics()
 
 
-def cli_main():
+def cli_main() -> None:
     """Entry point for the cognivault CLI command."""
     app()
 

@@ -312,7 +312,7 @@ class ResourcePool(BaseModel):
         use_enum_values=False,  # Keep enum objects
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Post-initialization to set computed fields."""
         if self.available_capacity is None:
             self.available_capacity = float(self.total_capacity)
@@ -433,7 +433,7 @@ class ResourcePool(BaseModel):
 class PriorityQueue:
     """Priority queue for resource requests."""
 
-    def __init__(self, policy: SchedulingPolicy = SchedulingPolicy.PRIORITY):
+    def __init__(self, policy: SchedulingPolicy = SchedulingPolicy.PRIORITY) -> None:
         self.policy = policy
         self.requests: List[ResourceRequest] = []
         self._request_index = 0  # For FIFO ordering within same priority
@@ -536,7 +536,9 @@ class ResourceScheduler:
     comprehensive resource allocation and monitoring capabilities.
     """
 
-    def __init__(self, scheduling_policy: SchedulingPolicy = SchedulingPolicy.PRIORITY):
+    def __init__(
+        self, scheduling_policy: SchedulingPolicy = SchedulingPolicy.PRIORITY
+    ) -> None:
         self.scheduling_policy = scheduling_policy
         self.resource_pools: Dict[ResourceType, ResourcePool] = {}
         self.request_queues: Dict[ResourceType, PriorityQueue] = {}

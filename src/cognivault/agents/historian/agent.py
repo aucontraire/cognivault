@@ -55,7 +55,7 @@ class HistorianAgent(BaseAgent):
         llm: Optional[Union[LLMInterface, str]] = "default",
         search_type: str = "hybrid",
         config: Optional[HistorianConfig] = None,
-    ):
+    ) -> None:
         super().__init__("historian")
 
         # Configuration system - backward compatible
@@ -101,7 +101,7 @@ class HistorianAgent(BaseAgent):
             logger.warning(f"Failed to create OpenAI LLM: {e}. Using mock LLM.")
             return None
 
-    def _update_composed_prompt(self):
+    def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
         try:
             self._composed_prompt = self._prompt_composer.compose_historian_prompt(
@@ -137,7 +137,7 @@ class HistorianAgent(BaseAgent):
             # Fallback to basic embedded prompt
             return """As a historian agent, analyze queries and provide relevant historical context using available search results and historical information."""
 
-    def update_config(self, config: HistorianConfig):
+    def update_config(self, config: HistorianConfig) -> None:
         """
         Update the agent configuration and recompose prompts.
 

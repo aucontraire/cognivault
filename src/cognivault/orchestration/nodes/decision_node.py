@@ -73,7 +73,7 @@ class DecisionNode(BaseAdvancedNode):
         node_name: str,
         decision_criteria: List[DecisionCriteria],
         paths: Dict[str, List[str]],
-    ):
+    ) -> None:
         """
         Initialize the DecisionNode.
 

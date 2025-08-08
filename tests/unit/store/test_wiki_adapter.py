@@ -1,9 +1,10 @@
 import os
 import re
 from cognivault.store.wiki_adapter import MarkdownExporter
+from typing import Any
 
 
-def test_markdown_export_creates_file(tmp_path):
+def test_markdown_export_creates_file(tmp_path: Any) -> None:
     exporter = MarkdownExporter(output_dir=tmp_path)
     agent_outputs = {
         "Refiner": "Refined output goes here.",

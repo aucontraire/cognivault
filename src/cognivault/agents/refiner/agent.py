@@ -31,7 +31,9 @@ class RefinerAgent(BaseAgent):
     downstream agents can process the query effectively.
     """
 
-    def __init__(self, llm: LLMInterface, config: Optional[RefinerConfig] = None):
+    def __init__(
+        self, llm: LLMInterface, config: Optional[RefinerConfig] = None
+    ) -> None:
         """
         Initialize the RefinerAgent with LLM interface and optional configuration.
 
@@ -54,7 +56,7 @@ class RefinerAgent(BaseAgent):
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
 
-    def _update_composed_prompt(self):
+    def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
         try:
             self._composed_prompt = self._prompt_composer.compose_refiner_prompt(
@@ -80,7 +82,7 @@ class RefinerAgent(BaseAgent):
             logger.debug(f"[{self.name}] Using default system prompt (fallback)")
             return REFINER_SYSTEM_PROMPT
 
-    def update_config(self, config: RefinerConfig):
+    def update_config(self, config: RefinerConfig) -> None:
         """
         Update the agent configuration and recompose prompts.
 

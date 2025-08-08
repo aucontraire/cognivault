@@ -6,10 +6,11 @@ validation levels, security checks, and certification capabilities.
 """
 
 import pytest
+from typing import Any, List, Dict, Optional
 import json
 import tempfile
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from pathlib import Path
 
 from cognivault.diagnostics.pattern_validator import (
@@ -30,8 +31,11 @@ class MockGraphPattern(GraphPattern):
     """Mock graph pattern for testing."""
 
     def __init__(
-        self, name="test_pattern", has_build_graph=True, build_graph_params=None
-    ):
+        self,
+        name: str = "test_pattern",
+        has_build_graph: bool = True,
+        build_graph_params: Optional[List[str]] = None,
+    ) -> None:
         self._name = name
         self._has_build_graph = has_build_graph
         self._build_graph_params = build_graph_params or ["agents", "llm", "config"]
@@ -47,23 +51,23 @@ class MockGraphPattern(GraphPattern):
     def get_pattern_name(self) -> str:
         return self._name
 
-    def build_graph(self, agents, llm, config):
+    def build_graph(self, agents: Any, llm: Any, config: Any) -> str:
         return "mock_graph"
 
-    def get_edges(self, agents):
+    def get_edges(self, agents: Any) -> List[Dict[str, str]]:
         return []
 
-    def get_entry_point(self, agents):
+    def get_entry_point(self, agents: Any) -> str:
         return "start"
 
-    def get_exit_points(self, agents):
+    def get_exit_points(self, agents: Any) -> List[str]:
         return ["end"]
 
 
 class TestValidationIssue:
     """Test suite for ValidationIssue dataclass."""
 
-    def test_validation_issue_creation(self):
+    def test_validation_issue_creation(self) -> None:
         """Test ValidationIssue creation."""
         issue = ValidationIssue(
             level=PatternValidationResult.WARN,
@@ -81,7 +85,7 @@ class TestValidationIssue:
         assert issue.suggestion == "Fix the issue"
         assert issue.code == "V001"
 
-    def test_validation_issue_minimal(self):
+    def test_validation_issue_minimal(self) -> None:
         """Test ValidationIssue with minimal fields."""
         issue = ValidationIssue(
             level=PatternValidationResult.FAIL,
@@ -100,7 +104,7 @@ class TestValidationIssue:
 class TestPatternValidationReport:
     """Test suite for PatternValidationReport dataclass."""
 
-    def test_validation_report_creation(self):
+    def test_validation_report_creation(self) -> None:
         """Test PatternValidationReport creation."""
         issues = [
             ValidationIssue(
@@ -136,15 +140,15 @@ class TestStructuralValidator:
     """Test suite for StructuralValidator class."""
 
     @pytest.fixture
-    def validator(self):
+    def validator(self) -> Any:
         """Create StructuralValidator instance."""
         return StructuralValidator()
 
-    def test_validator_name(self, validator):
+    def test_validator_name(self, validator: Any) -> None:
         """Test validator name property."""
         assert validator.validator_name == "Structural Validator"
 
-    def test_validate_valid_pattern(self, validator):
+    def test_validate_valid_pattern(self, validator: Any) -> None:
         """Test validation of valid pattern."""
         pattern = MockGraphPattern()
         issues = validator.validate(pattern, PatternValidationLevel.BASIC)
@@ -152,9 +156,9 @@ class TestStructuralValidator:
         # Should have no critical issues for basic pattern
         assert all(issue.level != PatternValidationResult.FAIL for issue in issues)
 
-    def test_validate_missing_build_graph(self, validator):
+    def test_validate_missing_build_graph(self, validator: Any) -> None:
         """Test validation with missing build_graph method."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         delattr(pattern, "build_graph") if hasattr(pattern, "build_graph") else None
 
         issues = validator.validate(pattern, PatternValidationLevel.BASIC)
@@ -166,9 +170,9 @@ class TestStructuralValidator:
             for issue in issues
         )
 
-    def test_validate_missing_get_pattern_name(self, validator):
+    def test_validate_missing_get_pattern_name(self, validator: Any) -> None:
         """Test validation with missing get_pattern_name method."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock()
         (
             delattr(pattern, "get_pattern_name")
@@ -185,9 +189,9 @@ class TestStructuralValidator:
             for issue in issues
         )
 
-    def test_validate_strict_level_missing_params(self, validator):
+    def test_validate_strict_level_missing_params(self, validator: Any) -> None:
         """Test strict validation with missing parameters."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock()
         pattern.get_pattern_name = Mock(return_value="test")
 
@@ -206,9 +210,9 @@ class TestStructuralValidator:
                 for issue in issues
             )
 
-    def test_validate_invalid_pattern_name(self, validator):
+    def test_validate_invalid_pattern_name(self, validator: Any) -> None:
         """Test validation with invalid pattern name."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock()
         pattern.get_pattern_name = Mock(return_value="invalid@pattern!")
 
@@ -221,9 +225,9 @@ class TestStructuralValidator:
             for issue in issues
         )
 
-    def test_validate_empty_pattern_name(self, validator):
+    def test_validate_empty_pattern_name(self, validator: Any) -> None:
         """Test validation with empty pattern name."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock()
         pattern.get_pattern_name = Mock(return_value="")
 
@@ -236,9 +240,9 @@ class TestStructuralValidator:
             for issue in issues
         )
 
-    def test_validate_get_pattern_name_exception(self, validator):
+    def test_validate_get_pattern_name_exception(self, validator: Any) -> None:
         """Test validation when get_pattern_name raises exception."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock(return_value=Mock())  # Ensure non-async return
         pattern.get_pattern_name = Mock(side_effect=Exception("Test error"))
 
@@ -256,15 +260,15 @@ class TestSemanticValidator:
     """Test suite for SemanticValidator class."""
 
     @pytest.fixture
-    def validator(self):
+    def validator(self) -> Any:
         """Create SemanticValidator instance."""
         return SemanticValidator()
 
-    def test_validator_name(self, validator):
+    def test_validator_name(self, validator: Any) -> None:
         """Test validator name property."""
         assert validator.validator_name == "Semantic Validator"
 
-    def test_validate_valid_pattern(self, validator):
+    def test_validate_valid_pattern(self, validator: Any) -> None:
         """Test validation of valid pattern."""
         pattern = MockGraphPattern()
 
@@ -274,9 +278,9 @@ class TestSemanticValidator:
             # Should not have critical issues for working pattern
             assert all(issue.level != PatternValidationResult.FAIL for issue in issues)
 
-    def test_validate_build_graph_returns_none(self, validator):
+    def test_validate_build_graph_returns_none(self, validator: Any) -> None:
         """Test validation when build_graph returns None."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock(return_value=None)
 
         issues = validator.validate(pattern, PatternValidationLevel.BASIC)
@@ -288,9 +292,9 @@ class TestSemanticValidator:
             for issue in issues
         )
 
-    def test_validate_build_graph_exception(self, validator):
+    def test_validate_build_graph_exception(self, validator: Any) -> None:
         """Test validation when build_graph raises exception."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock(side_effect=Exception("Build error"))
 
         issues = validator.validate(pattern, PatternValidationLevel.BASIC)
@@ -302,9 +306,9 @@ class TestSemanticValidator:
             for issue in issues
         )
 
-    def test_validate_no_build_graph_method(self, validator):
+    def test_validate_no_build_graph_method(self, validator: Any) -> None:
         """Test validation when pattern has no build_graph method."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         delattr(pattern, "build_graph") if hasattr(pattern, "build_graph") else None
 
         issues = validator.validate(pattern, PatternValidationLevel.BASIC)
@@ -312,9 +316,9 @@ class TestSemanticValidator:
         # Should handle missing method gracefully
         assert isinstance(issues, list)
 
-    def test_validate_semantic_exception(self, validator):
+    def test_validate_semantic_exception(self, validator: Any) -> None:
         """Test validation when semantic validation itself fails."""
-        pattern = Mock()
+        pattern: Mock = Mock()
 
         # Force an exception in the pattern itself to trigger exception handling
         pattern.build_graph.side_effect = Exception("Mock validation error")
@@ -333,15 +337,15 @@ class TestPerformanceValidator:
     """Test suite for PerformanceValidator class."""
 
     @pytest.fixture
-    def validator(self):
+    def validator(self) -> Any:
         """Create PerformanceValidator instance."""
         return PerformanceValidator()
 
-    def test_validator_name(self, validator):
+    def test_validator_name(self, validator: Any) -> None:
         """Test validator name property."""
         assert validator.validator_name == "Performance Validator"
 
-    def test_validate_basic_level(self, validator):
+    def test_validate_basic_level(self, validator: Any) -> None:
         """Test validation at basic level."""
         pattern = MockGraphPattern()
         issues = validator.validate(pattern, PatternValidationLevel.BASIC)
@@ -349,7 +353,7 @@ class TestPerformanceValidator:
         # Basic level should not run performance checks
         assert len(issues) == 0
 
-    def test_validate_strict_level(self, validator):
+    def test_validate_strict_level(self, validator: Any) -> None:
         """Test validation at strict level."""
         pattern = MockGraphPattern()
 
@@ -363,9 +367,9 @@ class TestPerformanceValidator:
                     # Should run all performance checks
                     assert isinstance(issues, list)
 
-    def test_check_performance_patterns_time_sleep(self, validator):
+    def test_check_performance_patterns_time_sleep(self, validator: Any) -> None:
         """Test detection of time.sleep anti-pattern."""
-        pattern = Mock()
+        pattern: Mock = Mock()
 
         with patch(
             "inspect.getsource", return_value="def method():\n    time.sleep(1)\n"
@@ -379,9 +383,9 @@ class TestPerformanceValidator:
                 for issue in issues
             )
 
-    def test_check_memory_patterns_global_usage(self, validator):
+    def test_check_memory_patterns_global_usage(self, validator: Any) -> None:
         """Test detection of global variable usage."""
-        pattern = Mock()
+        pattern: Mock = Mock()
 
         with patch("inspect.getsource", return_value="global my_var\nmy_var = 1\n"):
             issues = validator._check_memory_patterns(pattern)
@@ -393,9 +397,9 @@ class TestPerformanceValidator:
                 for issue in issues
             )
 
-    def test_check_efficiency_patterns_many_loops(self, validator):
+    def test_check_efficiency_patterns_many_loops(self, validator: Any) -> None:
         """Test detection of many loops."""
-        pattern = Mock()
+        pattern: Mock = Mock()
 
         with patch(
             "inspect.getsource",
@@ -415,15 +419,15 @@ class TestSecurityValidator:
     """Test suite for SecurityValidator class."""
 
     @pytest.fixture
-    def validator(self):
+    def validator(self) -> Any:
         """Create SecurityValidator instance."""
         return SecurityValidator()
 
-    def test_validator_name(self, validator):
+    def test_validator_name(self, validator: Any) -> None:
         """Test validator name property."""
         assert validator.validator_name == "Security Validator"
 
-    def test_validate_basic_level(self, validator):
+    def test_validate_basic_level(self, validator: Any) -> None:
         """Test validation at basic level."""
         pattern = MockGraphPattern()
         issues = validator.validate(pattern, PatternValidationLevel.BASIC)
@@ -431,7 +435,7 @@ class TestSecurityValidator:
         # Basic level should not run security checks
         assert len(issues) == 0
 
-    def test_validate_strict_level(self, validator):
+    def test_validate_strict_level(self, validator: Any) -> None:
         """Test validation at strict level."""
         pattern = MockGraphPattern()
 
@@ -442,9 +446,9 @@ class TestSecurityValidator:
                 # Should run security checks
                 assert isinstance(issues, list)
 
-    def test_check_security_patterns_eval_usage(self, validator):
+    def test_check_security_patterns_eval_usage(self, validator: Any) -> None:
         """Test detection of eval() usage."""
-        pattern = Mock()
+        pattern: Mock = Mock()
 
         with patch("inspect.getsource", return_value="result = eval(user_input)\n"):
             issues = validator._check_security_patterns(pattern)
@@ -456,9 +460,9 @@ class TestSecurityValidator:
                 for issue in issues
             )
 
-    def test_check_security_patterns_exec_usage(self, validator):
+    def test_check_security_patterns_exec_usage(self, validator: Any) -> None:
         """Test detection of exec() usage."""
-        pattern = Mock()
+        pattern: Mock = Mock()
 
         with patch("inspect.getsource", return_value="exec(user_code)\n"):
             issues = validator._check_security_patterns(pattern)
@@ -470,9 +474,9 @@ class TestSecurityValidator:
                 for issue in issues
             )
 
-    def test_check_data_validation_no_validation(self, validator):
+    def test_check_data_validation_no_validation(self, validator: Any) -> None:
         """Test detection of missing input validation."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock()
 
         with patch(
@@ -488,9 +492,9 @@ class TestSecurityValidator:
                 for issue in issues
             )
 
-    def test_check_data_validation_has_validation(self, validator):
+    def test_check_data_validation_has_validation(self, validator: Any) -> None:
         """Test with proper input validation."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.build_graph = Mock()
 
         with patch(
@@ -507,16 +511,16 @@ class TestPatternValidationFramework:
     """Test suite for PatternValidationFramework class."""
 
     @pytest.fixture
-    def framework(self):
+    def framework(self) -> Any:
         """Create PatternValidationFramework instance."""
         return PatternValidationFramework()
 
     @pytest.fixture
-    def mock_pattern(self):
+    def mock_pattern(self) -> Any:
         """Create mock pattern for testing."""
         return MockGraphPattern()
 
-    def test_initialization(self, framework):
+    def test_initialization(self, framework: Any) -> None:
         """Test PatternValidationFramework initialization."""
         assert framework.console is not None
         assert len(framework.validators) == 4  # 4 built-in validators
@@ -526,13 +530,13 @@ class TestPatternValidationFramework:
         assert any(isinstance(v, PerformanceValidator) for v in framework.validators)
         assert any(isinstance(v, SecurityValidator) for v in framework.validators)
 
-    def test_create_app(self, framework):
+    def test_create_app(self, framework: Any) -> None:
         """Test CLI app creation."""
         app = framework.create_app()
         assert app is not None
         assert app.info.name == "pattern-validator"
 
-    def test_load_pattern(self, framework):
+    def test_load_pattern(self, framework: Any) -> None:
         """Test pattern loading."""
         # Test loading built-in pattern
         pattern = framework._load_pattern("standard")
@@ -544,7 +548,9 @@ class TestPatternValidationFramework:
         with pytest.raises(FileNotFoundError):
             framework._load_pattern("test/path")
 
-    def test_validate_pattern_comprehensive_pass(self, framework, mock_pattern):
+    def test_validate_pattern_comprehensive_pass(
+        self, framework: Any, mock_pattern: Any
+    ) -> None:
         """Test comprehensive validation with passing pattern."""
         report = framework._validate_pattern_comprehensive(
             mock_pattern, PatternValidationLevel.BASIC
@@ -555,10 +561,10 @@ class TestPatternValidationFramework:
         assert report.pattern_class == "MockGraphPattern"
         assert report.validation_level == PatternValidationLevel.BASIC
 
-    def test_validate_pattern_comprehensive_with_issues(self, framework):
+    def test_validate_pattern_comprehensive_with_issues(self, framework: Any) -> None:
         """Test comprehensive validation with issues."""
         # Create pattern that will fail validation
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.get_pattern_name.return_value = "test_pattern"
         # Remove required methods to trigger validation failures
         del pattern.build_graph
@@ -574,8 +580,8 @@ class TestPatternValidationFramework:
         assert len(report.issues) > 0
 
     def test_validate_pattern_comprehensive_certification(
-        self, framework, mock_pattern
-    ):
+        self, framework: Any, mock_pattern: Any
+    ) -> None:
         """Test certification level validation."""
         report = framework._validate_pattern_comprehensive(
             mock_pattern, PatternValidationLevel.CERTIFICATION
@@ -585,11 +591,11 @@ class TestPatternValidationFramework:
         # Certification readiness depends on issues found
 
     def test_validate_pattern_comprehensive_validator_exception(
-        self, framework, mock_pattern
-    ):
+        self, framework: Any, mock_pattern: Any
+    ) -> None:
         """Test handling of validator exceptions."""
         # Add a validator that will raise an exception
-        bad_validator = Mock()
+        bad_validator: Mock = Mock()
         bad_validator.validate.side_effect = Exception("Validator error")
         bad_validator.validator_name = "Bad Validator"
         framework.validators.append(bad_validator)
@@ -605,7 +611,7 @@ class TestPatternValidationFramework:
             for issue in report.issues
         )
 
-    def test_display_validation_report(self, framework, mock_pattern):
+    def test_display_validation_report(self, framework: Any, mock_pattern: Any) -> None:
         """Test validation report display."""
         report = framework._validate_pattern_comprehensive(
             mock_pattern, PatternValidationLevel.BASIC
@@ -617,7 +623,7 @@ class TestPatternValidationFramework:
             # Should print report information
             mock_print.assert_called()
 
-    def test_display_validation_report_with_issues(self, framework):
+    def test_display_validation_report_with_issues(self, framework: Any) -> None:
         """Test validation report display with issues."""
         issues = [
             ValidationIssue(
@@ -647,7 +653,7 @@ class TestPatternValidationFramework:
             # Should print issues table
             mock_print.assert_called()
 
-    def test_format_report_json(self, framework, mock_pattern):
+    def test_format_report_json(self, framework: Any, mock_pattern: Any) -> None:
         """Test JSON report formatting."""
         report = framework._validate_pattern_comprehensive(
             mock_pattern, PatternValidationLevel.BASIC
@@ -660,7 +666,7 @@ class TestPatternValidationFramework:
         assert parsed["pattern_name"] == "test_pattern"
         assert parsed["validation_level"] == "basic"
 
-    def test_format_report_markdown(self, framework, mock_pattern):
+    def test_format_report_markdown(self, framework: Any, mock_pattern: Any) -> None:
         """Test Markdown report formatting."""
         report = framework._validate_pattern_comprehensive(
             mock_pattern, PatternValidationLevel.BASIC
@@ -672,7 +678,7 @@ class TestPatternValidationFramework:
         assert "# Pattern Validation Report" in markdown_output
         assert "**Pattern:** test_pattern" in markdown_output
 
-    def test_load_test_queries_from_file(self, framework):
+    def test_load_test_queries_from_file(self, framework: Any) -> None:
         """Test loading test queries from file."""
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
             f.write("Query 1\nQuery 2\nQuery 3\n")
@@ -685,7 +691,7 @@ class TestPatternValidationFramework:
 
         Path(f.name).unlink()  # Clean up
 
-    def test_load_test_queries_default(self, framework):
+    def test_load_test_queries_default(self, framework: Any) -> None:
         """Test loading default test queries."""
         queries = framework._load_test_queries(None)
 
@@ -693,7 +699,7 @@ class TestPatternValidationFramework:
         assert len(queries) > 0
         assert all(isinstance(q, str) for q in queries)
 
-    def test_load_test_queries_file_not_found(self, framework):
+    def test_load_test_queries_file_not_found(self, framework: Any) -> None:
         """Test loading test queries when file not found."""
         queries = framework._load_test_queries("nonexistent.txt")
 
@@ -701,7 +707,7 @@ class TestPatternValidationFramework:
         assert isinstance(queries, list)
         assert len(queries) > 0
 
-    def test_run_pattern_tests(self, framework, mock_pattern):
+    def test_run_pattern_tests(self, framework: Any, mock_pattern: Any) -> None:
         """Test running pattern tests."""
         queries = ["Test query 1", "Test query 2"]
         agents = ["refiner", "critic"]
@@ -714,7 +720,7 @@ class TestPatternValidationFramework:
         assert "failed" in results
         assert "success_rate" in results
 
-    def test_display_test_results(self, framework):
+    def test_display_test_results(self, framework: Any) -> None:
         """Test test results display."""
         results = {"total_tests": 10, "passed": 8, "failed": 2, "success_rate": 0.8}
 
@@ -724,14 +730,16 @@ class TestPatternValidationFramework:
             # Should print results table
             mock_print.assert_called()
 
-    def test_run_certification_tests(self, framework, mock_pattern):
+    def test_run_certification_tests(self, framework: Any, mock_pattern: Any) -> None:
         """Test certification tests."""
         report = framework._run_certification_tests(mock_pattern, None)
 
         assert isinstance(report, PatternValidationReport)
         assert report.validation_level == PatternValidationLevel.CERTIFICATION
 
-    def test_display_certification_results(self, framework, mock_pattern):
+    def test_display_certification_results(
+        self, framework: Any, mock_pattern: Any
+    ) -> None:
         """Test certification results display."""
         report = framework._validate_pattern_comprehensive(
             mock_pattern, PatternValidationLevel.CERTIFICATION
@@ -743,7 +751,7 @@ class TestPatternValidationFramework:
             # Should display validation report
             mock_print.assert_called()
 
-    def test_generate_certificate(self, framework, mock_pattern):
+    def test_generate_certificate(self, framework: Any, mock_pattern: Any) -> None:
         """Test certificate generation."""
         report = framework._validate_pattern_comprehensive(
             mock_pattern, PatternValidationLevel.CERTIFICATION
@@ -762,7 +770,7 @@ class TestPatternValidationFramework:
 
         Path(f.name).unlink()  # Clean up
 
-    def test_discover_patterns_in_path(self, framework):
+    def test_discover_patterns_in_path(self, framework: Any) -> None:
         """Test pattern discovery."""
         patterns = framework._discover_patterns_in_path(".", None)
 
@@ -770,13 +778,15 @@ class TestPatternValidationFramework:
         assert len(patterns) > 0
         assert all("name" in p and "type" in p and "location" in p for p in patterns)
 
-    def test_load_validator(self, framework):
+    def test_load_validator(self, framework: Any) -> None:
         """Test custom validator loading."""
         validator = framework._load_validator("test/path")
 
         assert isinstance(validator, StructuralValidator)
 
-    def test_generate_comprehensive_report(self, framework, mock_pattern):
+    def test_generate_comprehensive_report(
+        self, framework: Any, mock_pattern: Any
+    ) -> None:
         """Test comprehensive report generation."""
         report = framework._generate_comprehensive_report(
             mock_pattern, "detailed", True
@@ -786,7 +796,9 @@ class TestPatternValidationFramework:
         assert "# Comprehensive Pattern Report" in report
         assert "test_pattern" in report
 
-    def test_benchmark_pattern_performance(self, framework, mock_pattern):
+    def test_benchmark_pattern_performance(
+        self, framework: Any, mock_pattern: Any
+    ) -> None:
         """Test pattern performance benchmarking."""
         results = framework._benchmark_pattern_performance(
             mock_pattern, None, ["refiner"], 5
@@ -796,7 +808,7 @@ class TestPatternValidationFramework:
         assert "avg_duration" in results
         assert "runs" in results
 
-    def test_display_benchmark_results(self, framework):
+    def test_display_benchmark_results(self, framework: Any) -> None:
         """Test benchmark results display."""
         results = {"avg_duration": 1.5, "baseline_comparison": "20% faster", "runs": 10}
 
@@ -812,11 +824,11 @@ class TestPatternValidationFrameworkIntegration:
     """Integration tests for PatternValidationFramework."""
 
     @pytest.fixture
-    def framework(self):
+    def framework(self) -> Any:
         """Create framework for integration tests."""
         return PatternValidationFramework()
 
-    def test_full_validation_workflow(self, framework):
+    def test_full_validation_workflow(self, framework: Any) -> None:
         """Test complete validation workflow."""
         pattern = MockGraphPattern()
 
@@ -826,7 +838,7 @@ class TestPatternValidationFrameworkIntegration:
         )
         assert isinstance(report, PatternValidationReport)
 
-    def test_cli_app_integration(self, framework):
+    def test_cli_app_integration(self, framework: Any) -> None:
         """Test CLI app creation and commands."""
         app = framework.create_app()
 
@@ -834,7 +846,7 @@ class TestPatternValidationFrameworkIntegration:
         assert app is not None
         assert app.info.name == "pattern-validator"
 
-    def test_custom_validator_registration(self, framework):
+    def test_custom_validator_registration(self, framework: Any) -> None:
         """Test registering custom validators."""
         custom_validator = StructuralValidator()
         initial_count = len(framework.validators + framework.custom_validators)
@@ -845,10 +857,10 @@ class TestPatternValidationFrameworkIntegration:
             len(framework.validators + framework.custom_validators) == initial_count + 1
         )
 
-    def test_validation_with_custom_validators(self, framework):
+    def test_validation_with_custom_validators(self, framework: Any) -> None:
         """Test validation with custom validators."""
         # Add custom validator
-        custom_validator = Mock()
+        custom_validator: Mock = Mock()
         custom_validator.validate.return_value = [
             ValidationIssue(
                 level=PatternValidationResult.WARN,
@@ -875,11 +887,11 @@ class TestPatternValidationFrameworkPerformance:
     """Performance tests for PatternValidationFramework."""
 
     @pytest.fixture
-    def framework(self):
+    def framework(self) -> Any:
         """Create framework for performance tests."""
         return PatternValidationFramework()
 
-    def test_validation_performance(self, framework):
+    def test_validation_performance(self, framework: Any) -> None:
         """Test validation performance."""
         import time
 
@@ -895,7 +907,7 @@ class TestPatternValidationFrameworkPerformance:
         assert (end_time - start_time) < 2.0
         assert isinstance(report, PatternValidationReport)
 
-    def test_multiple_patterns_validation(self, framework):
+    def test_multiple_patterns_validation(self, framework: Any) -> None:
         """Test validating multiple patterns."""
         patterns = [MockGraphPattern(f"pattern_{i}") for i in range(10)]
 
@@ -919,11 +931,11 @@ class TestPatternValidationFrameworkErrorHandling:
     """Error handling tests for PatternValidationFramework."""
 
     @pytest.fixture
-    def framework(self):
+    def framework(self) -> Any:
         """Create framework for error handling tests."""
         return PatternValidationFramework()
 
-    def test_validate_invalid_pattern_object(self, framework):
+    def test_validate_invalid_pattern_object(self, framework: Any) -> None:
         """Test validation with invalid pattern object."""
         invalid_pattern = "not a pattern"
 
@@ -933,9 +945,9 @@ class TestPatternValidationFrameworkErrorHandling:
         )
         assert isinstance(report, PatternValidationReport)
 
-    def test_validate_pattern_missing_methods(self, framework):
+    def test_validate_pattern_missing_methods(self, framework: Any) -> None:
         """Test validation of pattern missing required methods."""
-        pattern = Mock()
+        pattern: Mock = Mock()
         pattern.get_pattern_name.return_value = "test_pattern"
         # Remove all methods
 
@@ -949,7 +961,7 @@ class TestPatternValidationFrameworkErrorHandling:
             issue.level == PatternValidationResult.FAIL for issue in report.issues
         )
 
-    def test_format_report_with_unicode(self, framework):
+    def test_format_report_with_unicode(self, framework: Any) -> None:
         """Test report formatting with unicode characters."""
         issues = [
             ValidationIssue(

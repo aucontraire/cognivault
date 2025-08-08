@@ -177,7 +177,7 @@ class InteractiveDAGExplorer:
         show_details: bool = typer.Option(
             True, "--details", help="Show detailed node information"
         ),
-    ):
+    ) -> None:
         """Explore DAG structure with interactive navigation."""
         self.console.print("[bold blue]🔍 DAG Structure Explorer[/bold blue]")
 
@@ -224,7 +224,7 @@ class InteractiveDAGExplorer:
             "standard", "--pattern", "-p", help="Graph pattern"
         ),
         depth: int = typer.Option(3, "--depth", "-d", help="Analysis depth"),
-    ):
+    ) -> None:
         """Analyze DAG structural properties and complexity."""
         self.console.print("[bold green]📊 DAG Structure Analysis[/bold green]")
 
@@ -265,7 +265,7 @@ class InteractiveDAGExplorer:
         live_trace: bool = typer.Option(
             False, "--live", help="Show live execution trace"
         ),
-    ):
+    ) -> None:
         """Trace DAG execution with detailed path analysis."""
         self.console.print("[bold yellow]🔬 DAG Execution Tracer[/bold yellow]")
 
@@ -307,7 +307,7 @@ class InteractiveDAGExplorer:
         queries_file: Optional[str] = typer.Option(
             None, "--queries", help="File with test queries"
         ),
-    ):
+    ) -> None:
         """Analyze DAG performance characteristics."""
         self.console.print("[bold magenta]⚡ DAG Performance Analyzer[/bold magenta]")
 
@@ -337,7 +337,7 @@ class InteractiveDAGExplorer:
         validate: bool = typer.Option(
             False, "--validate", help="Validate pattern implementations"
         ),
-    ):
+    ) -> None:
         """Explore available graph patterns and their characteristics."""
         self.console.print("[bold cyan]🎨 Graph Pattern Explorer[/bold cyan]")
 
@@ -375,7 +375,7 @@ class InteractiveDAGExplorer:
         pattern: str = typer.Option(
             "standard", "--pattern", "-p", help="Initial pattern"
         ),
-    ):
+    ) -> None:
         """Enter interactive DAG exploration mode."""
         self.console.print("[bold green]🚀 Interactive DAG Explorer[/bold green]")
         self.console.print("Type 'help' for available commands, 'quit' to exit")
@@ -392,7 +392,7 @@ class InteractiveDAGExplorer:
             "standard", "--pattern", "-p", help="Pattern to validate"
         ),
         strict: bool = typer.Option(False, "--strict", help="Enable strict validation"),
-    ):
+    ) -> None:
         """Validate DAG structure and configuration."""
         self.console.print("[bold red]✅ DAG Validator[/bold red]")
 
@@ -421,7 +421,7 @@ class InteractiveDAGExplorer:
         ),
         queries: int = typer.Option(10, "--queries", help="Number of test queries"),
         runs: int = typer.Option(3, "--runs", help="Runs per query"),
-    ):
+    ) -> None:
         """Benchmark DAG performance across patterns."""
         self.console.print("[bold yellow]🏁 DAG Benchmark Suite[/bold yellow]")
 
@@ -440,7 +440,7 @@ class InteractiveDAGExplorer:
 
     # Helper methods
 
-    def _analyze_graph_structure(self):
+    def _analyze_graph_structure(self) -> None:
         """Analyze current graph structure and populate node information."""
         if not self.current_graph:
             return
@@ -479,7 +479,7 @@ class InteractiveDAGExplorer:
             ),
         }
 
-    def _display_structure_console(self, show_details: bool):
+    def _display_structure_console(self, show_details: bool) -> None:
         """Display graph structure in console format."""
         tree = Tree("🌳 DAG Structure")
 
@@ -528,7 +528,7 @@ class InteractiveDAGExplorer:
         edges = sum(len(node.dependencies) for node in self.current_nodes.values())
         return (nodes * 0.5) + (edges * 0.3)
 
-    def _display_structural_analysis(self, analysis: Dict[str, Any]):
+    def _display_structural_analysis(self, analysis: Dict[str, Any]) -> None:
         """Display structural analysis results."""
         table = Table(title="Structural Analysis")
         table.add_column("Metric", style="bold")
@@ -577,7 +577,7 @@ class InteractiveDAGExplorer:
                 error_node="unknown",
             )
 
-    def _display_execution_trace(self, execution: ExplorerState):
+    def _display_execution_trace(self, execution: ExplorerState) -> None:
         """Display execution trace results."""
         panel = Panel(
             f"Execution ID: {execution.execution_id}\n"
@@ -628,7 +628,7 @@ class InteractiveDAGExplorer:
             "memory_usage": 256.0,
         }
 
-    def _display_performance_analysis(self, data: Dict[str, Any]):
+    def _display_performance_analysis(self, data: Dict[str, Any]) -> None:
         """Display performance analysis results."""
         table = Table(title="Performance Analysis")
         table.add_column("Metric", style="bold")
@@ -643,7 +643,7 @@ class InteractiveDAGExplorer:
 
         self.console.print(table)
 
-    def _list_available_patterns(self):
+    def _list_available_patterns(self) -> None:
         """List all available graph patterns."""
         patterns = [
             ("standard", "Standard sequential pattern"),
@@ -661,7 +661,9 @@ class InteractiveDAGExplorer:
 
         self.console.print(table)
 
-    def _start_interactive_session(self, agents: Optional[List[str]], pattern: str):
+    def _start_interactive_session(
+        self, agents: Optional[List[str]], pattern: str
+    ) -> None:
         """Start interactive exploration session."""
         # Simplified interactive mode
         while True:
@@ -676,7 +678,7 @@ class InteractiveDAGExplorer:
             else:
                 self.console.print(f"Unknown command: {command}")
 
-    def _show_interactive_help(self):
+    def _show_interactive_help(self) -> None:
         """Show interactive mode help."""
         help_text = """
 [bold]Available Commands:[/bold]
@@ -703,7 +705,7 @@ class InteractiveDAGExplorer:
             "edge_count": 5,
         }
 
-    def _display_validation_results(self, results: Dict[str, Any]):
+    def _display_validation_results(self, results: Dict[str, Any]) -> None:
         """Display validation results."""
         if results["is_valid"]:
             self.console.print("[green]✅ DAG structure is valid[/green]")
@@ -727,7 +729,7 @@ class InteractiveDAGExplorer:
             },
         }
 
-    def _display_benchmark_results(self, results: Dict[str, Any]):
+    def _display_benchmark_results(self, results: Dict[str, Any]) -> None:
         """Display benchmark results."""
         table = Table(title="Benchmark Results")
         table.add_column("Pattern", style="bold")

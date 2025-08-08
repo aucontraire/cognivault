@@ -7,9 +7,9 @@ task compatibility checking, and performance tier calculations.
 
 import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 from cognivault.agents.metadata import (
     AgentMetadata,
@@ -20,9 +20,11 @@ from cognivault.agents.metadata import (
 from cognivault.exceptions import FailurePropagationStrategy
 
 
-def create_mock_agent_class(name="TestAgent", module="test_module"):
+def create_mock_agent_class(
+    name: str = "TestAgent", module: str = "test_module"
+) -> Mock:
     """Create a properly configured mock agent class."""
-    mock_class = Mock()
+    mock_class: Mock = Mock()
     mock_class.__name__ = name
     mock_class.__module__ = module
     return mock_class
@@ -31,9 +33,9 @@ def create_mock_agent_class(name="TestAgent", module="test_module"):
 class TestAgentMetadata:
     """Test AgentMetadata functionality."""
 
-    def test_agent_metadata_creation(self):
+    def test_agent_metadata_creation(self) -> None:
         """Test basic AgentMetadata creation."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__module__ = "test.module"
         mock_agent_class.__name__ = "TestAgent"
 
@@ -54,9 +56,9 @@ class TestAgentMetadata:
         assert metadata.execution_pattern == "processor"
         assert metadata.agent_id == "test_agent"  # Auto-derived from name
 
-    def test_agent_metadata_post_init_derivations(self):
+    def test_agent_metadata_post_init_derivations(self) -> None:
         """Test automatic derivations in __post_init__."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__module__ = "cognivault.agents.refiner"
         mock_agent_class.__name__ = "RefinerAgent"
 
@@ -68,9 +70,9 @@ class TestAgentMetadata:
         assert metadata.primary_capability == "intent_clarification"
         assert "intent_clarification" in metadata.capabilities
 
-    def test_derive_capability_from_name(self):
+    def test_derive_capability_from_name(self) -> None:
         """Test capability derivation from agent names."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -86,9 +88,9 @@ class TestAgentMetadata:
             metadata = AgentMetadata(name=name, agent_class=mock_agent_class)
             assert metadata.primary_capability == expected_capability
 
-    def test_derive_capabilities_with_llm(self):
+    def test_derive_capabilities_with_llm(self) -> None:
         """Test capability derivation for LLM-enabled agents."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "CustomAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -109,9 +111,9 @@ class TestAgentMetadata:
 
         assert set(metadata.capabilities) == expected_capabilities
 
-    def test_can_replace_same_agent(self):
+    def test_can_replace_same_agent(self) -> None:
         """Test agent replacement compatibility for same agent."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -140,9 +142,9 @@ class TestAgentMetadata:
         # v1.1.0 can replace v1.0.0 (newer version with superset capabilities)
         assert metadata2.can_replace(metadata1)
 
-    def test_can_replace_different_agent(self):
+    def test_can_replace_different_agent(self) -> None:
         """Test agent replacement compatibility for different agents."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -158,9 +160,9 @@ class TestAgentMetadata:
         assert not refiner_metadata.can_replace(critic_metadata)
         assert not critic_metadata.can_replace(refiner_metadata)
 
-    def test_can_replace_version_compatibility(self):
+    def test_can_replace_version_compatibility(self) -> None:
         """Test version compatibility in agent replacement."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -184,9 +186,9 @@ class TestAgentMetadata:
         # v1.0.5 cannot replace agent requiring min v1.1.0
         assert not new_metadata.can_replace(old_metadata)
 
-    def test_is_compatible_with_task_transform(self):
+    def test_is_compatible_with_task_transform(self) -> None:
         """Test task compatibility for transform tasks."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -200,9 +202,9 @@ class TestAgentMetadata:
         assert translator_metadata.is_compatible_with_task("transform")
         assert not translator_metadata.is_compatible_with_task("evaluate")
 
-    def test_is_compatible_with_task_evaluate(self):
+    def test_is_compatible_with_task_evaluate(self) -> None:
         """Test task compatibility for evaluate tasks."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -216,9 +218,9 @@ class TestAgentMetadata:
         assert critic_metadata.is_compatible_with_task("evaluate")
         assert not critic_metadata.is_compatible_with_task("retrieve")
 
-    def test_is_compatible_with_task_multiple_capabilities(self):
+    def test_is_compatible_with_task_multiple_capabilities(self) -> None:
         """Test task compatibility with multiple capabilities."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -234,9 +236,9 @@ class TestAgentMetadata:
         assert multi_capability_metadata.is_compatible_with_task("transform")
         assert multi_capability_metadata.is_compatible_with_task("retrieve")
 
-    def test_get_performance_tier(self):
+    def test_get_performance_tier(self) -> None:
         """Test performance tier calculation."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -257,9 +259,9 @@ class TestAgentMetadata:
             )
             assert metadata.get_performance_tier() == expected_tier
 
-    def test_to_dict_serialization(self):
+    def test_to_dict_serialization(self) -> None:
         """Test dictionary serialization."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__module__ = "test.module"
         mock_agent_class.__name__ = "TestAgent"
 
@@ -283,10 +285,10 @@ class TestAgentMetadata:
         assert result_dict["file_path"] == "/test/path"
         assert result_dict["discovery_strategy"] == "filesystem"
 
-    def test_create_default_success(self):
+    def test_create_default_success(self) -> None:
         """Test successful creation of default metadata."""
         with patch("importlib.import_module") as mock_import:
-            mock_module = Mock()
+            mock_module: Mock = Mock()
             mock_base_agent = create_mock_agent_class(
                 "BaseAgent", "cognivault.agents.base_agent"
             )
@@ -303,9 +305,9 @@ class TestAgentMetadata:
             assert metadata.cognitive_speed == "adaptive"
             assert metadata.primary_capability == "general_processing"
 
-    def test_create_default_with_custom_agent_class(self):
+    def test_create_default_with_custom_agent_class(self) -> None:
         """Test create_default with provided agent class."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -318,7 +320,7 @@ class TestAgentMetadata:
         assert metadata.agent_class == mock_agent_class
         assert metadata.name == "custom_agent"
 
-    def test_create_default_import_fallback(self):
+    def test_create_default_import_fallback(self) -> None:
         """Test create_default fallback when BaseAgent import fails."""
         with patch("importlib.import_module") as mock_import:
             mock_import.side_effect = ImportError("Module not found")
@@ -329,7 +331,7 @@ class TestAgentMetadata:
             assert metadata.name == "default_agent"
             assert hasattr(metadata.agent_class, "__name__")
 
-    def test_from_dict_deserialization(self):
+    def test_from_dict_deserialization(self) -> None:
         """Test dictionary deserialization."""
         agent_dict = {
             "name": "test_agent",
@@ -344,7 +346,7 @@ class TestAgentMetadata:
         }
 
         with patch("importlib.import_module") as mock_import:
-            mock_module = Mock()
+            mock_module: Mock = Mock()
             mock_base_agent = create_mock_agent_class(
                 "BaseAgent", "cognivault.agents.base_agent"
             )
@@ -359,7 +361,7 @@ class TestAgentMetadata:
             assert metadata.discovery_strategy == DiscoveryStrategy.FILESYSTEM
             assert metadata.failure_strategy == FailurePropagationStrategy.FAIL_FAST
 
-    def test_from_dict_import_fallback(self):
+    def test_from_dict_import_fallback(self) -> None:
         """Test from_dict fallback when import fails."""
         agent_dict = {"name": "test_agent", "agent_class": "nonexistent.module.Agent"}
 
@@ -376,7 +378,7 @@ class TestAgentMetadata:
 class TestTaskClassification:
     """Test TaskClassification functionality."""
 
-    def test_task_classification_creation(self):
+    def test_task_classification_creation(self) -> None:
         """Test basic TaskClassification creation."""
         classification = TaskClassification(
             task_type="transform",
@@ -392,7 +394,7 @@ class TestTaskClassification:
         assert classification.complexity == "moderate"
         assert classification.urgency == "high"
 
-    def test_task_classification_defaults(self):
+    def test_task_classification_defaults(self) -> None:
         """Test TaskClassification with default values."""
         classification = TaskClassification(task_type="evaluate")
 
@@ -402,7 +404,7 @@ class TestTaskClassification:
         assert classification.complexity == "moderate"
         assert classification.urgency == "normal"
 
-    def test_to_dict_serialization(self):
+    def test_to_dict_serialization(self) -> None:
         """Test TaskClassification dictionary serialization."""
         classification = TaskClassification(
             task_type="synthesize",
@@ -424,7 +426,7 @@ class TestTaskClassification:
 
         assert result_dict == expected
 
-    def test_from_dict_deserialization(self):
+    def test_from_dict_deserialization(self) -> None:
         """Test TaskClassification dictionary deserialization."""
         classification_dict = {
             "task_type": "retrieve",
@@ -446,7 +448,7 @@ class TestTaskClassification:
 class TestClassifyQueryTask:
     """Test query task classification functionality."""
 
-    def test_classify_transform_query(self):
+    def test_classify_transform_query(self) -> None:
         """Test classification of transform queries."""
         queries = [
             "translate this text to French",
@@ -458,7 +460,7 @@ class TestClassifyQueryTask:
             classification = classify_query_task(query)
             assert classification.task_type == "transform"
 
-    def test_classify_evaluate_query(self):
+    def test_classify_evaluate_query(self) -> None:
         """Test classification of evaluate queries."""
         queries = [
             "analyze the market trends",
@@ -471,7 +473,7 @@ class TestClassifyQueryTask:
             classification = classify_query_task(query)
             assert classification.task_type == "evaluate"
 
-    def test_classify_retrieve_query(self):
+    def test_classify_retrieve_query(self) -> None:
         """Test classification of retrieve queries."""
         queries = [
             "find information about climate change",
@@ -484,7 +486,7 @@ class TestClassifyQueryTask:
             classification = classify_query_task(query)
             assert classification.task_type == "retrieve"
 
-    def test_classify_synthesize_query(self):
+    def test_classify_synthesize_query(self) -> None:
         """Test classification of synthesize queries."""
         queries = [
             "combine the research findings",
@@ -497,7 +499,7 @@ class TestClassifyQueryTask:
             classification = classify_query_task(query)
             assert classification.task_type == "synthesize"
 
-    def test_classify_explain_query(self):
+    def test_classify_explain_query(self) -> None:
         """Test classification of explain queries."""
         queries = [
             "explain quantum computing",
@@ -509,7 +511,7 @@ class TestClassifyQueryTask:
             classification = classify_query_task(query)
             assert classification.task_type == "explain"
 
-    def test_classify_complexity_by_length(self):
+    def test_classify_complexity_by_length(self) -> None:
         """Test complexity classification based on query length."""
         short_query = "analyze data"
         medium_query = "analyze the market data trends and provide insights into potential growth opportunities"
@@ -523,7 +525,7 @@ class TestClassifyQueryTask:
         assert medium_classification.complexity == "moderate"
         assert long_classification.complexity == "complex"
 
-    def test_classify_urgency_keywords(self):
+    def test_classify_urgency_keywords(self) -> None:
         """Test urgency classification based on keywords."""
         urgent_query = "urgently analyze the data ASAP"
         normal_query = "analyze the data when convenient"
@@ -537,7 +539,7 @@ class TestClassifyQueryTask:
         assert normal_classification.urgency == "low"  # "when convenient" triggers low
         assert low_classification.urgency == "low"
 
-    def test_classify_domain_detection(self):
+    def test_classify_domain_detection(self) -> None:
         """Test domain detection from query content."""
         test_cases = [
             ("analyze the economic indicators", "economics"),
@@ -552,7 +554,7 @@ class TestClassifyQueryTask:
             classification = classify_query_task(query)
             assert classification.domain == expected_domain
 
-    def test_classify_default_fallback(self):
+    def test_classify_default_fallback(self) -> None:
         """Test default classification for ambiguous queries."""
         ambiguous_query = "process this information"
 
@@ -563,7 +565,7 @@ class TestClassifyQueryTask:
         assert classification.complexity == "simple"  # Short query
         assert classification.urgency == "normal"
 
-    def test_classify_intent_truncation(self):
+    def test_classify_intent_truncation(self) -> None:
         """Test intent field truncation for long queries."""
         long_query = "this is a very long query that should be truncated when used as intent because it exceeds the fifty character limit"
 
@@ -576,9 +578,9 @@ class TestClassifyQueryTask:
 class TestAgentMetadataIntegration:
     """Integration tests for AgentMetadata with other systems."""
 
-    def test_metadata_with_discovery_workflow(self):
+    def test_metadata_with_discovery_workflow(self) -> None:
         """Test metadata in agent discovery workflow."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 
@@ -600,9 +602,9 @@ class TestAgentMetadataIntegration:
         assert metadata.load_count == 5
         assert metadata.is_loaded
 
-    def test_metadata_performance_and_task_integration(self):
+    def test_metadata_performance_and_task_integration(self) -> None:
         """Test integration between performance tiers and task compatibility."""
-        mock_agent_class = Mock()
+        mock_agent_class: Mock = Mock()
         mock_agent_class.__name__ = "TestAgent"
         mock_agent_class.__module__ = "test_module"
 

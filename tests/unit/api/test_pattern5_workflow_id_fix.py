@@ -6,6 +6,7 @@ across all components instead of generating multiple IDs.
 """
 
 import pytest
+from typing import Any, Tuple
 from unittest.mock import AsyncMock, patch
 from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
 from cognivault.correlation import CorrelationContext
@@ -16,7 +17,7 @@ class TestPattern5WorkflowIdFix:
     """Test PATTERN 5 fix: Single workflow ID throughout execution."""
 
     @pytest.fixture
-    async def api_with_mock_orchestrator(self):
+    async def api_with_mock_orchestrator(self) -> Any:
         """Create API instance with mocked orchestrator."""
         api = LangGraphOrchestrationAPI()
 
@@ -38,8 +39,8 @@ class TestPattern5WorkflowIdFix:
 
     @pytest.mark.asyncio
     async def test_single_workflow_id_passed_to_orchestrator(
-        self, api_with_mock_orchestrator
-    ):
+        self, api_with_mock_orchestrator: Tuple[LangGraphOrchestrationAPI, AsyncMock]
+    ) -> None:
         """
         Test PATTERN 5 fix: API passes workflow_id to orchestrator to prevent duplicate ID creation.
 
@@ -102,7 +103,7 @@ class TestPattern5WorkflowIdFix:
             assert completed_call["workflow_id"] == api_workflow_id
 
     @pytest.mark.asyncio
-    async def test_orchestrator_config_includes_workflow_id(self):
+    async def test_orchestrator_config_includes_workflow_id(self) -> None:
         """
         Test that API passes workflow_id in config to orchestrator.
 
@@ -151,8 +152,8 @@ class TestPattern5WorkflowIdFix:
 
     @pytest.mark.asyncio
     async def test_pattern5_end_to_end_workflow_id_consistency(
-        self, api_with_mock_orchestrator
-    ):
+        self, api_with_mock_orchestrator: Tuple[LangGraphOrchestrationAPI, AsyncMock]
+    ) -> None:
         """
         End-to-end test verifying PATTERN 5 fix prevents duplicate workflow IDs.
 
@@ -164,7 +165,7 @@ class TestPattern5WorkflowIdFix:
         # Track all workflow_ids seen during execution
         seen_workflow_ids = set()
 
-        def track_workflow_id(*args, **kwargs):
+        def track_workflow_id(*args: Any, **kwargs: Any) -> None:
             if "workflow_id" in kwargs:
                 seen_workflow_ids.add(kwargs["workflow_id"])
 

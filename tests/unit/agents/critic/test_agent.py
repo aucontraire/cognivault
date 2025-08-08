@@ -5,35 +5,30 @@ from cognivault.agents.critic.agent import CriticAgent
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMResponse
 from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
+from tests.factories.mock_llm_factories import MockLLMFactory, MockLLMResponseFactory
 
 pytest_plugins = ("pytest_asyncio",)
 
 
-def create_mock_llm(response_text: str) -> MagicMock:
-    """Create a mock LLM that returns the specified response text."""
-    mock_llm = MagicMock()
-    mock_response = LLMResponse(
-        text=response_text,
-        tokens_used=50,
-        model_name="test-model",
-        finish_reason="stop",
-    )
-    mock_llm.generate.return_value = mock_response
-    return mock_llm
+# Removed create_mock_llm function - now using MockLLMFactory.with_response()
 
 
 @pytest.mark.asyncio
-async def test_critic_with_refiner_output():
+async def test_critic_with_refiner_output() -> None:
     """Test CriticAgent with RefinerAgent output available."""
-    mock_llm = create_mock_llm(
-        "Assumes 'fair' is objectively measurable—lacks definition of fairness criteria. (Confidence: Medium)"
+    mock_llm = MockLLMFactory.with_response(
+        "Assumes 'fair' is objectively measurable—lacks definition of fairness criteria. (Confidence: Medium)",
+        tokens_used=50,
+        model_name="test-model",
     )
 
-    context = AgentContext(
+    context = AgentContextFactory.with_agent_outputs(
         query="Was the election fair?",
-        agent_outputs={
-            "refiner": "Was the 2020 presidential election conducted fairly according to established democratic standards?"
-        },
+        refiner="Was the 2020 presidential election conducted fairly according to established democratic standards?",
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -60,11 +55,11 @@ async def test_critic_with_refiner_output():
 
 
 @pytest.mark.asyncio
-async def test_critic_without_refiner_output():
+async def test_critic_without_refiner_output() -> None:
     """Test CriticAgent when no RefinerAgent output is available."""
-    mock_llm = create_mock_llm("This should not be called")
+    mock_llm = MockLLMFactory.with_response("This should not be called")
 
-    context = AgentContext(query="What about the turnout?")
+    context = AgentContextPatterns.simple_query("What about the turnout?")
     agent = CriticAgent(llm=mock_llm)
     updated_context = await agent.run(context)
 
@@ -78,11 +73,13 @@ async def test_critic_without_refiner_output():
 
 
 @pytest.mark.asyncio
-async def test_critic_with_empty_refiner_output():
+async def test_critic_with_empty_refiner_output() -> None:
     """Test CriticAgent when RefinerAgent output is empty string."""
-    mock_llm = create_mock_llm("This should not be called")
+    mock_llm = MockLLMFactory.with_response("This should not be called")
 
-    context = AgentContext(query="Empty query test", agent_outputs={"refiner": ""})
+    context = AgentContextFactory.with_agent_outputs(
+        query="Empty query test", refiner=""
+    )
 
     agent = CriticAgent(llm=mock_llm)
     updated_context = await agent.run(context)
@@ -97,20 +94,20 @@ async def test_critic_with_empty_refiner_output():
 
 
 @pytest.mark.asyncio
-async def test_critic_complex_query_analysis():
+async def test_critic_complex_query_analysis() -> None:
     """Test CriticAgent with a complex query requiring structured critique."""
     complex_critique = """• Assumptions: Presumes democratic institutions are uniform across cultures
 • Gaps: No definition of "evolved" or measurement criteria specified
 • Biases: Western-centric view of democracy, post-Cold War timeframe assumption
 • Confidence: Medium (query has clear intent but multiple ambiguities)"""
 
-    mock_llm = create_mock_llm(complex_critique)
+    mock_llm = MockLLMFactory.with_response(
+        complex_critique, tokens_used=50, model_name="test-model"
+    )
 
-    context = AgentContext(
+    context = AgentContextFactory.with_agent_outputs(
         query="How has democracy evolved?",
-        agent_outputs={
-            "refiner": "How has the structure and function of democratic institutions evolved since the Cold War?"
-        },
+        refiner="How has the structure and function of democratic institutions evolved since the Cold War?",
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -139,17 +136,17 @@ async def test_critic_complex_query_analysis():
 
 
 @pytest.mark.asyncio
-async def test_critic_well_scoped_query():
+async def test_critic_well_scoped_query() -> None:
     """Test CriticAgent with a well-scoped query requiring minimal critique."""
     minimal_critique = "Query is well-scoped and neutral—includes timeframe, methodology, and specific metrics. No significant critique needed. (Confidence: High)"
 
-    mock_llm = create_mock_llm(minimal_critique)
+    mock_llm = MockLLMFactory.with_response(
+        minimal_critique, tokens_used=50, model_name="test-model"
+    )
 
-    context = AgentContext(
+    context = AgentContextFactory.with_agent_outputs(
         query="Research question",
-        agent_outputs={
-            "refiner": "What are the documented economic effects of minimum wage increases on employment rates in peer-reviewed studies from 2010-2020?"
-        },
+        refiner="What are the documented economic effects of minimum wage increases on employment rates in peer-reviewed studies from 2010-2020?",
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -164,12 +161,12 @@ async def test_critic_well_scoped_query():
 
 
 @pytest.mark.asyncio
-async def test_critic_logging_behavior():
+async def test_critic_logging_behavior() -> None:
     """Test that CriticAgent logs appropriately during execution."""
-    mock_llm = create_mock_llm("Test critique output")
+    mock_llm = MockLLMFactory.with_response("Test critique output")
 
-    context = AgentContext(
-        query="Test query", agent_outputs={"refiner": "Test refined query"}
+    context = AgentContextFactory.with_agent_outputs(
+        query="Test query", refiner="Test refined query"
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -180,12 +177,12 @@ async def test_critic_logging_behavior():
 
 
 @pytest.mark.asyncio
-async def test_critic_context_tracing():
+async def test_critic_context_tracing() -> None:
     """Test that CriticAgent properly logs trace information."""
-    mock_llm = create_mock_llm("Test critique for tracing")
+    mock_llm = MockLLMFactory.with_response("Test critique for tracing")
 
-    context = AgentContext(
-        query="Trace test", agent_outputs={"refiner": "Refined query for tracing"}
+    context = AgentContextFactory.with_agent_outputs(
+        query="Trace test", refiner="Refined query for tracing"
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -197,13 +194,12 @@ async def test_critic_context_tracing():
 
 
 @pytest.mark.asyncio
-async def test_critic_system_prompt_usage():
+async def test_critic_system_prompt_usage() -> None:
     """Test that CriticAgent uses the correct system prompt."""
-    mock_llm = create_mock_llm("System prompt test output")
+    mock_llm = MockLLMFactory.with_response("System prompt test output")
 
-    context = AgentContext(
-        query="System prompt test",
-        agent_outputs={"refiner": "Test query for system prompt verification"},
+    context = AgentContextFactory.with_agent_outputs(
+        query="System prompt test", refiner="Test query for system prompt verification"
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -221,21 +217,22 @@ async def test_critic_system_prompt_usage():
 
 
 @pytest.mark.asyncio
-async def test_critic_agent_name():
+async def test_critic_agent_name() -> None:
     """Test that CriticAgent has the correct name."""
-    mock_llm = create_mock_llm("Name test")
+    mock_llm = MockLLMFactory.with_response("Name test")
     agent = CriticAgent(llm=mock_llm)
     assert agent.name == "critic"
 
 
 @pytest.mark.asyncio
-async def test_critic_response_stripping():
+async def test_critic_response_stripping() -> None:
     """Test that CriticAgent strips whitespace from LLM responses."""
-    mock_llm = create_mock_llm("  \n  Critique with extra whitespace  \n  ")
+    mock_llm = MockLLMFactory.with_response(
+        "  \n  Critique with extra whitespace  \n  "
+    )
 
-    context = AgentContext(
-        query="Whitespace test",
-        agent_outputs={"refiner": "Test query with whitespace response"},
+    context = AgentContextFactory.with_agent_outputs(
+        query="Whitespace test", refiner="Test query with whitespace response"
     )
 
     agent = CriticAgent(llm=mock_llm)
@@ -248,14 +245,13 @@ async def test_critic_response_stripping():
 
 
 @pytest.mark.asyncio
-async def test_critic_non_text_response():
+async def test_critic_non_text_response() -> None:
     """Test fallback when LLM returns an object without a .text attribute."""
-    mock_llm = MagicMock()
+    mock_llm: MagicMock = MagicMock()
     mock_llm.generate.return_value = object()  # Lacks .text
 
-    context = AgentContext(
-        query="Fallback test",
-        agent_outputs={"refiner": "This query triggers a fallback."},
+    context = AgentContextFactory.with_agent_outputs(
+        query="Fallback test", refiner="This query triggers a fallback."
     )
 
     agent = CriticAgent(llm=mock_llm)

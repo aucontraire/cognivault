@@ -68,7 +68,7 @@ class CogniVaultError(Exception):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.error_code = error_code

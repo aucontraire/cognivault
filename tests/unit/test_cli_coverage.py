@@ -5,10 +5,11 @@ Focuses on untested code paths and edge cases.
 """
 
 import pytest
+from typing import Any
 import os
 import tempfile
 import json
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from rich.console import Console
 
 from cognivault.cli.main_commands import (
@@ -23,24 +24,28 @@ from cognivault.cli.main_commands import (
     _run_rollback_mode,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestCLIUtilityFunctions:
     """Test CLI utility functions."""
 
-    def test_create_llm_instance(self):
+    def test_create_llm_instance(self) -> None:
         """Test LLM instance creation."""
         with (
             patch("cognivault.cli.main_commands.OpenAIConfig") as mock_config_class,
             patch("cognivault.cli.main_commands.OpenAIChatLLM") as mock_llm_class,
         ):
-            mock_config = Mock()
+            mock_config: Mock = Mock()
             mock_config.api_key = "test-key"
             mock_config.model = "gpt-4"
             mock_config.base_url = "https://api.openai.com"
             mock_config_class.load.return_value = mock_config
 
-            mock_llm = Mock()
+            mock_llm: Mock = Mock()
             mock_llm_class.return_value = mock_llm
 
             result = create_llm_instance()
@@ -51,24 +56,24 @@ class TestCLIUtilityFunctions:
                 api_key="test-key", model="gpt-4", base_url="https://api.openai.com"
             )
 
-    def test_validate_langgraph_runtime_success(self):
+    def test_validate_langgraph_runtime_success(self) -> None:
         """Test successful LangGraph runtime validation."""
         # Create mock modules
-        mock_langgraph = Mock()
+        mock_langgraph: Mock = Mock()
         mock_langgraph.__version__ = "0.5.1"
 
-        mock_state_graph = Mock()
-        mock_graph_instance = Mock()
+        mock_state_graph: Mock = Mock()
+        mock_graph_instance: Mock = Mock()
         mock_state_graph.return_value = mock_graph_instance
-        mock_app = Mock()
+        mock_app: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_app
 
-        mock_langgraph_graph = Mock()
+        mock_langgraph_graph: Mock = Mock()
         mock_langgraph_graph.StateGraph = mock_state_graph
         mock_langgraph_graph.END = "END"
 
-        mock_langgraph_checkpoint = Mock()
-        mock_langgraph_checkpoint.MemorySaver = Mock()
+        mock_langgraph_checkpoint: Mock = Mock()
+        mock_langgraph_checkpoint.MemorySaver: Mock = Mock()
 
         # Mock the modules in sys.modules before import
         modules = {
@@ -89,10 +94,10 @@ class TestCLIUtilityFunctions:
             mock_graph_instance.set_entry_point.assert_called_once_with("test")
             mock_graph_instance.compile.assert_called_once()
 
-    def test_validate_langgraph_runtime_wrong_version(self):
+    def test_validate_langgraph_runtime_wrong_version(self) -> None:
         """Test LangGraph validation with wrong version."""
         # Mock langgraph module with incompatible version
-        mock_langgraph = Mock()
+        mock_langgraph: Mock = Mock()
         mock_langgraph.__version__ = "0.4.0"
 
         with patch.dict("sys.modules", {"langgraph": mock_langgraph}):
@@ -101,11 +106,11 @@ class TestCLIUtilityFunctions:
             ):
                 _validate_langgraph_runtime()
 
-    def test_validate_langgraph_runtime_import_error(self):
+    def test_validate_langgraph_runtime_import_error(self) -> None:
         """Test LangGraph validation with import error."""
 
         # Create a mock that raises ImportError when langgraph is imported
-        def import_side_effect(name, *args, **kwargs):
+        def import_side_effect(name: str, *args: Any, **kwargs: Any) -> Any:
             if name == "langgraph":
                 raise ImportError("No module named 'langgraph'")
             return Mock()  # For other imports
@@ -114,23 +119,23 @@ class TestCLIUtilityFunctions:
             with pytest.raises(ImportError, match="LangGraph import failed"):
                 _validate_langgraph_runtime()
 
-    def test_validate_langgraph_runtime_compilation_error(self):
+    def test_validate_langgraph_runtime_compilation_error(self) -> None:
         """Test LangGraph validation with compilation error."""
         # Create mock modules
-        mock_langgraph = Mock()
+        mock_langgraph: Mock = Mock()
         mock_langgraph.__version__ = "0.5.1"
 
-        mock_state_graph = Mock()
-        mock_graph_instance = Mock()
+        mock_state_graph: Mock = Mock()
+        mock_graph_instance: Mock = Mock()
         mock_state_graph.return_value = mock_graph_instance
         mock_graph_instance.compile.side_effect = Exception("Compilation failed")
 
-        mock_langgraph_graph = Mock()
+        mock_langgraph_graph: Mock = Mock()
         mock_langgraph_graph.StateGraph = mock_state_graph
         mock_langgraph_graph.END = "END"
 
-        mock_langgraph_checkpoint = Mock()
-        mock_langgraph_checkpoint.MemorySaver = Mock()
+        mock_langgraph_checkpoint: Mock = Mock()
+        mock_langgraph_checkpoint.MemorySaver: Mock = Mock()
 
         # Mock the modules in sys.modules
         modules = {
@@ -151,7 +156,7 @@ class TestCLIRunModes:
     """Test different CLI run modes."""
 
     @pytest.mark.asyncio
-    async def test_run_with_api_success(self):
+    async def test_run_with_api_success(self) -> None:
         """Test successful API execution."""
         console = Console()
 
@@ -202,7 +207,7 @@ class TestCLIRunModes:
             mock_shutdown_api.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_run_with_api_failure(self):
+    async def test_run_with_api_failure(self) -> None:
         """Test API execution failure."""
         console = Console()
 
@@ -234,7 +239,7 @@ class TestCLIRunModes:
             mock_shutdown_api.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_run_with_api_failed_workflow(self):
+    async def test_run_with_api_failed_workflow(self) -> None:
         """Test API execution with failed workflow response."""
         console = Console()
 
@@ -270,13 +275,13 @@ class TestCLIRunModes:
             assert result.metadata["api_status"] == "failed"
 
     @pytest.mark.asyncio
-    async def test_run_health_check(self):
+    async def test_run_health_check(self) -> None:
         """Test health check mode."""
         console = Console()
 
         # Mock orchestrator with registry
-        mock_orchestrator = Mock()
-        mock_registry = Mock()
+        mock_orchestrator: Mock = Mock()
+        mock_registry: Mock = Mock()
         mock_orchestrator.registry = mock_registry
 
         # Mock successful health checks
@@ -291,12 +296,12 @@ class TestCLIRunModes:
             assert mock_print.call_count >= 2
 
     @pytest.mark.asyncio
-    async def test_run_health_check_failures(self):
+    async def test_run_health_check_failures(self) -> None:
         """Test health check mode with failures."""
         console = Console()
 
-        mock_orchestrator = Mock()
-        mock_registry = Mock()
+        mock_orchestrator: Mock = Mock()
+        mock_registry: Mock = Mock()
         mock_orchestrator.registry = mock_registry
 
         # Mock failed health check
@@ -314,12 +319,12 @@ class TestCLIRunModes:
             assert mock_print.call_count >= 2
 
     @pytest.mark.asyncio
-    async def test_run_health_check_exception(self):
+    async def test_run_health_check_exception(self) -> None:
         """Test health check mode with exception."""
         console = Console()
 
-        mock_orchestrator = Mock()
-        mock_registry = Mock()
+        mock_orchestrator: Mock = Mock()
+        mock_registry: Mock = Mock()
         mock_orchestrator.registry = mock_registry
 
         # Mock exception during health check
@@ -334,12 +339,12 @@ class TestCLIRunModes:
             assert mock_print.call_count >= 2
 
     @pytest.mark.asyncio
-    async def test_run_health_check_default_agents(self):
+    async def test_run_health_check_default_agents(self) -> None:
         """Test health check mode with default agents."""
         console = Console()
 
-        mock_orchestrator = Mock()
-        mock_registry = Mock()
+        mock_orchestrator: Mock = Mock()
+        mock_registry: Mock = Mock()
         mock_orchestrator.registry = mock_registry
         mock_registry.check_health.return_value = True
 
@@ -352,19 +357,19 @@ class TestCLIRunModes:
         assert mock_registry.check_health.call_count == expected_calls
 
     @pytest.mark.asyncio
-    async def test_run_dry_run(self):
+    async def test_run_dry_run(self) -> None:
         """Test dry run mode."""
         console = Console()
         query = "Test query for dry run"
         agents_to_run = ["refiner", "critic"]
 
         # Mock orchestrator with agents
-        mock_agent1 = Mock()
+        mock_agent1: Mock = Mock()
         mock_agent1.name = "refiner"
-        mock_agent2 = Mock()
+        mock_agent2: Mock = Mock()
         mock_agent2.name = "critic"
 
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         mock_orchestrator.agents = [mock_agent1, mock_agent2]
 
         with (
@@ -385,11 +390,11 @@ class TestCLIRunModes:
 class TestCLIDisplayFunctions:
     """Test CLI display functions."""
 
-    def test_display_standard_output(self):
+    def test_display_standard_output(self) -> None:
         """Test standard output display."""
         console = Console()
 
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="Test query",
             agent_outputs={
                 "Refiner": "Refined analysis of the test query",
@@ -408,11 +413,11 @@ class TestCLIDisplayFunctions:
             # Should print performance summary and agent outputs
             assert mock_print.call_count >= 5  # Performance + 3 agents
 
-    def test_display_standard_output_with_failures(self):
+    def test_display_standard_output_with_failures(self) -> None:
         """Test standard output display with failed agents."""
         console = Console()
 
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="Test query",
             agent_outputs={
                 "Refiner": "Refined analysis",
@@ -430,11 +435,11 @@ class TestCLIDisplayFunctions:
             # Should print failure info
             assert mock_print.call_count >= 4
 
-    def test_display_detailed_trace(self):
+    def test_display_detailed_trace(self) -> None:
         """Test detailed trace display."""
         console = Console()
 
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="Test query",
             agent_outputs={"Refiner": "Refined output", "Critic": "Critical analysis"},
         )
@@ -459,11 +464,11 @@ class TestCLIDisplayFunctions:
             # Should print comprehensive trace info
             assert mock_print.call_count >= 8
 
-    def test_display_detailed_trace_minimal(self):
+    def test_display_detailed_trace_minimal(self) -> None:
         """Test detailed trace display with minimal context."""
         console = Console()
 
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="Minimal test", agent_outputs={"Refiner": "Basic output"}
         )
         context.context_id = "minimal-123"
@@ -479,9 +484,9 @@ class TestCLIDisplayFunctions:
             # Should still print basic trace info
             assert mock_print.call_count >= 3
 
-    def test_export_trace_data(self):
+    def test_export_trace_data(self) -> None:
         """Test trace data export."""
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="Export test query", agent_outputs={"refiner": "Exported output"}
         )
         context.context_id = "export-123"
@@ -524,17 +529,17 @@ class TestCLIRollbackMode:
     """Test CLI rollback mode functionality."""
 
     @pytest.mark.asyncio
-    async def test_run_rollback_mode_success(self):
+    async def test_run_rollback_mode_success(self) -> None:
         """Test successful rollback mode."""
         console = Console()
         thread_id = "test-thread-123"
 
         # Mock orchestrator with rollback capability
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         mock_orchestrator.rollback_to_checkpoint = AsyncMock()
 
         # Mock restored context
-        restored_context = AgentContext(
+        restored_context = AgentContextFactory.basic(
             query="Restored query",
             agent_outputs={
                 "refiner": "Restored refiner output",
@@ -544,7 +549,7 @@ class TestCLIRollbackMode:
         mock_orchestrator.rollback_to_checkpoint.return_value = restored_context
 
         # Mock checkpoint history
-        mock_orchestrator.get_checkpoint_history = Mock()
+        mock_orchestrator.get_checkpoint_history: Mock = Mock()
         mock_orchestrator.get_checkpoint_history.return_value = [
             {
                 "agent_step": "critic_completed",
@@ -563,12 +568,12 @@ class TestCLIRollbackMode:
             assert mock_print.call_count >= 5
 
     @pytest.mark.asyncio
-    async def test_run_rollback_mode_no_checkpoint(self):
+    async def test_run_rollback_mode_no_checkpoint(self) -> None:
         """Test rollback mode when no checkpoint exists."""
         console = Console()
         thread_id = "no-checkpoint-thread"
 
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         mock_orchestrator.rollback_to_checkpoint = AsyncMock()
         mock_orchestrator.rollback_to_checkpoint.return_value = None  # No checkpoint
 
@@ -579,12 +584,12 @@ class TestCLIRollbackMode:
             assert mock_print.call_count >= 2
 
     @pytest.mark.asyncio
-    async def test_run_rollback_mode_no_thread_id(self):
+    async def test_run_rollback_mode_no_thread_id(self) -> None:
         """Test rollback mode without thread ID."""
         console = Console()
         thread_id = None
 
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         mock_orchestrator.rollback_to_checkpoint = AsyncMock()
         mock_orchestrator.rollback_to_checkpoint.return_value = None
 
@@ -595,13 +600,13 @@ class TestCLIRollbackMode:
             assert mock_print.call_count >= 2
 
     @pytest.mark.asyncio
-    async def test_run_rollback_mode_not_supported(self):
+    async def test_run_rollback_mode_not_supported(self) -> None:
         """Test rollback mode with orchestrator that doesn't support rollback."""
         console = Console()
         thread_id = "test-thread"
 
         # Mock orchestrator without rollback capability
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         # Don't add rollback_to_checkpoint attribute
 
         with patch.object(console, "print") as mock_print:
@@ -611,12 +616,12 @@ class TestCLIRollbackMode:
             assert mock_print.call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_run_rollback_mode_exception(self):
+    async def test_run_rollback_mode_exception(self) -> None:
         """Test rollback mode with exception."""
         console = Console()
         thread_id = "error-thread"
 
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         mock_orchestrator.rollback_to_checkpoint = AsyncMock()
         mock_orchestrator.rollback_to_checkpoint.side_effect = Exception(
             "Rollback failed"
@@ -629,16 +634,18 @@ class TestCLIRollbackMode:
             assert mock_print.call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_run_rollback_mode_empty_outputs(self):
+    async def test_run_rollback_mode_empty_outputs(self) -> None:
         """Test rollback mode with context that has no agent outputs."""
         console = Console()
         thread_id = "empty-thread"
 
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         mock_orchestrator.rollback_to_checkpoint = AsyncMock()
 
         # Mock restored context with no outputs
-        restored_context = AgentContext(query="Restored query", agent_outputs={})
+        restored_context = AgentContextFactory.basic(
+            query="Restored query", agent_outputs={}
+        )
         mock_orchestrator.rollback_to_checkpoint.return_value = restored_context
 
         with patch.object(console, "print") as mock_print:
@@ -648,17 +655,17 @@ class TestCLIRollbackMode:
             assert mock_print.call_count >= 3
 
     @pytest.mark.asyncio
-    async def test_run_rollback_mode_long_outputs(self):
+    async def test_run_rollback_mode_long_outputs(self) -> None:
         """Test rollback mode with long agent outputs (truncation)."""
         console = Console()
         thread_id = "long-thread"
 
-        mock_orchestrator = Mock()
+        mock_orchestrator: Mock = Mock()
         mock_orchestrator.rollback_to_checkpoint = AsyncMock()
 
         # Mock restored context with long output
         long_output = "x" * 300  # Longer than 200 char limit
-        restored_context = AgentContext(
+        restored_context = AgentContextFactory.basic(
             query="Restored query", agent_outputs={"refiner": long_output}
         )
         mock_orchestrator.rollback_to_checkpoint.return_value = restored_context

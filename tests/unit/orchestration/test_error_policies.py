@@ -7,9 +7,10 @@ LangGraph execution environment.
 """
 
 import pytest
+from typing import Any
 import asyncio
 import time
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.orchestration.error_policies import (
     ErrorPolicyType,
@@ -34,21 +35,21 @@ from cognivault.orchestration.error_policies import (
 class TestEnums:
     """Test enum classes."""
 
-    def test_error_policy_type_values(self):
+    def test_error_policy_type_values(self) -> None:
         """Test ErrorPolicyType enum values."""
         assert ErrorPolicyType.FAIL_FAST.value == "fail_fast"
         assert ErrorPolicyType.RETRY_WITH_BACKOFF.value == "retry_with_backoff"
         assert ErrorPolicyType.CIRCUIT_BREAKER.value == "circuit_breaker"
         assert ErrorPolicyType.GRACEFUL_DEGRADATION.value == "graceful_degradation"
 
-    def test_fallback_strategy_values(self):
+    def test_fallback_strategy_values(self) -> None:
         """Test FallbackStrategy enum values."""
         assert FallbackStrategy.SKIP_NODE.value == "skip_node"
         assert FallbackStrategy.USE_CACHED_RESULT.value == "use_cached_result"
         assert FallbackStrategy.SUBSTITUTE_AGENT.value == "substitute_agent"
         assert FallbackStrategy.PARTIAL_RESULT.value == "partial_result"
 
-    def test_circuit_breaker_state_values(self):
+    def test_circuit_breaker_state_values(self) -> None:
         """Test CircuitBreakerState enum values."""
         assert CircuitBreakerState.CLOSED.value == "closed"
         assert CircuitBreakerState.OPEN.value == "open"
@@ -58,7 +59,7 @@ class TestEnums:
 class TestRetryConfig:
     """Test RetryConfig dataclass."""
 
-    def test_default_retry_config(self):
+    def test_default_retry_config(self) -> None:
         """Test default retry configuration."""
         config = RetryConfig()
 
@@ -69,7 +70,7 @@ class TestRetryConfig:
         assert config.jitter is True
         assert config.retry_on_types == [Exception]
 
-    def test_custom_retry_config(self):
+    def test_custom_retry_config(self) -> None:
         """Test custom retry configuration."""
         config = RetryConfig(
             max_attempts=5,
@@ -91,7 +92,7 @@ class TestRetryConfig:
 class TestCircuitBreakerConfig:
     """Test CircuitBreakerConfig dataclass."""
 
-    def test_default_circuit_breaker_config(self):
+    def test_default_circuit_breaker_config(self) -> None:
         """Test default circuit breaker configuration."""
         config = CircuitBreakerConfig()
 
@@ -100,7 +101,7 @@ class TestCircuitBreakerConfig:
         assert config.timeout_seconds == 60.0
         assert config.half_open_max_calls == 3
 
-    def test_custom_circuit_breaker_config(self):
+    def test_custom_circuit_breaker_config(self) -> None:
         """Test custom circuit breaker configuration."""
         config = CircuitBreakerConfig(
             failure_threshold=3,
@@ -118,7 +119,7 @@ class TestCircuitBreakerConfig:
 class TestErrorPolicy:
     """Test ErrorPolicy dataclass."""
 
-    def test_basic_error_policy(self):
+    def test_basic_error_policy(self) -> None:
         """Test basic error policy creation."""
         policy = ErrorPolicy(policy_type=ErrorPolicyType.FAIL_FAST)
 
@@ -130,7 +131,7 @@ class TestErrorPolicy:
         assert policy.critical_errors == []
         assert policy.recoverable_errors == [Exception]
 
-    def test_complex_error_policy(self):
+    def test_complex_error_policy(self) -> None:
         """Test complex error policy with all options."""
         retry_config = RetryConfig(max_attempts=2)
         cb_config = CircuitBreakerConfig(failure_threshold=3)
@@ -157,7 +158,7 @@ class TestErrorPolicy:
 class TestLangGraphExecutionError:
     """Test LangGraphExecutionError exception class."""
 
-    def test_basic_execution_error(self):
+    def test_basic_execution_error(self) -> None:
         """Test basic execution error creation."""
         error = LangGraphExecutionError(message="Test error", node_name="test_node")
 
@@ -168,7 +169,7 @@ class TestLangGraphExecutionError:
         assert error.execution_context == {}
         assert isinstance(error.timestamp, float)
 
-    def test_detailed_execution_error(self):
+    def test_detailed_execution_error(self) -> None:
         """Test detailed execution error with all fields."""
         original_error = ValueError("Original error")
         context = {"agent": "refiner", "query": "test"}
@@ -192,7 +193,7 @@ class TestCircuitBreaker:
     """Test CircuitBreaker implementation."""
 
     @pytest.fixture
-    def circuit_breaker(self):
+    def circuit_breaker(self) -> Any:
         """Fixture for circuit breaker with test configuration."""
         config = CircuitBreakerConfig(
             failure_threshold=3,
@@ -202,14 +203,14 @@ class TestCircuitBreaker:
         )
         return CircuitBreaker(config)
 
-    def test_initial_state(self, circuit_breaker):
+    def test_initial_state(self, circuit_breaker: CircuitBreaker) -> None:
         """Test circuit breaker initial state."""
         assert circuit_breaker.state == CircuitBreakerState.CLOSED
         assert circuit_breaker.failure_count == 0
         assert circuit_breaker.success_count == 0
         assert circuit_breaker.can_execute() is True
 
-    def test_failure_threshold_reached(self, circuit_breaker):
+    def test_failure_threshold_reached(self, circuit_breaker: CircuitBreaker) -> None:
         """Test circuit breaker opens when failure threshold reached."""
         # Record failures up to threshold
         for _ in range(3):
@@ -219,7 +220,7 @@ class TestCircuitBreaker:
         assert circuit_breaker.failure_count == 3
         assert circuit_breaker.can_execute() is False
 
-    def test_timeout_recovery(self, circuit_breaker):
+    def test_timeout_recovery(self, circuit_breaker: CircuitBreaker) -> None:
         """Test circuit breaker recovery after timeout."""
         # Trigger circuit breaker to open
         for _ in range(3):
@@ -230,11 +231,15 @@ class TestCircuitBreaker:
         # Wait for timeout (using small timeout for test)
         time.sleep(1.1)
 
-        # Should transition to half-open
-        assert circuit_breaker.can_execute() is True
-        assert circuit_breaker.state == CircuitBreakerState.HALF_OPEN
+        # Should transition to half-open when can_execute is called
+        # The can_execute() method changes state internally
+        can_execute_result = circuit_breaker.can_execute()
+        assert can_execute_result is True
+        # After calling can_execute(), the state should be HALF_OPEN
+        # Note: This is correct behavior - can_execute() transitions OPEN -> HALF_OPEN
+        assert circuit_breaker.state == CircuitBreakerState.HALF_OPEN  # type: ignore[comparison-overlap]
 
-    def test_half_open_success_recovery(self, circuit_breaker):
+    def test_half_open_success_recovery(self, circuit_breaker: CircuitBreaker) -> None:
         """Test recovery from half-open state with successes."""
         # Open the circuit breaker
         for _ in range(3):
@@ -251,7 +256,7 @@ class TestCircuitBreaker:
         assert circuit_breaker.state == CircuitBreakerState.CLOSED
         assert circuit_breaker.failure_count == 0
 
-    def test_half_open_failure_reopens(self, circuit_breaker):
+    def test_half_open_failure_reopens(self, circuit_breaker: CircuitBreaker) -> None:
         """Test circuit breaker reopens on failure in half-open state."""
         # Open the circuit breaker
         for _ in range(3):
@@ -267,7 +272,7 @@ class TestCircuitBreaker:
         assert circuit_breaker.state == CircuitBreakerState.OPEN
         assert circuit_breaker.can_execute() is False
 
-    def test_half_open_call_limit(self, circuit_breaker):
+    def test_half_open_call_limit(self, circuit_breaker: CircuitBreaker) -> None:
         """Test half-open state call limit enforcement."""
         # Open the circuit breaker
         for _ in range(3):
@@ -281,7 +286,9 @@ class TestCircuitBreaker:
         assert circuit_breaker.can_execute() is True  # Call 2
         assert circuit_breaker.can_execute() is False  # Call 3 - should be blocked
 
-    def test_success_resets_failure_count(self, circuit_breaker):
+    def test_success_resets_failure_count(
+        self, circuit_breaker: CircuitBreaker
+    ) -> None:
         """Test success resets failure count in closed state."""
         # Record some failures (but not enough to open)
         circuit_breaker.record_failure()
@@ -298,11 +305,11 @@ class TestErrorPolicyManager:
     """Test ErrorPolicyManager class."""
 
     @pytest.fixture
-    def policy_manager(self):
+    def policy_manager(self) -> Any:
         """Fixture for fresh policy manager."""
         return ErrorPolicyManager()
 
-    def test_default_policies_setup(self, policy_manager):
+    def test_default_policies_setup(self, policy_manager: ErrorPolicyManager) -> None:
         """Test default policies are set up correctly."""
         # Check that default policies exist for all agents
         assert "refiner" in policy_manager.policies
@@ -328,18 +335,19 @@ class TestErrorPolicyManager:
             == ErrorPolicyType.RETRY_WITH_BACKOFF
         )
 
-    def test_get_existing_policy(self, policy_manager):
+    def test_get_existing_policy(self, policy_manager: ErrorPolicyManager) -> None:
         """Test getting existing policy."""
         policy = policy_manager.get_policy("refiner")
         assert policy.policy_type == ErrorPolicyType.RETRY_WITH_BACKOFF
 
-    def test_get_default_policy(self, policy_manager):
+    def test_get_default_policy(self, policy_manager: ErrorPolicyManager) -> None:
         """Test getting default policy for unknown node."""
         policy = policy_manager.get_policy("unknown_node")
         assert policy.policy_type == ErrorPolicyType.RETRY_WITH_BACKOFF
+        assert policy.retry_config is not None  # Type safety assertion
         assert policy.retry_config.max_attempts == 3
 
-    def test_set_custom_policy(self, policy_manager):
+    def test_set_custom_policy(self, policy_manager: ErrorPolicyManager) -> None:
         """Test setting custom policy."""
         custom_policy = ErrorPolicy(
             policy_type=ErrorPolicyType.FAIL_FAST, timeout_seconds=10.0
@@ -350,20 +358,26 @@ class TestErrorPolicyManager:
         retrieved_policy = policy_manager.get_policy("custom_node")
         assert retrieved_policy == custom_policy
 
-    def test_circuit_breaker_initialization(self, policy_manager):
+    def test_circuit_breaker_initialization(
+        self, policy_manager: ErrorPolicyManager
+    ) -> None:
         """Test circuit breaker is initialized for circuit breaker policies."""
         # Historian has circuit breaker policy by default
         circuit_breaker = policy_manager.get_circuit_breaker("historian")
         assert circuit_breaker is not None
         assert isinstance(circuit_breaker, CircuitBreaker)
 
-    def test_no_circuit_breaker_for_non_cb_policy(self, policy_manager):
+    def test_no_circuit_breaker_for_non_cb_policy(
+        self, policy_manager: ErrorPolicyManager
+    ) -> None:
         """Test no circuit breaker for non-circuit breaker policies."""
         # Refiner doesn't have circuit breaker policy
         circuit_breaker = policy_manager.get_circuit_breaker("refiner")
         assert circuit_breaker is None
 
-    def test_set_policy_with_circuit_breaker(self, policy_manager):
+    def test_set_policy_with_circuit_breaker(
+        self, policy_manager: ErrorPolicyManager
+    ) -> None:
         """Test setting policy with circuit breaker creates circuit breaker."""
         cb_config = CircuitBreakerConfig(failure_threshold=2)
         policy = ErrorPolicy(
@@ -381,7 +395,7 @@ class TestErrorPolicyManager:
 class TestGlobalPolicyManager:
     """Test global policy manager functions."""
 
-    def test_get_global_manager(self):
+    def test_get_global_manager(self) -> None:
         """Test getting global error policy manager."""
         manager1 = get_error_policy_manager()
         manager2 = get_error_policy_manager()
@@ -395,17 +409,17 @@ class TestRetryDecorator:
     """Test retry_with_policy decorator."""
 
     @pytest.fixture
-    def mock_function(self):
+    def mock_function(self) -> Any:
         """Fixture for mock async function."""
         return AsyncMock()
 
     @pytest.mark.asyncio
-    async def test_retry_success_first_attempt(self, mock_function):
+    async def test_retry_success_first_attempt(self, mock_function: AsyncMock) -> None:
         """Test successful execution on first attempt."""
         mock_function.return_value = "success"
 
         @retry_with_policy("test_node")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -414,7 +428,7 @@ class TestRetryDecorator:
         assert mock_function.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_retry_success_after_failures(self, mock_function):
+    async def test_retry_success_after_failures(self, mock_function: AsyncMock) -> None:
         """Test successful execution after initial failures."""
         # Fail twice, then succeed
         mock_function.side_effect = [
@@ -424,7 +438,7 @@ class TestRetryDecorator:
         ]
 
         @retry_with_policy("test_node")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -433,12 +447,12 @@ class TestRetryDecorator:
         assert mock_function.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_retry_all_attempts_fail(self, mock_function):
+    async def test_retry_all_attempts_fail(self, mock_function: AsyncMock) -> None:
         """Test all retry attempts fail."""
         mock_function.side_effect = ValueError("persistent error")
 
         @retry_with_policy("test_node")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         with pytest.raises(LangGraphExecutionError) as exc_info:
@@ -450,7 +464,7 @@ class TestRetryDecorator:
         assert mock_function.call_count >= 2
 
     @pytest.mark.asyncio
-    async def test_retry_non_retryable_error(self, mock_function):
+    async def test_retry_non_retryable_error(self, mock_function: AsyncMock) -> None:
         """Test non-retryable error fails immediately."""
         # Set up policy manager to only retry on ValueError
         with patch(
@@ -465,7 +479,7 @@ class TestRetryDecorator:
             mock_function.side_effect = TypeError("non-retryable")
 
             @retry_with_policy("test_node")
-            async def test_func():
+            async def test_func() -> Any:
                 return await mock_function()
 
             with pytest.raises(LangGraphExecutionError) as exc_info:
@@ -475,7 +489,7 @@ class TestRetryDecorator:
             assert mock_function.call_count == 1  # No retries
 
     @pytest.mark.asyncio
-    async def test_retry_delay_calculation(self, mock_function):
+    async def test_retry_delay_calculation(self, mock_function: AsyncMock) -> None:
         """Test retry delay calculation with exponential backoff."""
         mock_function.side_effect = [
             ValueError("error1"),
@@ -486,7 +500,7 @@ class TestRetryDecorator:
         start_time = time.time()
 
         @retry_with_policy("test_node")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -503,17 +517,17 @@ class TestCircuitBreakerDecorator:
     """Test circuit_breaker_policy decorator."""
 
     @pytest.fixture
-    def mock_function(self):
+    def mock_function(self) -> Any:
         """Fixture for mock async function."""
         return AsyncMock()
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_success(self, mock_function):
+    async def test_circuit_breaker_success(self, mock_function: AsyncMock) -> None:
         """Test successful execution with circuit breaker."""
         mock_function.return_value = "success"
 
         @circuit_breaker_policy("historian")  # Has circuit breaker by default
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -522,12 +536,12 @@ class TestCircuitBreakerDecorator:
         assert mock_function.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_no_policy(self, mock_function):
+    async def test_circuit_breaker_no_policy(self, mock_function: AsyncMock) -> None:
         """Test execution with no circuit breaker policy."""
         mock_function.return_value = "success"
 
         @circuit_breaker_policy("refiner")  # No circuit breaker by default
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -536,18 +550,21 @@ class TestCircuitBreakerDecorator:
         assert mock_function.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_open_blocks_execution(self, mock_function):
+    async def test_circuit_breaker_open_blocks_execution(
+        self, mock_function: AsyncMock
+    ) -> None:
         """Test circuit breaker blocks execution when open."""
         # Get the circuit breaker and force it open
         manager = get_error_policy_manager()
         circuit_breaker = manager.get_circuit_breaker("historian")
+        assert circuit_breaker is not None  # Type safety assertion
 
         # Force circuit breaker open
         for _ in range(3):  # Default failure threshold
             circuit_breaker.record_failure()
 
         @circuit_breaker_policy("historian")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         with pytest.raises(LangGraphExecutionError) as exc_info:
@@ -557,12 +574,14 @@ class TestCircuitBreakerDecorator:
         assert mock_function.call_count == 0  # Function not called
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_failure_recording(self, mock_function):
+    async def test_circuit_breaker_failure_recording(
+        self, mock_function: AsyncMock
+    ) -> None:
         """Test circuit breaker records failures."""
         mock_function.side_effect = ValueError("test error")
 
         @circuit_breaker_policy("historian")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         with pytest.raises(LangGraphExecutionError):
@@ -571,6 +590,7 @@ class TestCircuitBreakerDecorator:
         # Circuit breaker should have recorded the failure
         manager = get_error_policy_manager()
         circuit_breaker = manager.get_circuit_breaker("historian")
+        assert circuit_breaker is not None  # Type safety assertion
         assert circuit_breaker.failure_count > 0
 
 
@@ -578,17 +598,17 @@ class TestTimeoutDecorator:
     """Test timeout_policy decorator."""
 
     @pytest.fixture
-    def mock_function(self):
+    def mock_function(self) -> Any:
         """Fixture for mock async function."""
         return AsyncMock()
 
     @pytest.mark.asyncio
-    async def test_timeout_success_within_limit(self, mock_function):
+    async def test_timeout_success_within_limit(self, mock_function: AsyncMock) -> None:
         """Test successful execution within timeout."""
         mock_function.return_value = "success"
 
         @timeout_policy("refiner")  # Has 30s timeout by default
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -597,7 +617,7 @@ class TestTimeoutDecorator:
         assert mock_function.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_timeout_no_limit(self, mock_function):
+    async def test_timeout_no_limit(self, mock_function: AsyncMock) -> None:
         """Test execution with no timeout limit."""
         mock_function.return_value = "success"
 
@@ -611,7 +631,7 @@ class TestTimeoutDecorator:
             mock_manager.return_value.get_policy.return_value = mock_policy
 
             @timeout_policy("test_node")
-            async def test_func():
+            async def test_func() -> Any:
                 return await mock_function()
 
             result = await test_func()
@@ -620,10 +640,10 @@ class TestTimeoutDecorator:
             assert mock_function.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_timeout_exceeded(self):
+    async def test_timeout_exceeded(self) -> None:
         """Test timeout exception when limit exceeded."""
 
-        async def slow_function():
+        async def slow_function() -> str:
             await asyncio.sleep(2)  # Sleep longer than timeout
             return "success"
 
@@ -638,7 +658,7 @@ class TestTimeoutDecorator:
             mock_manager.return_value.get_policy.return_value = mock_policy
 
             @timeout_policy("test_node")
-            async def test_func():
+            async def test_func() -> Any:
                 return await slow_function()
 
             with pytest.raises(LangGraphExecutionError) as exc_info:
@@ -652,17 +672,17 @@ class TestComprehensiveDecorator:
     """Test comprehensive_error_policy decorator."""
 
     @pytest.fixture
-    def mock_function(self):
+    def mock_function(self) -> Any:
         """Fixture for mock async function."""
         return AsyncMock()
 
     @pytest.mark.asyncio
-    async def test_comprehensive_policy_success(self, mock_function):
+    async def test_comprehensive_policy_success(self, mock_function: AsyncMock) -> None:
         """Test comprehensive policy with successful execution."""
         mock_function.return_value = "success"
 
         @comprehensive_error_policy("refiner")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -671,13 +691,15 @@ class TestComprehensiveDecorator:
         assert mock_function.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_comprehensive_policy_with_retries(self, mock_function):
+    async def test_comprehensive_policy_with_retries(
+        self, mock_function: AsyncMock
+    ) -> None:
         """Test comprehensive policy with retries."""
         # Fail once, then succeed
         mock_function.side_effect = [ValueError("error"), "success"]
 
         @comprehensive_error_policy("refiner")
-        async def test_func():
+        async def test_func() -> Any:
             return await mock_function()
 
         result = await test_func()
@@ -689,14 +711,14 @@ class TestComprehensiveDecorator:
 class TestFallbackHandling:
     """Test fallback handling functions."""
 
-    def test_skip_node_fallback(self):
+    def test_skip_node_fallback(self) -> None:
         """Test skip node fallback strategy."""
         error = ValueError("test error")
         result = handle_node_fallback("test_node", error, FallbackStrategy.SKIP_NODE)
 
         assert result is None
 
-    def test_cached_result_fallback(self):
+    def test_cached_result_fallback(self) -> None:
         """Test cached result fallback strategy."""
         error = ValueError("test error")
         result = handle_node_fallback(
@@ -707,7 +729,7 @@ class TestFallbackHandling:
         assert result["fallback"] == "cached_result"
         assert result["node"] == "test_node"
 
-    def test_partial_result_fallback(self):
+    def test_partial_result_fallback(self) -> None:
         """Test partial result fallback strategy."""
         error = ValueError("test error")
         result = handle_node_fallback(
@@ -719,7 +741,7 @@ class TestFallbackHandling:
         assert result["node"] == "test_node"
         assert result["error"] == "test error"
 
-    def test_substitute_agent_fallback(self):
+    def test_substitute_agent_fallback(self) -> None:
         """Test substitute agent fallback strategy."""
         error = ValueError("test error")
         result = handle_node_fallback(
@@ -730,11 +752,11 @@ class TestFallbackHandling:
         assert result["fallback"] == "substitute_agent"
         assert result["node"] == "test_node"
 
-    def test_unknown_fallback_strategy(self):
+    def test_unknown_fallback_strategy(self) -> None:
         """Test unknown fallback strategy."""
         error = ValueError("test error")
         # Create a mock fallback strategy that's not in the enum
-        unknown_strategy = Mock()
+        unknown_strategy: Mock = Mock()
         unknown_strategy.value = "unknown"
 
         result = handle_node_fallback("test_node", error, unknown_strategy)
@@ -745,7 +767,7 @@ class TestFallbackHandling:
 class TestErrorStatistics:
     """Test error statistics collection."""
 
-    def test_get_error_statistics(self):
+    def test_get_error_statistics(self) -> None:
         """Test error statistics collection."""
         stats = get_error_statistics()
 
@@ -762,7 +784,7 @@ class TestErrorStatistics:
             stats["policies_configured"] >= 4
         )  # refiner, critic, historian, synthesis
 
-    def test_circuit_breaker_state_details(self):
+    def test_circuit_breaker_state_details(self) -> None:
         """Test detailed circuit breaker state information."""
         stats = get_error_statistics()
 

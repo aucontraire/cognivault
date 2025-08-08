@@ -8,13 +8,16 @@ and circuit breaker decorators for robust LangGraph node execution.
 import time
 import asyncio
 import logging
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, Callable, List, TypeVar, Coroutine, cast
 from enum import Enum
 from functools import wraps
 
 from pydantic import BaseModel, Field, ConfigDict
 
 logger = logging.getLogger(__name__)
+
+# TypeVar for generic decorator typing
+F = TypeVar("F", bound=Callable[..., Coroutine[Any, Any, Any]])
 
 
 def _default_exception_list() -> List[type]:
@@ -188,7 +191,7 @@ class LangGraphExecutionError(Exception):
         original_error: Optional[Exception] = None,
         retry_count: int = 0,
         execution_context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         super().__init__(message)
         self.node_name = node_name
         self.original_error = original_error
@@ -208,7 +211,7 @@ class CircuitBreakerState(Enum):
 class CircuitBreaker:
     """Circuit breaker implementation for node resilience."""
 
-    def __init__(self, config: CircuitBreakerConfig):
+    def __init__(self, config: CircuitBreakerConfig) -> None:
         self.config = config
         self.state = CircuitBreakerState.CLOSED
         self.failure_count = 0
@@ -235,7 +238,7 @@ class CircuitBreaker:
 
         return False
 
-    def record_success(self):
+    def record_success(self) -> None:
         """Record a successful execution."""
         if self.state == CircuitBreakerState.HALF_OPEN:
             self.success_count += 1
@@ -246,7 +249,7 @@ class CircuitBreaker:
         elif self.state == CircuitBreakerState.CLOSED:
             self.failure_count = 0  # Reset failure count on success
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """Record a failed execution."""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -267,7 +270,7 @@ class ErrorPolicyManager:
         self.circuit_breakers: Dict[str, CircuitBreaker] = {}
         self._setup_default_policies()
 
-    def _setup_default_policies(self):
+    def _setup_default_policies(self) -> None:
         """Set up default error policies for common scenarios."""
 
         # Refiner agent policy - fail fast for critical path
@@ -320,7 +323,7 @@ class ErrorPolicyManager:
         """Get error policy for a node."""
         return self.policies.get(node_name, self._get_default_policy())
 
-    def set_policy(self, node_name: str, policy: ErrorPolicy):
+    def set_policy(self, node_name: str, policy: ErrorPolicy) -> None:
         """Set error policy for a node."""
         self.policies[node_name] = policy
 
@@ -352,12 +355,12 @@ def get_error_policy_manager() -> ErrorPolicyManager:
     return _error_policy_manager
 
 
-def retry_with_policy(node_name: str):
+def retry_with_policy(node_name: str) -> Callable[[F], F]:
     """Decorator for retry behavior based on error policy."""
 
-    def decorator(func: Callable):
+    def decorator(func: F) -> F:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             policy = get_error_policy_manager().get_policy(node_name)
             retry_config = policy.retry_config or RetryConfig()
 
@@ -418,17 +421,17 @@ def retry_with_policy(node_name: str):
                 retry_count=retry_config.max_attempts,
             )
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 
 
-def circuit_breaker_policy(node_name: str):
+def circuit_breaker_policy(node_name: str) -> Callable[[F], F]:
     """Decorator for circuit breaker behavior."""
 
-    def decorator(func: Callable):
+    def decorator(func: F) -> F:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             policy_manager = get_error_policy_manager()
             circuit_breaker = policy_manager.get_circuit_breaker(node_name)
 
@@ -457,17 +460,17 @@ def circuit_breaker_policy(node_name: str):
                     original_error=e,
                 )
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 
 
-def timeout_policy(node_name: str):
+def timeout_policy(node_name: str) -> Callable[[F], F]:
     """Decorator for timeout handling."""
 
-    def decorator(func: Callable):
+    def decorator(func: F) -> F:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             policy = get_error_policy_manager().get_policy(node_name)
             timeout_seconds = policy.timeout_seconds
 
@@ -486,15 +489,15 @@ def timeout_policy(node_name: str):
                     node_name=node_name,
                 )
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 
 
-def comprehensive_error_policy(node_name: str):
+def comprehensive_error_policy(node_name: str) -> Callable[[F], F]:
     """Comprehensive decorator combining all error policies."""
 
-    def decorator(func: Callable):
+    def decorator(func: F) -> F:
         # Apply decorators in order: timeout -> circuit_breaker -> retry
         wrapped_func = timeout_policy(node_name)(func)
         wrapped_func = circuit_breaker_policy(node_name)(wrapped_func)

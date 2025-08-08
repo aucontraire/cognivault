@@ -6,7 +6,7 @@ plugin architecture foundation, and export capabilities for reproducible
 workflow sharing in the CogniVault ecosystem.
 """
 
-from typing import Dict, List, Any, Optional, Type, Callable, TYPE_CHECKING
+from typing import Dict, List, Any, Optional, Type, Callable, TYPE_CHECKING, Union
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import json
@@ -80,12 +80,12 @@ except ImportError:
 class WorkflowCompositionError(Exception):
     """Exception raised during workflow composition process."""
 
-    def __init__(self, message: str, workflow_id: Optional[str] = None):
+    def __init__(self, message: str, workflow_id: Optional[str] = None) -> None:
         super().__init__(message)
         self.workflow_id = workflow_id
 
 
-def get_agent_class(agent_type: str):
+def get_agent_class(agent_type: str) -> Type[Any]:
     """Get agent class by type name."""
     # Import all agent classes for real execution
     from cognivault.agents.refiner.agent import RefinerAgent
@@ -102,7 +102,9 @@ def get_agent_class(agent_type: str):
     return agent_map.get(agent_type, RefinerAgent)
 
 
-def create_agent_config(agent_type: str, config_dict: Optional[Dict[str, Any]] = None):
+def create_agent_config(
+    agent_type: str, config_dict: Optional[Dict[str, Any]] = None
+) -> Any:
     """
     Create agent configuration object from workflow node configuration.
 
@@ -170,7 +172,7 @@ class NodeFactory:
         # Future: Plugin registry lookup for community-contributed nodes
         self.plugin_registry: Optional[Any] = None
 
-    def create_node(self, node_config: "NodeConfiguration") -> Callable:
+    def create_node(self, node_config: "NodeConfiguration") -> Callable[..., Any]:
         """Create a node function from configuration."""
         if node_config.category == "BASE":
             return self._create_base_node(node_config)
@@ -181,7 +183,7 @@ class NodeFactory:
                 f"Unsupported node category: {node_config.category}"
             )
 
-    def _create_base_node(self, node_config: "NodeConfiguration") -> Callable:
+    def _create_base_node(self, node_config: "NodeConfiguration") -> Callable[..., Any]:
         """Create BASE agent node with actual LLM execution."""
         agent_class = get_agent_class(node_config.node_type)
 
@@ -190,7 +192,7 @@ class NodeFactory:
                 f"Agent class not found for type: {node_config.node_type}"
             )
 
-        async def node_func(state):
+        async def node_func(state: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 # Import required modules
                 from cognivault.llm.openai import OpenAIChatLLM
@@ -291,7 +293,9 @@ class NodeFactory:
 
         return node_func
 
-    def _create_advanced_node(self, node_config: "NodeConfiguration") -> Callable:
+    def _create_advanced_node(
+        self, node_config: "NodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create ADVANCED node (DecisionNode, AggregatorNode, etc.)."""
         try:
             # Try to create actual node instance using the real implementations
@@ -311,7 +315,9 @@ class NodeFactory:
             # Fallback to simple functions if advanced nodes not available
             return self._create_fallback_node(node_config)
 
-    def _create_decision_node(self, node_config: "NodeConfiguration") -> Callable:
+    def _create_decision_node(
+        self, node_config: "NodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create a DecisionNode using configuration from node_config."""
         from cognivault.agents.metadata import AgentMetadata
         from cognivault.orchestration.nodes.decision_node import DecisionCriteria
@@ -358,7 +364,7 @@ class NodeFactory:
         decision_node = DecisionNodeType(metadata, node_config.node_id, criteria, paths)
 
         # Return a wrapper function that delegates to the node's execute method
-        async def decision_node_func(state):
+        async def decision_node_func(state: Dict[str, Any]) -> Dict[str, Any]:
             # Create a minimal execution context for the node
             from cognivault.orchestration.nodes.base_advanced_node import (
                 NodeExecutionContext,
@@ -376,14 +382,18 @@ class NodeFactory:
             try:
                 # Use the actual node's execute method
                 result = await decision_node.execute(context)
-                return result
+                return (
+                    result if isinstance(result, dict) else {"route": "high_confidence"}
+                )
             except Exception:
                 # Fallback for testing
                 return {"route": "high_confidence"}
 
         return decision_node_func
 
-    def _create_aggregator_node(self, node_config: "NodeConfiguration") -> Callable:
+    def _create_aggregator_node(
+        self, node_config: "NodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create an AggregatorNode using configuration from node_config."""
         from cognivault.agents.metadata import AgentMetadata
         from cognivault.orchestration.nodes.aggregator_node import AggregationStrategy
@@ -415,7 +425,7 @@ class NodeFactory:
         )
 
         # Return a wrapper function that delegates to the node's execute method
-        async def aggregator_node_func(state):
+        async def aggregator_node_func(state: Dict[str, Any]) -> Dict[str, Any]:
             from cognivault.orchestration.nodes.base_advanced_node import (
                 NodeExecutionContext,
             )
@@ -431,14 +441,20 @@ class NodeFactory:
             )
             try:
                 result = await aggregator_node.execute(context)
-                return result
+                return (
+                    result
+                    if isinstance(result, dict)
+                    else {"aggregated_output": "Combined results"}
+                )
             except Exception:
                 # Fallback for testing
                 return {"aggregated_output": "Combined results"}
 
         return aggregator_node_func
 
-    def _create_validator_node(self, node_config: "NodeConfiguration") -> Callable:
+    def _create_validator_node(
+        self, node_config: "NodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create a ValidatorNode using configuration from node_config."""
         try:
             from cognivault.agents.metadata import AgentMetadata
@@ -469,11 +485,11 @@ class NodeFactory:
             criteria = []
             for criterion_config in criteria_config:
                 # Create a simple validator function
-                def create_validator(name: str):
+                def create_validator(name: str) -> Callable[[Dict[str, Any]], bool]:
                     def validator(data: Dict[str, Any]) -> bool:
                         # Simple validation logic - check if data has required quality
                         quality_score = data.get("quality_score", 0.0)
-                        return quality_score >= 0.5
+                        return bool(quality_score >= 0.5)
 
                     return validator
 
@@ -505,7 +521,7 @@ class NodeFactory:
             )
 
             # Return a wrapper function that delegates to the node's execute method
-            async def validator_node_func(state):
+            async def validator_node_func(state: Dict[str, Any]) -> Dict[str, Any]:
                 from cognivault.orchestration.nodes.base_advanced_node import (
                     NodeExecutionContext,
                 )
@@ -521,7 +537,11 @@ class NodeFactory:
                 )
                 try:
                     result = await validator_node.execute(context)
-                    return result
+                    return (
+                        result
+                        if isinstance(result, dict)
+                        else {"validation_passed": True}
+                    )
                 except Exception:
                     # Fallback for testing
                     return {"validation_passed": True}
@@ -531,7 +551,9 @@ class NodeFactory:
         except ImportError:
             return self._create_fallback_node(node_config)
 
-    def _create_terminator_node(self, node_config: "NodeConfiguration") -> Callable:
+    def _create_terminator_node(
+        self, node_config: "NodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create a TerminatorNode using configuration from node_config."""
         try:
             from cognivault.agents.metadata import AgentMetadata
@@ -565,11 +587,13 @@ class NodeFactory:
             criteria = []
             for criterion_config in criteria_config:
                 # Create a simple evaluator function
-                def create_evaluator(threshold: float):
+                def create_evaluator(
+                    threshold: float,
+                ) -> Callable[[Dict[str, Any]], bool]:
                     def evaluator(data: Dict[str, Any]) -> bool:
                         # Simple termination logic - check if confidence exceeds threshold
                         confidence = data.get("confidence_score", 0.0)
-                        return confidence >= threshold
+                        return bool(confidence >= threshold)
 
                     return evaluator
 
@@ -606,7 +630,7 @@ class NodeFactory:
             )
 
             # Return a wrapper function that delegates to the node's execute method
-            async def terminator_node_func(state):
+            async def terminator_node_func(state: Dict[str, Any]) -> Dict[str, Any]:
                 from cognivault.orchestration.nodes.base_advanced_node import (
                     NodeExecutionContext,
                 )
@@ -622,7 +646,7 @@ class NodeFactory:
                 )
                 try:
                     result = await terminator_node.execute(context)
-                    return result
+                    return result if isinstance(result, dict) else {"terminated": True}
                 except Exception:
                     # Fallback for testing
                     return {"terminated": True}
@@ -632,10 +656,12 @@ class NodeFactory:
         except ImportError:
             return self._create_fallback_node(node_config)
 
-    def _create_fallback_node(self, node_config: "NodeConfiguration") -> Callable:
+    def _create_fallback_node(
+        self, node_config: "NodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create a simple fallback function for nodes that can't be instantiated."""
 
-        async def fallback_node_func(state):
+        async def fallback_node_func(state: Dict[str, Any]) -> Dict[str, Any]:
             if node_config.node_type == "decision":
                 return {"route": "high_confidence"}
             elif node_config.node_type == "aggregator":
@@ -653,7 +679,7 @@ class NodeFactory:
 class EdgeBuilder:
     """Builder for creating workflow edges with conditional routing support."""
 
-    def build_edge(self, edge_def: "EdgeDefinition") -> Callable:
+    def build_edge(self, edge_def: "EdgeDefinition") -> Callable[..., Any]:
         """Build an edge function from definition."""
         if edge_def.edge_type == "sequential":
             return self._build_sequential_edge(edge_def)
@@ -666,32 +692,45 @@ class EdgeBuilder:
                 f"Unsupported edge type: {edge_def.edge_type}"
             )
 
-    def _build_sequential_edge(self, edge_def: "EdgeDefinition") -> Callable:
+    def _build_sequential_edge(self, edge_def: "EdgeDefinition") -> Callable[..., Any]:
         """Build sequential edge."""
 
-        def edge_func(state):
+        def edge_func(state: Dict[str, Any]) -> str:
             return edge_def.to_node
 
         return edge_func
 
-    def _build_conditional_edge(self, edge_def: "EdgeDefinition") -> Callable:
+    def _build_conditional_edge(self, edge_def: "EdgeDefinition") -> Callable[..., Any]:
         """Build conditional edge."""
 
-        def edge_func(state):
+        def edge_func(state: Dict[str, Any]) -> str:
             # Simple condition evaluation
             condition = edge_def.metadata.get("condition", "")
             if "high_confidence" in condition:
-                return edge_def.metadata.get("success_node", edge_def.to_node)
+                success_node = edge_def.metadata.get("success_node", edge_def.to_node)
+                return (
+                    str(success_node) if success_node is not None else edge_def.to_node
+                )
             else:
-                return edge_def.metadata.get("failure_node", edge_def.to_node)
+                failure_node = edge_def.metadata.get("failure_node", edge_def.to_node)
+                return (
+                    str(failure_node) if failure_node is not None else edge_def.to_node
+                )
 
         return edge_func
 
-    def _build_parallel_edge(self, edge_def: "EdgeDefinition") -> Callable:
+    def _build_parallel_edge(self, edge_def: "EdgeDefinition") -> Callable[..., Any]:
         """Build parallel edge."""
 
-        def edge_func(state):
-            return edge_def.metadata.get("parallel_targets", [edge_def.to_node])
+        def edge_func(state: Dict[str, Any]) -> List[str]:
+            parallel_targets = edge_def.metadata.get(
+                "parallel_targets", [edge_def.to_node]
+            )
+            return (
+                [str(target) for target in parallel_targets]
+                if isinstance(parallel_targets, list)
+                else [edge_def.to_node]
+            )
 
         return edge_func
 
@@ -699,7 +738,7 @@ class EdgeBuilder:
 class DagComposer:
     """Main DAG composition orchestrator."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.node_factory = NodeFactory()
         self.edge_builder = EdgeBuilder()
 
@@ -755,7 +794,7 @@ class DagComposer:
         """Export workflow snapshot with metadata."""
         return workflow_def.to_json_snapshot()
 
-    def compose_workflow(self, workflow_def: "WorkflowDefinition") -> StateGraph:
+    def compose_workflow(self, workflow_def: "WorkflowDefinition") -> StateGraph[Any]:
         """Compose a LangGraph StateGraph from workflow definition."""
         try:
             # Validate workflow

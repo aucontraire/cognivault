@@ -101,7 +101,7 @@ class LangGraphOrchestrator:
         memory_manager: Optional[CogniVaultMemoryManager] = None,
         use_enhanced_routing: bool = True,
         optimization_strategy: OptimizationStrategy = OptimizationStrategy.BALANCED,
-    ):
+    ) -> None:
         """
         Initialize the production LangGraph orchestrator.
 
@@ -483,7 +483,7 @@ class LangGraphOrchestrator:
 
             raise NodeExecutionError(f"LangGraph execution failed: {e}") from e
 
-    async def _get_compiled_graph(self):
+    async def _get_compiled_graph(self) -> None:
         """
         Get or create compiled LangGraph StateGraph using GraphFactory.
 

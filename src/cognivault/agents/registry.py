@@ -6,7 +6,7 @@ their dependencies, and creation logic. It enables dynamic agent loading
 while maintaining type safety and proper dependency injection.
 """
 
-from typing import Dict, Type, Optional, List, Literal
+from typing import Dict, Type, Optional, List, Literal, Any
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.exceptions import (
@@ -114,7 +114,7 @@ class AgentRegistry:
         self._agents[name] = metadata
 
     def create_agent(
-        self, name: str, llm: Optional[LLMInterface] = None, **kwargs
+        self, name: str, llm: Optional[LLMInterface] = None, **kwargs: Any
     ) -> BaseAgent:
         """
         Create an agent instance by name.
@@ -591,7 +591,9 @@ def register_agent(
     )
 
 
-def create_agent(name: str, llm: Optional[LLMInterface] = None, **kwargs) -> BaseAgent:
+def create_agent(
+    name: str, llm: Optional[LLMInterface] = None, **kwargs: Any
+) -> BaseAgent:
     """
     Create an agent using the global registry.
 

@@ -1,3 +1,5 @@
+from typing import Any
+
 #!/usr/bin/env python3
 """
 Manual test script for TerminatorNode factory method functionality.
@@ -18,7 +20,7 @@ from cognivault.workflows.definition import NodeConfiguration
 from cognivault.agents.metadata import AgentMetadata
 
 
-def test_terminator_factory_configurations():
+def test_terminator_factory_configurations() -> bool:
     """Test TerminatorNode factory with different configuration scenarios."""
 
     print("🧪 Testing TerminatorNode Factory Method Configurations")
@@ -324,7 +326,7 @@ def test_terminator_factory_configurations():
         return False
 
 
-def test_terminator_strategy_variations():
+def test_terminator_strategy_variations() -> bool:
     """Test different termination strategy configurations."""
 
     print("\n🔍 Testing TerminatorNode Strategy Variations")
@@ -371,7 +373,7 @@ def test_terminator_strategy_variations():
     return True
 
 
-def test_terminator_boundary_conditions():
+def test_terminator_boundary_conditions() -> bool:
     """Test boundary conditions for TerminatorNode configuration."""
 
     print("\n🎯 Testing TerminatorNode Boundary Conditions")

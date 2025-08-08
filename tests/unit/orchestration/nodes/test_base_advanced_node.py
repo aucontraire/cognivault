@@ -6,6 +6,7 @@ abstract class that form the foundation for advanced node types.
 """
 
 import pytest
+from typing import Any, Dict
 from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, patch, AsyncMock
 
@@ -20,7 +21,7 @@ class TestNodeExecutionContext:
     """Test NodeExecutionContext dataclass."""
 
     @pytest.fixture
-    def mock_task_classification(self):
+    def mock_task_classification(self) -> Any:
         """Create a mock TaskClassification object."""
         mock = Mock(spec=TaskClassification)
         mock.to_dict.return_value = {
@@ -31,7 +32,7 @@ class TestNodeExecutionContext:
         return mock
 
     @pytest.fixture
-    def basic_context(self, mock_task_classification):
+    def basic_context(self, mock_task_classification: Any) -> NodeExecutionContext:
         """Create a basic NodeExecutionContext for testing."""
         return NodeExecutionContext(
             correlation_id="test-correlation-123",
@@ -44,7 +45,9 @@ class TestNodeExecutionContext:
             task_classification=mock_task_classification,
         )
 
-    def test_node_execution_context_creation_basic(self, mock_task_classification):
+    def test_node_execution_context_creation_basic(
+        self, mock_task_classification: Any
+    ) -> None:
         """Test basic NodeExecutionContext creation."""
         context = NodeExecutionContext(
             correlation_id="corr-123",
@@ -63,7 +66,9 @@ class TestNodeExecutionContext:
         assert "start_time" in context.resource_usage
         assert isinstance(context.resource_usage["start_time"], datetime)
 
-    def test_node_execution_context_with_all_fields(self, mock_task_classification):
+    def test_node_execution_context_with_all_fields(
+        self, mock_task_classification: Any
+    ) -> None:
         """Test NodeExecutionContext creation with all optional fields."""
         context = NodeExecutionContext(
             correlation_id="corr-789",
@@ -84,6 +89,7 @@ class TestNodeExecutionContext:
 
         assert context.execution_path == ["node1", "node2"]
         assert context.confidence_score == 0.85
+        assert context.resource_usage is not None
         assert context.resource_usage["memory_mb"] == 128
         assert "start_time" in context.resource_usage  # Should still add start_time
         assert context.previous_nodes == ["preprocessor"]
@@ -91,8 +97,8 @@ class TestNodeExecutionContext:
         assert context.execution_metadata == {"priority": "high"}
 
     def test_node_execution_context_confidence_score_validation(
-        self, mock_task_classification
-    ):
+        self, mock_task_classification: Any
+    ) -> None:
         """Test confidence score validation."""
         # Valid confidence scores
         for score in [0.0, 0.5, 1.0]:
@@ -118,7 +124,7 @@ class TestNodeExecutionContext:
                     confidence_score=invalid_score,
                 )
 
-    def test_add_to_execution_path(self, basic_context):
+    def test_add_to_execution_path(self, basic_context: NodeExecutionContext) -> None:
         """Test adding nodes to execution path."""
         assert basic_context.execution_path == []
         assert basic_context.previous_nodes == []
@@ -131,14 +137,16 @@ class TestNodeExecutionContext:
         assert basic_context.execution_path == ["decision_node_1", "aggregator_node_1"]
         assert basic_context.previous_nodes == ["decision_node_1", "aggregator_node_1"]
 
-    def test_update_resource_usage(self, basic_context):
+    def test_update_resource_usage(self, basic_context: NodeExecutionContext) -> None:
         """Test updating resource usage metrics."""
+        assert basic_context.resource_usage is not None
         initial_start_time = basic_context.resource_usage["start_time"]
 
         basic_context.update_resource_usage(
             {"memory_mb": 256, "cpu_percent": 45.5, "tokens_used": 1500}
         )
 
+        assert basic_context.resource_usage is not None
         assert basic_context.resource_usage["memory_mb"] == 256
         assert basic_context.resource_usage["cpu_percent"] == 45.5
         assert basic_context.resource_usage["tokens_used"] == 1500
@@ -146,12 +154,13 @@ class TestNodeExecutionContext:
             basic_context.resource_usage["start_time"] == initial_start_time
         )  # Should preserve
 
-    def test_get_execution_time_ms(self, basic_context):
+    def test_get_execution_time_ms(self, basic_context: NodeExecutionContext) -> None:
         """Test execution time calculation."""
         # Initially no end_time, should return None
         assert basic_context.get_execution_time_ms() is None
 
         # Add end_time
+        assert basic_context.resource_usage is not None
         start_time = basic_context.resource_usage["start_time"]
         end_time = start_time + timedelta(seconds=1.5)
         basic_context.update_resource_usage({"end_time": end_time})
@@ -160,7 +169,7 @@ class TestNodeExecutionContext:
         assert execution_time is not None
         assert abs(execution_time - 1500.0) < 0.1  # Should be ~1500ms
 
-    def test_has_input_from(self, basic_context):
+    def test_has_input_from(self, basic_context: NodeExecutionContext) -> None:
         """Test checking for input from specific nodes."""
         assert not basic_context.has_input_from("node1")
 
@@ -173,7 +182,7 @@ class TestNodeExecutionContext:
         assert basic_context.has_input_from("node2")
         assert not basic_context.has_input_from("node3")
 
-    def test_get_input_from(self, basic_context):
+    def test_get_input_from(self, basic_context: NodeExecutionContext) -> None:
         """Test retrieving input from specific nodes."""
         assert basic_context.get_input_from("node1") is None
 
@@ -183,7 +192,7 @@ class TestNodeExecutionContext:
         assert basic_context.get_input_from("node1") == test_data
         assert basic_context.get_input_from("node2") is None
 
-    def test_to_dict(self, basic_context):
+    def test_to_dict(self, basic_context: NodeExecutionContext) -> None:
         """Test serialization to dictionary."""
         basic_context.add_to_execution_path("test_node")
         basic_context.confidence_score = 0.75
@@ -206,7 +215,7 @@ class TestNodeExecutionContext:
         assert result["available_inputs"] == {"input_node": {"data": "test"}}
         assert result["execution_metadata"] == {}
 
-    def test_resource_usage_none_handling(self, mock_task_classification):
+    def test_resource_usage_none_handling(self, mock_task_classification: Any) -> None:
         """Test handling of None resource_usage in post_init."""
         context = NodeExecutionContext(
             correlation_id="corr",
@@ -222,7 +231,9 @@ class TestNodeExecutionContext:
         assert "start_time" in context.resource_usage
 
     @patch("cognivault.orchestration.nodes.base_advanced_node.datetime")
-    def test_start_time_initialization(self, mock_datetime, mock_task_classification):
+    def test_start_time_initialization(
+        self, mock_datetime: Any, mock_task_classification: Any
+    ) -> None:
         """Test that start_time is initialized with current UTC time."""
         mock_now = datetime(2024, 1, 15, 10, 30, 45, tzinfo=timezone.utc)
         mock_datetime.now.return_value = mock_now
@@ -235,6 +246,7 @@ class TestNodeExecutionContext:
             task_classification=mock_task_classification,
         )
 
+        assert context.resource_usage is not None
         assert context.resource_usage["start_time"] == mock_now
         mock_datetime.now.assert_called_once_with(timezone.utc)
 
@@ -243,7 +255,7 @@ class TestBaseAdvancedNode:
     """Test BaseAdvancedNode abstract class."""
 
     @pytest.fixture
-    def mock_agent_metadata(self):
+    def mock_agent_metadata(self) -> Any:
         """Create a mock AgentMetadata object."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
@@ -256,7 +268,7 @@ class TestBaseAdvancedNode:
         return metadata
 
     @pytest.fixture
-    def basic_context(self):
+    def basic_context(self) -> NodeExecutionContext:
         """Create a basic NodeExecutionContext."""
         mock_task = Mock(spec=TaskClassification)
         mock_task.to_dict.return_value = {"complexity": "medium"}
@@ -268,14 +280,16 @@ class TestBaseAdvancedNode:
             task_classification=mock_task,
         )
 
-    def test_concrete_node_implementation(self, mock_agent_metadata, basic_context):
+    def test_concrete_node_implementation(
+        self, mock_agent_metadata: Any, basic_context: NodeExecutionContext
+    ) -> None:
         """Test creating a concrete implementation of BaseAdvancedNode."""
 
         class ConcreteNode(BaseAdvancedNode):
-            async def execute(self, context: NodeExecutionContext):
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
                 return {"result": "executed"}
 
-            def can_handle(self, context: NodeExecutionContext):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         node = ConcreteNode(mock_agent_metadata, "test_node")
@@ -284,16 +298,16 @@ class TestBaseAdvancedNode:
         assert node.execution_pattern == "decision"
         assert node.metadata == mock_agent_metadata
 
-    def test_base_advanced_node_invalid_execution_pattern(self):
+    def test_base_advanced_node_invalid_execution_pattern(self) -> None:
         """Test that invalid execution patterns raise ValueError."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "invalid_pattern"
 
         class ConcreteNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         with pytest.raises(
@@ -301,14 +315,14 @@ class TestBaseAdvancedNode:
         ):
             ConcreteNode(metadata, "test_node")
 
-    def test_get_fallback_patterns_all_types(self, mock_agent_metadata):
+    def test_get_fallback_patterns_all_types(self, mock_agent_metadata: Any) -> None:
         """Test fallback patterns for all execution types."""
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         # Test each execution pattern
@@ -325,14 +339,14 @@ class TestBaseAdvancedNode:
             node = TestNode(mock_agent_metadata, f"{pattern}_node")
             assert node.get_fallback_patterns() == expected_fallbacks
 
-    def test_get_node_info(self, mock_agent_metadata):
+    def test_get_node_info(self, mock_agent_metadata: Any) -> None:
         """Test getting node information."""
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         node = TestNode(mock_agent_metadata, "info_test_node")
@@ -348,14 +362,16 @@ class TestBaseAdvancedNode:
         assert info["capabilities"] == ["reasoning", "routing"]
         assert info["fallback_patterns"] == ["processor", "terminator"]
 
-    def test_validate_context_valid(self, mock_agent_metadata, basic_context):
+    def test_validate_context_valid(
+        self, mock_agent_metadata: Any, basic_context: NodeExecutionContext
+    ) -> None:
         """Test context validation with valid context."""
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         node = TestNode(mock_agent_metadata, "validation_node")
@@ -363,14 +379,14 @@ class TestBaseAdvancedNode:
 
         assert errors == []
 
-    def test_validate_context_missing_fields(self, mock_agent_metadata):
+    def test_validate_context_missing_fields(self, mock_agent_metadata: Any) -> None:
         """Test context validation with missing required fields."""
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         node = TestNode(mock_agent_metadata, "validation_node")
@@ -428,14 +444,16 @@ class TestBaseAdvancedNode:
         # cognitive_classification is {}, not None, so it passes
 
     @pytest.mark.asyncio
-    async def test_pre_execute_hook(self, mock_agent_metadata, basic_context):
+    async def test_pre_execute_hook(
+        self, mock_agent_metadata: Any, basic_context: NodeExecutionContext
+    ) -> None:
         """Test pre-execution hook adds node to execution path."""
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         node = TestNode(mock_agent_metadata, "pre_exec_node")
@@ -446,31 +464,35 @@ class TestBaseAdvancedNode:
         assert basic_context.previous_nodes == ["pre_exec_node"]
 
     @pytest.mark.asyncio
-    async def test_post_execute_hook(self, mock_agent_metadata, basic_context):
+    async def test_post_execute_hook(
+        self, mock_agent_metadata: Any, basic_context: NodeExecutionContext
+    ) -> None:
         """Test post-execution hook updates end time."""
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         node = TestNode(mock_agent_metadata, "post_exec_node")
 
+        assert basic_context.resource_usage is not None
         assert "end_time" not in basic_context.resource_usage
         await node.post_execute(basic_context, {"result": "done"})
+        assert basic_context.resource_usage is not None
         assert "end_time" in basic_context.resource_usage
         assert isinstance(basic_context.resource_usage["end_time"], datetime)
 
-    def test_repr(self, mock_agent_metadata):
+    def test_repr(self, mock_agent_metadata: Any) -> None:
         """Test string representation of node."""
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         node = TestNode(mock_agent_metadata, "repr_test_node")
@@ -481,15 +503,17 @@ class TestBaseAdvancedNode:
         assert "pattern='decision'" in repr_str
 
     @pytest.mark.asyncio
-    async def test_abstract_methods_must_be_implemented(self, mock_agent_metadata):
+    async def test_abstract_methods_must_be_implemented(
+        self, mock_agent_metadata: Any
+    ) -> None:
         """Test that abstract methods must be implemented."""
         # This test verifies the abstract nature by attempting to instantiate
         # BaseAdvancedNode directly, which should fail
 
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-            BaseAdvancedNode(mock_agent_metadata, "test")
+            BaseAdvancedNode(mock_agent_metadata, "test")  # type: ignore[abstract]
 
-    def test_execution_pattern_validation(self):
+    def test_execution_pattern_validation(self) -> None:
         """Test all valid execution patterns are accepted."""
         valid_patterns = [
             "processor",
@@ -500,10 +524,10 @@ class TestBaseAdvancedNode:
         ]
 
         class TestNode(BaseAdvancedNode):
-            async def execute(self, context):
-                pass
+            async def execute(self, context: NodeExecutionContext) -> Dict[str, Any]:
+                return {}
 
-            def can_handle(self, context):
+            def can_handle(self, context: NodeExecutionContext) -> bool:
                 return True
 
         for pattern in valid_patterns:

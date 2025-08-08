@@ -46,7 +46,7 @@ except ImportError:
 class WorkflowExecutionError(Exception):
     """Exception raised during workflow execution."""
 
-    def __init__(self, message: str, workflow_id: Optional[str] = None):
+    def __init__(self, message: str, workflow_id: Optional[str] = None) -> None:
         super().__init__(message)
         self.workflow_id = workflow_id
 
@@ -296,7 +296,7 @@ class WorkflowExecutor:
     monitoring for complex DAG state propagation with correlation tracking.
     """
 
-    def __init__(self, composition_result: Optional[CompositionResult] = None):
+    def __init__(self, composition_result: Optional[CompositionResult] = None) -> None:
         self.composition_result = composition_result or CompositionResult()
         try:
             from cognivault.events import get_global_event_emitter
@@ -832,7 +832,9 @@ class DeclarativeOrchestrator:
     comprehensive event emission, error handling, and result tracking.
     """
 
-    def __init__(self, workflow_definition: Optional["WorkflowDefinition"] = None):
+    def __init__(
+        self, workflow_definition: Optional["WorkflowDefinition"] = None
+    ) -> None:
         self.workflow_definition = workflow_definition
         self.executor = WorkflowExecutor()  # For backward compatibility
         self.dag_composer = None

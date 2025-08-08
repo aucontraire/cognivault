@@ -24,7 +24,7 @@ from .formatters import get_formatter
 class DiagnosticsCLI:
     """CLI interface for CogniVault diagnostics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.console = Console()
         self.stderr_console = Console(stderr=True)
         self.diagnostics = DiagnosticsManager()
@@ -66,7 +66,7 @@ class DiagnosticsCLI:
         quiet: bool = typer.Option(
             False, "--quiet", "-q", help="Quiet mode - only exit code"
         ),
-    ):
+    ) -> None:
         """Run system health checks."""
         if quiet and output_format == "console":
             # Run health check and exit with appropriate code
@@ -158,7 +158,7 @@ class DiagnosticsCLI:
         window: Optional[int] = typer.Option(
             None, "--window", "-w", help="Metrics window in minutes"
         ),
-    ):
+    ) -> None:
         """Show detailed system status."""
         with Progress(
             SpinnerColumn(),
@@ -217,7 +217,7 @@ class DiagnosticsCLI:
         agents_only: bool = typer.Option(
             False, "--agents", help="Show only agent-specific metrics"
         ),
-    ):
+    ) -> None:
         """Show performance metrics and statistics."""
         metrics_data = self.diagnostics.get_performance_summary(window)
 
@@ -309,7 +309,7 @@ class DiagnosticsCLI:
         agent: Optional[str] = typer.Option(
             None, "--agent", "-a", help="Show specific agent only"
         ),
-    ):
+    ) -> None:
         """Show agent status and statistics."""
         agent_data = self.diagnostics.get_agent_status()
 
@@ -348,7 +348,7 @@ class DiagnosticsCLI:
         validate_only: bool = typer.Option(
             False, "--validate", help="Only show validation results"
         ),
-    ):
+    ) -> None:
         """Show configuration report and validation."""
         config_data = self.diagnostics.get_configuration_report()
 
@@ -420,7 +420,7 @@ class DiagnosticsCLI:
         output_file: Optional[str] = typer.Option(
             None, "--output", "-o", help="Save to file"
         ),
-    ):
+    ) -> None:
         """Run complete system diagnostics."""
         with Progress(
             SpinnerColumn(),
@@ -520,7 +520,7 @@ class DiagnosticsCLI:
         }
         return status_colors.get(status.lower(), "white")
 
-    def _display_component_health(self, component_healths):
+    def _display_component_health(self, component_healths: Dict[str, Any]) -> None:
         """Display component health in a tree structure."""
         tree = Tree("Component Health")
 
@@ -541,7 +541,7 @@ class DiagnosticsCLI:
 
         self.console.print(tree)
 
-    def _transform_metrics_for_display(self, metrics) -> Dict[str, Any]:
+    def _transform_metrics_for_display(self, metrics: Any) -> Dict[str, Any]:
         """Transform PerformanceMetrics into display-friendly format."""
         from .metrics import PerformanceMetrics
 
@@ -582,7 +582,7 @@ class DiagnosticsCLI:
             "pipeline_duration": metrics.average_execution_time_ms * 4,
         }
 
-    def _display_performance_summary(self, metrics):
+    def _display_performance_summary(self, metrics: Any) -> None:
         """Display performance metrics summary."""
         # Transform the data for display
         display_metrics = self._transform_metrics_for_display(metrics)
@@ -624,7 +624,7 @@ class DiagnosticsCLI:
 
         self.console.print(perf_table)
 
-    def _display_agent_metrics(self, agents):
+    def _display_agent_metrics(self, agents: Dict[str, Any]) -> None:
         """Display agent-specific metrics."""
         agent_table = Table(title="Agent Metrics")
         agent_table.add_column("Agent", style="bold")
@@ -644,7 +644,7 @@ class DiagnosticsCLI:
 
         self.console.print(agent_table)
 
-    def _display_error_breakdown(self, error_breakdown):
+    def _display_error_breakdown(self, error_breakdown: Dict[str, Any]) -> None:
         """Display error breakdown."""
         error_table = Table(title="Error Breakdown")
         error_table.add_column("Error Type", style="bold")
@@ -655,7 +655,9 @@ class DiagnosticsCLI:
 
         self.console.print(error_table)
 
-    def _display_single_agent(self, agent_name, agent_info):
+    def _display_single_agent(
+        self, agent_name: str, agent_info: Dict[str, Any]
+    ) -> None:
         """Display detailed information for a single agent."""
         self.console.print(f"\n[bold]{agent_name} Agent Details[/bold]")
 
@@ -698,7 +700,7 @@ class DiagnosticsCLI:
         else:
             self.console.print("[dim]No execution metrics available[/dim]")
 
-    def _display_all_agents(self, agents):
+    def _display_all_agents(self, agents: Dict[str, Any]) -> None:
         """Display summary of all agents."""
         agent_table = Table(title="All Agents")
         agent_table.add_column("Agent", style="bold")

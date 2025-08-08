@@ -18,7 +18,7 @@ class BaseMockAPI(BaseAPI):
     for comprehensive testing scenarios.
     """
 
-    def __init__(self, api_name: str, api_version: str):
+    def __init__(self, api_name: str, api_version: str) -> None:
         self._api_name = api_name
         self._api_version = api_version
         self._initialized = False

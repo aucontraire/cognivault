@@ -14,7 +14,7 @@ import pytest
 import tempfile
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 from unittest.mock import patch
 
 from pydantic import ValidationError
@@ -36,7 +36,7 @@ from cognivault.orchestration.config import (
 class TestNodeExecutionConfig:
     """Test NodeExecutionConfig Pydantic model."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default field values."""
         config = NodeExecutionConfig()
 
@@ -49,7 +49,7 @@ class TestNodeExecutionConfig:
         assert config.circuit_breaker_recovery_time == 300.0
         assert config.custom_config == {}
 
-    def test_field_descriptions(self):
+    def test_field_descriptions(self) -> None:
         """Test that all fields have descriptions."""
         schema = NodeExecutionConfig.model_json_schema()
         properties = schema["properties"]
@@ -70,7 +70,7 @@ class TestNodeExecutionConfig:
             assert "description" in properties[field]
             assert len(properties[field]["description"]) > 0
 
-    def test_timeout_validation(self):
+    def test_timeout_validation(self) -> None:
         """Test timeout_seconds validation."""
         # Valid positive value
         config = NodeExecutionConfig(timeout_seconds=45.0)
@@ -86,7 +86,7 @@ class TestNodeExecutionConfig:
             NodeExecutionConfig(timeout_seconds=-10.0)
         assert "greater than 0" in str(exc_info.value)
 
-    def test_max_retries_validation(self):
+    def test_max_retries_validation(self) -> None:
         """Test max_retries field constraints."""
         # Valid values
         config = NodeExecutionConfig(max_retries=0)
@@ -105,7 +105,7 @@ class TestNodeExecutionConfig:
             NodeExecutionConfig(max_retries=15)
         assert "less than or equal to 10" in str(exc_info.value)
 
-    def test_retry_delay_validation(self):
+    def test_retry_delay_validation(self) -> None:
         """Test retry_delay_seconds validation."""
         # Valid values
         config = NodeExecutionConfig(retry_delay_seconds=0.0)
@@ -119,7 +119,7 @@ class TestNodeExecutionConfig:
             NodeExecutionConfig(retry_delay_seconds=-1.0)
         assert "greater than or equal to 0" in str(exc_info.value)
 
-    def test_circuit_breaker_threshold_validation(self):
+    def test_circuit_breaker_threshold_validation(self) -> None:
         """Test circuit_breaker_threshold validation."""
         # Valid values
         config = NodeExecutionConfig(circuit_breaker_threshold=1)
@@ -133,7 +133,7 @@ class TestNodeExecutionConfig:
             NodeExecutionConfig(circuit_breaker_threshold=0)
         assert "greater than or equal to 1" in str(exc_info.value)
 
-    def test_circuit_breaker_recovery_time_validation(self):
+    def test_circuit_breaker_recovery_time_validation(self) -> None:
         """Test circuit_breaker_recovery_time validation."""
         # Valid values
         config = NodeExecutionConfig(circuit_breaker_recovery_time=1.0)
@@ -144,19 +144,19 @@ class TestNodeExecutionConfig:
             NodeExecutionConfig(circuit_breaker_recovery_time=0.0)
         assert "greater than 0" in str(exc_info.value)
 
-    def test_extra_fields_forbidden(self):
+    def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError) as exc_info:
             NodeExecutionConfig(invalid_field="value")
         assert "Extra inputs are not permitted" in str(exc_info.value)
 
-    def test_custom_config_dict(self):
+    def test_custom_config_dict(self) -> None:
         """Test custom_config dictionary field."""
         custom_data = {"key1": "value1", "nested": {"key2": "value2"}}
         config = NodeExecutionConfig(custom_config=custom_data)
         assert config.custom_config == custom_data
 
-    def test_serialization(self):
+    def test_serialization(self) -> None:
         """Test Pydantic serialization."""
         config = NodeExecutionConfig(
             timeout_seconds=45.0, max_retries=5, custom_config={"test": "data"}
@@ -173,7 +173,7 @@ class TestNodeExecutionConfig:
         assert "45.0" in json_str
         assert "test" in json_str
 
-    def test_deserialization(self):
+    def test_deserialization(self) -> None:
         """Test Pydantic deserialization."""
         data = {
             "timeout_seconds": 60.0,
@@ -192,7 +192,7 @@ class TestNodeExecutionConfig:
 class TestDAGExecutionConfig:
     """Test DAGExecutionConfig Pydantic model."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default field values."""
         config = DAGExecutionConfig()
 
@@ -211,7 +211,7 @@ class TestDAGExecutionConfig:
         assert config.global_retry_enabled is None
         assert config.global_max_retries is None
 
-    def test_enum_validation(self):
+    def test_enum_validation(self) -> None:
         """Test enum field validation."""
         # Valid enum values
         config = DAGExecutionConfig(
@@ -223,7 +223,7 @@ class TestDAGExecutionConfig:
         assert config.validation_level == OrchestrationValidationLevel.STRICT
         assert config.failure_policy == FailurePolicy.GRACEFUL_DEGRADATION
 
-    def test_max_execution_time_validation(self):
+    def test_max_execution_time_validation(self) -> None:
         """Test max_execution_time_seconds validation."""
         # Valid value
         config = DAGExecutionConfig(max_execution_time_seconds=600.0)
@@ -234,7 +234,7 @@ class TestDAGExecutionConfig:
             DAGExecutionConfig(max_execution_time_seconds=0.0)
         assert "greater than 0" in str(exc_info.value)
 
-    def test_snapshot_validation(self):
+    def test_snapshot_validation(self) -> None:
         """Test snapshot-related field validation."""
         # Valid values
         config = DAGExecutionConfig(snapshot_interval_seconds=30.0, max_snapshots=5)
@@ -251,7 +251,7 @@ class TestDAGExecutionConfig:
             DAGExecutionConfig(max_snapshots=0)
         assert "greater than or equal to 1" in str(exc_info.value)
 
-    def test_global_overrides_validation(self):
+    def test_global_overrides_validation(self) -> None:
         """Test global override field validation."""
         # Valid values
         config = DAGExecutionConfig(
@@ -273,7 +273,7 @@ class TestDAGExecutionConfig:
             DAGExecutionConfig(global_max_retries=15)
         assert "less than or equal to 10" in str(exc_info.value)
 
-    def test_node_configs_dict(self):
+    def test_node_configs_dict(self) -> None:
         """Test node_configs dictionary with NodeExecutionConfig values."""
         node1_config = NodeExecutionConfig(timeout_seconds=45.0)
         node2_config = NodeExecutionConfig(max_retries=1)
@@ -286,7 +286,7 @@ class TestDAGExecutionConfig:
         assert config.node_configs["node1"].timeout_seconds == 45.0
         assert config.node_configs["node2"].max_retries == 1
 
-    def test_get_node_config_method(self):
+    def test_get_node_config_method(self) -> None:
         """Test get_node_config method with global overrides."""
         base_config = NodeExecutionConfig(timeout_seconds=30.0, max_retries=3)
         config = DAGExecutionConfig(
@@ -308,7 +308,7 @@ class TestDAGExecutionConfig:
         assert new_config.retry_enabled is False  # Override applied
         assert new_config.max_retries == 1  # Override applied
 
-    def test_set_node_config_method(self):
+    def test_set_node_config_method(self) -> None:
         """Test set_node_config method."""
         config = DAGExecutionConfig()
         node_config = NodeExecutionConfig(timeout_seconds=90.0)
@@ -317,7 +317,7 @@ class TestDAGExecutionConfig:
         assert "test_node" in config.node_configs
         assert config.node_configs["test_node"].timeout_seconds == 90.0
 
-    def test_extra_fields_forbidden(self):
+    def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError) as exc_info:
             DAGExecutionConfig(unknown_field="value")
@@ -327,7 +327,7 @@ class TestDAGExecutionConfig:
 class TestLangGraphIntegrationConfig:
     """Test LangGraphIntegrationConfig Pydantic model."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default field values."""
         config = LangGraphIntegrationConfig()
 
@@ -346,7 +346,7 @@ class TestLangGraphIntegrationConfig:
         assert config.export_include_metadata is True
         assert config.export_include_execution_history is False
 
-    def test_max_graph_depth_validation(self):
+    def test_max_graph_depth_validation(self) -> None:
         """Test max_graph_depth validation."""
         # Valid values
         config = LangGraphIntegrationConfig(max_graph_depth=1)
@@ -365,7 +365,7 @@ class TestLangGraphIntegrationConfig:
             LangGraphIntegrationConfig(max_graph_depth=1001)
         assert "less than or equal to 1000" in str(exc_info.value)
 
-    def test_routing_strategy_literal(self):
+    def test_routing_strategy_literal(self) -> None:
         """Test default_routing_strategy Literal validation."""
         # Valid values
         valid_strategies = [
@@ -383,7 +383,7 @@ class TestLangGraphIntegrationConfig:
             LangGraphIntegrationConfig(default_routing_strategy="invalid_strategy")
         assert "Input should be" in str(exc_info.value)
 
-    def test_export_format_literal(self):
+    def test_export_format_literal(self) -> None:
         """Test export_format Literal validation."""
         # Valid values
         valid_formats = ["json", "yaml", "xml"]
@@ -396,7 +396,7 @@ class TestLangGraphIntegrationConfig:
             LangGraphIntegrationConfig(export_format="invalid_format")
         assert "Input should be" in str(exc_info.value)
 
-    def test_max_routing_failures_validation(self):
+    def test_max_routing_failures_validation(self) -> None:
         """Test max_routing_failures validation."""
         # Valid values
         config = LangGraphIntegrationConfig(max_routing_failures=0)
@@ -410,7 +410,7 @@ class TestLangGraphIntegrationConfig:
             LangGraphIntegrationConfig(max_routing_failures=-1)
         assert "greater than or equal to 0" in str(exc_info.value)
 
-    def test_nested_dag_execution_config(self):
+    def test_nested_dag_execution_config(self) -> None:
         """Test nested DAGExecutionConfig."""
         dag_config = DAGExecutionConfig(
             execution_mode=ExecutionMode.PARALLEL, max_execution_time_seconds=600.0
@@ -420,7 +420,7 @@ class TestLangGraphIntegrationConfig:
         assert config.dag_execution.execution_mode == ExecutionMode.PARALLEL
         assert config.dag_execution.max_execution_time_seconds == 600.0
 
-    def test_file_operations(self):
+    def test_file_operations(self) -> None:
         """Test load_from_file and save_to_file methods."""
         config = LangGraphIntegrationConfig(
             max_graph_depth=100,
@@ -439,7 +439,7 @@ class TestLangGraphIntegrationConfig:
             assert loaded_config.default_routing_strategy == "conditional"
             assert loaded_config.export_format == "yaml"
 
-    def test_file_operations_yaml(self):
+    def test_file_operations_yaml(self) -> None:
         """Test YAML file operations."""
         config = LangGraphIntegrationConfig(max_graph_depth=200)
 
@@ -458,7 +458,7 @@ class TestLangGraphIntegrationConfig:
                 config.save_to_file(yaml_path)
                 mock_dump.assert_called_once()
 
-    def test_file_operations_errors(self):
+    def test_file_operations_errors(self) -> None:
         """Test file operation error handling."""
         config = LangGraphIntegrationConfig()
 
@@ -474,7 +474,7 @@ class TestLangGraphIntegrationConfig:
             ):
                 config.save_to_file(bad_path)
 
-    def test_extra_fields_forbidden(self):
+    def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError) as exc_info:
             LangGraphIntegrationConfig(invalid_field="value")
@@ -484,7 +484,7 @@ class TestLangGraphIntegrationConfig:
 class TestLangGraphConfigManager:
     """Test LangGraphConfigManager functionality."""
 
-    def test_create_default_config(self):
+    def test_create_default_config(self) -> None:
         """Test create_default_config method."""
         config = LangGraphConfigManager.create_default_config()
 
@@ -502,7 +502,7 @@ class TestLangGraphConfigManager:
             assert node_config.timeout_seconds == 30.0
             assert node_config.max_retries == 2
 
-    def test_create_development_config(self):
+    def test_create_development_config(self) -> None:
         """Test create_development_config method."""
         config = LangGraphConfigManager.create_development_config()
 
@@ -518,7 +518,7 @@ class TestLangGraphConfigManager:
             assert node_config.timeout_seconds == 15.0
             assert node_config.max_retries == 1
 
-    def test_create_production_config(self):
+    def test_create_production_config(self) -> None:
         """Test create_production_config method."""
         config = LangGraphConfigManager.create_production_config()
 
@@ -535,14 +535,14 @@ class TestLangGraphConfigManager:
             assert node_config.max_retries == 3
             assert node_config.retry_delay_seconds == 2.0
 
-    def test_validate_config_success(self):
+    def test_validate_config_success(self) -> None:
         """Test validate_config with valid configuration."""
         config = LangGraphConfigManager.create_default_config()
 
         # Should not raise exception
         LangGraphConfigManager.validate_config(config)
 
-    def test_validate_config_failure(self):
+    def test_validate_config_failure(self) -> None:
         """Test validate_config with invalid configuration."""
         config = LangGraphIntegrationConfig()
 
@@ -552,7 +552,7 @@ class TestLangGraphConfigManager:
         with pytest.raises(ValueError, match="Configuration validation failed"):
             LangGraphConfigManager.validate_config(config)
 
-    def test_load_default_config_with_env_var(self):
+    def test_load_default_config_with_env_var(self) -> None:
         """Test load_default_config with environment variable."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "test_config.json"
@@ -565,7 +565,7 @@ class TestLangGraphConfigManager:
                 loaded_config = LangGraphConfigManager.load_default_config()
                 assert loaded_config.max_graph_depth == 123
 
-    def test_load_default_config_fallback(self):
+    def test_load_default_config_fallback(self) -> None:
         """Test load_default_config fallback to default."""
         with patch.dict("os.environ", {}, clear=True):
             with patch("pathlib.Path.exists", return_value=False):
@@ -578,7 +578,7 @@ class TestLangGraphConfigManager:
 class TestGlobalConfigFunctions:
     """Test global configuration functions."""
 
-    def test_get_orchestration_config(self):
+    def test_get_orchestration_config(self) -> None:
         """Test get_orchestration_config function."""
         # Reset global config first
         reset_orchestration_config()
@@ -586,7 +586,7 @@ class TestGlobalConfigFunctions:
         config = get_orchestration_config()
         assert isinstance(config, LangGraphIntegrationConfig)
 
-    def test_set_orchestration_config(self):
+    def test_set_orchestration_config(self) -> None:
         """Test set_orchestration_config function."""
         test_config = LangGraphIntegrationConfig(max_graph_depth=999)
 
@@ -594,7 +594,7 @@ class TestGlobalConfigFunctions:
         retrieved_config = get_orchestration_config()
         assert retrieved_config.max_graph_depth == 999
 
-    def test_reset_orchestration_config(self):
+    def test_reset_orchestration_config(self) -> None:
         """Test reset_orchestration_config function."""
         # Set a custom config
         test_config = LangGraphIntegrationConfig(max_graph_depth=888)
@@ -607,7 +607,7 @@ class TestGlobalConfigFunctions:
         config = get_orchestration_config()
         assert config.max_graph_depth == 50  # Default value
 
-    def test_set_invalid_config(self):
+    def test_set_invalid_config(self) -> None:
         """Test set_orchestration_config with invalid config."""
         invalid_config = LangGraphIntegrationConfig()
         invalid_config.dag_execution.max_execution_time_seconds = -1.0
@@ -619,7 +619,7 @@ class TestGlobalConfigFunctions:
 class TestSchemaGeneration:
     """Test Pydantic schema generation capabilities."""
 
-    def test_node_execution_config_schema(self):
+    def test_node_execution_config_schema(self) -> None:
         """Test NodeExecutionConfig schema generation."""
         schema = NodeExecutionConfig.model_json_schema()
 
@@ -630,7 +630,7 @@ class TestSchemaGeneration:
         assert schema["properties"]["timeout_seconds"]["exclusiveMinimum"] == 0
         assert "description" in schema["properties"]["timeout_seconds"]
 
-    def test_dag_execution_config_schema(self):
+    def test_dag_execution_config_schema(self) -> None:
         """Test DAGExecutionConfig schema generation."""
         schema = DAGExecutionConfig.model_json_schema()
 
@@ -646,7 +646,7 @@ class TestSchemaGeneration:
         assert "parallel" in enum_values
         assert "hybrid" in enum_values
 
-    def test_integration_config_schema(self):
+    def test_integration_config_schema(self) -> None:
         """Test LangGraphIntegrationConfig schema generation."""
         schema = LangGraphIntegrationConfig.model_json_schema()
 
@@ -669,7 +669,7 @@ class TestSchemaGeneration:
 class TestBackwardCompatibility:
     """Test backward compatibility with existing functionality."""
 
-    def test_enum_value_compatibility(self):
+    def test_enum_value_compatibility(self) -> None:
         """Test that enum values remain the same."""
         assert ExecutionMode.SEQUENTIAL.value == "sequential"
         assert ExecutionMode.PARALLEL.value == "parallel"
@@ -683,7 +683,7 @@ class TestBackwardCompatibility:
         assert FailurePolicy.CONTINUE_ON_ERROR.value == "continue_on_error"
         assert FailurePolicy.GRACEFUL_DEGRADATION.value == "graceful_degradation"
 
-    def test_manager_method_signatures(self):
+    def test_manager_method_signatures(self) -> None:
         """Test that manager method signatures are preserved."""
         # These should not raise AttributeError
         assert hasattr(LangGraphConfigManager, "create_default_config")
@@ -692,7 +692,7 @@ class TestBackwardCompatibility:
         assert hasattr(LangGraphConfigManager, "validate_config")
         assert hasattr(LangGraphConfigManager, "load_default_config")
 
-    def test_config_method_signatures(self):
+    def test_config_method_signatures(self) -> None:
         """Test that config method signatures are preserved."""
         config = DAGExecutionConfig()
 
@@ -712,7 +712,7 @@ class TestBackwardCompatibility:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_empty_custom_config(self):
+    def test_empty_custom_config(self) -> None:
         """Test empty custom_config handling."""
         config = NodeExecutionConfig(custom_config={})
         assert config.custom_config == {}
@@ -720,7 +720,7 @@ class TestEdgeCases:
         config = NodeExecutionConfig()  # Default
         assert config.custom_config == {}
 
-    def test_none_values_for_optional_fields(self):
+    def test_none_values_for_optional_fields(self) -> None:
         """Test None values for optional fields."""
         config = DAGExecutionConfig(
             global_timeout_seconds=None,
@@ -732,7 +732,7 @@ class TestEdgeCases:
         assert config.global_retry_enabled is None
         assert config.global_max_retries is None
 
-    def test_type_coercion(self):
+    def test_type_coercion(self) -> None:
         """Test automatic type coercion."""
         # String to float
         config = NodeExecutionConfig(timeout_seconds="45.5")
@@ -749,7 +749,7 @@ class TestEdgeCases:
         assert config.retry_enabled is True
         assert isinstance(config.retry_enabled, bool)
 
-    def test_complex_nested_validation(self):
+    def test_complex_nested_validation(self) -> None:
         """Test complex nested validation scenarios."""
         # Create nested config with validation at multiple levels
         node_config = NodeExecutionConfig(

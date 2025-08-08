@@ -22,7 +22,7 @@ class OpenAIChatLLM(LLMInterface):
         api_key: str,
         model: str = "gpt-4",
         base_url: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Initialize the OpenAIChatLLM.
 
@@ -185,7 +185,7 @@ class OpenAIChatLLM(LLMInterface):
 
         if stream:
 
-            def token_generator():
+            def token_generator() -> None:
                 for chunk in response:
                     delta = chunk.choices[0].delta
                     content = delta.content or ""

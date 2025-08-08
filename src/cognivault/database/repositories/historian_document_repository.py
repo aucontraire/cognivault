@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select, text, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import TSVECTOR
 
 from cognivault.database.models import HistorianDocument
@@ -28,7 +29,7 @@ class HistorianDocumentRepository(BaseRepository[HistorianDocument]):
     content deduplication via hashing, and search analytics integration.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, HistorianDocument)
 
     async def create_document(

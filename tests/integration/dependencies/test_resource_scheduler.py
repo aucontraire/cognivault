@@ -6,6 +6,7 @@ resource allocation, and concurrency control.
 """
 
 import pytest
+from typing import Any
 import asyncio
 import time
 from unittest.mock import patch
@@ -25,7 +26,7 @@ from cognivault.dependencies.resource_scheduler import (
 class TestResourceRequest:
     """Test ResourceRequest functionality."""
 
-    def test_request_creation(self):
+    def test_request_creation(self) -> None:
         """Test creating a resource request."""
         request = ResourceRequest(
             agent_id="agent_a",
@@ -47,7 +48,7 @@ class TestResourceRequest:
         assert request.shareable is True  # Default
         assert request.request_id.startswith("req_")
 
-    def test_request_expiration(self):
+    def test_request_expiration(self) -> None:
         """Test request expiration checking."""
         # Non-expiring request
         request1 = ResourceRequest(
@@ -71,7 +72,7 @@ class TestResourceRequest:
         time.sleep(0.02)  # 20ms > 10ms
         assert request2.is_expired() is True
 
-    def test_wait_time_calculation(self):
+    def test_wait_time_calculation(self) -> None:
         """Test wait time calculation."""
         request = ResourceRequest(
             agent_id="agent_a",
@@ -89,7 +90,7 @@ class TestResourceRequest:
         new_wait_time = request.get_wait_time_ms()
         assert new_wait_time > wait_time
 
-    def test_deadline_approaching(self):
+    def test_deadline_approaching(self) -> None:
         """Test deadline approaching check."""
         # No deadline
         request1 = ResourceRequest(
@@ -124,7 +125,7 @@ class TestResourceRequest:
 class TestResourceAllocation:
     """Test ResourceAllocation functionality."""
 
-    def test_allocation_creation(self):
+    def test_allocation_creation(self) -> None:
         """Test creating a resource allocation."""
         request = ResourceRequest(
             agent_id="agent_a",
@@ -144,7 +145,7 @@ class TestResourceAllocation:
         assert allocation.expected_release_at is not None
         assert allocation.allocation_id.startswith("alloc_")
 
-    def test_allocation_age(self):
+    def test_allocation_age(self) -> None:
         """Test allocation age calculation."""
         request = ResourceRequest(
             agent_id="agent_a",
@@ -163,7 +164,7 @@ class TestResourceAllocation:
         age2 = allocation.get_age_ms()
         assert age2 > age1
 
-    def test_allocation_overdue(self):
+    def test_allocation_overdue(self) -> None:
         """Test overdue allocation detection."""
         request = ResourceRequest(
             agent_id="agent_a",
@@ -196,7 +197,7 @@ class TestResourceAllocation:
 class TestResourcePool:
     """Test ResourcePool functionality."""
 
-    def test_pool_creation(self):
+    def test_pool_creation(self) -> None:
         """Test creating a resource pool."""
         pool = ResourcePool(
             resource_type=ResourceType.CPU,
@@ -214,7 +215,7 @@ class TestResourcePool:
         assert pool.allow_oversubscription is True
         assert pool.oversubscription_factor == 1.5
 
-    def test_pool_can_allocate_basic(self):
+    def test_pool_can_allocate_basic(self) -> None:
         """Test basic allocation checking."""
         pool = ResourcePool(
             resource_type=ResourceType.MEMORY,
@@ -229,7 +230,7 @@ class TestResourcePool:
         # Should not be able to allocate beyond capacity
         assert pool.can_allocate(1025.0) is False
 
-    def test_pool_can_allocate_exclusive(self):
+    def test_pool_can_allocate_exclusive(self) -> None:
         """Test exclusive allocation checking."""
         pool = ResourcePool(
             resource_type=ResourceType.CPU,
@@ -253,7 +254,7 @@ class TestResourcePool:
         # Should not be able to allocate exclusively now
         assert pool.can_allocate(50.0, exclusive=True) is False
 
-    def test_pool_can_allocate_oversubscription(self):
+    def test_pool_can_allocate_oversubscription(self) -> None:
         """Test allocation with oversubscription."""
         pool = ResourcePool(
             resource_type=ResourceType.CPU,
@@ -267,7 +268,7 @@ class TestResourcePool:
         assert pool.can_allocate(150.0) is True
         assert pool.can_allocate(151.0) is False
 
-    def test_pool_allocate_and_release(self):
+    def test_pool_allocate_and_release(self) -> None:
         """Test allocation and release cycle."""
         pool = ResourcePool(
             resource_type=ResourceType.MEMORY,
@@ -298,7 +299,7 @@ class TestResourcePool:
         assert len(pool.active_allocations) == 0
         assert len(pool.allocation_history) == 1
 
-    def test_pool_allocate_exclusive(self):
+    def test_pool_allocate_exclusive(self) -> None:
         """Test exclusive allocation."""
         pool = ResourcePool(
             resource_type=ResourceType.CPU,
@@ -320,7 +321,7 @@ class TestResourcePool:
         assert allocation.allocated_amount == 100.0
         assert pool.allocated_capacity == 100.0
 
-    def test_pool_allocate_insufficient_capacity(self):
+    def test_pool_allocate_insufficient_capacity(self) -> None:
         """Test allocation with insufficient capacity."""
         pool = ResourcePool(
             resource_type=ResourceType.MEMORY,
@@ -338,7 +339,7 @@ class TestResourcePool:
         allocation = pool.allocate(request)
         assert allocation is None
 
-    def test_pool_utilization_metrics(self):
+    def test_pool_utilization_metrics(self) -> None:
         """Test pool utilization metrics."""
         pool = ResourcePool(
             resource_type=ResourceType.CPU,
@@ -364,7 +365,7 @@ class TestResourcePool:
         assert pool.get_available_percentage() == 20.0
         assert pool.is_near_capacity(threshold=0.7) is True
 
-    def test_pool_cleanup_expired_allocations(self):
+    def test_pool_cleanup_expired_allocations(self) -> None:
         """Test cleanup of expired allocations."""
         pool = ResourcePool(
             resource_type=ResourceType.CPU,
@@ -404,7 +405,7 @@ class TestResourcePool:
 class TestPriorityQueue:
     """Test PriorityQueue functionality."""
 
-    def test_queue_creation(self):
+    def test_queue_creation(self) -> None:
         """Test creating a priority queue."""
         queue = PriorityQueue(policy=SchedulingPolicy.PRIORITY)
 
@@ -413,7 +414,7 @@ class TestPriorityQueue:
         assert queue.is_empty() is True
         assert queue.size() == 0
 
-    def test_queue_fifo_ordering(self):
+    def test_queue_fifo_ordering(self) -> None:
         """Test FIFO queue ordering."""
         queue = PriorityQueue(policy=SchedulingPolicy.FIFO)
 
@@ -446,7 +447,7 @@ class TestPriorityQueue:
         assert queue.dequeue().agent_id == "agent_b"
         assert queue.dequeue().agent_id == "agent_c"
 
-    def test_queue_priority_ordering(self):
+    def test_queue_priority_ordering(self) -> None:
         """Test priority-based queue ordering."""
         queue = PriorityQueue(policy=SchedulingPolicy.PRIORITY)
 
@@ -483,7 +484,7 @@ class TestPriorityQueue:
         assert queue.dequeue().agent_id == "agent_high"
         assert queue.dequeue().agent_id == "agent_low"
 
-    def test_queue_shortest_job_first(self):
+    def test_queue_shortest_job_first(self) -> None:
         """Test shortest job first ordering."""
         queue = PriorityQueue(policy=SchedulingPolicy.SHORTEST_JOB_FIRST)
 
@@ -519,7 +520,7 @@ class TestPriorityQueue:
         assert queue.dequeue().agent_id == "agent_medium"
         assert queue.dequeue().agent_id == "agent_long"
 
-    def test_queue_deadline_aware(self):
+    def test_queue_deadline_aware(self) -> None:
         """Test deadline-aware ordering."""
         queue = PriorityQueue(policy=SchedulingPolicy.DEADLINE_AWARE)
 
@@ -557,7 +558,7 @@ class TestPriorityQueue:
         assert queue.dequeue().agent_id == "agent_medium"
         assert queue.dequeue().agent_id == "agent_late"
 
-    def test_queue_peek(self):
+    def test_queue_peek(self) -> None:
         """Test queue peek functionality."""
         queue = PriorityQueue(policy=SchedulingPolicy.FIFO)
 
@@ -579,7 +580,7 @@ class TestPriorityQueue:
         assert peeked.agent_id == "agent_a"
         assert queue.size() == 1  # Should still be in queue
 
-    def test_queue_remove_specific(self):
+    def test_queue_remove_specific(self) -> None:
         """Test removing specific request from queue."""
         queue = PriorityQueue(policy=SchedulingPolicy.FIFO)
 
@@ -608,7 +609,7 @@ class TestPriorityQueue:
         remaining = queue.dequeue()
         assert remaining.agent_id == "agent_b"
 
-    def test_queue_expired_cleanup(self):
+    def test_queue_expired_cleanup(self) -> None:
         """Test automatic cleanup of expired requests."""
         queue = PriorityQueue(policy=SchedulingPolicy.FIFO)
 
@@ -640,7 +641,7 @@ class TestPriorityQueue:
 class TestResourceScheduler:
     """Test ResourceScheduler functionality."""
 
-    def test_scheduler_creation(self):
+    def test_scheduler_creation(self) -> None:
         """Test creating a resource scheduler."""
         scheduler = ResourceScheduler(scheduling_policy=SchedulingPolicy.PRIORITY)
 
@@ -649,7 +650,7 @@ class TestResourceScheduler:
         assert len(scheduler.request_queues) == 0
         assert scheduler.total_requests == 0
 
-    def test_scheduler_add_resource_pool(self):
+    def test_scheduler_add_resource_pool(self) -> None:
         """Test adding resource pool to scheduler."""
         scheduler = ResourceScheduler()
 
@@ -665,7 +666,7 @@ class TestResourceScheduler:
         assert ResourceType.CPU in scheduler.request_queues
         assert scheduler.resource_pools[ResourceType.CPU] == pool
 
-    def test_scheduler_create_standard_pools(self):
+    def test_scheduler_create_standard_pools(self) -> None:
         """Test creating standard resource pools."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -685,7 +686,7 @@ class TestResourceScheduler:
         assert memory_pool.allow_oversubscription is False
 
     @pytest.mark.asyncio
-    async def test_scheduler_request_resources_immediate(self):
+    async def test_scheduler_request_resources_immediate(self) -> None:
         """Test immediate resource allocation."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -709,7 +710,7 @@ class TestResourceScheduler:
         assert scheduler.successful_allocations == 2  # Should allocate immediately
 
     @pytest.mark.asyncio
-    async def test_scheduler_request_resources_queued(self):
+    async def test_scheduler_request_resources_queued(self) -> None:
         """Test resource allocation with queueing."""
         scheduler = ResourceScheduler()
 
@@ -744,7 +745,7 @@ class TestResourceScheduler:
         assert scheduler.request_queues[ResourceType.CPU].size() == 1  # Second queued
 
     @pytest.mark.asyncio
-    async def test_scheduler_release_resources(self):
+    async def test_scheduler_release_resources(self) -> None:
         """Test releasing resources."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -765,7 +766,7 @@ class TestResourceScheduler:
         assert cpu_pool.available_capacity == cpu_pool.total_capacity
 
     @pytest.mark.asyncio
-    async def test_scheduler_release_specific_allocations(self):
+    async def test_scheduler_release_specific_allocations(self) -> None:
         """Test releasing specific allocations."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -796,7 +797,7 @@ class TestResourceScheduler:
         assert len(remaining_allocations) == 1
         assert remaining_allocations[0].request.resource_type == ResourceType.MEMORY
 
-    def test_scheduler_get_utilization(self):
+    def test_scheduler_get_utilization(self) -> None:
         """Test getting resource utilization statistics."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -813,7 +814,7 @@ class TestResourceScheduler:
             assert resource_stats["active_allocations"] == 0
             assert resource_stats["queue_size"] == 0
 
-    def test_scheduler_get_agent_allocations(self):
+    def test_scheduler_get_agent_allocations(self) -> None:
         """Test getting allocations for specific agent."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -822,7 +823,7 @@ class TestResourceScheduler:
         allocations = scheduler.get_agent_allocations("agent_a")
         assert len(allocations) == 0
 
-    def test_scheduler_get_statistics(self):
+    def test_scheduler_get_statistics(self) -> None:
         """Test getting comprehensive scheduling statistics."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -841,7 +842,7 @@ class TestResourceScheduler:
         assert stats["success_rate"] == 0
 
     @pytest.mark.asyncio
-    async def test_scheduler_optimize_allocations(self):
+    async def test_scheduler_optimize_allocations(self) -> None:
         """Test allocation optimization."""
         scheduler = ResourceScheduler()
         scheduler.create_standard_pools()
@@ -852,7 +853,7 @@ class TestResourceScheduler:
         assert "released_overdue" in results
         assert "queue_reordered" in results
 
-    def test_scheduler_map_constraint_to_type(self):
+    def test_scheduler_map_constraint_to_type(self) -> None:
         """Test mapping resource constraints to types."""
         scheduler = ResourceScheduler()
 
@@ -925,7 +926,7 @@ class TestIntegration:
     """Integration tests for resource scheduler."""
 
     @pytest.mark.asyncio
-    async def test_complete_resource_lifecycle(self):
+    async def test_complete_resource_lifecycle(self) -> None:
         """Test complete resource allocation lifecycle."""
         scheduler = ResourceScheduler(scheduling_policy=SchedulingPolicy.PRIORITY)
         scheduler.create_standard_pools()
@@ -986,7 +987,7 @@ class TestIntegration:
         assert stats["successful_allocations"] >= 2
 
     @pytest.mark.asyncio
-    async def test_priority_based_scheduling(self):
+    async def test_priority_based_scheduling(self) -> None:
         """Test priority-based resource scheduling."""
         scheduler = ResourceScheduler(scheduling_policy=SchedulingPolicy.PRIORITY)
 
@@ -1035,7 +1036,7 @@ class TestIntegration:
         assert next_request.priority == ExecutionPriority.CRITICAL
 
     @pytest.mark.asyncio
-    async def test_resource_contention_and_recovery(self):
+    async def test_resource_contention_and_recovery(self) -> None:
         """Test resource contention and recovery scenarios."""
         scheduler = ResourceScheduler()
 
@@ -1092,7 +1093,7 @@ class TestIntegration:
         assert scheduler.successful_allocations == 2
 
     @pytest.mark.asyncio
-    async def test_deadline_based_scheduling(self):
+    async def test_deadline_based_scheduling(self) -> None:
         """Test deadline-based resource scheduling."""
         scheduler = ResourceScheduler(scheduling_policy=SchedulingPolicy.DEADLINE_AWARE)
 

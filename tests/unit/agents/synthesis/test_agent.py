@@ -7,24 +7,28 @@ meta-insights generation, and wiki-ready output formatting capabilities.
 
 import pytest
 import asyncio
-from typing import Dict, Optional
-from unittest.mock import Mock, patch
+from typing import Any, Dict, Optional
+from unittest.mock import MagicMock, Mock, patch
 
 from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.base_agent import NodeType
+from tests.factories.agent_context_factories import (
+    AgentContextPatterns,
+    AgentContextFactory,
+)
 
 
 class MockLLM(LLMInterface):
     """Mock LLM for testing purposes."""
 
-    def __init__(self, responses: Optional[Dict[str, str]] = None):
+    def __init__(self, responses: Optional[Dict[str, str]] = None) -> None:
         self.responses = responses or {}
         self.call_count = 0
         self.last_prompt = ""
 
-    def generate(self, prompt: str, **kwargs) -> Mock:
+    def generate(self, prompt: str, **kwargs: Any) -> Mock:
         """Generate mock response based on prompt content."""
         self.call_count += 1
         self.last_prompt = prompt
@@ -59,14 +63,14 @@ META_INSIGHTS: Multiple perspectives improve accuracy, Historical context provid
             # Default response
             response_text = self.responses.get("default", "Mock response")
 
-        mock_response = Mock()
+        mock_response: Mock = Mock()
         mock_response.text = response_text
         mock_response.tokens_used = 250
         mock_response.input_tokens = 150
         mock_response.output_tokens = 100
         return mock_response
 
-    async def agenerate(self, prompt: str, **kwargs) -> Mock:
+    async def agenerate(self, prompt: str, **kwargs: Any) -> Mock:
         """Async version of generate."""
         return self.generate(prompt, **kwargs)
 
@@ -74,7 +78,7 @@ META_INSIGHTS: Multiple perspectives improve accuracy, Historical context provid
 class TestSynthesisAgentInitialization:
     """Test SynthesisAgent initialization and setup."""
 
-    def test_default_initialization(self):
+    def test_default_initialization(self) -> None:
         """Test default agent initialization."""
         # Use llm=None to prevent real API calls during testing
         agent = SynthesisAgent(llm=None)
@@ -82,7 +86,7 @@ class TestSynthesisAgentInitialization:
         assert agent.name == "synthesis"
         assert agent.llm is None
 
-    def test_initialization_with_custom_llm(self):
+    def test_initialization_with_custom_llm(self) -> None:
         """Test initialization with custom LLM."""
         mock_llm = MockLLM()
         agent = SynthesisAgent(llm=mock_llm)
@@ -90,7 +94,7 @@ class TestSynthesisAgentInitialization:
         assert agent.name == "synthesis"
         assert agent.llm is mock_llm
 
-    def test_initialization_with_none_llm(self):
+    def test_initialization_with_none_llm(self) -> None:
         """Test initialization with explicit None LLM."""
         agent = SynthesisAgent(llm=None)
 
@@ -99,17 +103,19 @@ class TestSynthesisAgentInitialization:
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig")
-    def test_default_llm_creation_success(self, mock_config_class, mock_llm_class):
+    def test_default_llm_creation_success(
+        self, mock_config_class: Any, mock_llm_class: Any
+    ) -> None:
         """Test successful default LLM creation."""
         # Mock config
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.api_key = "test-key"
         mock_config.model = "gpt-4"
         mock_config.base_url = "https://api.openai.com/v1"
         mock_config_class.load.return_value = mock_config
 
         # Mock LLM
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm_class.return_value = mock_llm
 
         agent = SynthesisAgent()
@@ -122,7 +128,9 @@ class TestSynthesisAgentInitialization:
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig")
-    def test_default_llm_creation_failure(self, mock_config_class, mock_llm_class):
+    def test_default_llm_creation_failure(
+        self, mock_config_class: Any, mock_llm_class: Any
+    ) -> None:
         """Test default LLM creation failure handling."""
         mock_config_class.load.side_effect = Exception("Config error")
 
@@ -136,7 +144,7 @@ class TestSynthesisAgentInitialization:
 class TestSynthesisAgentExecution:
     """Test SynthesisAgent execution workflows."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.mock_agent_outputs = {
             "Refiner": "Refined query: What are the core principles of artificial intelligence? The query focuses on understanding fundamental AI concepts including machine learning, reasoning, and knowledge representation.",
@@ -145,7 +153,7 @@ class TestSynthesisAgentExecution:
         }
 
     @pytest.mark.asyncio
-    async def test_successful_execution_with_llm(self):
+    async def test_successful_execution_with_llm(self) -> None:
         """Test successful agent execution with LLM."""
         # Set up mock LLM with appropriate responses
         mock_llm = MockLLM(
@@ -185,10 +193,9 @@ The core principles of AI emerge from the intersection of computational capabili
         agent = SynthesisAgent(llm=mock_llm)
 
         # Create test context with agent outputs
-        context = AgentContext(
-            query="What are the core principles of artificial intelligence?"
+        context = AgentContextPatterns.synthesis_workflow(
+            "What are the core principles of artificial intelligence?"
         )
-        context.agent_outputs = self.mock_agent_outputs.copy()
 
         # Execute agent
         result_context = await agent.run(context)
@@ -207,7 +214,7 @@ The core principles of AI emerge from the intersection of computational capabili
         assert "artificial intelligence" in final_output.lower()
 
     @pytest.mark.asyncio
-    async def test_successful_execution_without_llm(self):
+    async def test_successful_execution_without_llm(self) -> None:
         """Test successful agent execution without LLM."""
         # Create agent without LLM
         agent = SynthesisAgent(llm=None)
@@ -216,7 +223,7 @@ The core principles of AI emerge from the intersection of computational capabili
         assert agent.llm is None
 
         # Create test context with agent outputs
-        context = AgentContext(query="What is machine learning?")
+        context = AgentContextPatterns.simple_query("What is machine learning?")
         context.agent_outputs = self.mock_agent_outputs.copy()
 
         # Execute agent
@@ -236,13 +243,13 @@ The core principles of AI emerge from the intersection of computational capabili
         assert "machine learning" in final_output.lower()
 
     @pytest.mark.asyncio
-    async def test_execution_with_empty_outputs(self):
+    async def test_execution_with_empty_outputs(self) -> None:
         """Test execution when no agent outputs are available."""
         mock_llm = MockLLM()
         agent = SynthesisAgent(llm=mock_llm)
 
         # Create context with empty outputs
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = {}
 
         result_context = await agent.run(context)
@@ -252,15 +259,15 @@ The core principles of AI emerge from the intersection of computational capabili
         assert result_context.final_synthesis is not None
 
     @pytest.mark.asyncio
-    async def test_execution_with_llm_failure(self):
+    async def test_execution_with_llm_failure(self) -> None:
         """Test execution when LLM calls fail."""
         # Create LLM that raises exceptions
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM failed")
 
         agent = SynthesisAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = self.mock_agent_outputs.copy()
 
         result_context = await agent.run(context)
@@ -270,7 +277,7 @@ The core principles of AI emerge from the intersection of computational capabili
         assert result_context.final_synthesis is not None
 
     @pytest.mark.asyncio
-    async def test_execution_with_analysis_failure(self):
+    async def test_execution_with_analysis_failure(self) -> None:
         """Test execution when analysis step fails."""
         # Mock LLM that fails only on analysis
         mock_llm = MockLLM()
@@ -278,20 +285,20 @@ The core principles of AI emerge from the intersection of computational capabili
         # Make the first call (analysis) fail, second (synthesis) succeed
         call_count = 0
 
-        def side_effect_generate(prompt, **kwargs):
+        def side_effect_generate(prompt: str, **kwargs: Any) -> Mock:
             nonlocal call_count
             call_count += 1
             if call_count == 1:  # First call is analysis
                 raise Exception("Analysis failed")
             else:  # Second call is synthesis
-                mock_response = Mock()
+                mock_response: Mock = Mock()
                 mock_response.text = "Fallback synthesis result"
                 return mock_response
 
         mock_llm.generate = Mock(side_effect=side_effect_generate)
 
         agent = SynthesisAgent(llm=mock_llm)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = self.mock_agent_outputs.copy()
 
         result_context = await agent.run(context)
@@ -304,7 +311,7 @@ The core principles of AI emerge from the intersection of computational capabili
 class TestSynthesisAgentAnalysis:
     """Test thematic analysis functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.mock_outputs = {
             "Agent1": "AI development focuses on machine learning and neural networks.",
@@ -313,7 +320,7 @@ class TestSynthesisAgentAnalysis:
         }
 
     @pytest.mark.asyncio
-    async def test_analyze_agent_outputs_with_llm(self):
+    async def test_analyze_agent_outputs_with_llm(self) -> None:
         """Test thematic analysis with LLM."""
         mock_llm = MockLLM(
             {
@@ -329,7 +336,7 @@ META_INSIGHTS: Field evolution shows paradigm shifts, Modern AI builds on histor
         )
 
         agent = SynthesisAgent(llm=mock_llm)
-        context = AgentContext(query="AI development")
+        context = AgentContextPatterns.simple_query("AI development")
 
         analysis = await agent._analyze_agent_outputs(
             "AI development", self.mock_outputs, context
@@ -346,10 +353,10 @@ META_INSIGHTS: Field evolution shows paradigm shifts, Modern AI builds on histor
         assert mock_llm.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_analyze_agent_outputs_without_llm(self):
+    async def test_analyze_agent_outputs_without_llm(self) -> None:
         """Test thematic analysis fallback without LLM."""
         agent = SynthesisAgent(llm=None)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         analysis = await agent._analyze_agent_outputs(
             "test query", self.mock_outputs, context
@@ -361,13 +368,13 @@ META_INSIGHTS: Field evolution shows paradigm shifts, Modern AI builds on histor
         assert analysis["conflicts"] == []
 
     @pytest.mark.asyncio
-    async def test_analyze_agent_outputs_llm_failure(self):
+    async def test_analyze_agent_outputs_llm_failure(self) -> None:
         """Test analysis when LLM fails."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM error")
 
         agent = SynthesisAgent(llm=mock_llm)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         analysis = await agent._analyze_agent_outputs(
             "test query", self.mock_outputs, context
@@ -378,7 +385,7 @@ META_INSIGHTS: Field evolution shows paradigm shifts, Modern AI builds on histor
         assert "conflicts" in analysis
         assert analysis["themes"] == []  # Empty analysis when LLM fails
 
-    def test_parse_analysis_response_valid(self):
+    def test_parse_analysis_response_valid(self) -> None:
         """Test parsing valid analysis response."""
         agent = SynthesisAgent(llm=None)
 
@@ -400,7 +407,7 @@ META_INSIGHTS: meta1, meta2
         assert analysis["key_topics"] == ["topic1", "topic2", "topic3", "topic4"]
         assert analysis["meta_insights"] == ["meta1", "meta2"]
 
-    def test_parse_analysis_response_partial(self):
+    def test_parse_analysis_response_partial(self) -> None:
         """Test parsing partially valid analysis response."""
         agent = SynthesisAgent(llm=None)
 
@@ -415,7 +422,7 @@ TOPICS: topic1, topic2
         assert analysis["key_topics"] == ["topic1", "topic2"]
         assert analysis["conflicts"] == []  # Should remain empty for missing sections
 
-    def test_parse_analysis_response_invalid(self):
+    def test_parse_analysis_response_invalid(self) -> None:
         """Test parsing invalid analysis response."""
         agent = SynthesisAgent(llm=None)
 
@@ -426,7 +433,7 @@ TOPICS: topic1, topic2
         # Should return empty analysis structure
         assert all(len(values) == 0 for values in analysis.values())
 
-    def test_build_analysis_prompt(self):
+    def test_build_analysis_prompt(self) -> None:
         """Test analysis prompt building."""
         agent = SynthesisAgent(llm=None)
 
@@ -444,7 +451,7 @@ TOPICS: topic1, topic2
 class TestSynthesisAgentSynthesis:
     """Test synthesis functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.mock_outputs = {
             "Refiner": "Refined analysis of AI concepts",
@@ -466,7 +473,7 @@ class TestSynthesisAgentSynthesis:
         }
 
     @pytest.mark.asyncio
-    async def test_llm_powered_synthesis(self):
+    async def test_llm_powered_synthesis(self) -> None:
         """Test LLM-powered synthesis."""
         mock_llm = MockLLM(
             {
@@ -475,7 +482,7 @@ class TestSynthesisAgentSynthesis:
         )
 
         agent = SynthesisAgent(llm=mock_llm)
-        context = AgentContext(query="AI concepts")
+        context = AgentContextPatterns.simple_query("AI concepts")
 
         synthesis = await agent._llm_powered_synthesis(
             "AI concepts", self.mock_outputs, self.mock_analysis, context
@@ -486,13 +493,13 @@ class TestSynthesisAgentSynthesis:
         assert mock_llm.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_llm_powered_synthesis_failure(self):
+    async def test_llm_powered_synthesis_failure(self) -> None:
         """Test LLM synthesis when LLM fails."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM synthesis error")
 
         agent = SynthesisAgent(llm=mock_llm)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         synthesis = await agent._llm_powered_synthesis(
             "test query", self.mock_outputs, self.mock_analysis, context
@@ -503,10 +510,10 @@ class TestSynthesisAgentSynthesis:
         assert "test query" in synthesis
 
     @pytest.mark.asyncio
-    async def test_fallback_synthesis(self):
+    async def test_fallback_synthesis(self) -> None:
         """Test fallback synthesis when LLM is unavailable."""
         agent = SynthesisAgent(llm=None)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         synthesis = await agent._fallback_synthesis(
             "test query", self.mock_outputs, context
@@ -519,7 +526,7 @@ class TestSynthesisAgentSynthesis:
         assert "Critic Analysis" in synthesis
 
     @pytest.mark.asyncio
-    async def test_format_final_output(self):
+    async def test_format_final_output(self) -> None:
         """Test final output formatting."""
         agent = SynthesisAgent(llm=None)
 
@@ -537,7 +544,7 @@ class TestSynthesisAgentSynthesis:
         assert "Meta-Insights" in formatted_output
 
     @pytest.mark.asyncio
-    async def test_format_final_output_minimal_analysis(self):
+    async def test_format_final_output_minimal_analysis(self) -> None:
         """Test final output formatting with minimal analysis data."""
         agent = SynthesisAgent(llm=None)
 
@@ -554,7 +561,7 @@ class TestSynthesisAgentSynthesis:
         assert "Key Topics:" not in formatted_output
         assert "Primary Themes:" not in formatted_output
 
-    def test_build_synthesis_prompt(self):
+    def test_build_synthesis_prompt(self) -> None:
         """Test synthesis prompt building."""
         agent = SynthesisAgent(llm=None)
 
@@ -577,7 +584,7 @@ class TestSynthesisAgentFallbackMethods:
     """Test fallback and error handling methods."""
 
     @pytest.mark.asyncio
-    async def test_create_emergency_fallback(self):
+    async def test_create_emergency_fallback(self) -> None:
         """Test emergency fallback output creation."""
         agent = SynthesisAgent(llm=None)
 
@@ -602,7 +609,7 @@ class TestSynthesisAgentFallbackMethods:
 class TestSynthesisAgentNodeMetadata:
     """Test LangGraph node metadata definition."""
 
-    def test_define_node_metadata(self):
+    def test_define_node_metadata(self) -> None:
         """Test node metadata definition."""
         agent = SynthesisAgent(llm=None)
 
@@ -625,12 +632,12 @@ class TestSynthesisAgentContextTracking:
     """Test context tracking and execution metadata."""
 
     @pytest.mark.asyncio
-    async def test_context_execution_tracking(self):
+    async def test_context_execution_tracking(self) -> None:
         """Test that agent properly tracks execution in context."""
         mock_llm = MockLLM()
         agent = SynthesisAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = {"Agent1": "Test output"}
 
         # Track initial state
@@ -644,12 +651,12 @@ class TestSynthesisAgentContextTracking:
         assert result_context.final_synthesis is not None
 
     @pytest.mark.asyncio
-    async def test_context_final_synthesis_tracking(self):
+    async def test_context_final_synthesis_tracking(self) -> None:
         """Test that final synthesis is properly set in context."""
         mock_llm = MockLLM({"synthesis": "Test synthesis output for final tracking"})
         agent = SynthesisAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = {"Agent1": "Test output"}
 
         result_context = await agent.run(context)
@@ -667,19 +674,19 @@ class TestSynthesisAgentErrorHandling:
     """Test comprehensive error handling scenarios."""
 
     @pytest.mark.asyncio
-    async def test_graceful_degradation_complete_failure(self):
+    async def test_graceful_degradation_complete_failure(self) -> None:
         """Test graceful degradation when synthesis completely fails."""
         agent = SynthesisAgent(llm=None)
 
         # Mock a scenario where even fallback synthesis fails
         original_fallback = agent._fallback_synthesis
 
-        async def failing_fallback(*args, **kwargs):
+        async def failing_fallback(*args: Any, **kwargs: Any) -> None:
             raise Exception("Complete synthesis failure")
 
         agent._fallback_synthesis = failing_fallback
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = {"Agent1": "Test output"}
 
         # Should not raise exception
@@ -691,15 +698,15 @@ class TestSynthesisAgentErrorHandling:
         assert "Emergency Synthesis" in result_context.final_synthesis
 
     @pytest.mark.asyncio
-    async def test_graceful_degradation_llm_failure(self):
+    async def test_graceful_degradation_llm_failure(self) -> None:
         """Test graceful degradation when LLM completely fails."""
         # Create LLM that always fails
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM completely down")
 
         agent = SynthesisAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = {"Agent1": "Test output"}
 
         result_context = await agent.run(context)
@@ -709,7 +716,7 @@ class TestSynthesisAgentErrorHandling:
         assert result_context.final_synthesis is not None
 
     @pytest.mark.asyncio
-    async def test_edge_case_malformed_agent_outputs(self):
+    async def test_edge_case_malformed_agent_outputs(self) -> None:
         """Test handling of malformed agent outputs."""
         mock_llm = MockLLM()
         agent = SynthesisAgent(llm=mock_llm)
@@ -722,7 +729,7 @@ class TestSynthesisAgentErrorHandling:
             "Agent4": {"complex": "object"},  # Complex object
         }
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.agent_outputs = malformed_outputs
 
         # Should handle gracefully
@@ -731,7 +738,7 @@ class TestSynthesisAgentErrorHandling:
         assert result_context.final_synthesis is not None
 
     @pytest.mark.asyncio
-    async def test_concurrent_execution_safety(self):
+    async def test_concurrent_execution_safety(self) -> None:
         """Test that agent can handle concurrent executions safely."""
         mock_llm = MockLLM()
         agent = SynthesisAgent(llm=mock_llm)
@@ -739,7 +746,7 @@ class TestSynthesisAgentErrorHandling:
         # Create multiple contexts
         contexts = []
         for i in range(3):
-            context = AgentContext(query=f"query {i}")
+            context = AgentContextPatterns.simple_query(f"query {i}")
             context.agent_outputs = {f"Agent{j}": f"Output {i}-{j}" for j in range(2)}
             contexts.append(context)
 
@@ -758,7 +765,7 @@ class TestSynthesisAgentIntegration:
     """Test integration scenarios with the broader agent system."""
 
     @pytest.mark.asyncio
-    async def test_integration_with_multiple_agents(self):
+    async def test_integration_with_multiple_agents(self) -> None:
         """Test full integration with multiple agent outputs."""
         mock_llm = MockLLM(
             {
@@ -798,10 +805,10 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
         }
 
         # Create realistic context
-        context = AgentContext(
-            query="How do we achieve comprehensive understanding of complex topics?"
+        context = AgentContextFactory.with_agent_outputs(
+            query="How do we achieve comprehensive understanding of complex topics?",
+            **comprehensive_outputs,
         )
-        context.agent_outputs = comprehensive_outputs
 
         # Execute
         result_context = await agent.run(context)
@@ -821,7 +828,7 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
         assert mock_llm.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_performance_with_large_agent_outputs(self):
+    async def test_performance_with_large_agent_outputs(self) -> None:
         """Test performance and behavior with large agent output sets."""
         mock_llm = MockLLM(
             {
@@ -838,7 +845,7 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
             agent_output = f"Agent {i} provides detailed analysis on topic {i}. " * 100
             large_outputs[f"Agent_{i}"] = agent_output
 
-        context = AgentContext(query="large scale analysis")
+        context = AgentContextPatterns.simple_query("large scale analysis")
         context.agent_outputs = large_outputs
 
         # Should handle large output sets efficiently
@@ -850,7 +857,7 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
         assert len(result_context.final_synthesis) > 0
 
     @pytest.mark.asyncio
-    async def test_synthesis_quality_consistency(self):
+    async def test_synthesis_quality_consistency(self) -> None:
         """Test that synthesis maintains quality across different input scenarios."""
         mock_llm = MockLLM()
         agent = SynthesisAgent(llm=mock_llm)
@@ -879,7 +886,7 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
 
         results = []
         for scenario in scenarios:
-            context = AgentContext(query=scenario["query"])
+            context = AgentContextPatterns.simple_query(scenario["query"])
             context.agent_outputs = scenario["outputs"]
             result = await agent.run(context)
             results.append(result)

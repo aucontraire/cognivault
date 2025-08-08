@@ -490,7 +490,7 @@ class PatternValidationFramework:
         fix_suggestions: bool = typer.Option(
             True, "--suggestions", help="Include fix suggestions"
         ),
-    ):
+    ) -> None:
         """Validate a custom graph pattern."""
         self.console.print("[bold blue]🔍 Pattern Validator[/bold blue]")
 
@@ -538,7 +538,7 @@ class PatternValidationFramework:
         ),
         runs: int = typer.Option(3, "--runs", "-r", help="Number of test runs"),
         timeout: int = typer.Option(30, "--timeout", help="Test timeout in seconds"),
-    ):
+    ) -> None:
         """Test pattern execution with sample data."""
         self.console.print("[bold green]🧪 Pattern Tester[/bold green]")
 
@@ -570,7 +570,7 @@ class PatternValidationFramework:
         output_cert: Optional[str] = typer.Option(
             None, "--cert-output", help="Certification output file"
         ),
-    ):
+    ) -> None:
         """Run certification tests for pattern approval."""
         self.console.print("[bold yellow]🏆 Pattern Certification[/bold yellow]")
 
@@ -609,7 +609,7 @@ class PatternValidationFramework:
         validate_discovered: bool = typer.Option(
             False, "--validate", help="Validate discovered patterns"
         ),
-    ):
+    ) -> None:
         """Discover available patterns in codebase."""
         self.console.print("[bold cyan]🔎 Pattern Discovery[/bold cyan]")
 
@@ -657,7 +657,7 @@ class PatternValidationFramework:
         validator_name: Optional[str] = typer.Option(
             None, "--name", help="Validator name"
         ),
-    ):
+    ) -> None:
         """Register a custom pattern validator."""
         self.console.print("[bold magenta]📝 Validator Registration[/bold magenta]")
 
@@ -684,7 +684,7 @@ class PatternValidationFramework:
         include_metrics: bool = typer.Option(
             True, "--metrics", help="Include performance metrics"
         ),
-    ):
+    ) -> None:
         """Generate comprehensive pattern analysis report."""
         self.console.print("[bold green]📋 Report Generator[/bold green]")
 
@@ -716,7 +716,7 @@ class PatternValidationFramework:
         agents: str = typer.Option(
             "refiner,critic", "--agents", "-a", help="Test agents"
         ),
-    ):
+    ) -> None:
         """Benchmark pattern performance against baseline."""
         self.console.print("[bold red]🏁 Pattern Benchmark[/bold red]")
 
@@ -857,7 +857,7 @@ class PatternValidationFramework:
 
     def _display_validation_report(
         self, report: PatternValidationReport, show_suggestions: bool
-    ):
+    ) -> None:
         """Display validation report in console."""
         # Summary panel
         status_color = {
@@ -959,7 +959,7 @@ class PatternValidationFramework:
             "success_rate": 0.9,
         }
 
-    def _display_test_results(self, results: Dict[str, Any]):
+    def _display_test_results(self, results: Dict[str, Any]) -> None:
         """Display test results."""
         table = Table(title="Test Results")
         table.add_column("Metric", style="bold")
@@ -978,11 +978,13 @@ class PatternValidationFramework:
             pattern, PatternValidationLevel.CERTIFICATION
         )
 
-    def _display_certification_results(self, report: PatternValidationReport):
+    def _display_certification_results(self, report: PatternValidationReport) -> None:
         """Display certification results."""
         self._display_validation_report(report, True)
 
-    def _generate_certificate(self, report: PatternValidationReport, output_file: str):
+    def _generate_certificate(
+        self, report: PatternValidationReport, output_file: str
+    ) -> None:
         """Generate certification certificate."""
         cert_content = f"""PATTERN CERTIFICATION CERTIFICATE
 
@@ -1038,7 +1040,7 @@ Generated: {datetime.now().isoformat()}
             "runs": runs,
         }
 
-    def _display_benchmark_results(self, results: Dict[str, Any]):
+    def _display_benchmark_results(self, results: Dict[str, Any]) -> None:
         """Display benchmark results."""
         table = Table(title="Benchmark Results")
         table.add_column("Metric", style="bold")

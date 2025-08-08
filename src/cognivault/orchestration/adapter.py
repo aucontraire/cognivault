@@ -115,7 +115,7 @@ class LangGraphNodeAdapter(ABC):
     transitions, error propagation, and execution metadata.
     """
 
-    def __init__(self, agent: BaseAgent, node_id: Optional[str] = None):
+    def __init__(self, agent: BaseAgent, node_id: Optional[str] = None) -> None:
         """
         Initialize the node adapter.
 
@@ -384,7 +384,7 @@ class StandardNodeAdapter(LangGraphNodeAdapter):
         node_id: Optional[str] = None,
         enable_state_validation: bool = True,
         enable_rollback: bool = True,
-    ):
+    ) -> None:
         """
         Initialize the standard node adapter.
 
@@ -442,7 +442,7 @@ class ConditionalNodeAdapter(LangGraphNodeAdapter):
         agent: BaseAgent,
         routing_function: Callable[[AgentContext], List[str]],
         node_id: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Initialize the conditional node adapter.
 
@@ -505,7 +505,7 @@ class ConditionalNodeAdapter(LangGraphNodeAdapter):
 
 
 def create_node_adapter(
-    agent: BaseAgent, adapter_type: str = "standard", **kwargs
+    agent: BaseAgent, adapter_type: str = "standard", **kwargs: Any
 ) -> LangGraphNodeAdapter:
     """
     Factory function to create appropriate node adapter for an agent.

@@ -50,7 +50,7 @@ class WorkflowRequest(BaseModel):
 
     @field_validator("agents")
     @classmethod
-    def validate_agents(cls, v):
+    def validate_agents(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         """Validate agent names."""
         if v is not None:
             if not v:  # Empty list
@@ -71,7 +71,9 @@ class WorkflowRequest(BaseModel):
 
     @field_validator("execution_config")
     @classmethod
-    def validate_execution_config(cls, v):
+    def validate_execution_config(
+        cls, v: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
         """Validate execution configuration."""
         if v is not None:
             # Validate timeout if provided
@@ -143,7 +145,7 @@ class WorkflowResponse(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_status_consistency(self):
+    def validate_status_consistency(self) -> "WorkflowResponse":
         """Validate status consistency with other fields."""
         if self.status == "failed" and not self.error_message:
             raise ValueError("error_message is required when status is 'failed'")
@@ -155,7 +157,7 @@ class WorkflowResponse(BaseModel):
 
     @field_validator("agent_outputs")
     @classmethod
-    def validate_agent_outputs(cls, v):
+    def validate_agent_outputs(cls, v: Dict[str, str]) -> Dict[str, str]:
         """Validate agent outputs."""
         for agent_name, output in v.items():
             if not isinstance(output, str):
@@ -208,7 +210,7 @@ class StatusResponse(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_status_consistency(self):
+    def validate_status_consistency(self) -> "StatusResponse":
         """Validate status consistency with other fields."""
         # Validate current_agent consistency
         if self.status == "running" and self.current_agent is None:
@@ -328,7 +330,7 @@ class CompletionResponse(BaseModel):
 
     @field_validator("token_usage")
     @classmethod
-    def validate_token_usage(cls, v):
+    def validate_token_usage(cls, v: Dict[str, int]) -> Dict[str, int]:
         """Validate token usage structure."""
         required_keys = {"prompt_tokens", "completion_tokens", "total_tokens"}
         if not all(key in v for key in required_keys):
@@ -383,7 +385,7 @@ class LLMProviderInfo(BaseModel):
 
     @field_validator("models")
     @classmethod
-    def validate_models(cls, v):
+    def validate_models(cls, v: List[str]) -> List[str]:
         """Validate model names."""
         for model in v:
             if not isinstance(model, str) or len(model.strip()) == 0:
@@ -626,14 +628,8 @@ class TopicSummary(BaseModel):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
-            "topic_id": self.topic_id,
-            "name": self.name,
-            "description": self.description,
-            "query_count": self.query_count,
-            "last_updated": self.last_updated,
-            "similarity_score": self.similarity_score,
-        }
+
+        return self.model_dump()
 
 
 # EXTERNAL SCHEMA

@@ -7,6 +7,7 @@ with their provider-specific error handling.
 """
 
 import pytest
+from typing import Any
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -25,7 +26,7 @@ from cognivault.exceptions import (
 class TestLLMErrorBase:
     """Test base LLMError functionality."""
 
-    def test_llm_error_creation(self):
+    def test_llm_error_creation(self) -> None:
         """Test basic LLMError creation."""
         error = LLMError(message="LLM call failed", llm_provider="openai")
 
@@ -37,7 +38,7 @@ class TestLLMErrorBase:
         assert error.retry_policy == RetryPolicy.BACKOFF
         assert isinstance(error, CogniVaultError)
 
-    def test_llm_error_with_api_details(self):
+    def test_llm_error_with_api_details(self) -> None:
         """Test LLMError with API error details."""
         error = LLMError(
             message="OpenAI API error",
@@ -60,7 +61,7 @@ class TestLLMErrorBase:
         assert error.step_id == "llm_step"
         assert error.agent_id == "LLMAgent"
 
-    def test_llm_error_context_injection(self):
+    def test_llm_error_context_injection(self) -> None:
         """Test that LLM provider info is injected into context."""
         error = LLMError(
             message="Provider test",
@@ -77,7 +78,7 @@ class TestLLMErrorBase:
 class TestLLMQuotaError:
     """Test LLMQuotaError functionality."""
 
-    def test_quota_error_creation(self):
+    def test_quota_error_creation(self) -> None:
         """Test basic quota error creation."""
         error = LLMQuotaError(llm_provider="openai", quota_type="api_credits")
 
@@ -91,7 +92,7 @@ class TestLLMQuotaError:
         expected_msg = "openai API quota exceeded for api_credits"
         assert error.message == expected_msg
 
-    def test_quota_error_with_custom_context(self):
+    def test_quota_error_with_custom_context(self) -> None:
         """Test quota error with additional context details."""
         context = {
             "quota_limit": 1000,
@@ -113,7 +114,7 @@ class TestLLMQuotaError:
         assert error.context["quota_type"] == "requests_per_day"
         assert error.context["billing_check_required"] is True
 
-    def test_quota_user_message(self):
+    def test_quota_user_message(self) -> None:
         """Test user-friendly quota error message."""
         error = LLMQuotaError(
             llm_provider="openai",
@@ -129,7 +130,7 @@ class TestLLMQuotaError:
 class TestLLMAuthError:
     """Test LLMAuthError functionality."""
 
-    def test_auth_error_creation(self):
+    def test_auth_error_creation(self) -> None:
         """Test basic authentication error creation."""
         error = LLMAuthError(llm_provider="openai", auth_issue="invalid_api_key")
 
@@ -143,7 +144,7 @@ class TestLLMAuthError:
         expected_msg = "openai authentication failed: invalid_api_key"
         assert error.message == expected_msg
 
-    def test_auth_error_with_details(self):
+    def test_auth_error_with_details(self) -> None:
         """Test auth error with additional details."""
         context = {"auth_details": "Token expired on 2024-01-01"}
         error = LLMAuthError(
@@ -161,7 +162,7 @@ class TestLLMAuthError:
         assert error.context["auth_issue"] == "expired_token"
         assert error.context["api_key_check_required"] is True
 
-    def test_auth_user_message(self):
+    def test_auth_user_message(self) -> None:
         """Test user-friendly auth error message."""
         error = LLMAuthError(llm_provider="openai", auth_issue="invalid_api_key")
 
@@ -173,7 +174,7 @@ class TestLLMAuthError:
 class TestLLMTimeoutError:
     """Test LLMTimeoutError functionality."""
 
-    def test_timeout_error_creation(self):
+    def test_timeout_error_creation(self) -> None:
         """Test basic timeout error creation."""
         error = LLMTimeoutError(
             llm_provider="openai", timeout_seconds=30.0, timeout_type="api_request"
@@ -190,7 +191,7 @@ class TestLLMTimeoutError:
         expected_msg = "openai api_request timeout after 30.0s"
         assert error.message == expected_msg
 
-    def test_timeout_error_with_details(self):
+    def test_timeout_error_with_details(self) -> None:
         """Test timeout error with additional details."""
         context = {"request_id": "req_123"}
         error = LLMTimeoutError(
@@ -207,7 +208,7 @@ class TestLLMTimeoutError:
         assert error.context["timeout_seconds"] == 45.0
         assert error.context["timeout_type"] == "streaming_response"
 
-    def test_timeout_user_message(self):
+    def test_timeout_user_message(self) -> None:
         """Test user-friendly timeout error message."""
         error = LLMTimeoutError(
             llm_provider="openai", timeout_seconds=30.0, timeout_type="api_request"
@@ -221,7 +222,7 @@ class TestLLMTimeoutError:
 class TestLLMRateLimitError:
     """Test LLMRateLimitError functionality."""
 
-    def test_rate_limit_error_creation(self):
+    def test_rate_limit_error_creation(self) -> None:
         """Test basic rate limit error creation."""
         error = LLMRateLimitError(
             llm_provider="openai", rate_limit_type="requests_per_minute"
@@ -237,7 +238,7 @@ class TestLLMRateLimitError:
         expected_msg = "openai rate limit exceeded: requests_per_minute"
         assert error.message == expected_msg
 
-    def test_rate_limit_error_with_retry_after(self):
+    def test_rate_limit_error_with_retry_after(self) -> None:
         """Test rate limit error with retry-after information."""
         context = {"current_usage": 1000, "limit_value": 800}
         error = LLMRateLimitError(
@@ -256,7 +257,7 @@ class TestLLMRateLimitError:
         assert error.context["rate_limit_type"] == "tokens_per_minute"
         assert error.context["temporary_failure"] is True
 
-    def test_rate_limit_user_message(self):
+    def test_rate_limit_user_message(self) -> None:
         """Test user-friendly rate limit error message."""
         error = LLMRateLimitError(
             llm_provider="openai",
@@ -272,7 +273,7 @@ class TestLLMRateLimitError:
 class TestLLMContextLimitError:
     """Test LLMContextLimitError functionality."""
 
-    def test_context_limit_error_creation(self):
+    def test_context_limit_error_creation(self) -> None:
         """Test basic context limit error creation."""
         error = LLMContextLimitError(
             llm_provider="openai", model_name="gpt-4", token_count=8500, max_tokens=8192
@@ -293,7 +294,7 @@ class TestLLMContextLimitError:
         expected_msg = "gpt-4 context limit exceeded: 8500/8192 tokens"
         assert error.message == expected_msg
 
-    def test_context_limit_error_with_details(self):
+    def test_context_limit_error_with_details(self) -> None:
         """Test context limit error with additional details."""
         context = {"prompt_tokens": 95000, "completion_tokens": 5000}
         error = LLMContextLimitError(
@@ -314,7 +315,7 @@ class TestLLMContextLimitError:
         assert error.context["token_count"] == 100000
         assert error.context["max_tokens"] == 100000
 
-    def test_context_limit_user_message(self):
+    def test_context_limit_user_message(self) -> None:
         """Test user-friendly context limit error message."""
         error = LLMContextLimitError(
             llm_provider="openai",
@@ -331,7 +332,7 @@ class TestLLMContextLimitError:
 class TestLLMModelNotFoundError:
     """Test LLMModelNotFoundError functionality."""
 
-    def test_model_not_found_error_creation(self):
+    def test_model_not_found_error_creation(self) -> None:
         """Test basic model not found error creation."""
         error = LLMModelNotFoundError(llm_provider="openai", model_name="gpt-5")
 
@@ -345,7 +346,7 @@ class TestLLMModelNotFoundError:
         expected_msg = "openai model 'gpt-5' not found or unavailable"
         assert error.message == expected_msg
 
-    def test_model_not_found_with_suggestions(self):
+    def test_model_not_found_with_suggestions(self) -> None:
         """Test model not found error with suggested alternatives."""
         available_models = ["gpt-4", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"]
 
@@ -362,7 +363,7 @@ class TestLLMModelNotFoundError:
         assert error.context["model_name"] == "invalid-model"
         assert error.context["model_deprecated_possible"] is True
 
-    def test_model_not_found_user_message(self):
+    def test_model_not_found_user_message(self) -> None:
         """Test user-friendly model not found error message."""
         error = LLMModelNotFoundError(
             llm_provider="openai",
@@ -379,7 +380,7 @@ class TestLLMModelNotFoundError:
 class TestLLMServerError:
     """Test LLMServerError functionality."""
 
-    def test_server_error_creation(self):
+    def test_server_error_creation(self) -> None:
         """Test basic server error creation."""
         error = LLMServerError(
             llm_provider="openai",
@@ -400,7 +401,7 @@ class TestLLMServerError:
         expected_msg = "openai server error (HTTP 503): Service temporarily unavailable"
         assert error.message == expected_msg
 
-    def test_server_error_with_details(self):
+    def test_server_error_with_details(self) -> None:
         """Test server error with additional details."""
         context = {"request_id": "req_456", "server_timestamp": "2024-01-01T12:00:00Z"}
         error = LLMServerError(
@@ -418,7 +419,7 @@ class TestLLMServerError:
         assert error.context["error_details"] == "Internal server error"
         assert error.context["server_side_issue"] is True
 
-    def test_server_error_user_message(self):
+    def test_server_error_user_message(self) -> None:
         """Test user-friendly server error message."""
         error = LLMServerError(
             llm_provider="openai", http_status=502, error_details="Bad gateway"
@@ -433,7 +434,7 @@ class TestLLMServerError:
 class TestLLMErrorInheritance:
     """Test proper inheritance hierarchy for LLM errors."""
 
-    def test_all_llm_errors_inherit_from_llm_error(self):
+    def test_all_llm_errors_inherit_from_llm_error(self) -> None:
         """Test that specialized LLM errors inherit from LLMError."""
         errors = [
             LLMQuotaError("openai", "credits"),
@@ -450,12 +451,12 @@ class TestLLMErrorInheritance:
             assert isinstance(error, CogniVaultError)
             assert hasattr(error, "llm_provider")
 
-    def test_llm_error_inherits_from_base(self):
+    def test_llm_error_inherits_from_base(self) -> None:
         """Test that LLMError inherits from CogniVaultError."""
         error = LLMError("Test", "provider")
         assert isinstance(error, CogniVaultError)
 
-    def test_polymorphic_behavior(self):
+    def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of LLM errors."""
 
         def handle_llm_error(error: LLMError) -> dict:
@@ -488,7 +489,7 @@ class TestLLMErrorInheritance:
 class TestLLMErrorIntegration:
     """Test integration aspects of LLM errors."""
 
-    def test_provider_specific_error_handling(self):
+    def test_provider_specific_error_handling(self) -> None:
         """Test that LLM errors handle provider-specific information."""
         openai_error = LLMRateLimitError(
             llm_provider="openai",
@@ -513,7 +514,7 @@ class TestLLMErrorIntegration:
         assert anthropic_error.context["llm_provider"] == "anthropic"
         assert anthropic_error.context["conversation_id"] == "conv-456"
 
-    def test_api_error_mapping(self):
+    def test_api_error_mapping(self) -> None:
         """Test that API error codes are properly mapped."""
         error = LLMError(
             message="API mapping test",
@@ -527,7 +528,7 @@ class TestLLMErrorIntegration:
         assert error.context["api_error_type"] == "QuotaExceededError"
         assert error.context["original_status"] == 429
 
-    def test_exception_raising_and_catching(self):
+    def test_exception_raising_and_catching(self) -> None:
         """Test that LLM errors can be properly raised and caught."""
         # Test specific exception catching
         with pytest.raises(LLMQuotaError) as exc_info:

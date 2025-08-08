@@ -69,7 +69,7 @@ class GraphFactory:
         self,
         cache_config: Optional[CacheConfig] = None,
         default_validator: Optional[SemanticValidator] = None,
-    ):
+    ) -> None:
         """
         Initialize the GraphFactory.
 

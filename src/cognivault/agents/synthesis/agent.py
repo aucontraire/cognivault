@@ -43,7 +43,7 @@ class SynthesisAgent(BaseAgent):
         self,
         llm: Optional[Union[LLMInterface, str]] = "default",
         config: Optional[SynthesisConfig] = None,
-    ):
+    ) -> None:
         super().__init__("synthesis")
 
         # Configuration system - backward compatible
@@ -85,7 +85,7 @@ class SynthesisAgent(BaseAgent):
             )
             return None
 
-    def _update_composed_prompt(self):
+    def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
         try:
             self._composed_prompt = self._prompt_composer.compose_synthesis_prompt(
@@ -121,7 +121,7 @@ class SynthesisAgent(BaseAgent):
             # Fallback to basic embedded prompt
             return """As a synthesis agent, analyze and integrate multiple agent outputs to create comprehensive, coherent responses that combine all perspectives."""
 
-    def update_config(self, config: SynthesisConfig):
+    def update_config(self, config: SynthesisConfig) -> None:
         """
         Update the agent configuration and recompose prompts.
 

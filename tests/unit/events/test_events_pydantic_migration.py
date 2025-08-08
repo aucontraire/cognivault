@@ -5,6 +5,7 @@ Tests validation, serialization, and backward compatibility of event models.
 """
 
 import pytest
+from typing import Any
 from datetime import datetime, timezone
 from pydantic import ValidationError
 
@@ -27,7 +28,7 @@ from cognivault.exceptions import FailurePropagationStrategy
 class TestWorkflowEventValidation:
     """Test WorkflowEvent Pydantic validation."""
 
-    def test_valid_minimal_event(self):
+    def test_valid_minimal_event(self) -> None:
         """Test valid minimal event creation."""
         event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,
@@ -42,7 +43,7 @@ class TestWorkflowEventValidation:
         assert event.correlation_id is None
         assert event.capabilities_used == []
 
-    def test_valid_full_event(self):
+    def test_valid_full_event(self) -> None:
         """Test valid event with all fields."""
         task_classification = TaskClassification(
             task_type="evaluate", domain="technology", complexity="complex"
@@ -67,7 +68,7 @@ class TestWorkflowEventValidation:
         assert "critical_analysis" in event.capabilities_used
         assert event.execution_time_ms == 1250.5
 
-    def test_workflow_id_validation(self):
+    def test_workflow_id_validation(self) -> None:
         """Test workflow_id field validation."""
         # Empty workflow_id should fail
         with pytest.raises(ValidationError, match="at least 1 character"):
@@ -85,7 +86,7 @@ class TestWorkflowEventValidation:
                 workflow_id="x" * 201,
             )
 
-    def test_event_id_validation(self):
+    def test_event_id_validation(self) -> None:
         """Test event_id validation."""
         # Invalid hex string (proper length but non-hex chars) should fail
         with pytest.raises(ValidationError, match="hexadecimal characters"):
@@ -105,7 +106,7 @@ class TestWorkflowEventValidation:
                 event_id="abc123",  # Too short
             )
 
-    def test_capabilities_validation(self):
+    def test_capabilities_validation(self) -> None:
         """Test capabilities_used validation."""
         # Non-list should fail
         with pytest.raises(ValidationError, match="valid list"):
@@ -125,7 +126,7 @@ class TestWorkflowEventValidation:
                 capabilities_used=["valid_capability", ""],
             )
 
-    def test_performance_metrics_validation(self):
+    def test_performance_metrics_validation(self) -> None:
         """Test performance metrics validation."""
         # Negative execution time should fail
         with pytest.raises(ValidationError, match="greater than or equal to 0"):
@@ -145,7 +146,7 @@ class TestWorkflowEventValidation:
                 memory_usage_mb=-10.0,
             )
 
-    def test_error_consistency_validation(self):
+    def test_error_consistency_validation(self) -> None:
         """Test error field consistency validation."""
         # Error message without error type should fail
         with pytest.raises(ValidationError, match="error_type is required"):
@@ -176,7 +177,7 @@ class TestWorkflowEventValidation:
         assert event.error_message == "Something went wrong"
         assert event.error_type == "RuntimeError"
 
-    def test_service_version_validation(self):
+    def test_service_version_validation(self) -> None:
         """Test service_version pattern validation."""
         # Invalid version format should fail
         with pytest.raises(ValidationError, match="String should match pattern"):
@@ -198,7 +199,7 @@ class TestWorkflowEventValidation:
             )
             assert event.service_version == version
 
-    def test_event_category_validation(self):
+    def test_event_category_validation(self) -> None:
         """Test event_category field validation and dual emission architecture."""
         # Valid orchestration category should work
         orchestration_event = WorkflowEvent(
@@ -233,7 +234,7 @@ class TestWorkflowEventValidation:
         assert agent_execution.event_category == EventCategory.EXECUTION
         assert agent_orchestration.event_type == agent_execution.event_type
 
-    def test_event_category_enum_values(self):
+    def test_event_category_enum_values(self) -> None:
         """Test that event category enum has correct values for WebSocket consumption."""
         # Verify enum values match expected WebSocket output
         assert EventCategory.ORCHESTRATION.value == "orchestration"
@@ -251,7 +252,7 @@ class TestWorkflowEventValidation:
         assert category_str in ["orchestration", "execution"]
         assert isinstance(category_str, str)
 
-    def test_extra_fields_forbidden(self):
+    def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             WorkflowEvent(
@@ -265,7 +266,7 @@ class TestWorkflowEventValidation:
 class TestSpecializedEventValidation:
     """Test specialized event classes validation."""
 
-    def test_workflow_started_event(self):
+    def test_workflow_started_event(self) -> None:
         """Test WorkflowStartedEvent validation."""
         event = WorkflowStartedEvent(
             workflow_id="test-workflow",
@@ -281,7 +282,7 @@ class TestSpecializedEventValidation:
         assert event.data["query_length"] == len("Analyze climate change impact")
         assert event.data["agents_requested"] == ["refiner", "critic"]
 
-    def test_workflow_started_query_truncation(self):
+    def test_workflow_started_query_truncation(self) -> None:
         """Test query truncation in data."""
         long_query = "x" * 150
         event = WorkflowStartedEvent(workflow_id="test-workflow", query=long_query)
@@ -292,7 +293,7 @@ class TestSpecializedEventValidation:
         assert event.data["query"] == long_query[:100] + "..."
         assert event.data["query_length"] == 150
 
-    def test_workflow_completed_event(self):
+    def test_workflow_completed_event(self) -> None:
         """Test WorkflowCompletedEvent validation."""
         event = WorkflowCompletedEvent(
             workflow_id="test-workflow",
@@ -308,7 +309,7 @@ class TestSpecializedEventValidation:
         assert event.execution_time_ms == 42500.0  # Converted to ms
         assert event.data["success_rate"] == 1.0  # All agents successful
 
-    def test_workflow_completed_status_validation(self):
+    def test_workflow_completed_status_validation(self) -> None:
         """Test status pattern validation."""
         # Invalid status should fail
         with pytest.raises(ValidationError, match="String should match pattern"):
@@ -320,7 +321,7 @@ class TestSpecializedEventValidation:
             event = WorkflowCompletedEvent(workflow_id="test", status=status)
             assert event.status == status
 
-    def test_agent_execution_events(self):
+    def test_agent_execution_events(self) -> None:
         """Test agent execution events."""
         # Started event
         started = AgentExecutionStartedEvent(
@@ -341,7 +342,7 @@ class TestSpecializedEventValidation:
         assert completed.event_type == EventType.AGENT_EXECUTION_COMPLETED
         assert completed.data["output_tokens"] == 200
 
-    def test_routing_decision_event(self):
+    def test_routing_decision_event(self) -> None:
         """Test RoutingDecisionEvent validation."""
         event = RoutingDecisionEvent(
             workflow_id="test",
@@ -355,7 +356,7 @@ class TestSpecializedEventValidation:
         assert event.confidence_score == 0.85
         assert event.data["agent_count"] == 2
 
-    def test_routing_confidence_validation(self):
+    def test_routing_confidence_validation(self) -> None:
         """Test confidence score validation."""
         # Confidence below 0 should fail
         with pytest.raises(ValidationError, match="greater than or equal to 0"):
@@ -369,7 +370,7 @@ class TestSpecializedEventValidation:
 class TestEventFiltersValidation:
     """Test EventFilters Pydantic validation."""
 
-    def test_valid_filters(self):
+    def test_valid_filters(self) -> None:
         """Test valid filter creation."""
         filters = EventFilters(
             event_type=EventType.WORKFLOW_STARTED,
@@ -382,7 +383,7 @@ class TestEventFiltersValidation:
         assert filters.event_type == EventType.WORKFLOW_STARTED
         assert filters.bounded_context == "reflection"
 
-    def test_time_range_validation(self):
+    def test_time_range_validation(self) -> None:
         """Test time range validation."""
         start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         end_time = datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc)  # Before start
@@ -397,7 +398,7 @@ class TestEventFiltersValidation:
         assert filters.start_time == start_time
         assert filters.end_time == valid_end_time
 
-    def test_bounded_context_validation(self):
+    def test_bounded_context_validation(self) -> None:
         """Test bounded_context pattern validation."""
         # Invalid bounded context should fail
         with pytest.raises(ValidationError, match="String should match pattern"):
@@ -409,7 +410,7 @@ class TestEventFiltersValidation:
             filters = EventFilters(bounded_context=context)
             assert filters.bounded_context == context
 
-    def test_filter_matching(self):
+    def test_filter_matching(self) -> None:
         """Test filter matching functionality."""
         event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,
@@ -438,7 +439,7 @@ class TestEventFiltersValidation:
 class TestEventStatisticsValidation:
     """Test EventStatistics Pydantic validation."""
 
-    def test_valid_statistics(self):
+    def test_valid_statistics(self) -> None:
         """Test valid statistics creation."""
         stats = EventStatistics(
             total_events=100,
@@ -451,7 +452,7 @@ class TestEventStatisticsValidation:
         assert stats.total_events == 100
         assert stats.error_rate == 0.05
 
-    def test_count_validation(self):
+    def test_count_validation(self) -> None:
         """Test event count validation."""
         # Negative total events should fail
         with pytest.raises(ValidationError, match="greater than or equal to 0"):
@@ -461,7 +462,7 @@ class TestEventStatisticsValidation:
         with pytest.raises(ValidationError, match="non-negative integer"):
             EventStatistics(events_by_type={"workflow.started": -5})
 
-    def test_error_rate_validation(self):
+    def test_error_rate_validation(self) -> None:
         """Test error rate validation."""
         # Error rate below 0 should fail
         with pytest.raises(ValidationError, match="greater than or equal to 0"):
@@ -471,7 +472,7 @@ class TestEventStatisticsValidation:
         with pytest.raises(ValidationError, match="less than or equal to 1"):
             EventStatistics(error_rate=1.5)
 
-    def test_update_with_event(self):
+    def test_update_with_event(self) -> None:
         """Test statistics update functionality."""
         stats = EventStatistics()
 
@@ -496,7 +497,7 @@ class TestEventStatisticsValidation:
 class TestTaskClassificationValidation:
     """Test TaskClassification Pydantic validation."""
 
-    def test_valid_classification(self):
+    def test_valid_classification(self) -> None:
         """Test valid task classification."""
         classification = TaskClassification(
             task_type="evaluate",
@@ -510,12 +511,12 @@ class TestTaskClassificationValidation:
         assert classification.domain == "technology"
         assert classification.complexity == "complex"
 
-    def test_required_task_type(self):
+    def test_required_task_type(self) -> None:
         """Test that task_type is required."""
         with pytest.raises(ValidationError, match="Field required"):
             TaskClassification()
 
-    def test_string_length_validation(self):
+    def test_string_length_validation(self) -> None:
         """Test string field length validation."""
         # Very long domain should fail
         with pytest.raises(ValidationError, match="at most 100 characters"):
@@ -529,7 +530,7 @@ class TestTaskClassificationValidation:
 class TestBackwardCompatibility:
     """Test backward compatibility features."""
 
-    def test_to_dict_methods(self):
+    def test_to_dict_methods(self) -> None:
         """Test that all models have to_dict methods."""
         event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,
@@ -557,7 +558,7 @@ class TestBackwardCompatibility:
         assert "workflow_id" in event_dict
         assert "task_type" in classification_dict
 
-    def test_from_dict_methods(self):
+    def test_from_dict_methods(self) -> None:
         """Test from_dict class methods."""
         # Create original objects
         original_event = WorkflowEvent(
@@ -584,7 +585,7 @@ class TestBackwardCompatibility:
         assert restored_classification.task_type == original_classification.task_type
         assert restored_classification.domain == original_classification.domain
 
-    def test_serialization_compatibility(self):
+    def test_serialization_compatibility(self) -> None:
         """Test JSON serialization works correctly."""
         event = WorkflowEvent(
             event_type=EventType.WORKFLOW_STARTED,

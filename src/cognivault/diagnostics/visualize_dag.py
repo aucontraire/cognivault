@@ -82,7 +82,7 @@ class DAGVisualizer:
     and flow of CogniVault's LangGraph-based agent orchestration.
     """
 
-    def __init__(self, config: Optional[DAGVisualizationConfig] = None):
+    def __init__(self, config: Optional[DAGVisualizationConfig] = None) -> None:
         """
         Initialize the DAG visualizer.
 

@@ -5,6 +5,7 @@ Tests the workflow discovery and management endpoints using mock data and servic
 """
 
 import pytest
+from typing import Any
 import tempfile
 import yaml
 from pathlib import Path
@@ -18,7 +19,7 @@ from cognivault.api.models import WorkflowMetadata, WorkflowsResponse
 class TestWorkflowsRoutes:
     """Test suite for workflows discovery endpoints."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client for each test."""
         self.client = TestClient(app)
         # Clear cache between tests to ensure test isolation
@@ -28,7 +29,7 @@ class TestWorkflowsRoutes:
         workflow_service._cache_timestamp = 0.0
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_success(self, mock_get_dirs):
+    def test_get_workflows_success(self, mock_get_dirs: Mock) -> None:
         """Test successful workflow discovery with mock workflow files."""
         # Create temporary directory structure with mock workflow files
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -156,7 +157,7 @@ class TestWorkflowsRoutes:
                 assert isinstance(workflow["use_cases"], list)
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_with_search(self, mock_get_dirs):
+    def test_get_workflows_with_search(self, mock_get_dirs: Mock) -> None:
         """Test workflow discovery with search filtering."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -225,7 +226,7 @@ class TestWorkflowsRoutes:
             assert found_ml_workflow
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_with_category_filter(self, mock_get_dirs):
+    def test_get_workflows_with_category_filter(self, mock_get_dirs: Mock) -> None:
         """Test workflow discovery with category filtering."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -273,7 +274,7 @@ class TestWorkflowsRoutes:
             assert workflows[0]["category"] == "academic"
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_with_complexity_filter(self, mock_get_dirs):
+    def test_get_workflows_with_complexity_filter(self, mock_get_dirs: Mock) -> None:
         """Test workflow discovery with complexity filtering."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -315,7 +316,7 @@ class TestWorkflowsRoutes:
             assert workflows[0]["complexity_level"] == "expert"
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_with_pagination(self, mock_get_dirs):
+    def test_get_workflows_with_pagination(self, mock_get_dirs: Mock) -> None:
         """Test workflow discovery with custom pagination parameters."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -361,7 +362,7 @@ class TestWorkflowsRoutes:
             assert data["has_more"] is True  # 3 + 5 = 8 < 15
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_empty_directory(self, mock_get_dirs):
+    def test_get_workflows_empty_directory(self, mock_get_dirs: Mock) -> None:
         """Test workflow discovery with no workflow files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -380,7 +381,7 @@ class TestWorkflowsRoutes:
             assert data["has_more"] is False
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_directory_error(self, mock_get_dirs):
+    def test_get_workflows_directory_error(self, mock_get_dirs: Mock) -> None:
         """Test workflow discovery when directory access fails."""
         # Simulate directory access error
         mock_get_dirs.side_effect = Exception("Directory access denied")
@@ -397,7 +398,7 @@ class TestWorkflowsRoutes:
         assert "Directory access denied" in detail["message"]
         assert detail["type"] == "Exception"
 
-    def test_get_workflows_parameter_validation(self):
+    def test_get_workflows_parameter_validation(self) -> None:
         """Test workflow endpoint parameter validation."""
         # Test invalid limit (too high)
         response = self.client.get("/api/workflows?limit=101")
@@ -428,7 +429,7 @@ class TestWorkflowsRoutes:
         assert response.status_code == 422
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_search_no_results(self, mock_get_dirs):
+    def test_get_workflows_search_no_results(self, mock_get_dirs: Mock) -> None:
         """Test workflow discovery when search returns no matching workflows."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -464,7 +465,9 @@ class TestWorkflowsRoutes:
 
     @patch("cognivault.api.routes.workflows.logger")
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_logging(self, mock_get_dirs, mock_logger):
+    def test_get_workflows_logging(
+        self, mock_get_dirs: Mock, mock_logger: Mock
+    ) -> None:
         """Test that workflow discovery logs appropriately."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -509,7 +512,9 @@ class TestWorkflowsRoutes:
 
     @patch("cognivault.api.routes.workflows.logger")
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflows_error_logging(self, mock_get_dirs, mock_logger):
+    def test_get_workflows_error_logging(
+        self, mock_get_dirs: Mock, mock_logger: Mock
+    ) -> None:
         """Test that workflow discovery errors are logged properly."""
         error_message = "File system access error"
         mock_get_dirs.side_effect = Exception(error_message)
@@ -524,7 +529,7 @@ class TestWorkflowsRoutes:
         assert "Workflows endpoint failed" in logged_message
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_workflow_metadata_extraction(self, mock_get_dirs):
+    def test_workflow_metadata_extraction(self, mock_get_dirs: Mock) -> None:
         """Test the workflow metadata extraction functionality."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -584,7 +589,7 @@ class TestWorkflowsRoutes:
             assert "unit_testing" in workflow["use_cases"]
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_workflow_deduplication(self, mock_get_dirs):
+    def test_workflow_deduplication(self, mock_get_dirs: Mock) -> None:
         """Test that duplicate workflows are properly handled."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -636,7 +641,7 @@ class TestWorkflowsRoutes:
             assert workflow["name"] == "Duplicate Test v2"
             assert workflow["version"] == "2.0.0"
 
-    def test_workflows_endpoint_response_schema(self):
+    def test_workflows_endpoint_response_schema(self) -> None:
         """Test that workflows endpoint responses match expected schema."""
         # Test with invalid request to get 422 response
         response = self.client.get("/api/workflows?limit=invalid")
@@ -652,7 +657,7 @@ class TestWorkflowsRoutes:
 class TestWorkflowByIdRoutes:
     """Test suite for individual workflow retrieval endpoints."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client for each test."""
         self.client = TestClient(app)
         # Clear cache between tests to ensure test isolation
@@ -662,7 +667,7 @@ class TestWorkflowByIdRoutes:
         workflow_service._cache_timestamp = 0.0
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflow_by_id_success(self, mock_get_dirs):
+    def test_get_workflow_by_id_success(self, mock_get_dirs: Mock) -> None:
         """Test successful workflow retrieval by ID."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -714,7 +719,7 @@ class TestWorkflowByIdRoutes:
             assert "testing" in data["tags"]
             assert "api_testing" in data["use_cases"]
 
-    def test_get_workflow_by_id_invalid_format(self):
+    def test_get_workflow_by_id_invalid_format(self) -> None:
         """Test workflow retrieval with invalid ID format."""
         # Test IDs that reach our validation logic (no slashes)
         invalid_ids_422 = [
@@ -747,7 +752,7 @@ class TestWorkflowByIdRoutes:
         assert response.status_code in [404, 200, 307]  # 307 is redirect
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflow_by_id_not_found(self, mock_get_dirs):
+    def test_get_workflow_by_id_not_found(self, mock_get_dirs: Mock) -> None:
         """Test workflow retrieval when workflow ID is not found."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -766,7 +771,9 @@ class TestWorkflowByIdRoutes:
 
     @patch("cognivault.api.routes.workflows.logger")
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflow_by_id_logging(self, mock_get_dirs, mock_logger):
+    def test_get_workflow_by_id_logging(
+        self, mock_get_dirs: Mock, mock_logger: Mock
+    ) -> None:
         """Test that workflow retrieval logs appropriately."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -807,7 +814,9 @@ class TestWorkflowByIdRoutes:
 
     @patch("cognivault.api.routes.workflows.logger")
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_get_workflow_by_id_error_handling(self, mock_get_dirs, mock_logger):
+    def test_get_workflow_by_id_error_handling(
+        self, mock_get_dirs: Mock, mock_logger: Mock
+    ) -> None:
         """Test workflow retrieval error handling and logging."""
         # Simulate service error
         mock_get_dirs.side_effect = Exception("Service unavailable")
@@ -829,7 +838,7 @@ class TestWorkflowByIdRoutes:
         assert "Workflow retrieval failed" in logged_message
 
     @patch("cognivault.api.routes.workflows.workflow_service._get_workflow_directories")
-    def test_workflow_id_validation_edge_cases(self, mock_get_dirs):
+    def test_workflow_id_validation_edge_cases(self, mock_get_dirs: Mock) -> None:
         """Test workflow ID validation with various edge cases."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

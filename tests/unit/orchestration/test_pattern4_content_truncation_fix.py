@@ -6,7 +6,7 @@ while maintaining reasonable event size limits for WebSocket performance.
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from typing import Dict, Any, List
 
 from cognivault.context import AgentContext
@@ -15,13 +15,14 @@ from cognivault.orchestration.state_schemas import CogniVaultState, CogniVaultCo
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.llm.llm_interface import LLMInterface, LLMResponse
+from tests.factories.mock_llm_factories import MockLLMFactory, MockLLMResponseFactory
 
 
 class MockRuntime:
     """Mock LangGraph Runtime for testing."""
 
-    def __init__(self, context_data: Dict[str, Any]):
-        self.context = Mock()
+    def __init__(self, context_data: Dict[str, Any]) -> None:
+        self.context: Mock = Mock()
         self.context.thread_id = context_data.get("thread_id", "test-thread-123")
         self.context.execution_id = context_data.get(
             "execution_id", "test-execution-456"
@@ -33,28 +34,36 @@ class MockRuntime:
         self.context.enable_checkpoints = context_data.get("enable_checkpoints", False)
 
 
-class MockLLMForTruncation(LLMInterface):
-    """Mock LLM that provides responses of various lengths for truncation testing."""
+# Removed MockLLMForTruncation class - now using MockLLMFactory for truncation testing
 
-    def __init__(self, response_text: str):
-        self.response_text = response_text
-        self.call_count = 0
 
-    def generate(self, prompt: str, **kwargs) -> LLMResponse:
-        """Generate mock response with token usage."""
-        self.call_count += 1
-        return LLMResponse(
-            text=self.response_text,
-            tokens_used=250,
-            input_tokens=150,
-            output_tokens=100,
-            model_name="mock-gpt-4",
-            finish_reason="stop",
-        )
+def create_truncation_mock_llm(response_text: str) -> Mock:
+    """Create mock LLM for truncation testing with call counting."""
+    mock_llm = MockLLMFactory.with_response(
+        response_text,
+        tokens_used=250,
+        input_tokens=150,
+        output_tokens=100,
+        model_name="truncation-test",
+    )
 
-    async def agenerate(self, prompt: str, **kwargs) -> LLMResponse:
+    # Add call counting capability
+    mock_llm.call_count = 0
+    original_generate = mock_llm.generate
+
+    def counting_generate(*args: Any, **kwargs: Any) -> LLMResponse:
+        mock_llm.call_count += 1
+        return original_generate(*args, **kwargs)
+
+    mock_llm.generate = counting_generate
+
+    # Add async version
+    async def agenerate(prompt: str, **kwargs: Any) -> LLMResponse:
         """Async version of generate."""
-        return self.generate(prompt, **kwargs)
+        return mock_llm.generate(prompt, **kwargs)
+
+    mock_llm.agenerate = agenerate
+    return mock_llm
 
 
 class EventCollector:
@@ -64,7 +73,7 @@ class EventCollector:
         self.all_events: List[Dict[str, Any]] = []
         self.completion_events: List[Dict[str, Any]] = []
 
-    async def collect_event(self, **kwargs) -> AsyncMock:
+    async def collect_event(self, **kwargs: Any) -> AsyncMock:
         """Collect an emitted event for analysis."""
         event_data = kwargs.copy()
         self.all_events.append(event_data)
@@ -114,7 +123,7 @@ async def test_pattern4_short_content_no_truncation() -> None:
         }
     )
 
-    mock_llm = MockLLMForTruncation(short_content)
+    mock_llm = create_truncation_mock_llm(short_content)
     event_collector = EventCollector()
 
     with patch(
@@ -253,7 +262,7 @@ async def test_pattern4_long_content_smart_truncation() -> None:
         }
     )
 
-    mock_llm = MockLLMForTruncation(long_content)
+    mock_llm = create_truncation_mock_llm(long_content)
     event_collector = EventCollector()
 
     with patch(
@@ -394,7 +403,7 @@ async def test_pattern4_medium_content_preserved() -> None:
         }
     )
 
-    mock_llm = MockLLMForTruncation(medium_content)
+    mock_llm = create_truncation_mock_llm(medium_content)
     event_collector = EventCollector()
 
     with patch(

@@ -99,7 +99,7 @@ class AggregatorNode(BaseAdvancedNode):
         max_inputs: Optional[int] = None,
         quality_threshold: float = 0.0,
         confidence_threshold: float = 0.0,
-    ):
+    ) -> None:
         """
         Initialize the AggregatorNode.
 

@@ -1,4 +1,5 @@
 import pytest
+from typing import Any
 from unittest.mock import patch, AsyncMock
 
 from cognivault.agents.synthesis.main import run_synthesis
@@ -6,13 +7,13 @@ from cognivault.agents.synthesis.main import run_synthesis
 
 @pytest.mark.asyncio
 @patch("cognivault.agents.synthesis.agent.SynthesisAgent")
-async def test_run_synthesis_returns_expected_output(mock_agent_class):
+async def test_run_synthesis_returns_expected_output(mock_agent_class: Any) -> None:
     from cognivault.context import AgentContext
 
     mock_agent = AsyncMock()
     mock_agent.name = "Synthesis"
 
-    async def mock_run(context: AgentContext):
+    async def mock_run(context: AgentContext) -> None:
         context.add_agent_output("Synthesis", "Mocked synthesis output")
 
     mock_agent.run.side_effect = mock_run

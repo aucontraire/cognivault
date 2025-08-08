@@ -8,7 +8,7 @@ conditions to ensure advanced nodes handle failures appropriately.
 import pytest
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
-from typing import Dict, Any
+from typing import Any, Dict
 
 from cognivault.orchestration.nodes.decision_node import (
     DecisionNode,
@@ -34,7 +34,7 @@ class TestNodeFailureRecovery:
     """Test node failure recovery mechanisms."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create generic mock metadata."""
         metadata = Mock(spec=AgentMetadata)
         metadata.cognitive_speed = "adaptive"
@@ -43,7 +43,7 @@ class TestNodeFailureRecovery:
         return metadata
 
     @pytest.fixture
-    def base_context(self):
+    def base_context(self) -> Any:
         """Create a base execution context."""
         context = NodeExecutionContext(
             workflow_id="fallback-test",
@@ -55,16 +55,16 @@ class TestNodeFailureRecovery:
 
     @pytest.mark.asyncio
     async def test_decision_node_criteria_evaluation_failure(
-        self, mock_metadata, base_context
-    ):
+        self, mock_metadata: Any, base_context: Any
+    ) -> None:
         """Test decision node handling of criteria evaluation failures."""
         mock_metadata.execution_pattern = "decision"
 
         # Create criteria where one will fail with an exception
-        def failing_evaluator(ctx):
+        def failing_evaluator(ctx: Any) -> None:
             raise ValueError("Criteria evaluation failed")
 
-        def working_evaluator(ctx):
+        def working_evaluator(ctx: Any) -> float:
             return 0.8
 
         criteria = [
@@ -122,7 +122,9 @@ class TestNodeFailureRecovery:
             assert criterion_scores["failing_criterion"]["passed"] is False
 
     @pytest.mark.asyncio
-    async def test_aggregator_partial_input_failure(self, mock_metadata, base_context):
+    async def test_aggregator_partial_input_failure(
+        self, mock_metadata: Any, base_context: Any
+    ) -> None:
         """Test aggregator handling when some inputs are corrupted."""
         mock_metadata.execution_pattern = "aggregator"
 
@@ -174,16 +176,16 @@ class TestNodeFailureRecovery:
 
     @pytest.mark.asyncio
     async def test_validator_criteria_exception_handling(
-        self, mock_metadata, base_context
-    ):
+        self, mock_metadata: Any, base_context: Any
+    ) -> None:
         """Test validator handling of criteria that raise exceptions."""
         mock_metadata.execution_pattern = "validator"
 
         # Create criteria where some will raise exceptions
-        def exception_validator(data):
+        def exception_validator(data: Any) -> None:
             raise RuntimeError("Validation system error")
 
-        def working_validator(data):
+        def working_validator(data: Any) -> bool:
             return len(data.get("content", "")) > 5
 
         criteria = [
@@ -241,17 +243,17 @@ class TestNodeFailureRecovery:
 
     @pytest.mark.asyncio
     async def test_terminator_resource_exhaustion_handling(
-        self, mock_metadata, base_context
-    ):
+        self, mock_metadata: Any, base_context: Any
+    ) -> None:
         """Test terminator behavior under resource exhaustion conditions."""
         mock_metadata.execution_pattern = "terminator"
 
         # Create criteria that simulate resource checks
-        def resource_check_evaluator(data):
+        def resource_check_evaluator(data: Any) -> bool:
             # Simulate checking available resources
             resource_usage = data.get("resource_usage", {})
-            cpu_usage = resource_usage.get("cpu", 0.0)
-            memory_usage = resource_usage.get("memory", 0.0)
+            cpu_usage = float(resource_usage.get("cpu", 0.0))
+            memory_usage = float(resource_usage.get("memory", 0.0))
             return max(cpu_usage, memory_usage) > 0.9  # Terminate if either > 90%
 
         criteria = [
@@ -306,7 +308,7 @@ class TestGracefulDegradation:
     """Test graceful degradation patterns."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create generic mock metadata."""
         metadata = Mock(spec=AgentMetadata)
         metadata.cognitive_speed = "adaptive"
@@ -315,7 +317,7 @@ class TestGracefulDegradation:
         return metadata
 
     @pytest.mark.asyncio
-    async def test_aggregator_degraded_quality_mode(self, mock_metadata):
+    async def test_aggregator_degraded_quality_mode(self, mock_metadata: Any) -> None:
         """Test aggregator operating in degraded quality mode."""
         mock_metadata.execution_pattern = "aggregator"
 
@@ -375,7 +377,9 @@ class TestGracefulDegradation:
             assert result["quality_score"] > 0.5
 
     @pytest.mark.asyncio
-    async def test_validator_relaxed_criteria_fallback(self, mock_metadata):
+    async def test_validator_relaxed_criteria_fallback(
+        self, mock_metadata: Any
+    ) -> None:
         """Test validator falling back to relaxed criteria."""
         mock_metadata.execution_pattern = "validator"
 
@@ -472,7 +476,7 @@ class TestFallbackPatternSelection:
     """Test fallback pattern selection mechanisms."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock metadata for pattern testing."""
         metadata = Mock(spec=AgentMetadata)
         metadata.cognitive_speed = "adaptive"
@@ -480,7 +484,7 @@ class TestFallbackPatternSelection:
         metadata.bounded_context = "transformation"
         return metadata
 
-    def test_decision_node_fallback_patterns(self, mock_metadata):
+    def test_decision_node_fallback_patterns(self, mock_metadata: Any) -> None:
         """Test decision node fallback pattern retrieval."""
         mock_metadata.execution_pattern = "decision"
 
@@ -498,7 +502,7 @@ class TestFallbackPatternSelection:
         fallback_patterns = decision_node.get_fallback_patterns()
         assert fallback_patterns == ["processor", "terminator"]
 
-    def test_aggregator_node_fallback_patterns(self, mock_metadata):
+    def test_aggregator_node_fallback_patterns(self, mock_metadata: Any) -> None:
         """Test aggregator node fallback pattern retrieval."""
         mock_metadata.execution_pattern = "aggregator"
 
@@ -511,7 +515,7 @@ class TestFallbackPatternSelection:
         fallback_patterns = aggregator_node.get_fallback_patterns()
         assert fallback_patterns == ["processor", "validator"]
 
-    def test_validator_node_fallback_patterns(self, mock_metadata):
+    def test_validator_node_fallback_patterns(self, mock_metadata: Any) -> None:
         """Test validator node fallback pattern retrieval."""
         mock_metadata.execution_pattern = "validator"
 
@@ -528,7 +532,7 @@ class TestFallbackPatternSelection:
         fallback_patterns = validator_node.get_fallback_patterns()
         assert fallback_patterns == ["processor", "terminator"]
 
-    def test_terminator_node_fallback_patterns(self, mock_metadata):
+    def test_terminator_node_fallback_patterns(self, mock_metadata: Any) -> None:
         """Test terminator node fallback pattern retrieval."""
         mock_metadata.execution_pattern = "terminator"
 
@@ -554,7 +558,7 @@ class TestCircuitBreakerPattern:
     """Test circuit breaker patterns for node resilience."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock metadata for circuit breaker testing."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "aggregator"
@@ -564,7 +568,9 @@ class TestCircuitBreakerPattern:
         return metadata
 
     @pytest.mark.asyncio
-    async def test_aggregator_circuit_breaker_simulation(self, mock_metadata):
+    async def test_aggregator_circuit_breaker_simulation(
+        self, mock_metadata: Any
+    ) -> None:
         """Simulate circuit breaker behavior for aggregator under repeated failures."""
         aggregator_node = AggregatorNode(
             mock_metadata,
@@ -643,7 +649,7 @@ class TestErrorPropagationControl:
     """Test controlled error propagation through node chains."""
 
     @pytest.mark.asyncio
-    async def test_error_containment_in_node_chain(self):
+    async def test_error_containment_in_node_chain(self) -> None:
         """Test that errors in one node don't cascade uncontrollably."""
         # Create metadata for different nodes
         decision_metadata = Mock(spec=AgentMetadata)

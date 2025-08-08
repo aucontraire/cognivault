@@ -6,7 +6,7 @@ regardless of the underlying implementation (real or mock).
 """
 
 import pytest
-from typing import Protocol
+from typing import Any, Protocol
 from cognivault.api.external import OrchestrationAPI
 from cognivault.api.models import WorkflowRequest, WorkflowResponse
 from tests.fakes.mock_orchestration import MockOrchestrationAPI
@@ -35,7 +35,7 @@ class TestOrchestrationAPIContract:
         return api
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_basic(self, mock_api: OrchestrationAPI):
+    async def test_execute_workflow_basic(self, mock_api: OrchestrationAPI) -> None:
         """Test basic workflow execution contract."""
         request = WorkflowRequest(query="Test query", agents=["refiner", "critic"])
 
@@ -57,7 +57,7 @@ class TestOrchestrationAPIContract:
                 assert len(response.agent_outputs[agent]) > 0
 
     @pytest.mark.asyncio
-    async def test_health_check_contract(self, mock_api: OrchestrationAPI):
+    async def test_health_check_contract(self, mock_api: OrchestrationAPI) -> None:
         """Test health check contract compliance."""
         health = await mock_api.health_check()
 
@@ -67,7 +67,7 @@ class TestOrchestrationAPIContract:
         assert isinstance(health.checks, dict)
 
     @pytest.mark.asyncio
-    async def test_uninitialized_api_behavior(self):
+    async def test_uninitialized_api_behavior(self) -> None:
         """Test that uninitialized API raises appropriate errors."""
         api = MockOrchestrationAPI()
         # Note: not calling initialize()
@@ -78,7 +78,7 @@ class TestOrchestrationAPIContract:
             await api.execute_workflow(request)
 
     @pytest.mark.asyncio
-    async def test_workflow_status_contract(self, mock_api: OrchestrationAPI):
+    async def test_workflow_status_contract(self, mock_api: OrchestrationAPI) -> None:
         """Test workflow status query contract."""
         # Execute workflow first
         request = WorkflowRequest(query="Test query")
@@ -93,13 +93,15 @@ class TestOrchestrationAPIContract:
         assert 0 <= status.progress_percentage <= 100
 
     @pytest.mark.asyncio
-    async def test_nonexistent_workflow_status(self, mock_api: OrchestrationAPI):
+    async def test_nonexistent_workflow_status(
+        self, mock_api: OrchestrationAPI
+    ) -> None:
         """Test status query for nonexistent workflow."""
         with pytest.raises(KeyError):
             await mock_api.get_status("nonexistent-workflow-id")
 
     @pytest.mark.asyncio
-    async def test_api_properties_contract(self, mock_api: OrchestrationAPI):
+    async def test_api_properties_contract(self, mock_api: OrchestrationAPI) -> None:
         """Test API property contract."""
         assert isinstance(mock_api.api_name, str)
         assert len(mock_api.api_name) > 0
@@ -107,7 +109,9 @@ class TestOrchestrationAPIContract:
         assert len(mock_api.api_version) > 0
 
     @pytest.mark.asyncio
-    async def test_workflow_cancellation_contract(self, mock_api: OrchestrationAPI):
+    async def test_workflow_cancellation_contract(
+        self, mock_api: OrchestrationAPI
+    ) -> None:
         """Test workflow cancellation contract."""
         # Execute workflow first
         request = WorkflowRequest(query="Test query")
@@ -122,7 +126,7 @@ class TestOrchestrationAPIContract:
         assert cancelled_non_existent is False
 
     @pytest.mark.asyncio
-    async def test_metrics_contract(self, mock_api: OrchestrationAPI):
+    async def test_metrics_contract(self, mock_api: OrchestrationAPI) -> None:
         """Test metrics contract."""
         metrics = await mock_api.get_metrics()
 

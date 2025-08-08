@@ -228,7 +228,7 @@ class AgentMetadata(BaseModel):
         "load_errors",
     )
     @classmethod
-    def validate_string_lists(cls, v):
+    def validate_string_lists(cls, v: Any) -> Any:
         """Validate string list fields."""
         if not isinstance(v, list):
             raise ValueError("Must be a list")
@@ -239,7 +239,7 @@ class AgentMetadata(BaseModel):
 
     @field_validator("agent_class", mode="before")
     @classmethod
-    def validate_agent_class(cls, v):
+    def validate_agent_class(cls, v: Any) -> Any:
         """Handle agent_class validation and conversion from string."""
         # Handle Mock objects (for testing)
         if hasattr(v, "_mock_name") or str(type(v)).startswith(
@@ -280,7 +280,7 @@ class AgentMetadata(BaseModel):
                 return DummyAgent
         return v
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Initialize derived fields and defaults."""
         # Set agent_id from name if not provided
         if self.agent_id is None:

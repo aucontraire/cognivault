@@ -26,7 +26,7 @@ from .execution_tracer import execution_tracer
 class UnifiedDiagnosticsCLI:
     """Unified CLI for all diagnostics tools."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.console = Console()
 
     def create_app(self) -> typer.Typer:
@@ -76,7 +76,7 @@ class UnifiedDiagnosticsCLI:
 
         return app
 
-    def show_overview(self):
+    def show_overview(self) -> None:
         """Show overview of all available diagnostic tools."""
         self.console.print("[bold blue]🔧 CogniVault Diagnostics Suite[/bold blue]")
 
@@ -123,7 +123,7 @@ Use 'diagnostics tools' for detailed command list.
         )
         self.console.print(overview_panel)
 
-    def list_tools(self):
+    def list_tools(self) -> None:
         """List all available diagnostic tools and commands."""
         self.console.print("[bold]🛠️ Available Diagnostic Tools[/bold]\n")
 
@@ -178,7 +178,7 @@ diagnostics trace "What is AI?" --level debug --capture-io
         )
         self.console.print(examples_panel)
 
-    def quick_health_check(self):
+    def quick_health_check(self) -> None:
         """Run a quick health check across all systems."""
         self.console.print("[bold yellow]⚡ Quick Health Check[/bold yellow]")
 

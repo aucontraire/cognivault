@@ -10,9 +10,9 @@ import pytest
 import json
 import tempfile
 import os
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from dataclasses import dataclass
 
 from cognivault.workflows.composer import (
@@ -30,12 +30,16 @@ from cognivault.workflows.definition import (
     EdgeDefinition,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestImportErrorHandling:
     """Test fallback mechanisms when advanced node imports fail."""
 
-    def test_placeholder_classes_available_on_import_error(self):
+    def test_placeholder_classes_available_on_import_error(self) -> None:
         """Test that placeholder classes are available when real imports fail."""
         # Import the module to trigger the import error handling
         from cognivault.workflows.composer import (
@@ -72,44 +76,44 @@ class TestImportErrorHandling:
 class TestAgentClassResolution:
     """Test agent class resolution and mapping."""
 
-    def test_get_agent_class_refiner(self):
+    def test_get_agent_class_refiner(self) -> None:
         """Test getting refiner agent class."""
         agent_class = get_agent_class("refiner")
 
         # Should return RefinerAgent class
         assert agent_class.__name__ == "RefinerAgent"
 
-    def test_get_agent_class_critic(self):
+    def test_get_agent_class_critic(self) -> None:
         """Test getting critic agent class."""
         agent_class = get_agent_class("critic")
 
         assert agent_class.__name__ == "CriticAgent"
 
-    def test_get_agent_class_historian(self):
+    def test_get_agent_class_historian(self) -> None:
         """Test getting historian agent class."""
         agent_class = get_agent_class("historian")
 
         assert agent_class.__name__ == "HistorianAgent"
 
-    def test_get_agent_class_synthesis(self):
+    def test_get_agent_class_synthesis(self) -> None:
         """Test getting synthesis agent class."""
         agent_class = get_agent_class("synthesis")
 
         assert agent_class.__name__ == "SynthesisAgent"
 
-    def test_get_agent_class_unknown_defaults_to_refiner(self):
+    def test_get_agent_class_unknown_defaults_to_refiner(self) -> None:
         """Test that unknown agent types default to RefinerAgent."""
         agent_class = get_agent_class("unknown_agent_type")
 
         assert agent_class.__name__ == "RefinerAgent"
 
-    def test_get_agent_class_empty_string_defaults_to_refiner(self):
+    def test_get_agent_class_empty_string_defaults_to_refiner(self) -> None:
         """Test that empty agent type defaults to RefinerAgent."""
         agent_class = get_agent_class("")
 
         assert agent_class.__name__ == "RefinerAgent"
 
-    def test_get_agent_class_none_defaults_to_refiner(self):
+    def test_get_agent_class_none_defaults_to_refiner(self) -> None:
         """Test that None agent type defaults to RefinerAgent."""
         agent_class = get_agent_class(None)
 
@@ -119,7 +123,7 @@ class TestAgentClassResolution:
 class TestAgentConfigurationCreation:
     """Test agent configuration creation from workflow definitions."""
 
-    def test_create_agent_config_default_refiner(self):
+    def test_create_agent_config_default_refiner(self) -> None:
         """Test creating default refiner configuration."""
         config = create_agent_config("refiner", None)
 
@@ -128,7 +132,7 @@ class TestAgentConfigurationCreation:
         assert hasattr(config, "prompt_config")
         assert hasattr(config, "behavioral_config")
 
-    def test_create_agent_config_default_critic(self):
+    def test_create_agent_config_default_critic(self) -> None:
         """Test creating default critic configuration."""
         config = create_agent_config("critic", None)
 
@@ -137,7 +141,7 @@ class TestAgentConfigurationCreation:
         assert hasattr(config, "prompt_config")
         assert hasattr(config, "behavioral_config")
 
-    def test_create_agent_config_default_historian(self):
+    def test_create_agent_config_default_historian(self) -> None:
         """Test creating default historian configuration."""
         config = create_agent_config("historian", None)
 
@@ -146,7 +150,7 @@ class TestAgentConfigurationCreation:
         assert hasattr(config, "prompt_config")
         assert hasattr(config, "behavioral_config")
 
-    def test_create_agent_config_default_synthesis(self):
+    def test_create_agent_config_default_synthesis(self) -> None:
         """Test creating default synthesis configuration."""
         config = create_agent_config("synthesis", None)
 
@@ -155,21 +159,21 @@ class TestAgentConfigurationCreation:
         assert hasattr(config, "prompt_config")
         assert hasattr(config, "behavioral_config")
 
-    def test_create_agent_config_unknown_agent_defaults_to_refiner(self):
+    def test_create_agent_config_unknown_agent_defaults_to_refiner(self) -> None:
         """Test that unknown agent types default to refiner configuration."""
         config = create_agent_config("unknown_agent", None)
 
         assert config is not None
         assert hasattr(config, "refinement_level")
 
-    def test_create_agent_config_empty_dict(self):
+    def test_create_agent_config_empty_dict(self) -> None:
         """Test creating configuration with empty dictionary."""
         config = create_agent_config("refiner", {})
 
         assert config is not None
         assert hasattr(config, "refinement_level")
 
-    def test_create_agent_config_with_legacy_prompt_format(self):
+    def test_create_agent_config_with_legacy_prompt_format(self) -> None:
         """Test creating configuration with legacy prompt format."""
         config_dict = {
             "prompts": {
@@ -195,7 +199,7 @@ class TestAgentConfigurationCreation:
             config.prompt_config.custom_templates["followup"] == "Follow-up: {context}"
         )
 
-    def test_create_agent_config_with_behavioral_constraints(self):
+    def test_create_agent_config_with_behavioral_constraints(self) -> None:
         """Test creating configuration with behavioral constraints."""
         config_dict = {
             "custom_constraints": ["constraint1", "constraint2"],
@@ -211,7 +215,7 @@ class TestAgentConfigurationCreation:
         ]
         assert config.behavioral_config.fallback_mode == "graceful"
 
-    def test_create_agent_config_refiner_specific_fields(self):
+    def test_create_agent_config_refiner_specific_fields(self) -> None:
         """Test creating refiner configuration with agent-specific fields."""
         config_dict = {
             "refinement_level": "comprehensive",
@@ -226,7 +230,7 @@ class TestAgentConfigurationCreation:
         assert config.behavioral_mode == "active"
         assert config.output_format == "structured"
 
-    def test_create_agent_config_critic_specific_fields(self):
+    def test_create_agent_config_critic_specific_fields(self) -> None:
         """Test creating critic configuration with agent-specific fields."""
         config_dict = {
             "analysis_depth": "deep",  # Use valid enum value
@@ -243,7 +247,7 @@ class TestAgentConfigurationCreation:
         assert config.bias_detection is True
         assert config.scoring_criteria == ["accuracy", "relevance"]
 
-    def test_create_agent_config_historian_specific_fields(self):
+    def test_create_agent_config_historian_specific_fields(self) -> None:
         """Test creating historian configuration with agent-specific fields."""
         config_dict = {
             "search_depth": "deep",
@@ -260,7 +264,7 @@ class TestAgentConfigurationCreation:
         assert config.context_expansion is True
         assert config.memory_scope == "full"
 
-    def test_create_agent_config_synthesis_specific_fields(self):
+    def test_create_agent_config_synthesis_specific_fields(self) -> None:
         """Test creating synthesis configuration with agent-specific fields."""
         config_dict = {
             "synthesis_strategy": "comprehensive",
@@ -277,7 +281,7 @@ class TestAgentConfigurationCreation:
         assert config.meta_analysis is True
         assert config.integration_mode == "hierarchical"
 
-    def test_create_agent_config_mixed_configuration(self):
+    def test_create_agent_config_mixed_configuration(self) -> None:
         """Test creating configuration with mixed prompt, behavioral, and agent-specific fields."""
         config_dict = {
             "prompts": {"system_prompt": "Mixed configuration test"},
@@ -298,11 +302,11 @@ class TestAgentConfigurationCreation:
 class TestNodeFactoryBaseNodes:
     """Test NodeFactory base node creation functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.factory = NodeFactory()
 
-    def test_create_base_node_refiner_with_config(self):
+    def test_create_base_node_refiner_with_config(self) -> None:
         """Test creating base refiner node with configuration."""
         node_config = NodeConfiguration(
             node_id="test_refiner",
@@ -314,16 +318,16 @@ class TestNodeFactoryBaseNodes:
         )
 
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
-            mock_agent_instance = Mock()
+            mock_agent_class: Mock = Mock()
+            mock_agent_instance: Mock = Mock()
             mock_agent_class.return_value = mock_agent_instance
             mock_agent_instance.run = AsyncMock(
-                return_value=AgentContext(query="refined query")
+                return_value=AgentContextPatterns.simple_query("refined query")
             )
             mock_get_agent.return_value = mock_agent_class
 
             with patch("cognivault.llm.openai.OpenAIChatLLM") as mock_llm:
-                mock_llm_instance = Mock()
+                mock_llm_instance: Mock = Mock()
                 mock_llm.return_value = mock_llm_instance
 
                 node_func = self.factory._create_base_node(node_config)
@@ -331,7 +335,7 @@ class TestNodeFactoryBaseNodes:
                 assert callable(node_func)
                 mock_get_agent.assert_called_once_with("refiner")
 
-    def test_create_base_node_without_config(self):
+    def test_create_base_node_without_config(self) -> None:
         """Test creating base node without configuration (uses defaults)."""
         node_config = NodeConfiguration(
             node_id="test_critic",
@@ -342,11 +346,11 @@ class TestNodeFactoryBaseNodes:
         )
 
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
+            mock_agent_class: Mock = Mock()
             mock_get_agent.return_value = mock_agent_class
 
             with patch("cognivault.llm.openai.OpenAIChatLLM") as mock_llm:
-                mock_llm_instance = Mock()
+                mock_llm_instance: Mock = Mock()
                 mock_llm.return_value = mock_llm_instance
 
                 node_func = self.factory._create_base_node(node_config)
@@ -355,7 +359,7 @@ class TestNodeFactoryBaseNodes:
                 mock_get_agent.assert_called_once_with("critic")
 
     @pytest.mark.asyncio
-    async def test_base_node_execution_success(self):
+    async def test_base_node_execution_success(self) -> None:
         """Test successful execution of a base node."""
         node_config = NodeConfiguration(
             node_id="test_historian",
@@ -366,18 +370,18 @@ class TestNodeFactoryBaseNodes:
         )
 
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
-            mock_agent_instance = Mock()
+            mock_agent_class: Mock = Mock()
+            mock_agent_instance: Mock = Mock()
 
             # Mock the agent run method
-            result_context = AgentContext(query="test query")
+            result_context = AgentContextPatterns.simple_query("test query")
             result_context.add_agent_output("historian", "historical context found")
             mock_agent_instance.run = AsyncMock(return_value=result_context)
             mock_agent_class.return_value = mock_agent_instance
             mock_get_agent.return_value = mock_agent_class
 
             with patch("cognivault.llm.openai.OpenAIChatLLM") as mock_llm:
-                mock_llm_instance = Mock()
+                mock_llm_instance: Mock = Mock()
                 mock_llm.return_value = mock_llm_instance
 
                 node_func = self.factory._create_base_node(node_config)
@@ -399,7 +403,7 @@ class TestNodeFactoryBaseNodes:
                 # Note: successful_agents is managed by LangGraph state merging, not returned by node function
 
     @pytest.mark.asyncio
-    async def test_base_node_execution_failure(self):
+    async def test_base_node_execution_failure(self) -> None:
         """Test base node execution with agent failure."""
         node_config = NodeConfiguration(
             node_id="test_failing_agent",
@@ -410,8 +414,8 @@ class TestNodeFactoryBaseNodes:
         )
 
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
-            mock_agent_instance = Mock()
+            mock_agent_class: Mock = Mock()
+            mock_agent_instance: Mock = Mock()
 
             # Mock agent failure
             mock_agent_instance.run = AsyncMock(
@@ -421,7 +425,7 @@ class TestNodeFactoryBaseNodes:
             mock_get_agent.return_value = mock_agent_class
 
             with patch("cognivault.llm.openai.OpenAIChatLLM") as mock_llm:
-                mock_llm_instance = Mock()
+                mock_llm_instance: Mock = Mock()
                 mock_llm.return_value = mock_llm_instance
 
                 node_func = self.factory._create_base_node(node_config)
@@ -443,7 +447,7 @@ class TestNodeFactoryBaseNodes:
                 )
                 assert "error:" in result_state["test_failing_agent"]["output"]
 
-    def test_create_base_node_llm_initialization_failure(self):
+    def test_create_base_node_llm_initialization_failure(self) -> None:
         """Test base node creation when LLM initialization fails."""
         node_config = NodeConfiguration(
             node_id="test_llm_fail",
@@ -454,7 +458,7 @@ class TestNodeFactoryBaseNodes:
         )
 
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
+            mock_agent_class: Mock = Mock()
             mock_get_agent.return_value = mock_agent_class
 
             with patch(
@@ -470,11 +474,11 @@ class TestNodeFactoryBaseNodes:
 class TestNodeFactoryAdvancedNodes:
     """Test NodeFactory advanced node creation functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.factory = NodeFactory()
 
-    def test_create_advanced_decision_node(self):
+    def test_create_advanced_decision_node(self) -> None:
         """Test creating advanced decision node."""
         node_config = NodeConfiguration(
             node_id="decision_node",
@@ -488,7 +492,7 @@ class TestNodeFactoryAdvancedNodes:
         )
 
         with patch("cognivault.workflows.composer.DecisionNodeType") as mock_decision:
-            mock_decision_instance = Mock()
+            mock_decision_instance: Mock = Mock()
             mock_decision.return_value = mock_decision_instance
 
             node_func = self.factory._create_decision_node(node_config)
@@ -500,7 +504,7 @@ class TestNodeFactoryAdvancedNodes:
             assert "condition" in call_args.kwargs or call_args.args
             assert "routes" in call_args.kwargs or call_args.args
 
-    def test_create_advanced_aggregator_node(self):
+    def test_create_advanced_aggregator_node(self) -> None:
         """Test creating advanced aggregator node."""
         node_config = NodeConfiguration(
             node_id="aggregator_node",
@@ -517,7 +521,7 @@ class TestNodeFactoryAdvancedNodes:
         with patch(
             "cognivault.workflows.composer.AggregatorNodeType"
         ) as mock_aggregator:
-            mock_aggregator_instance = Mock()
+            mock_aggregator_instance: Mock = Mock()
             mock_aggregator.return_value = mock_aggregator_instance
 
             node_func = self.factory._create_aggregator_node(node_config)
@@ -525,7 +529,7 @@ class TestNodeFactoryAdvancedNodes:
             assert callable(node_func)
             mock_aggregator.assert_called_once()
 
-    def test_create_advanced_validator_node(self):
+    def test_create_advanced_validator_node(self) -> None:
         """Test creating advanced validator node."""
         node_config = NodeConfiguration(
             node_id="validator_node",
@@ -540,7 +544,7 @@ class TestNodeFactoryAdvancedNodes:
         )
 
         with patch("cognivault.workflows.composer.ValidatorNodeType") as mock_validator:
-            mock_validator_instance = Mock()
+            mock_validator_instance: Mock = Mock()
             mock_validator.return_value = mock_validator_instance
 
             node_func = self.factory._create_validator_node(node_config)
@@ -548,7 +552,7 @@ class TestNodeFactoryAdvancedNodes:
             assert callable(node_func)
             mock_validator.assert_called_once()
 
-    def test_create_advanced_terminator_node(self):
+    def test_create_advanced_terminator_node(self) -> None:
         """Test creating advanced terminator node."""
         node_config = NodeConfiguration(
             node_id="terminator_node",
@@ -565,7 +569,7 @@ class TestNodeFactoryAdvancedNodes:
         with patch(
             "cognivault.workflows.composer.TerminatorNodeType"
         ) as mock_terminator:
-            mock_terminator_instance = Mock()
+            mock_terminator_instance: Mock = Mock()
             mock_terminator.return_value = mock_terminator_instance
 
             node_func = self.factory._create_terminator_node(node_config)
@@ -573,7 +577,7 @@ class TestNodeFactoryAdvancedNodes:
             assert callable(node_func)
             mock_terminator.assert_called_once()
 
-    def test_create_advanced_node_routing(self):
+    def test_create_advanced_node_routing(self) -> None:
         """Test that advanced node creation is routed correctly by execution pattern."""
         decision_config = NodeConfiguration(
             node_id="test_decision",
@@ -586,13 +590,13 @@ class TestNodeFactoryAdvancedNodes:
         with patch.object(
             self.factory, "_create_decision_node"
         ) as mock_create_decision:
-            mock_create_decision.return_value = Mock()
+            mock_create_decision.return_value: Mock = Mock()
 
             self.factory._create_advanced_node(decision_config)
 
             mock_create_decision.assert_called_once_with(decision_config)
 
-    def test_create_advanced_node_unknown_pattern_raises_error(self):
+    def test_create_advanced_node_unknown_pattern_raises_error(self) -> None:
         """Test that unknown execution pattern raises WorkflowCompositionError."""
         unknown_config = NodeConfiguration(
             node_id="unknown_node",
@@ -607,7 +611,7 @@ class TestNodeFactoryAdvancedNodes:
         ):
             self.factory._create_advanced_node(unknown_config)
 
-    def test_create_fallback_node(self):
+    def test_create_fallback_node(self) -> None:
         """Test creating fallback node for unknown categories."""
         unknown_config = NodeConfiguration(
             node_id="fallback_node",
@@ -625,11 +629,11 @@ class TestNodeFactoryAdvancedNodes:
 class TestEdgeBuilder:
     """Test EdgeBuilder functionality for workflow routing."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.edge_builder = EdgeBuilder()
 
-    def test_build_sequential_edge(self):
+    def test_build_sequential_edge(self) -> None:
         """Test building sequential edge."""
         edge_def = EdgeDefinition(
             from_node="node1", to_node="node2", edge_type="sequential", metadata={}
@@ -639,7 +643,7 @@ class TestEdgeBuilder:
 
         assert callable(edge_func)
 
-    def test_build_conditional_edge(self):
+    def test_build_conditional_edge(self) -> None:
         """Test building conditional edge."""
         edge_def = EdgeDefinition(
             from_node="node1",
@@ -653,7 +657,7 @@ class TestEdgeBuilder:
 
         assert callable(edge_func)
 
-    def test_build_parallel_edge(self):
+    def test_build_parallel_edge(self) -> None:
         """Test building parallel edge."""
         edge_def = EdgeDefinition(
             from_node="node1",
@@ -666,7 +670,7 @@ class TestEdgeBuilder:
 
         assert callable(edge_func)
 
-    def test_build_edge_routing_by_type(self):
+    def test_build_edge_routing_by_type(self) -> None:
         """Test that edge building routes correctly by edge type."""
         sequential_edge = EdgeDefinition(
             from_node="a", to_node="b", edge_type="sequential", metadata={}
@@ -675,13 +679,13 @@ class TestEdgeBuilder:
         with patch.object(
             self.edge_builder, "_build_sequential_edge"
         ) as mock_sequential:
-            mock_sequential.return_value = Mock()
+            mock_sequential.return_value: Mock = Mock()
 
             self.edge_builder.build_edge(sequential_edge)
 
             mock_sequential.assert_called_once_with(sequential_edge)
 
-    def test_build_edge_unknown_type_raises_error(self):
+    def test_build_edge_unknown_type_raises_error(self) -> None:
         """Test that unknown edge types raise WorkflowCompositionError."""
         unknown_edge = EdgeDefinition(
             from_node="a", to_node="b", edge_type="unknown_type", metadata={}
@@ -694,11 +698,11 @@ class TestEdgeBuilder:
 class TestDagComposerValidation:
     """Test DagComposer workflow validation functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = DagComposer()
 
-    def test_validate_workflow_success(self):
+    def test_validate_workflow_success(self) -> None:
         """Test successful workflow validation."""
         workflow_def = WorkflowDefinition(
             name="valid_workflow",
@@ -726,7 +730,7 @@ class TestDagComposerValidation:
         # Should not raise any exception
         self.composer._validate_workflow(workflow_def)
 
-    def test_validate_workflow_empty_entry_point(self):
+    def test_validate_workflow_empty_entry_point(self) -> None:
         """Test validation failure with empty entry point."""
         workflow_def = WorkflowDefinition(
             name="invalid_workflow",
@@ -756,7 +760,7 @@ class TestDagComposerValidation:
         ):
             self.composer._validate_workflow(workflow_def)
 
-    def test_validate_workflow_entry_point_not_in_nodes(self):
+    def test_validate_workflow_entry_point_not_in_nodes(self) -> None:
         """Test validation failure when entry point is not in nodes."""
         workflow_def = WorkflowDefinition(
             name="invalid_workflow",
@@ -787,7 +791,7 @@ class TestDagComposerValidation:
         ):
             self.composer._validate_workflow(workflow_def)
 
-    def test_validate_workflow_edge_references_invalid_node(self):
+    def test_validate_workflow_edge_references_invalid_node(self) -> None:
         """Test validation failure when edge references non-existent node."""
         workflow_def = WorkflowDefinition(
             name="invalid_workflow",
@@ -828,11 +832,11 @@ class TestDagComposerValidation:
 class TestDagComposerWorkflowComposition:
     """Test DagComposer workflow composition to LangGraph."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = DagComposer()
 
-    def test_compose_workflow_success(self):
+    def test_compose_workflow_success(self) -> None:
         """Test successful workflow composition to LangGraph StateGraph."""
         workflow_def = WorkflowDefinition(
             name="test_workflow",
@@ -856,13 +860,13 @@ class TestDagComposerWorkflowComposition:
         )
 
         with patch("cognivault.workflows.composer.StateGraph") as mock_state_graph:
-            mock_graph_instance = Mock()
+            mock_graph_instance: Mock = Mock()
             mock_state_graph.return_value = mock_graph_instance
 
             with patch.object(
                 self.composer.node_factory, "create_node"
             ) as mock_create_node:
-                mock_node_func = Mock()
+                mock_node_func: Mock = Mock()
                 mock_create_node.return_value = mock_node_func
 
                 result_graph = self.composer.compose_workflow(workflow_def)
@@ -871,7 +875,7 @@ class TestDagComposerWorkflowComposition:
                 mock_state_graph.assert_called_once()
                 mock_create_node.assert_called_once()
 
-    def test_compose_workflow_with_validation_failure(self):
+    def test_compose_workflow_with_validation_failure(self) -> None:
         """Test workflow composition with validation failure."""
         invalid_workflow = WorkflowDefinition(
             name="invalid_workflow",
@@ -888,7 +892,7 @@ class TestDagComposerWorkflowComposition:
             self.composer.compose_workflow(invalid_workflow)
 
     @pytest.mark.asyncio
-    async def test_compose_dag_success(self):
+    async def test_compose_dag_success(self) -> None:
         """Test successful DAG composition with CompositionResult."""
         workflow_def = WorkflowDefinition(
             name="dag_test_workflow",
@@ -912,7 +916,7 @@ class TestDagComposerWorkflowComposition:
         )
 
         with patch.object(self.composer, "compose_workflow") as mock_compose:
-            mock_graph = Mock()
+            mock_graph: Mock = Mock()
             mock_compose.return_value = mock_graph
 
             result = await self.composer.compose_dag(workflow_def)
@@ -926,7 +930,7 @@ class TestDagComposerWorkflowComposition:
             assert result.metadata is not None
 
     @pytest.mark.asyncio
-    async def test_compose_dag_validation_error(self):
+    async def test_compose_dag_validation_error(self) -> None:
         """Test DAG composition with validation errors."""
         invalid_workflow = WorkflowDefinition(
             name="invalid_workflow",
@@ -952,7 +956,7 @@ class TestDagComposerWorkflowComposition:
 class TestDagComposerFileOperations:
     """Test DagComposer file export/import functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = DagComposer()
         self.test_workflow = WorkflowDefinition(
@@ -976,7 +980,7 @@ class TestDagComposerFileOperations:
             metadata={"test": "export"},
         )
 
-    def test_export_snapshot(self):
+    def test_export_snapshot(self) -> None:
         """Test exporting workflow snapshot."""
         snapshot = self.composer.export_snapshot(self.test_workflow)
 
@@ -985,7 +989,7 @@ class TestDagComposerFileOperations:
         assert "metadata" in snapshot
         assert snapshot["name"] == "export_test_workflow"
 
-    def test_export_workflow_snapshot_to_file(self):
+    def test_export_workflow_snapshot_to_file(self) -> None:
         """Test exporting workflow snapshot to file."""
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False
@@ -1009,7 +1013,7 @@ class TestDagComposerFileOperations:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_import_workflow_snapshot(self):
+    def test_import_workflow_snapshot(self) -> None:
         """Test importing workflow snapshot from file."""
         # Create a test snapshot file with flat structure (as exported by to_json_snapshot)
         snapshot_data = {
@@ -1040,12 +1044,12 @@ class TestDagComposerFileOperations:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_import_workflow_snapshot_file_not_found(self):
+    def test_import_workflow_snapshot_file_not_found(self) -> None:
         """Test importing workflow snapshot when file doesn't exist."""
         with pytest.raises(FileNotFoundError):
             self.composer.import_workflow_snapshot("/nonexistent/path/file.json")
 
-    def test_import_workflow_snapshot_invalid_json(self):
+    def test_import_workflow_snapshot_invalid_json(self) -> None:
         """Test importing workflow snapshot with invalid JSON."""
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False
@@ -1066,12 +1070,12 @@ class TestDagComposerFileOperations:
 class TestIntegrationScenarios:
     """Test end-to-end integration scenarios."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = DagComposer()
 
     @pytest.mark.asyncio
-    async def test_complex_workflow_composition(self):
+    async def test_complex_workflow_composition(self) -> None:
         """Test composition of complex workflow with multiple node types."""
         complex_workflow = WorkflowDefinition(
             name="complex_workflow",
@@ -1134,19 +1138,19 @@ class TestIntegrationScenarios:
         )
 
         with patch("cognivault.workflows.composer.StateGraph") as mock_state_graph:
-            mock_graph_instance = Mock()
+            mock_graph_instance: Mock = Mock()
             mock_state_graph.return_value = mock_graph_instance
 
             with patch.object(
                 self.composer.node_factory, "create_node"
             ) as mock_create_node:
-                mock_node_func = Mock()
+                mock_node_func: Mock = Mock()
                 mock_create_node.return_value = mock_node_func
 
                 with patch.object(
                     self.composer.edge_builder, "build_edge"
                 ) as mock_build_edge:
-                    mock_edge_func = Mock()
+                    mock_edge_func: Mock = Mock()
                     mock_build_edge.return_value = mock_edge_func
 
                     result = await self.composer.compose_dag(complex_workflow)
@@ -1160,7 +1164,7 @@ class TestIntegrationScenarios:
                     assert "synthesis" in result.node_mapping
 
     @pytest.mark.asyncio
-    async def test_workflow_with_configuration_integration(self):
+    async def test_workflow_with_configuration_integration(self) -> None:
         """Test workflow composition with agent configurations."""
         configured_workflow = WorkflowDefinition(
             name="configured_workflow",
@@ -1190,13 +1194,13 @@ class TestIntegrationScenarios:
         )
 
         with patch("cognivault.workflows.composer.StateGraph") as mock_state_graph:
-            mock_graph_instance = Mock()
+            mock_graph_instance: Mock = Mock()
             mock_state_graph.return_value = mock_graph_instance
 
             with patch.object(
                 self.composer.node_factory, "create_node"
             ) as mock_create_node:
-                mock_node_func = Mock()
+                mock_node_func: Mock = Mock()
                 mock_create_node.return_value = mock_node_func
 
                 result = await self.composer.compose_dag(configured_workflow)

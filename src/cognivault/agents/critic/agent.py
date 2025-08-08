@@ -41,7 +41,9 @@ class CriticAgent(BaseAgent):
 
     logger = logging.getLogger(__name__)
 
-    def __init__(self, llm: LLMInterface, config: Optional[CriticConfig] = None):
+    def __init__(
+        self, llm: LLMInterface, config: Optional[CriticConfig] = None
+    ) -> None:
         """Initialize the CriticAgent with an LLM interface and optional configuration.
 
         Parameters
@@ -66,7 +68,7 @@ class CriticAgent(BaseAgent):
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
 
-    def _update_composed_prompt(self):
+    def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
         try:
             self._composed_prompt = self._prompt_composer.compose_critic_prompt(
@@ -92,7 +94,7 @@ class CriticAgent(BaseAgent):
             self.logger.debug(f"[{self.name}] Using default system prompt (fallback)")
             return CRITIC_SYSTEM_PROMPT
 
-    def update_config(self, config: CriticConfig):
+    def update_config(self, config: CriticConfig) -> None:
         """
         Update the agent configuration and recompose prompts.
 

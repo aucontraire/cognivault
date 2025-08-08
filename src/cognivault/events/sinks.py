@@ -35,7 +35,9 @@ class EventSink(ABC):
 class ConsoleEventSink(EventSink):
     """Event sink that outputs events to console with formatting."""
 
-    def __init__(self, include_metadata: bool = False, max_line_length: int = 120):
+    def __init__(
+        self, include_metadata: bool = False, max_line_length: int = 120
+    ) -> None:
         self.include_metadata = include_metadata
         self.max_line_length = max_line_length
         self.logger = get_logger(f"{__name__}.ConsoleEventSink")
@@ -107,7 +109,7 @@ class FileEventSink(EventSink):
         max_file_size_mb: int = 100,
         rotate_files: bool = True,
         filters: Optional[EventFilters] = None,
-    ):
+    ) -> None:
         self.file_path = Path(file_path)
         self.max_file_size_mb = max_file_size_mb
         self.rotate_files = rotate_files
@@ -129,21 +131,26 @@ class FileEventSink(EventSink):
         # Update statistics
         self.statistics.update_with_event(event)
 
-        # Check file size and rotate if needed
+        # Prepare event as JSON line
+        event_json = json.dumps(event.to_dict(), default=str, separators=(",", ":"))
+        event_line = event_json + "\n"
+
+        # Check if adding this event would exceed size limit
         if self.rotate_files and self.file_path.exists():
-            file_size_mb = self.file_path.stat().st_size / (1024 * 1024)
-            if file_size_mb > self.max_file_size_mb:
+            current_size_mb = self.file_path.stat().st_size / (1024 * 1024)
+            event_size_mb = len(event_line.encode("utf-8")) / (1024 * 1024)
+
+            if (current_size_mb + event_size_mb) > self.max_file_size_mb:
                 await self._rotate_file()
 
         # Write event as JSON line
         try:
-            event_json = json.dumps(event.to_dict(), default=str, separators=(",", ":"))
-
             with self.file_path.open("a", encoding="utf-8") as f:
-                f.write(event_json + "\n")
+                f.write(event_line)
 
         except Exception as e:
             self.logger.error(f"Failed to write event to file {self.file_path}: {e}")
+            return
 
     async def _rotate_file(self) -> None:
         """Rotate the current file by renaming it with timestamp."""
@@ -175,7 +182,9 @@ class FileEventSink(EventSink):
 class InMemoryEventSink(EventSink):
     """Event sink that stores events in memory for testing and development."""
 
-    def __init__(self, max_events: int = 1000, filters: Optional[EventFilters] = None):
+    def __init__(
+        self, max_events: int = 1000, filters: Optional[EventFilters] = None
+    ) -> None:
         self.max_events = max_events
         self.filters = filters
         self.events: List[WorkflowEvent] = []

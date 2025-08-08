@@ -1,14 +1,15 @@
 """Simple tests to verify basic langgraph_backend functionality."""
 
 import pytest
-from unittest.mock import Mock, patch
+from typing import Any
+from unittest.mock import MagicMock, Mock, patch
 
 from cognivault.langgraph_backend import GraphFactory, GraphConfig, CacheConfig
 from cognivault.langgraph_backend.graph_patterns import PatternRegistry, StandardPattern
 from cognivault.langgraph_backend.graph_cache import GraphCache
 
 
-def test_imports_work():
+def test_imports_work() -> None:
     """Test that all imports work correctly."""
     # If we get here, imports worked
     assert GraphFactory is not None
@@ -19,7 +20,7 @@ def test_imports_work():
     assert GraphCache is not None
 
 
-def test_graph_config_basic():
+def test_graph_config_basic() -> None:
     """Test basic GraphConfig functionality."""
     config = GraphConfig(
         agents_to_run=["refiner", "synthesis"], enable_checkpoints=False
@@ -29,7 +30,7 @@ def test_graph_config_basic():
     assert config.enable_checkpoints is False
 
 
-def test_cache_config_basic():
+def test_cache_config_basic() -> None:
     """Test basic CacheConfig functionality."""
     config = CacheConfig()
 
@@ -37,7 +38,7 @@ def test_cache_config_basic():
     assert config.ttl_seconds == 3600
 
 
-def test_pattern_registry_basic():
+def test_pattern_registry_basic() -> None:
     """Test basic PatternRegistry functionality."""
     registry = PatternRegistry()
 
@@ -47,7 +48,7 @@ def test_pattern_registry_basic():
     assert standard_pattern.name == "standard"
 
 
-def test_standard_pattern_basic():
+def test_standard_pattern_basic() -> None:
     """Test basic StandardPattern functionality."""
     pattern = StandardPattern()
 
@@ -63,7 +64,7 @@ def test_standard_pattern_basic():
     assert len(edges) > 0
 
 
-def test_graph_cache_basic():
+def test_graph_cache_basic() -> None:
     """Test basic GraphCache functionality."""
     cache = GraphCache()
 
@@ -76,11 +77,11 @@ def test_graph_cache_basic():
 
 
 @patch("cognivault.langgraph_backend.build_graph.StateGraph")
-def test_graph_factory_basic(mock_state_graph):
+def test_graph_factory_basic(mock_state_graph: Any) -> None:
     """Test basic GraphFactory functionality."""
     # Mock StateGraph
-    mock_graph_instance = Mock()
-    mock_compiled = Mock()
+    mock_graph_instance: Mock = Mock()
+    mock_compiled: Mock = Mock()
     mock_graph_instance.compile.return_value = mock_compiled
     mock_state_graph.return_value = mock_graph_instance
 
@@ -100,7 +101,7 @@ def test_graph_factory_basic(mock_state_graph):
     assert mock_state_graph.called
 
 
-def test_integration_basic():
+def test_integration_basic() -> None:
     """Test basic integration between components."""
     # Create components
     factory = GraphFactory()

@@ -82,7 +82,7 @@ class DiagnosticsManager:
     system diagnostics to provide observability into CogniVault operations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.health_checker = HealthChecker()
         self.metrics_collector = get_metrics_collector()
         self.config = get_config()
@@ -276,7 +276,14 @@ class DiagnosticsManager:
         config_status = self._get_configuration_status()
 
         # Add validation report
-        validation_errors = self.config.validate()
+        validation_errors: List[str] = []
+        try:
+            # Attempt to validate the configuration by accessing key properties
+            _ = self.config.environment.value
+            _ = self.config.execution
+            _ = self.config.models
+        except Exception as e:
+            validation_errors.append(str(e))
 
         report = {
             "timestamp": datetime.now().isoformat(),

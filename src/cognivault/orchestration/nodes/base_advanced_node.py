@@ -161,7 +161,7 @@ class BaseAdvancedNode(ABC):
     must implement the execute and can_handle methods.
     """
 
-    def __init__(self, metadata: AgentMetadata, node_name: str):
+    def __init__(self, metadata: AgentMetadata, node_name: str) -> None:
         """
         Initialize the advanced node.
 

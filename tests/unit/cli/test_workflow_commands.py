@@ -6,7 +6,8 @@ run, validate, list, show, and export operations.
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock, MagicMock, mock_open
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
 from pathlib import Path
 import json
 from datetime import datetime
@@ -28,12 +29,16 @@ from cognivault.workflows.definition import (
     FlowDefinition,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestWorkflowCLICommands:
     """Test workflow CLI command functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.runner = CliRunner()
 
@@ -61,7 +66,7 @@ class TestWorkflowCLICommands:
             metadata={"test": True},
         )
 
-    def test_workflow_app_help(self):
+    def test_workflow_app_help(self) -> None:
         """Test workflow CLI app help command."""
         result = self.runner.invoke(workflow_app, ["--help"])
 
@@ -74,9 +79,9 @@ class TestWorkflowCLICommands:
         assert "export" in result.output
 
     @pytest.mark.asyncio
-    async def test_run_workflow_command_success(self):
+    async def test_run_workflow_command_success(self) -> None:
         """Test successful workflow run command."""
-        mock_context = AgentContext(query="test query")
+        mock_context = AgentContextPatterns.simple_query("test query")
         mock_context.add_agent_output("refiner", "refined output")
 
         with (
@@ -109,9 +114,9 @@ class TestWorkflowCLICommands:
             )
 
     @pytest.mark.asyncio
-    async def test_run_workflow_command_with_options(self):
+    async def test_run_workflow_command_with_options(self) -> None:
         """Test workflow run command with various options."""
-        mock_context = AgentContext(query="test query")
+        mock_context = AgentContextPatterns.simple_query("test query")
 
         with (
             patch(
@@ -145,7 +150,7 @@ class TestWorkflowCLICommands:
             assert config["agents"] == ["refiner", "critic"]
 
     @pytest.mark.asyncio
-    async def test_run_workflow_dry_run_mode(self):
+    async def test_run_workflow_dry_run_mode(self) -> None:
         """Test workflow run command in dry run mode."""
         with (
             patch(
@@ -175,7 +180,7 @@ class TestWorkflowCLICommands:
             mock_orchestrator.run.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_run_workflow_load_error(self):
+    async def test_run_workflow_load_error(self) -> None:
         """Test workflow run command with load error."""
         with patch(
             "cognivault.cli.workflow_commands.load_workflow_definition"
@@ -188,7 +193,7 @@ class TestWorkflowCLICommands:
                 )
 
     @pytest.mark.asyncio
-    async def test_validate_workflow_command_success(self):
+    async def test_validate_workflow_command_success(self) -> None:
         """Test successful workflow validation command."""
         with (
             patch(
@@ -211,7 +216,7 @@ class TestWorkflowCLICommands:
             mock_orchestrator.validate_workflow.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_validate_workflow_command_failure(self):
+    async def test_validate_workflow_command_failure(self) -> None:
         """Test workflow validation command with validation failure."""
         with (
             patch(
@@ -233,7 +238,7 @@ class TestWorkflowCLICommands:
                     "invalid_workflow.yaml", True
                 )  # strict=True
 
-    def test_list_workflows_command_with_examples(self):
+    def test_list_workflows_command_with_examples(self) -> None:
         """Test list workflows command with example workflows."""
         with (
             patch("cognivault.cli.workflow_commands.Path") as mock_path_class,
@@ -242,11 +247,11 @@ class TestWorkflowCLICommands:
             ) as mock_load,
         ):
             # Mock example directory and files
-            mock_examples_dir = Mock()
+            mock_examples_dir: Mock = Mock()
             mock_examples_dir.exists.return_value = True
 
             # The helper scans for both .yaml and .json files
-            def mock_glob(pattern):
+            def mock_glob(pattern: str) -> Any:
                 if pattern == "*.yaml":
                     return [
                         Path("simple_decision.yaml"),
@@ -279,17 +284,17 @@ class TestWorkflowCLICommands:
             # Should load each workflow file for metadata (6 total: 3 yaml + 3 json)
             assert mock_load.call_count == 6
 
-    def test_list_workflows_command_no_examples(self):
+    def test_list_workflows_command_no_examples(self) -> None:
         """Test list workflows command when no examples exist."""
         with patch("cognivault.cli.workflow_commands.Path") as mock_path_class:
-            mock_examples_dir = Mock()
+            mock_examples_dir: Mock = Mock()
             mock_examples_dir.exists.return_value = False
             mock_path_class.return_value = mock_examples_dir
 
             # Should not raise error, just show message
             list_workflows_test_helper()
 
-    def test_show_workflow_command_success(self):
+    def test_show_workflow_command_success(self) -> None:
         """Test successful show workflow command."""
         with patch(
             "cognivault.cli.workflow_commands.load_workflow_definition"
@@ -300,7 +305,7 @@ class TestWorkflowCLICommands:
 
             mock_load.assert_called_once_with("test_workflow.yaml")
 
-    def test_show_workflow_command_detailed(self):
+    def test_show_workflow_command_detailed(self) -> None:
         """Test show workflow command with detailed view."""
         with patch(
             "cognivault.cli.workflow_commands.load_workflow_definition"
@@ -311,7 +316,7 @@ class TestWorkflowCLICommands:
 
             mock_load.assert_called_once_with("test_workflow.yaml")
 
-    def test_show_workflow_command_load_error(self):
+    def test_show_workflow_command_load_error(self) -> None:
         """Test show workflow command with load error."""
         with patch(
             "cognivault.cli.workflow_commands.load_workflow_definition"
@@ -321,7 +326,7 @@ class TestWorkflowCLICommands:
             with pytest.raises(SystemExit):
                 show_workflow_test_helper("invalid.yaml", False)
 
-    def test_export_workflow_command_success(self):
+    def test_export_workflow_command_success(self) -> None:
         """Test successful export workflow command."""
         with (
             patch(
@@ -330,7 +335,7 @@ class TestWorkflowCLICommands:
             patch("cognivault.workflows.composer.DagComposer") as mock_composer_class,
         ):
             mock_load.return_value = self.sample_workflow
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.export_workflow_snapshot.return_value = None
             mock_composer_class.return_value = mock_composer
 
@@ -344,7 +349,7 @@ class TestWorkflowCLICommands:
             mock_load.assert_called_once_with("source.yaml")
             mock_composer.export_workflow_snapshot.assert_called_once()
 
-    def test_export_workflow_command_with_runtime(self):
+    def test_export_workflow_command_with_runtime(self) -> None:
         """Test export workflow command including runtime information."""
         with (
             patch(
@@ -353,7 +358,7 @@ class TestWorkflowCLICommands:
             patch("cognivault.workflows.composer.DagComposer") as mock_composer_class,
         ):
             mock_load.return_value = self.sample_workflow
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.export_workflow_snapshot.return_value = None
             mock_composer_class.return_value = mock_composer
 
@@ -370,7 +375,7 @@ class TestWorkflowCLICommands:
             # Runtime metadata should be added to the workflow definition
             assert hasattr(exported_workflow, "metadata")
 
-    def test_export_workflow_command_export_error(self):
+    def test_export_workflow_command_export_error(self) -> None:
         """Test export workflow command with export error."""
         with (
             patch(
@@ -379,7 +384,7 @@ class TestWorkflowCLICommands:
             patch("cognivault.workflows.composer.DagComposer") as mock_composer_class,
         ):
             mock_load.return_value = self.sample_workflow
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.export_workflow_snapshot.side_effect = Exception(
                 "Export failed"
             )
@@ -392,7 +397,7 @@ class TestWorkflowCLICommands:
 class TestWorkflowCLIUtilities:
     """Test workflow CLI utility functions."""
 
-    def test_load_workflow_definition_yaml(self):
+    def test_load_workflow_definition_yaml(self) -> None:
         """Test loading workflow definition from YAML file."""
         workflow_yaml = """
 name: test_workflow
@@ -428,7 +433,7 @@ metadata: {}
             mock_from_dict.return_value = mock_workflow
 
             # Mock Path.exists() to return True
-            mock_path = Mock()
+            mock_path: Mock = Mock()
             mock_path.exists.return_value = True
             mock_path.suffix = ".yaml"
             mock_path_class.return_value = mock_path
@@ -441,7 +446,7 @@ metadata: {}
             mock_yaml_load.assert_called_once()
             mock_from_dict.assert_called_once()
 
-    def test_load_workflow_definition_json(self):
+    def test_load_workflow_definition_json(self) -> None:
         """Test loading workflow definition from JSON file."""
         workflow_json = '{"name": "test_workflow", "version": "1.0.0"}'
 
@@ -458,7 +463,7 @@ metadata: {}
             mock_from_dict.return_value = mock_workflow
 
             # Mock Path.exists() to return True
-            mock_path = Mock()
+            mock_path: Mock = Mock()
             mock_path.exists.return_value = True
             mock_path.suffix = ".json"
             mock_path_class.return_value = mock_path
@@ -471,7 +476,7 @@ metadata: {}
             mock_json_load.assert_called_once()
             mock_from_dict.assert_called_once()
 
-    def test_load_workflow_definition_unsupported_format(self):
+    def test_load_workflow_definition_unsupported_format(self) -> None:
         """Test loading workflow definition with unsupported file format."""
         from cognivault.cli.workflow_commands import load_workflow_definition
 
@@ -480,14 +485,14 @@ metadata: {}
             pytest.raises(ValueError, match="Unsupported file format"),
         ):
             # Mock Path.exists() to return True so we get to the format check
-            mock_path = Mock()
+            mock_path: Mock = Mock()
             mock_path.exists.return_value = True
             mock_path.suffix = ".xml"
             mock_path_class.return_value = mock_path
 
             load_workflow_definition("test.xml")
 
-    def test_display_workflow_summary(self):
+    def test_display_workflow_summary(self) -> None:
         """Test displaying workflow summary."""
         from cognivault.cli.workflow_commands import display_workflow_summary
 
@@ -518,11 +523,11 @@ metadata: {}
         display_workflow_summary(sample_workflow, detailed=False)
         display_workflow_summary(sample_workflow, detailed=True)
 
-    def test_display_execution_results(self):
+    def test_display_execution_results(self) -> None:
         """Test displaying workflow execution results."""
         from cognivault.cli.workflow_commands import display_execution_results
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.add_agent_output("refiner", "refined output")
         context.add_agent_output("critic", "critical analysis")
 
@@ -532,11 +537,11 @@ metadata: {}
         display_execution_results(context, execution_time, trace=False)
         display_execution_results(context, execution_time, trace=True)
 
-    def test_export_trace_data(self):
+    def test_export_trace_data(self) -> None:
         """Test exporting execution trace data."""
         from cognivault.cli.workflow_commands import export_trace_data
 
-        context = AgentContext(query="trace test")
+        context = AgentContextPatterns.simple_query("trace test")
         context.add_agent_output("refiner", "trace output")
         context.execution_state["workflow_id"] = "trace-123"
         context.execution_state["execution_time_ms"] = 1500
@@ -563,7 +568,7 @@ metadata: {}
 class TestWorkflowCLIIntegration:
     """Integration tests for workflow CLI commands."""
 
-    def test_cli_runner_run_command(self):
+    def test_cli_runner_run_command(self) -> None:
         """Test workflow run command via CLI runner."""
         runner = CliRunner()
 
@@ -591,7 +596,7 @@ class TestWorkflowCLIIntegration:
             # Command should complete successfully
             assert result.exit_code == 0
 
-    def test_cli_runner_validate_command(self):
+    def test_cli_runner_validate_command(self) -> None:
         """Test workflow validate command via CLI runner."""
         runner = CliRunner()
 
@@ -610,7 +615,7 @@ class TestWorkflowCLIIntegration:
 
             assert result.exit_code == 0
 
-    def test_cli_runner_list_command(self):
+    def test_cli_runner_list_command(self) -> None:
         """Test workflow list command via CLI runner."""
         runner = CliRunner()
 
@@ -621,14 +626,14 @@ class TestWorkflowCLIIntegration:
 
             assert result.exit_code == 0
 
-    def test_cli_runner_show_command(self):
+    def test_cli_runner_show_command(self) -> None:
         """Test workflow show command via CLI runner."""
         runner = CliRunner()
 
         with (
             patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
         ):
-            mock_workflow = Mock()
+            mock_workflow: Mock = Mock()
             mock_workflow.name = "test_workflow"
             mock_workflow.version = "1.0.0"
             mock_workflow.created_by = "test_user"
@@ -641,7 +646,7 @@ class TestWorkflowCLIIntegration:
 
             assert result.exit_code == 0
 
-    def test_cli_runner_export_command(self):
+    def test_cli_runner_export_command(self) -> None:
         """Test workflow export command via CLI runner."""
         runner = CliRunner()
 
@@ -661,7 +666,7 @@ class TestWorkflowCLIIntegration:
 
             assert result.exit_code == 0
 
-    def test_error_handling_in_cli_commands(self):
+    def test_error_handling_in_cli_commands(self) -> None:
         """Test error handling in CLI commands."""
         runner = CliRunner()
 
@@ -680,7 +685,7 @@ class TestWorkflowCLIIntegration:
 class TestWorkflowMarkdownExport:
     """Test workflow CLI markdown export functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.runner = CliRunner()
 
@@ -688,7 +693,7 @@ class TestWorkflowMarkdownExport:
         from cognivault.workflows.executor import WorkflowResult
         from cognivault.context import AgentContext
 
-        context = AgentContext(query="test export query")
+        context = AgentContextPatterns.simple_query("test export query")
         context.add_agent_output("refiner", "refined output for export")
         context.add_agent_output("critic", "critical analysis for export")
 
@@ -728,7 +733,7 @@ class TestWorkflowMarkdownExport:
         )
 
     @pytest.mark.asyncio
-    async def test_markdown_export_flag_passed_through(self):
+    async def test_markdown_export_flag_passed_through(self) -> None:
         """Test that --export-md flag is passed through the call chain."""
         with (
             patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
@@ -745,11 +750,11 @@ class TestWorkflowMarkdownExport:
             mock_orchestrator.execute_workflow.return_value = self.sample_result
             mock_orch.return_value = mock_orchestrator
 
-            mock_llm_instance = Mock()
+            mock_llm_instance: Mock = Mock()
             mock_llm.return_value = mock_llm_instance
 
             mock_topic_manager = AsyncMock()
-            mock_topic_analysis = Mock()
+            mock_topic_analysis: Mock = Mock()
             mock_topic_analysis.suggested_topics = [
                 Mock(topic="test"),
                 Mock(topic="export"),
@@ -760,7 +765,7 @@ class TestWorkflowMarkdownExport:
             )
             mock_topic_mgr.return_value = mock_topic_manager
 
-            mock_exporter_instance = Mock()
+            mock_exporter_instance: Mock = Mock()
             mock_exporter_instance.export.return_value = "/tmp/test_export.md"
             mock_exporter.return_value = mock_exporter_instance
 
@@ -789,7 +794,7 @@ class TestWorkflowMarkdownExport:
             assert workflow_metadata.execution_id == "exec-456"
 
     @pytest.mark.asyncio
-    async def test_markdown_export_with_topic_analysis(self):
+    async def test_markdown_export_with_topic_analysis(self) -> None:
         """Test markdown export with successful topic analysis."""
         with (
             patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
@@ -808,18 +813,18 @@ class TestWorkflowMarkdownExport:
             mock_orch.return_value = mock_orchestrator
 
             # Mock OpenAI config
-            mock_config = Mock()
+            mock_config: Mock = Mock()
             mock_config.api_key = "test-key"
             mock_config.model = "gpt-4"
             mock_config.base_url = None
             mock_config_class.load.return_value = mock_config
 
-            mock_llm_instance = Mock()
+            mock_llm_instance: Mock = Mock()
             mock_llm.return_value = mock_llm_instance
 
             # Mock topic analysis with specific topics
             mock_topic_manager = AsyncMock()
-            mock_topic_analysis = Mock()
+            mock_topic_analysis: Mock = Mock()
             mock_topic_analysis.suggested_topics = [
                 Mock(topic="workflow"),
                 Mock(topic="testing"),
@@ -831,7 +836,7 @@ class TestWorkflowMarkdownExport:
             )
             mock_topic_mgr.return_value = mock_topic_manager
 
-            mock_exporter_instance = Mock()
+            mock_exporter_instance: Mock = Mock()
             mock_exporter_instance.export.return_value = "/tmp/workflow_export.md"
             mock_exporter.return_value = mock_exporter_instance
 
@@ -856,7 +861,7 @@ class TestWorkflowMarkdownExport:
             assert call_args[1]["domain"] == "software_engineering"
 
     @pytest.mark.asyncio
-    async def test_markdown_export_topic_analysis_failure(self):
+    async def test_markdown_export_topic_analysis_failure(self) -> None:
         """Test markdown export when topic analysis fails."""
         with (
             patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
@@ -874,13 +879,13 @@ class TestWorkflowMarkdownExport:
             mock_orchestrator.execute_workflow.return_value = self.sample_result
             mock_orch.return_value = mock_orchestrator
 
-            mock_config = Mock()
+            mock_config: Mock = Mock()
             mock_config.api_key = "test-key"
             mock_config.model = "gpt-4"
             mock_config.base_url = None
             mock_config_class.load.return_value = mock_config
 
-            mock_llm_instance = Mock()
+            mock_llm_instance: Mock = Mock()
             mock_llm.return_value = mock_llm_instance
 
             # Mock topic analysis failure
@@ -890,7 +895,7 @@ class TestWorkflowMarkdownExport:
             )
             mock_topic_mgr.return_value = mock_topic_manager
 
-            mock_exporter_instance = Mock()
+            mock_exporter_instance: Mock = Mock()
             mock_exporter_instance.export.return_value = "/tmp/fallback_export.md"
             mock_exporter.return_value = mock_exporter_instance
 
@@ -910,7 +915,7 @@ class TestWorkflowMarkdownExport:
             mock_exporter_instance.export.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_markdown_export_enhanced_workflow_metadata(self):
+    async def test_markdown_export_enhanced_workflow_metadata(self) -> None:
         """Test that enhanced workflow metadata is properly added."""
         with (
             patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
@@ -928,17 +933,17 @@ class TestWorkflowMarkdownExport:
             mock_orchestrator.execute_workflow.return_value = self.sample_result
             mock_orch.return_value = mock_orchestrator
 
-            mock_config = Mock()
+            mock_config: Mock = Mock()
             mock_config.api_key = "test-key"
             mock_config.model = "gpt-4"
             mock_config.base_url = None
             mock_config_class.load.return_value = mock_config
 
-            mock_llm_instance = Mock()
+            mock_llm_instance: Mock = Mock()
             mock_llm.return_value = mock_llm_instance
 
             mock_topic_manager = AsyncMock()
-            mock_topic_analysis = Mock()
+            mock_topic_analysis: Mock = Mock()
             mock_topic_analysis.suggested_topics = []
             mock_topic_analysis.suggested_domain = None
             mock_topic_manager.analyze_and_suggest_topics.return_value = (
@@ -946,7 +951,7 @@ class TestWorkflowMarkdownExport:
             )
             mock_topic_mgr.return_value = mock_topic_manager
 
-            mock_exporter_instance = Mock()
+            mock_exporter_instance: Mock = Mock()
             mock_exporter_instance.export.return_value = "/tmp/metadata_test.md"
             mock_exporter.return_value = mock_exporter_instance
 
@@ -991,7 +996,7 @@ class TestWorkflowMarkdownExport:
             assert agent_outputs["critic"] == "critical analysis for export"
 
     @pytest.mark.asyncio
-    async def test_markdown_export_json_output_format(self):
+    async def test_markdown_export_json_output_format(self) -> None:
         """Test markdown export with JSON output format (should suppress verbose output)."""
         with (
             patch("cognivault.cli.workflow_commands._load_workflow_file") as mock_load,
@@ -1010,17 +1015,17 @@ class TestWorkflowMarkdownExport:
             mock_orchestrator.execute_workflow.return_value = self.sample_result
             mock_orch.return_value = mock_orchestrator
 
-            mock_config = Mock()
+            mock_config: Mock = Mock()
             mock_config.api_key = "test-key"
             mock_config.model = "gpt-4"
             mock_config.base_url = None
             mock_config_class.load.return_value = mock_config
 
-            mock_llm_instance = Mock()
+            mock_llm_instance: Mock = Mock()
             mock_llm.return_value = mock_llm_instance
 
             mock_topic_manager = AsyncMock()
-            mock_topic_analysis = Mock()
+            mock_topic_analysis: Mock = Mock()
             mock_topic_analysis.suggested_topics = [Mock(topic="json")]
             mock_topic_analysis.suggested_domain = "data"
             mock_topic_manager.analyze_and_suggest_topics.return_value = (
@@ -1028,7 +1033,7 @@ class TestWorkflowMarkdownExport:
             )
             mock_topic_mgr.return_value = mock_topic_manager
 
-            mock_exporter_instance = Mock()
+            mock_exporter_instance: Mock = Mock()
             mock_exporter_instance.export.return_value = "/tmp/json_test.md"
             mock_exporter.return_value = mock_exporter_instance
 
@@ -1053,7 +1058,7 @@ class TestWorkflowMarkdownExport:
             ]
             assert len(export_calls) == 0  # No console output for JSON format
 
-    def test_cli_runner_with_export_md_flag(self):
+    def test_cli_runner_with_export_md_flag(self) -> None:
         """Test workflow run command with --export-md flag via CLI runner."""
         runner = CliRunner()
 
@@ -1087,7 +1092,7 @@ class TestWorkflowMarkdownExport:
             # Args: workflow_file, query, output_format, save_result, export_md, verbose
             assert call_args[4] is True  # export_md is the 5th positional argument
 
-    def test_cli_runner_export_md_flag_default_false(self):
+    def test_cli_runner_export_md_flag_default_false(self) -> None:
         """Test that --export-md flag defaults to False."""
         runner = CliRunner()
 

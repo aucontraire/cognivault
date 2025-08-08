@@ -90,7 +90,9 @@ def get_system_prompt(
     return None
 
 
-def get_template_prompt(agent_type: str, template_name: str, **kwargs) -> Optional[str]:
+def get_template_prompt(
+    agent_type: str, template_name: str, **kwargs: Any
+) -> Optional[str]:
     """
     Get and format a template prompt for an agent.
 

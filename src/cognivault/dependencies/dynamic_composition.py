@@ -275,7 +275,9 @@ class AgentDiscoverer(ABC):
 class FilesystemDiscoverer(AgentDiscoverer):
     """Discover agents by scanning the filesystem."""
 
-    def __init__(self, search_paths: List[Path], patterns: Optional[List[str]] = None):
+    def __init__(
+        self, search_paths: List[Path], patterns: Optional[List[str]] = None
+    ) -> None:
         self.search_paths = [Path(p) for p in search_paths]
         self.patterns = patterns or ["*agent*.py", "*_agent.py"]
         self._file_checksums: Dict[Path, str] = {}
@@ -379,7 +381,7 @@ class FilesystemDiscoverer(AgentDiscoverer):
 class RegistryDiscoverer(AgentDiscoverer):
     """Discover agents using the agent registry."""
 
-    def __init__(self, registry):
+    def __init__(self, registry: Any) -> None:
         self.registry = registry
 
     async def discover_agents(self) -> List[DiscoveredAgentInfo]:
@@ -413,7 +415,7 @@ class DynamicAgentComposer:
     composing execution graphs, and hot-swapping failed or outdated agents.
     """
 
-    def __init__(self, graph_engine: DependencyGraphEngine):
+    def __init__(self, graph_engine: DependencyGraphEngine) -> None:
         self.graph_engine = graph_engine
         self.discoverers: List[AgentDiscoverer] = []
         self.discovered_agents: Dict[str, DiscoveredAgentInfo] = {}

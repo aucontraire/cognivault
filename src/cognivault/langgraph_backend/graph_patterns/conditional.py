@@ -86,7 +86,7 @@ class ContextAnalysis:
 class ContextAnalyzer:
     """Analyzes query context to determine complexity and routing needs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the context analyzer with domain knowledge."""
         self.technical_patterns = [
             r"\b(?:algorithm|implementation|architecture|framework|methodology)\b",
@@ -434,7 +434,7 @@ class EnhancedConditionalPattern(GraphPattern):
         self,
         config: Optional[RoutingConfig] = None,
         semantic_validator: Optional[SemanticValidator] = None,
-    ):
+    ) -> None:
         """
         Initialize enhanced conditional pattern.
 
@@ -999,7 +999,7 @@ class ConditionalPatternValidator(SemanticValidator):
     and provides contextual validation based on routing strategies.
     """
 
-    def __init__(self, strict_mode: bool = False):
+    def __init__(self, strict_mode: bool = False) -> None:
         """
         Initialize conditional pattern validator.
 

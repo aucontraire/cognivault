@@ -168,7 +168,7 @@ class TerminatorNode(BaseAdvancedNode):
         time_limit_ms: Optional[float] = None,
         allow_partial_completion: bool = True,
         strict_mode: bool = False,
-    ):
+    ) -> None:
         """
         Initialize the TerminatorNode.
 

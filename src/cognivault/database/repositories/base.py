@@ -30,7 +30,7 @@ class BaseRepository(Generic[ModelType], ABC):
     standardized error handling, and logging.
     """
 
-    def __init__(self, session: AsyncSession, model_class: type[ModelType]):
+    def __init__(self, session: AsyncSession, model_class: type[ModelType]) -> None:
         """
         Initialize repository with database session and model class.
 

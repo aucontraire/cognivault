@@ -41,7 +41,7 @@ class PydanticAIWrapper:
     specified Pydantic models, enabling structured data extraction.
     """
 
-    def __init__(self, llm_interface: LLMInterface):
+    def __init__(self, llm_interface: LLMInterface) -> None:
         """
         Initialize the Pydantic AI wrapper.
 

@@ -7,9 +7,10 @@ logging functionality with observability features.
 
 import logging
 import pytest
+from typing import Any
 import tempfile
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 from io import StringIO
 
 from cognivault.observability.logger import (
@@ -28,21 +29,23 @@ from cognivault.observability.context import (
 class TestStructuredLogger:
     """Test StructuredLogger functionality."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear observability context after each test."""
         clear_observability_context()
 
     @pytest.fixture
-    def temp_log_dir(self):
+    def temp_log_dir(self) -> Any:
         """Create temporary directory for log files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             yield temp_dir
 
     @patch("cognivault.observability.logger.get_config")
-    def test_structured_logger_creation(self, mock_get_config, temp_log_dir):
+    def test_structured_logger_creation(
+        self, mock_get_config: Any, temp_log_dir: Any
+    ) -> None:
         """Test creating StructuredLogger."""
         # Mock config
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.debug_mode = False
         mock_config.files.logs_directory = temp_log_dir
         mock_config.log_level.value = logging.INFO
@@ -55,10 +58,10 @@ class TestStructuredLogger:
         assert logger.logger.name == "test.logger"
 
     @patch("cognivault.observability.logger.get_config")
-    def test_structured_logger_without_file_logging(self, mock_get_config):
+    def test_structured_logger_without_file_logging(self, mock_get_config: Any) -> None:
         """Test creating StructuredLogger without file logging."""
         # Mock config
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.debug_mode = False
         mock_config.log_level.value = logging.INFO
         mock_get_config.return_value = mock_config
@@ -69,11 +72,11 @@ class TestStructuredLogger:
         # Should only have console handler (1 handler)
         assert len(logger.logger.handlers) == 1
 
-    def test_structured_logger_log_methods(self):
+    def test_structured_logger_log_methods(self) -> None:
         """Test structured logger logging methods."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -102,11 +105,11 @@ class TestStructuredLogger:
             assert "Error message" in output
             assert "Critical message" in output
 
-    def test_structured_logger_with_correlation_id(self):
+    def test_structured_logger_with_correlation_id(self) -> None:
         """Test structured logger includes correlation ID."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -128,11 +131,11 @@ class TestStructuredLogger:
             output = stream.getvalue()
             assert "Test message with correlation" in output
 
-    def test_structured_logger_with_observability_context(self):
+    def test_structured_logger_with_observability_context(self) -> None:
         """Test structured logger includes observability context."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -158,11 +161,11 @@ class TestStructuredLogger:
             output = stream.getvalue()
             assert "Test message with context" in output
 
-    def test_log_agent_start_end(self):
+    def test_log_agent_start_end(self) -> None:
         """Test agent start/end logging methods."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -183,11 +186,11 @@ class TestStructuredLogger:
             assert "TestAgent starting execution" in output
             assert "TestAgent completed with success" in output
 
-    def test_log_pipeline_start_end(self):
+    def test_log_pipeline_start_end(self) -> None:
         """Test pipeline start/end logging methods."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -210,11 +213,11 @@ class TestStructuredLogger:
             assert "refiner, critic, synthesis" in output
             assert "Pipeline pipeline-123 completed with success" in output
 
-    def test_log_llm_call(self):
+    def test_log_llm_call(self) -> None:
         """Test LLM call logging method."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -233,11 +236,11 @@ class TestStructuredLogger:
 
             assert "LLM call to gpt-4 completed" in output
 
-    def test_log_error_method(self):
+    def test_log_error_method(self) -> None:
         """Test error logging method."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -260,11 +263,11 @@ class TestStructuredLogger:
             assert "Error in test context" in output
             assert "Test error" in output
 
-    def test_log_performance_metric(self):
+    def test_log_performance_metric(self) -> None:
         """Test performance metric logging method."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -287,11 +290,11 @@ class TestStructuredLogger:
 class TestTimedOperation:
     """Test TimedOperation context manager."""
 
-    def test_timed_operation_success(self):
+    def test_timed_operation_success(self) -> None:
         """Test timed operation with successful completion."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -312,11 +315,11 @@ class TestTimedOperation:
             assert "Starting operation: test_operation" in output
             assert "Operation test_operation completed" in output
 
-    def test_timed_operation_with_exception(self):
+    def test_timed_operation_with_exception(self) -> None:
         """Test timed operation with exception."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.DEBUG
             mock_get_config.return_value = mock_config
@@ -344,11 +347,11 @@ class TestTimedOperation:
 class TestSetupEnhancedLogging:
     """Test enhanced logging setup functionality."""
 
-    def test_setup_enhanced_logging_basic(self):
+    def test_setup_enhanced_logging_basic(self) -> None:
         """Test basic enhanced logging setup."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.files.logs_directory = "/tmp/test_logs"
             mock_get_config.return_value = mock_config
 
@@ -365,11 +368,11 @@ class TestSetupEnhancedLogging:
                     assert root_logger.level == logging.INFO
                     assert len(root_logger.handlers) >= 1  # At least console handler
 
-    def test_get_logger_function(self):
+    def test_get_logger_function(self) -> None:
         """Test get_logger convenience function."""
         with patch("cognivault.observability.logger.get_config") as mock_get_config:
             # Mock config
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.debug_mode = False
             mock_config.log_level.value = logging.INFO
             mock_get_config.return_value = mock_config

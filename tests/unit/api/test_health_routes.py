@@ -5,7 +5,8 @@ Tests the web layer health endpoints without external dependencies.
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock
+from typing import Any
+from unittest.mock import patch, AsyncMock, Mock
 from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
@@ -16,18 +17,18 @@ from cognivault.api.factory import reset_api_cache
 class TestHealthRoutes:
     """Test suite for health check endpoints."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client for each test."""
         self.client = TestClient(app)
         # Reset API cache to ensure clean state
         reset_api_cache()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up after each test."""
         # Reset API cache to avoid test interference
         reset_api_cache()
 
-    def test_basic_health_check(self):
+    def test_basic_health_check(self) -> None:
         """Test basic health endpoint returns expected structure."""
         response = self.client.get("/health")
 
@@ -41,7 +42,7 @@ class TestHealthRoutes:
         assert "timestamp" in data
 
     @patch("cognivault.api.routes.health.get_orchestration_api")
-    def test_detailed_health_check_success(self, mock_get_api):
+    def test_detailed_health_check_success(self, mock_get_api: Mock) -> None:
         """Test detailed health check with successful orchestration API."""
         # Setup mock orchestration API
         mock_api = AsyncMock()
@@ -70,7 +71,7 @@ class TestHealthRoutes:
         assert orchestration_data["checks"] == {"test": "data"}
 
     @patch("cognivault.api.routes.health.get_orchestration_api")
-    def test_detailed_health_check_failure(self, mock_get_api):
+    def test_detailed_health_check_failure(self, mock_get_api: Mock) -> None:
         """Test detailed health check with orchestration API failure."""
         # Setup mock to raise exception
         mock_get_api.side_effect = Exception("Orchestration API not initialized")
@@ -87,7 +88,7 @@ class TestHealthRoutes:
         assert detail["service"] == "cognivault-api"
         assert "Orchestration API not initialized" in detail["error"]
 
-    def test_health_endpoints_are_cors_enabled(self):
+    def test_health_endpoints_are_cors_enabled(self) -> None:
         """Test that health endpoints support CORS for development."""
         # Test actual request with origin header - CORSMiddleware handles this
         response = self.client.get(
@@ -96,7 +97,7 @@ class TestHealthRoutes:
         assert response.status_code == 200
         # The response should succeed - CORS headers are handled by middleware
 
-    def test_health_check_response_format(self):
+    def test_health_check_response_format(self) -> None:
         """Test that health check responses match expected JSON schema."""
         response = self.client.get("/health")
         data = response.json()
@@ -112,7 +113,9 @@ class TestHealthRoutes:
 
     @patch("cognivault.api.routes.health.logger")
     @patch("cognivault.api.routes.health.get_orchestration_api")
-    def test_detailed_health_check_logs_errors(self, mock_get_api, mock_logger):
+    def test_detailed_health_check_logs_errors(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that detailed health check logs errors appropriately."""
         error_message = "Database connection failed"
         mock_get_api.side_effect = Exception(error_message)

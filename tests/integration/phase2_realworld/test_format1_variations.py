@@ -4,6 +4,7 @@ and gradually adding Pydantic configuration fields to see what works.
 """
 
 import pytest
+from typing import Any
 import tempfile
 import yaml
 from pathlib import Path
@@ -15,7 +16,7 @@ from cognivault.workflows.composer import NodeFactory
 class TestFormat1Variations:
     """Test variations of the working Format 1 YAML structure."""
 
-    def test_original_enhanced_prompts_example_works(self):
+    def test_original_enhanced_prompts_example_works(self) -> None:
         """Baseline test - verify the original enhanced_prompts_example.yaml works."""
         example_path = (
             Path(__file__).parent.parent.parent.parent
@@ -35,7 +36,7 @@ class TestFormat1Variations:
         assert "relevance_threshold" in historian_node.config
         assert historian_node.config["search_depth"] == "deep"
 
-    def test_format1_with_simple_pydantic_field(self):
+    def test_format1_with_simple_pydantic_field(self) -> None:
         """Test adding a simple Pydantic field to Format 1 structure."""
 
         # Start with working format and add ONE Pydantic field
@@ -85,7 +86,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_format1_with_multiple_pydantic_fields(self):
+    def test_format1_with_multiple_pydantic_fields(self) -> None:
         """Test adding multiple Pydantic fields to Format 1 structure."""
 
         workflow_yaml = """
@@ -133,7 +134,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_format1_mixing_prompts_and_pydantic(self):
+    def test_format1_mixing_prompts_and_pydantic(self) -> None:
         """Test mixing the working prompts: style with Pydantic fields."""
 
         workflow_yaml = """
@@ -193,7 +194,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_format1_with_custom_constraints(self):
+    def test_format1_with_custom_constraints(self) -> None:
         """Test adding custom_constraints list to Format 1."""
 
         workflow_yaml = """
@@ -243,7 +244,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_format1_with_nested_config_objects(self):
+    def test_format1_with_nested_config_objects(self) -> None:
         """Test adding nested configuration objects like prompt_config, behavioral_config."""
 
         workflow_yaml = """
@@ -314,7 +315,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_format1_node_factory_integration(self):
+    def test_format1_node_factory_integration(self) -> None:
         """Test that NodeFactory can actually create nodes from Format 1 + Pydantic configs."""
 
         workflow_yaml = """
@@ -364,7 +365,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_format1_all_agent_types(self):
+    def test_format1_all_agent_types(self) -> None:
         """Test Format 1 + Pydantic configs for all 4 agent types."""
 
         workflow_yaml = """

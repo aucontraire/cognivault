@@ -1,17 +1,19 @@
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 from io import StringIO
 
 from cognivault.agents.refiner.main import run_refiner, parse_args, main
+from tests.factories.mock_llm_factories import MockLLMFactory
 
 
 @pytest.mark.asyncio
 @patch("cognivault.agents.refiner.main.RefinerAgent")
-async def test_run_refiner_returns_expected_output(mock_agent_class):
+async def test_run_refiner_returns_expected_output(mock_agent_class: Any) -> None:
     mock_agent = AsyncMock()
     mock_agent.name = "Refiner"
 
-    async def mock_run(context):
+    async def mock_run(context: Any) -> None:
         context.add_agent_output("Refiner", "Mocked refiner output")
 
     mock_agent.run.side_effect = mock_run
@@ -27,11 +29,11 @@ async def test_run_refiner_returns_expected_output(mock_agent_class):
 
 @pytest.mark.asyncio
 @patch("cognivault.agents.refiner.main.RefinerAgent")
-async def test_run_refiner_debug_mode(mock_agent_class):
+async def test_run_refiner_debug_mode(mock_agent_class: Any) -> None:
     mock_agent = AsyncMock()
     mock_agent.name = "Refiner"
 
-    async def mock_run(context):
+    async def mock_run(context: Any) -> None:
         context.add_agent_output("Refiner", "Refined query: Test refined output")
 
     mock_agent.run.side_effect = mock_run
@@ -56,17 +58,17 @@ async def test_run_refiner_debug_mode(mock_agent_class):
     side_effect=Exception("Config error"),
 )
 async def test_run_refiner_debug_mode_config_exception(
-    mock_config_load, mock_llm_factory, mock_agent_class
-):
+    mock_config_load: Any, mock_llm_factory: Any, mock_agent_class: Any
+) -> None:
     """Test run_refiner debug mode when OpenAI config loading fails."""
     # Mock LLM
-    mock_llm = MagicMock()
+    mock_llm = MockLLMFactory.basic_mock()
     mock_llm_factory.return_value = mock_llm
 
     mock_agent = AsyncMock()
     mock_agent.name = "Refiner"
 
-    async def mock_run(context):
+    async def mock_run(context: Any) -> None:
         context.add_agent_output("Refiner", "Refined query: Test output")
 
     mock_agent.run.side_effect = mock_run
@@ -77,19 +79,21 @@ async def test_run_refiner_debug_mode_config_exception(
 
     assert result == "Refined query: Test output"
     assert debug_info is not None
-    assert debug_info["model"] == "stub-llm"  # Fallback when config fails
+    assert (
+        debug_info["model"] == "unknown"
+    )  # Fallback when config fails (using MockLLMFactory)
     assert debug_info["original_query"] == "Test query"
     assert debug_info["system_prompt_used"] is True
 
 
 @pytest.mark.asyncio
 @patch("cognivault.agents.refiner.main.RefinerAgent")
-async def test_run_refiner_debug_mode_unchanged_output(mock_agent_class):
+async def test_run_refiner_debug_mode_unchanged_output(mock_agent_class: Any) -> None:
     """Test run_refiner debug mode with unchanged output."""
     mock_agent = AsyncMock()
     mock_agent.name = "Refiner"
 
-    async def mock_run(context):
+    async def mock_run(context: Any) -> None:
         context.add_agent_output("Refiner", "[Unchanged] Original query")
 
     mock_agent.run.side_effect = mock_run
@@ -106,7 +110,7 @@ async def test_run_refiner_debug_mode_unchanged_output(mock_agent_class):
 @pytest.mark.asyncio
 @patch("cognivault.agents.refiner.main.run_refiner")
 @patch("sys.argv", ["main.py", "--query", "Refined query: test output"])
-async def test_main_strips_refined_query_prefix(mock_run_refiner):
+async def test_main_strips_refined_query_prefix(mock_run_refiner: Any) -> None:
     """Test main function strips 'Refined query:' prefix from output."""
     mock_run_refiner.return_value = ("Refined query: clean output", None)
 
@@ -121,7 +125,7 @@ async def test_main_strips_refined_query_prefix(mock_run_refiner):
 
 
 @patch("sys.argv", ["main.py", "--query", "test query"])
-def test_parse_args_with_query():
+def test_parse_args_with_query() -> None:
     """Test argument parsing with query flag."""
     args = parse_args()
     assert args.query == "test query"
@@ -129,7 +133,7 @@ def test_parse_args_with_query():
 
 
 @patch("sys.argv", ["main.py", "--query", "test", "--debug"])
-def test_parse_args_with_debug():
+def test_parse_args_with_debug() -> None:
     """Test argument parsing with debug flag."""
     args = parse_args()
     assert args.query == "test"
@@ -137,7 +141,7 @@ def test_parse_args_with_debug():
 
 
 @patch("sys.argv", ["main.py", "-q", "short flag", "-d"])
-def test_parse_args_short_flags():
+def test_parse_args_short_flags() -> None:
     """Test argument parsing with short flags."""
     args = parse_args()
     assert args.query == "short flag"
@@ -145,7 +149,7 @@ def test_parse_args_short_flags():
 
 
 @patch("sys.argv", ["main.py"])
-def test_parse_args_no_arguments():
+def test_parse_args_no_arguments() -> None:
     """Test argument parsing with no arguments (interactive mode)."""
     args = parse_args()
     assert args.query is None
@@ -155,7 +159,7 @@ def test_parse_args_no_arguments():
 @pytest.mark.asyncio
 @patch("cognivault.agents.refiner.main.run_refiner")
 @patch("sys.argv", ["main.py", "--query", "test query"])
-async def test_main_with_query_flag(mock_run_refiner):
+async def test_main_with_query_flag(mock_run_refiner: Any) -> None:
     """Test main function with query flag."""
     mock_run_refiner.return_value = ("Refined output", None)
 
@@ -173,7 +177,7 @@ async def test_main_with_query_flag(mock_run_refiner):
 @pytest.mark.asyncio
 @patch("cognivault.agents.refiner.main.run_refiner")
 @patch("sys.argv", ["main.py", "--query", "test", "--debug"])
-async def test_main_with_debug_flag(mock_run_refiner):
+async def test_main_with_debug_flag(mock_run_refiner: Any) -> None:
     """Test main function with debug flag."""
     mock_run_refiner.return_value = ("Debug output", {"model": "gpt-4"})
 
@@ -192,7 +196,7 @@ async def test_main_with_debug_flag(mock_run_refiner):
 @patch("builtins.input", return_value="interactive query")
 @patch("cognivault.agents.refiner.main.run_refiner")
 @patch("sys.argv", ["main.py"])
-async def test_main_interactive_mode(mock_run_refiner, mock_input):
+async def test_main_interactive_mode(mock_run_refiner: Any, mock_input: Any) -> None:
     """Test main function in interactive mode."""
     mock_run_refiner.return_value = ("Interactive output", None)
 
@@ -214,7 +218,9 @@ async def test_main_interactive_mode(mock_run_refiner, mock_input):
 @patch(
     "cognivault.agents.refiner.main.run_refiner", return_value=("", None)
 )  # Mock run_refiner with return value
-async def test_main_empty_query_exits(mock_run_refiner, mock_exit, mock_input):
+async def test_main_empty_query_exits(
+    mock_run_refiner: Any, mock_exit: Any, mock_input: Any
+) -> None:
     """Test main function exits when empty query provided."""
     # Capture stdout
     captured_output = StringIO()
@@ -235,7 +241,9 @@ async def test_main_empty_query_exits(mock_run_refiner, mock_exit, mock_input):
 @patch("builtins.input", side_effect=KeyboardInterrupt())
 @patch("sys.argv", ["main.py"])
 @patch("sys.exit", side_effect=SystemExit)
-async def test_main_keyboard_interrupt_in_input(mock_exit, mock_input):
+async def test_main_keyboard_interrupt_in_input(
+    mock_exit: Any, mock_input: Any
+) -> None:
     """Test main function handles KeyboardInterrupt during input."""
     # Capture stdout
     captured_output = StringIO()
@@ -252,7 +260,7 @@ async def test_main_keyboard_interrupt_in_input(mock_exit, mock_input):
 @patch("builtins.input", side_effect=EOFError())
 @patch("sys.argv", ["main.py"])
 @patch("sys.exit", side_effect=SystemExit)
-async def test_main_eof_error_in_input(mock_exit, mock_input):
+async def test_main_eof_error_in_input(mock_exit: Any, mock_input: Any) -> None:
     """Test main function handles EOFError during input."""
     # Capture stdout
     captured_output = StringIO()
@@ -271,7 +279,7 @@ async def test_main_eof_error_in_input(mock_exit, mock_input):
 )
 @patch("sys.argv", ["main.py", "--query", "test"])
 @patch("sys.exit")
-async def test_main_handles_exception(mock_exit, mock_run_refiner):
+async def test_main_handles_exception(mock_exit: Any, mock_run_refiner: Any) -> None:
     """Test main function handles exceptions."""
     # Capture stdout
     captured_output = StringIO()
@@ -289,7 +297,9 @@ async def test_main_handles_exception(mock_exit, mock_run_refiner):
 )
 @patch("sys.argv", ["main.py", "--query", "test", "--debug"])
 @patch("sys.exit")
-async def test_main_handles_exception_with_debug(mock_exit, mock_run_refiner):
+async def test_main_handles_exception_with_debug(
+    mock_exit: Any, mock_run_refiner: Any
+) -> None:
     """Test main function handles exceptions in debug mode."""
     # Capture stdout and stderr
     captured_output = StringIO()
@@ -304,12 +314,12 @@ async def test_main_handles_exception_with_debug(mock_exit, mock_run_refiner):
 
 @pytest.mark.asyncio
 @patch("cognivault.agents.refiner.main.RefinerAgent")
-async def test_run_refiner_debug_mode_plain_output(mock_agent_class):
+async def test_run_refiner_debug_mode_plain_output(mock_agent_class: Any) -> None:
     """Test run_refiner debug mode with output that doesn't match prefixes."""
     mock_agent = AsyncMock()
     mock_agent.name = "Refiner"
 
-    async def mock_run(context):
+    async def mock_run(context: Any) -> None:
         context.add_agent_output("Refiner", "Plain output without prefixes")
 
     mock_agent.run.side_effect = mock_run
@@ -328,8 +338,8 @@ async def test_run_refiner_debug_mode_plain_output(mock_agent_class):
 @patch("sys.argv", ["main.py", "--query", "test"])
 @patch("sys.exit", side_effect=SystemExit)
 async def test_main_handles_keyboard_interrupt_during_execution(
-    mock_exit, mock_run_refiner
-):
+    mock_exit: Any, mock_run_refiner: Any
+) -> None:
     """Test main function handles KeyboardInterrupt during refiner execution."""
     # Capture stdout
     captured_output = StringIO()

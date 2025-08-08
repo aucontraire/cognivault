@@ -10,8 +10,8 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Dict, Any
-from unittest.mock import Mock, patch
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock, patch
 
 from cognivault.agents.historian.search import (
     SearchResult,
@@ -28,7 +28,7 @@ from cognivault.agents.historian.search import (
 class TestSearchResult:
     """Test SearchResult dataclass functionality."""
 
-    def test_search_result_creation(self):
+    def test_search_result_creation(self) -> None:
         """Test basic SearchResult creation."""
         metadata = {
             "uuid": "test-uuid-123",
@@ -59,7 +59,7 @@ class TestSearchResult:
         assert "AI and machine learning" in result.excerpt
         assert result.metadata == metadata
 
-    def test_search_result_properties(self):
+    def test_search_result_properties(self) -> None:
         """Test SearchResult property accessors."""
         metadata = {
             "uuid": "test-uuid-456",
@@ -84,7 +84,7 @@ class TestSearchResult:
         assert result.topics == ["psychology", "cognitive_science"]
         assert result.domain == "psychology"
 
-    def test_search_result_missing_metadata(self):
+    def test_search_result_missing_metadata(self) -> None:
         """Test SearchResult with missing metadata fields."""
         result = SearchResult(
             filepath="/path/to/empty.md",
@@ -102,7 +102,7 @@ class TestSearchResult:
         assert result.topics == []
         assert result.domain is None
 
-    def test_search_result_partial_metadata(self):
+    def test_search_result_partial_metadata(self) -> None:
         """Test SearchResult with partial metadata."""
         metadata = {
             "topics": ["science"],
@@ -129,7 +129,7 @@ class TestSearchResult:
 class TestNotesDirectoryParser:
     """Test NotesDirectoryParser functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test directory with sample notes."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -181,13 +181,13 @@ class TestNotesDirectoryParser:
             "invalid.md", "This has invalid YAML frontmatter."
         )
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
     def _create_test_note(
         self, filename: str, frontmatter: Dict[str, Any], content: str
-    ):
+    ) -> None:
         """Create a test note with frontmatter."""
         import yaml
 
@@ -198,13 +198,13 @@ class TestNotesDirectoryParser:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(full_content)
 
-    def _create_plain_note(self, filename: str, content: str):
+    def _create_plain_note(self, filename: str, content: str) -> None:
         """Create a plain note without frontmatter."""
         filepath = self.notes_dir / filename
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
 
-    def _create_invalid_yaml_note(self, filename: str, content: str):
+    def _create_invalid_yaml_note(self, filename: str, content: str) -> None:
         """Create a note with invalid YAML frontmatter."""
         filepath = self.notes_dir / filename
         invalid_frontmatter = "---\ntitle: [unclosed bracket\ndate: 2024-01-01\n---\n\n"
@@ -213,7 +213,7 @@ class TestNotesDirectoryParser:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(full_content)
 
-    def test_parse_valid_note(self):
+    def test_parse_valid_note(self) -> None:
         """Test parsing a valid note with frontmatter."""
         parser = NotesDirectoryParser(str(self.notes_dir))
         filepath = str(self.notes_dir / "note1.md")
@@ -233,7 +233,7 @@ class TestNotesDirectoryParser:
         content = parsed["content"]
         assert "artificial intelligence" in content.lower()
 
-    def test_parse_note_without_frontmatter(self):
+    def test_parse_note_without_frontmatter(self) -> None:
         """Test parsing a note without frontmatter."""
         parser = NotesDirectoryParser(str(self.notes_dir))
         filepath = str(self.notes_dir / "plain.md")
@@ -242,7 +242,7 @@ class TestNotesDirectoryParser:
 
         assert parsed is None
 
-    def test_parse_note_invalid_yaml(self):
+    def test_parse_note_invalid_yaml(self) -> None:
         """Test parsing a note with invalid YAML frontmatter."""
         parser = NotesDirectoryParser(str(self.notes_dir))
         filepath = str(self.notes_dir / "invalid.md")
@@ -254,7 +254,7 @@ class TestNotesDirectoryParser:
         assert parsed["frontmatter"] == {}
         assert "invalid YAML" in parsed["content"]
 
-    def test_parse_nonexistent_file(self):
+    def test_parse_nonexistent_file(self) -> None:
         """Test parsing a nonexistent file."""
         parser = NotesDirectoryParser(str(self.notes_dir))
         filepath = str(self.notes_dir / "nonexistent.md")
@@ -263,7 +263,7 @@ class TestNotesDirectoryParser:
 
         assert parsed is None
 
-    def test_get_all_notes(self):
+    def test_get_all_notes(self) -> None:
         """Test getting all notes from directory."""
         parser = NotesDirectoryParser(str(self.notes_dir))
 
@@ -282,7 +282,7 @@ class TestNotesDirectoryParser:
         assert "Psychology Study" in titles
         assert "Philosophy Discussion" in titles
 
-    def test_get_all_notes_empty_directory(self):
+    def test_get_all_notes_empty_directory(self) -> None:
         """Test getting notes from empty directory."""
         empty_dir = self.temp_dir + "/empty"
         os.makedirs(empty_dir)
@@ -292,7 +292,7 @@ class TestNotesDirectoryParser:
 
         assert notes == []
 
-    def test_get_all_notes_nonexistent_directory(self):
+    def test_get_all_notes_nonexistent_directory(self) -> None:
         """Test getting notes from nonexistent directory."""
         parser = NotesDirectoryParser("/nonexistent/directory")
         notes = parser.get_all_notes()
@@ -300,9 +300,9 @@ class TestNotesDirectoryParser:
         assert notes == []
 
     @patch("cognivault.config.app_config.get_config")
-    def test_default_notes_directory(self, mock_get_config):
+    def test_default_notes_directory(self, mock_get_config: Any) -> None:
         """Test using default notes directory from config."""
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.files.notes_directory = str(self.notes_dir)
         mock_get_config.return_value = mock_config
 
@@ -315,7 +315,7 @@ class TestNotesDirectoryParser:
 class TestTagBasedSearch:
     """Test TagBasedSearch functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -327,11 +327,11 @@ class TestTagBasedSearch:
         self._create_philosophy_note()
         self._create_mixed_topic_note()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
-    def _create_ai_note(self):
+    def _create_ai_note(self) -> None:
         """Create AI-focused note."""
 
         frontmatter = {
@@ -355,7 +355,7 @@ class TestTagBasedSearch:
 
         self._write_note("ai_note.md", frontmatter, content)
 
-    def _create_psychology_note(self):
+    def _create_psychology_note(self) -> None:
         """Create psychology-focused note."""
 
         frontmatter = {
@@ -375,7 +375,7 @@ class TestTagBasedSearch:
 
         self._write_note("psychology_note.md", frontmatter, content)
 
-    def _create_philosophy_note(self):
+    def _create_philosophy_note(self) -> None:
         """Create philosophy-focused note."""
 
         frontmatter = {
@@ -394,7 +394,7 @@ class TestTagBasedSearch:
 
         self._write_note("philosophy_note.md", frontmatter, content)
 
-    def _create_mixed_topic_note(self):
+    def _create_mixed_topic_note(self) -> None:
         """Create note with mixed topics."""
 
         frontmatter = {
@@ -419,7 +419,9 @@ class TestTagBasedSearch:
 
         self._write_note("mixed_note.md", frontmatter, content)
 
-    def _write_note(self, filename: str, frontmatter: Dict[str, Any], content: str):
+    def _write_note(
+        self, filename: str, frontmatter: Dict[str, Any], content: str
+    ) -> None:
         """Write a note to the test directory."""
         import yaml
 
@@ -431,7 +433,7 @@ class TestTagBasedSearch:
             f.write(full_content)
 
     @pytest.mark.asyncio
-    async def test_tag_search_exact_topic_match(self):
+    async def test_tag_search_exact_topic_match(self) -> None:
         """Test search with exact topic match."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -447,7 +449,7 @@ class TestTagBasedSearch:
         assert ai_result.relevance_score > 0
 
     @pytest.mark.asyncio
-    async def test_tag_search_domain_match(self):
+    async def test_tag_search_domain_match(self) -> None:
         """Test search matching domain."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -464,7 +466,7 @@ class TestTagBasedSearch:
         )
 
     @pytest.mark.asyncio
-    async def test_tag_search_title_match(self):
+    async def test_tag_search_title_match(self) -> None:
         """Test search matching title."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -475,7 +477,7 @@ class TestTagBasedSearch:
         assert len(ethics_results) >= 1
 
     @pytest.mark.asyncio
-    async def test_tag_search_content_match(self):
+    async def test_tag_search_content_match(self) -> None:
         """Test search matching content."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -487,7 +489,7 @@ class TestTagBasedSearch:
         assert len(neural_results) >= 1
 
     @pytest.mark.asyncio
-    async def test_tag_search_multiple_matches(self):
+    async def test_tag_search_multiple_matches(self) -> None:
         """Test search with multiple matching criteria."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -498,7 +500,7 @@ class TestTagBasedSearch:
         assert len(ai_results) >= 2
 
     @pytest.mark.asyncio
-    async def test_tag_search_no_matches(self):
+    async def test_tag_search_no_matches(self) -> None:
         """Test search with no matches."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -509,7 +511,7 @@ class TestTagBasedSearch:
             assert all(r.relevance_score < 2.0 for r in results)
 
     @pytest.mark.asyncio
-    async def test_tag_search_ranking(self):
+    async def test_tag_search_ranking(self) -> None:
         """Test that results are properly ranked by relevance."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -521,7 +523,7 @@ class TestTagBasedSearch:
                 assert results[i].relevance_score >= results[i + 1].relevance_score
 
     @pytest.mark.asyncio
-    async def test_tag_search_limit(self):
+    async def test_tag_search_limit(self) -> None:
         """Test search result limiting."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -529,7 +531,7 @@ class TestTagBasedSearch:
 
         assert len(results) <= 2
 
-    def test_extract_search_terms(self):
+    def test_extract_search_terms(self) -> None:
         """Test search term extraction."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -540,7 +542,7 @@ class TestTagBasedSearch:
         assert "what" not in terms  # Stop word
         assert "is" not in terms  # Stop word
 
-    def test_extract_search_terms_complex(self):
+    def test_extract_search_terms_complex(self) -> None:
         """Test search term extraction with complex query."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -554,7 +556,7 @@ class TestTagBasedSearch:
         assert "how" not in terms  # Stop word
         assert "does" not in terms  # Stop word
 
-    def test_calculate_topic_score(self):
+    def test_calculate_topic_score(self) -> None:
         """Test topic score calculation."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -577,7 +579,7 @@ class TestTagBasedSearch:
         assert len(matched_terms) > 0
         assert match_type in ["topic", "domain", "title", "content"]
 
-    def test_extract_excerpt(self):
+    def test_extract_excerpt(self) -> None:
         """Test excerpt extraction."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -592,12 +594,12 @@ class TestTagBasedSearch:
         assert len(excerpt) <= 150  # Allow for ellipsis
         assert "machine" in excerpt.lower() or "learning" in excerpt.lower()
 
-    def test_extract_excerpt_no_matches(self):
+    def test_extract_excerpt_no_matches(self) -> None:
         """Test excerpt extraction without matched terms."""
         search = TagBasedSearch(str(self.notes_dir))
 
         content = "This is some content without the target terms."
-        matched_terms = []
+        matched_terms: List[str] = []
 
         excerpt = search._extract_excerpt(content, matched_terms, max_length=50)
 
@@ -608,7 +610,7 @@ class TestTagBasedSearch:
 class TestKeywordSearch:
     """Test KeywordSearch functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -617,11 +619,11 @@ class TestKeywordSearch:
         # Create test notes with different keyword densities
         self._create_keyword_test_notes()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
-    def _create_keyword_test_notes(self):
+    def _create_keyword_test_notes(self) -> None:
         """Create notes for keyword search testing."""
 
         # High-density AI note
@@ -664,7 +666,9 @@ class TestKeywordSearch:
         """
         self._write_note("tech_trends.md", frontmatter3, content3)
 
-    def _write_note(self, filename: str, frontmatter: Dict[str, Any], content: str):
+    def _write_note(
+        self, filename: str, frontmatter: Dict[str, Any], content: str
+    ) -> None:
         """Write a note to the test directory."""
         import yaml
 
@@ -676,7 +680,7 @@ class TestKeywordSearch:
             f.write(full_content)
 
     @pytest.mark.asyncio
-    async def test_keyword_search_basic(self):
+    async def test_keyword_search_basic(self) -> None:
         """Test basic keyword search functionality."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -690,7 +694,7 @@ class TestKeywordSearch:
                 assert results[i].relevance_score >= results[i + 1].relevance_score
 
     @pytest.mark.asyncio
-    async def test_keyword_search_tf_idf_scoring(self):
+    async def test_keyword_search_tf_idf_scoring(self) -> None:
         """Test TF-IDF scoring behavior."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -712,7 +716,7 @@ class TestKeywordSearch:
             )
 
     @pytest.mark.asyncio
-    async def test_keyword_search_phrase_extraction(self):
+    async def test_keyword_search_phrase_extraction(self) -> None:
         """Test phrase extraction in queries."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -726,7 +730,7 @@ class TestKeywordSearch:
         assert deep_result is not None
 
     @pytest.mark.asyncio
-    async def test_keyword_search_no_matches(self):
+    async def test_keyword_search_no_matches(self) -> None:
         """Test keyword search with no matches."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -735,7 +739,7 @@ class TestKeywordSearch:
         # Should return empty or very low-scoring results
         assert len(results) == 0 or all(r.relevance_score < 0.5 for r in results)
 
-    def test_extract_keywords(self):
+    def test_extract_keywords(self) -> None:
         """Test keyword extraction."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -749,7 +753,7 @@ class TestKeywordSearch:
         assert "what" not in keywords  # Stop word
         assert "is" not in keywords  # Stop word
 
-    def test_extract_keywords_with_phrases(self):
+    def test_extract_keywords_with_phrases(self) -> None:
         """Test keyword extraction including phrases."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -760,7 +764,7 @@ class TestKeywordSearch:
         assert "learning" in keywords
         assert "algorithms" in keywords
 
-    def test_calculate_document_frequencies(self):
+    def test_calculate_document_frequencies(self) -> None:
         """Test document frequency calculation."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -774,7 +778,7 @@ class TestKeywordSearch:
         assert doc_frequencies["machine"] > 0
         assert doc_frequencies["learning"] > 0
 
-    def test_calculate_keyword_score(self):
+    def test_calculate_keyword_score(self) -> None:
         """Test TF-IDF keyword scoring."""
         search = KeywordSearch(str(self.notes_dir))
 
@@ -795,7 +799,7 @@ class TestKeywordSearch:
 class TestHybridSearch:
     """Test HybridSearch functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -804,11 +808,11 @@ class TestHybridSearch:
         # Create notes that will test hybrid search merging
         self._create_hybrid_test_notes()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
-    def _create_hybrid_test_notes(self):
+    def _create_hybrid_test_notes(self) -> None:
         """Create notes for hybrid search testing."""
 
         # Note with strong topic match but weak content
@@ -848,7 +852,9 @@ class TestHybridSearch:
         """
         self._write_note("comprehensive_ml.md", frontmatter3, content3)
 
-    def _write_note(self, filename: str, frontmatter: Dict[str, Any], content: str):
+    def _write_note(
+        self, filename: str, frontmatter: Dict[str, Any], content: str
+    ) -> None:
         """Write a note to the test directory."""
         import yaml
 
@@ -860,7 +866,7 @@ class TestHybridSearch:
             f.write(full_content)
 
     @pytest.mark.asyncio
-    async def test_hybrid_search_combines_results(self):
+    async def test_hybrid_search_combines_results(self) -> None:
         """Test that hybrid search combines tag and keyword results."""
         search = HybridSearch(str(self.notes_dir))
 
@@ -874,7 +880,7 @@ class TestHybridSearch:
         assert "Comprehensive" in top_result.title or "ML" in top_result.title
 
     @pytest.mark.asyncio
-    async def test_hybrid_search_score_boosting(self):
+    async def test_hybrid_search_score_boosting(self) -> None:
         """Test that tag-based results get score boosting."""
         search = HybridSearch(str(self.notes_dir))
 
@@ -894,7 +900,7 @@ class TestHybridSearch:
             assert max_topic_score >= max_content_score
 
     @pytest.mark.asyncio
-    async def test_hybrid_search_deduplication(self):
+    async def test_hybrid_search_deduplication(self) -> None:
         """Test that hybrid search properly deduplicates results."""
         search = HybridSearch(str(self.notes_dir))
 
@@ -905,7 +911,7 @@ class TestHybridSearch:
         assert len(filepaths) == len(set(filepaths))
 
     @pytest.mark.asyncio
-    async def test_hybrid_search_merged_terms(self):
+    async def test_hybrid_search_merged_terms(self) -> None:
         """Test that matched terms are properly merged."""
         search = HybridSearch(str(self.notes_dir))
 
@@ -925,18 +931,18 @@ class TestHybridSearch:
 class TestSemanticSearchPlaceholder:
     """Test SemanticSearchPlaceholder functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
         self.notes_dir.mkdir()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
     @pytest.mark.asyncio
-    async def test_semantic_search_fallback(self):
+    async def test_semantic_search_fallback(self) -> None:
         """Test that semantic search falls back to hybrid search."""
         # Create a simple test note
         import yaml
@@ -962,32 +968,32 @@ class TestSemanticSearchPlaceholder:
 class TestSearchFactory:
     """Test SearchFactory functionality."""
 
-    def test_create_tag_search(self):
+    def test_create_tag_search(self) -> None:
         """Test creating tag-based search."""
         search = SearchFactory.create_search("tag", "/test/dir")
         assert isinstance(search, TagBasedSearch)
 
-    def test_create_keyword_search(self):
+    def test_create_keyword_search(self) -> None:
         """Test creating keyword search."""
         search = SearchFactory.create_search("keyword", "/test/dir")
         assert isinstance(search, KeywordSearch)
 
-    def test_create_hybrid_search(self):
+    def test_create_hybrid_search(self) -> None:
         """Test creating hybrid search."""
         search = SearchFactory.create_search("hybrid", "/test/dir")
         assert isinstance(search, HybridSearch)
 
-    def test_create_semantic_search(self):
+    def test_create_semantic_search(self) -> None:
         """Test creating semantic search (placeholder)."""
         search = SearchFactory.create_search("semantic", "/test/dir")
         assert isinstance(search, SemanticSearchPlaceholder)
 
-    def test_create_default_search(self):
+    def test_create_default_search(self) -> None:
         """Test creating default search (should be hybrid)."""
         search = SearchFactory.create_search("unknown_type", "/test/dir")
         assert isinstance(search, HybridSearch)
 
-    def test_create_search_no_directory(self):
+    def test_create_search_no_directory(self) -> None:
         """Test creating search without specifying directory."""
         search = SearchFactory.create_search("tag")
         assert isinstance(search, TagBasedSearch)
@@ -996,25 +1002,25 @@ class TestSearchFactory:
 class TestHistorianSearchInterface:
     """Test HistorianSearchInterface abstract interface."""
 
-    def test_interface_cannot_be_instantiated(self):
+    def test_interface_cannot_be_instantiated(self) -> None:
         """Test that the abstract interface cannot be instantiated."""
         with pytest.raises(TypeError):
-            HistorianSearchInterface()
+            HistorianSearchInterface()  # type: ignore
 
-    def test_interface_requires_search_method(self):
+    def test_interface_requires_search_method(self) -> None:
         """Test that implementing classes must implement search method."""
 
         class IncompleteSearch(HistorianSearchInterface):
             pass
 
         with pytest.raises(TypeError):
-            IncompleteSearch()
+            IncompleteSearch()  # type: ignore
 
-    def test_valid_implementation(self):
+    def test_valid_implementation(self) -> None:
         """Test that valid implementations work."""
 
         class ValidSearch(HistorianSearchInterface):
-            async def search(self, query: str, limit: int = 10):
+            async def search(self, query: str, limit: int = 10) -> List[Any]:
                 return []
 
         search = ValidSearch()
@@ -1024,7 +1030,7 @@ class TestHistorianSearchInterface:
 class TestIntegrationScenarios:
     """Test integration scenarios with multiple components."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up complex test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -1033,11 +1039,11 @@ class TestIntegrationScenarios:
         # Create a diverse set of notes for integration testing
         self._create_integration_notes()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
-    def _create_integration_notes(self):
+    def _create_integration_notes(self) -> None:
         """Create diverse notes for integration testing."""
         import yaml
 
@@ -1089,7 +1095,7 @@ class TestIntegrationScenarios:
         ]
 
         for note_data in notes_data:
-            filepath = self.notes_dir / note_data["filename"]
+            filepath = self.notes_dir / str(note_data["filename"])
             frontmatter_yaml = yaml.dump(note_data["frontmatter"])
             full_content = f"---\n{frontmatter_yaml}---\n{note_data['content']}"
 
@@ -1097,7 +1103,7 @@ class TestIntegrationScenarios:
                 f.write(full_content)
 
     @pytest.mark.asyncio
-    async def test_cross_search_consistency(self):
+    async def test_cross_search_consistency(self) -> None:
         """Test that different search methods find relevant results consistently."""
         tag_search = TagBasedSearch(str(self.notes_dir))
         keyword_search = KeywordSearch(str(self.notes_dir))
@@ -1118,7 +1124,7 @@ class TestIntegrationScenarios:
         assert len(hybrid_results) >= max(len(tag_results), len(keyword_results))
 
     @pytest.mark.asyncio
-    async def test_domain_specific_search(self):
+    async def test_domain_specific_search(self) -> None:
         """Test search behavior across different domains."""
         search = HybridSearch(str(self.notes_dir))
 
@@ -1131,7 +1137,7 @@ class TestIntegrationScenarios:
             assert "technology" in tech_domains
 
     @pytest.mark.asyncio
-    async def test_interdisciplinary_search(self):
+    async def test_interdisciplinary_search(self) -> None:
         """Test search for interdisciplinary topics."""
         search = HybridSearch(str(self.notes_dir))
 
@@ -1144,7 +1150,7 @@ class TestIntegrationScenarios:
         assert len(interdisciplinary_results) > 0
 
     @pytest.mark.asyncio
-    async def test_difficulty_based_filtering(self):
+    async def test_difficulty_based_filtering(self) -> None:
         """Test that different difficulty levels are found appropriately."""
         search = TagBasedSearch(str(self.notes_dir))
 
@@ -1161,7 +1167,7 @@ class TestIntegrationScenarios:
         assert len(unique_difficulties) > 1  # Should have variety
 
     @pytest.mark.asyncio
-    async def test_empty_query_handling(self):
+    async def test_empty_query_handling(self) -> None:
         """Test handling of empty or minimal queries."""
         search = HybridSearch(str(self.notes_dir))
 
@@ -1174,7 +1180,7 @@ class TestIntegrationScenarios:
         assert len(single_char_results) == 0
 
     @pytest.mark.asyncio
-    async def test_search_performance_characteristics(self):
+    async def test_search_performance_characteristics(self) -> None:
         """Test search performance and result quality."""
         search = HybridSearch(str(self.notes_dir))
 

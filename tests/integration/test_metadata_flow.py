@@ -7,7 +7,7 @@ complex DAGs to ensure classification consistency across node boundaries.
 
 import pytest
 from unittest.mock import Mock, patch
-from typing import Dict, Any
+from typing import Any, Dict
 
 from cognivault.orchestration.nodes.decision_node import (
     DecisionNode,
@@ -33,7 +33,7 @@ class TestMultiAxisClassificationPropagation:
     """Test multi-axis classification metadata propagation."""
 
     @pytest.fixture
-    def task_classification(self):
+    def task_classification(self) -> Any:
         """Create a rich task classification."""
         return TaskClassification(
             task_type="evaluate",
@@ -43,7 +43,7 @@ class TestMultiAxisClassificationPropagation:
         )
 
     @pytest.fixture
-    def cognitive_classification(self):
+    def cognitive_classification(self) -> Any:
         """Create comprehensive cognitive classification."""
         return {
             "speed": "adaptive",
@@ -57,7 +57,7 @@ class TestMultiAxisClassificationPropagation:
         }
 
     @pytest.fixture
-    def decision_metadata(self):
+    def decision_metadata(self) -> Any:
         """Create decision node metadata with full classification."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
@@ -79,7 +79,7 @@ class TestMultiAxisClassificationPropagation:
         return metadata
 
     @pytest.fixture
-    def aggregator_metadata(self):
+    def aggregator_metadata(self) -> Any:
         """Create aggregator node metadata with full classification."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "aggregator"
@@ -101,7 +101,7 @@ class TestMultiAxisClassificationPropagation:
         return metadata
 
     @pytest.fixture
-    def validator_metadata(self):
+    def validator_metadata(self) -> Any:
         """Create validator node metadata with full classification."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "validator"
@@ -125,12 +125,12 @@ class TestMultiAxisClassificationPropagation:
     @pytest.mark.asyncio
     async def test_classification_propagation_through_dag(
         self,
-        decision_metadata,
-        aggregator_metadata,
-        validator_metadata,
-        task_classification,
-        cognitive_classification,
-    ):
+        decision_metadata: Any,
+        aggregator_metadata: Any,
+        validator_metadata: Any,
+        task_classification: Any,
+        cognitive_classification: Any,
+    ) -> None:
         """Test classification metadata propagation through a complete DAG."""
         # Create nodes
         decision_node = DecisionNode(
@@ -302,8 +302,11 @@ class TestMultiAxisClassificationPropagation:
 
     @pytest.mark.asyncio
     async def test_classification_based_routing_decisions(
-        self, decision_metadata, cognitive_classification, task_classification
-    ):
+        self,
+        decision_metadata: Any,
+        cognitive_classification: Any,
+        task_classification: Any,
+    ) -> None:
         """Test that routing decisions are influenced by classification metadata."""
         # Create decision node with classification-aware criteria
         classification_criteria = [
@@ -404,8 +407,8 @@ class TestMultiAxisClassificationPropagation:
 
     @pytest.mark.asyncio
     async def test_bounded_context_consistency(
-        self, decision_metadata, aggregator_metadata, validator_metadata
-    ):
+        self, decision_metadata: Any, aggregator_metadata: Any, validator_metadata: Any
+    ) -> None:
         """Test that bounded context boundaries are respected in metadata flow."""
         # Create nodes with different bounded contexts
         decision_node = DecisionNode(
@@ -524,7 +527,7 @@ class TestClassificationConsistency:
     """Test classification consistency across node boundaries."""
 
     @pytest.fixture
-    def consistent_metadata(self):
+    def consistent_metadata(self) -> Any:
         """Create metadata with consistent classification."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "aggregator"
@@ -536,7 +539,9 @@ class TestClassificationConsistency:
         return metadata
 
     @pytest.mark.asyncio
-    async def test_classification_validation_across_nodes(self, consistent_metadata):
+    async def test_classification_validation_across_nodes(
+        self, consistent_metadata: Any
+    ) -> None:
         """Test that classification remains consistent as data flows between nodes."""
         aggregator = AggregatorNode(
             consistent_metadata,
@@ -607,7 +612,9 @@ class TestClassificationConsistency:
             assert preserved_classification["context"] == "transformation"
 
     @pytest.mark.asyncio
-    async def test_classification_mismatch_handling(self, consistent_metadata):
+    async def test_classification_mismatch_handling(
+        self, consistent_metadata: Any
+    ) -> None:
         """Test handling of classification mismatches between nodes."""
         aggregator = AggregatorNode(
             consistent_metadata,
@@ -668,7 +675,7 @@ class TestWorkflowMetadataIntegrity:
     """Test workflow-level metadata integrity."""
 
     @pytest.mark.asyncio
-    async def test_end_to_end_metadata_integrity(self):
+    async def test_end_to_end_metadata_integrity(self) -> None:
         """Test metadata integrity in a complete workflow."""
         # Create a complete workflow with metadata tracking
         workflow_metadata = {

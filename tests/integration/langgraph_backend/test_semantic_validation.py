@@ -1,6 +1,7 @@
 """Tests for semantic validation layer."""
 
 import pytest
+from typing import Any
 
 from cognivault.langgraph_backend.semantic_validation import (
     SemanticValidator,
@@ -16,7 +17,7 @@ from cognivault.langgraph_backend.semantic_validation import (
 class TestValidationIssue:
     """Test ValidationIssue dataclass."""
 
-    def test_validation_issue_creation(self):
+    def test_validation_issue_creation(self) -> None:
         """Test creating ValidationIssue."""
         issue = ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -32,7 +33,7 @@ class TestValidationIssue:
         assert issue.suggestion == "Test suggestion"
         assert issue.code == "TEST_ERROR"
 
-    def test_validation_issue_minimal(self):
+    def test_validation_issue_minimal(self) -> None:
         """Test creating ValidationIssue with minimal parameters."""
         issue = ValidationIssue(
             severity=ValidationSeverity.WARNING, message="Test warning"
@@ -48,7 +49,7 @@ class TestValidationIssue:
 class TestSemanticValidationResult:
     """Test SemanticValidationResult functionality."""
 
-    def test_validation_result_valid(self):
+    def test_validation_result_valid(self) -> None:
         """Test SemanticValidationResult for valid workflow."""
         result = SemanticValidationResult(is_valid=True, issues=[])
 
@@ -58,7 +59,7 @@ class TestSemanticValidationResult:
         assert result.error_messages == []
         assert result.warning_messages == []
 
-    def test_validation_result_with_errors(self):
+    def test_validation_result_with_errors(self) -> None:
         """Test SemanticValidationResult with errors."""
         result = SemanticValidationResult(
             is_valid=False,
@@ -75,7 +76,7 @@ class TestSemanticValidationResult:
         assert result.error_messages == ["Error 1", "Error 2"]
         assert result.warning_messages == ["Warning 1"]
 
-    def test_add_issue_updates_validity(self):
+    def test_add_issue_updates_validity(self) -> None:
         """Test that adding error issues updates validity."""
         result = SemanticValidationResult(is_valid=True, issues=[])
 
@@ -94,16 +95,18 @@ class TestCogniVaultValidator:
     """Test CogniVaultValidator implementation."""
 
     @pytest.fixture
-    def validator(self):
+    def validator(self) -> Any:
         """Fixture for CogniVaultValidator."""
         return CogniVaultValidator(strict_mode=False)
 
     @pytest.fixture
-    def strict_validator(self):
+    def strict_validator(self) -> Any:
         """Fixture for strict CogniVaultValidator."""
         return CogniVaultValidator(strict_mode=True)
 
-    def test_validator_initialization(self, validator, strict_validator):
+    def test_validator_initialization(
+        self, validator: Any, strict_validator: Any
+    ) -> None:
         """Test validator initialization."""
         assert not validator.strict_mode
         assert strict_validator.strict_mode
@@ -112,7 +115,7 @@ class TestCogniVaultValidator:
         assert "parallel" in validator.get_supported_patterns()
         assert "conditional" in validator.get_supported_patterns()
 
-    def test_validate_agents_basic(self, validator):
+    def test_validate_agents_basic(self, validator: Any) -> None:
         """Test basic agent validation."""
         # Valid agents
         result = validator.validate_agents(["refiner", "synthesis"])
@@ -123,7 +126,7 @@ class TestCogniVaultValidator:
         assert not result.is_valid
         assert result.has_errors
 
-    def test_validate_agents_duplicates(self, validator):
+    def test_validate_agents_duplicates(self, validator: Any) -> None:
         """Test agent validation with duplicates."""
         result = validator.validate_agents(["refiner", "refiner", "synthesis"])
 
@@ -132,7 +135,7 @@ class TestCogniVaultValidator:
         assert result.has_warnings
         assert "duplicate" in result.warning_messages[0].lower()
 
-    def test_validate_standard_pattern_valid(self, validator):
+    def test_validate_standard_pattern_valid(self, validator: Any) -> None:
         """Test standard pattern validation with valid combinations."""
         # Full 4-agent workflow
         result = validator.validate_workflow(
@@ -147,8 +150,8 @@ class TestCogniVaultValidator:
         assert result.is_valid
 
     def test_validate_standard_pattern_synthesis_without_analysis(
-        self, validator, strict_validator
-    ):
+        self, validator: Any, strict_validator: Any
+    ) -> None:
         """Test synthesis without analysis agents."""
         agents = ["synthesis"]
 
@@ -162,7 +165,9 @@ class TestCogniVaultValidator:
         assert not result.is_valid
         assert result.has_errors
 
-    def test_validate_standard_pattern_analysis_without_synthesis(self, validator):
+    def test_validate_standard_pattern_analysis_without_synthesis(
+        self, validator: Any
+    ) -> None:
         """Test analysis agents without synthesis."""
         result = validator.validate_workflow(
             agents=["refiner", "critic", "historian"], pattern="standard"
@@ -179,8 +184,8 @@ class TestCogniVaultValidator:
         assert any("synthesis" in msg.lower() for msg in info_messages)
 
     def test_validate_unknown_agents_strict_vs_permissive(
-        self, validator, strict_validator
-    ):
+        self, validator: Any, strict_validator: Any
+    ) -> None:
         """Test unknown agents in strict vs permissive mode."""
         agents = ["refiner", "unknown_agent", "synthesis"]
 
@@ -194,7 +199,7 @@ class TestCogniVaultValidator:
         assert not result.is_valid
         assert result.has_errors
 
-    def test_validate_parallel_pattern(self, validator):
+    def test_validate_parallel_pattern(self, validator: Any) -> None:
         """Test parallel pattern validation."""
         # Good parallel candidates
         result = validator.validate_workflow(
@@ -207,7 +212,7 @@ class TestCogniVaultValidator:
         assert result.is_valid
         assert result.has_warnings
 
-    def test_validate_conditional_pattern(self, validator):
+    def test_validate_conditional_pattern(self, validator: Any) -> None:
         """Test conditional pattern validation."""
         # With refiner (good)
         result = validator.validate_workflow(
@@ -223,7 +228,7 @@ class TestCogniVaultValidator:
         assert result.is_valid
         assert result.has_warnings
 
-    def test_validate_unsupported_pattern(self, validator):
+    def test_validate_unsupported_pattern(self, validator: Any) -> None:
         """Test validation with unsupported pattern."""
         result = validator.validate_workflow(
             agents=["refiner", "synthesis"], pattern="unsupported_pattern"
@@ -233,7 +238,9 @@ class TestCogniVaultValidator:
         assert result.has_errors
         assert "unsupported pattern" in result.error_messages[0].lower()
 
-    def test_validation_issue_codes(self, validator, strict_validator):
+    def test_validation_issue_codes(
+        self, validator: Any, strict_validator: Any
+    ) -> None:
         """Test that validation issues have proper codes."""
         # Synthesis without analysis
         result = strict_validator.validate_workflow(
@@ -247,7 +254,7 @@ class TestCogniVaultValidator:
         ]
         assert len(synthesis_issues) > 0
 
-    def test_validation_suggestions(self, validator):
+    def test_validation_suggestions(self, validator: Any) -> None:
         """Test that validation issues include helpful suggestions."""
         result = validator.validate_workflow(agents=["synthesis"], pattern="standard")
 
@@ -262,7 +269,7 @@ class TestCogniVaultValidator:
 class TestValidationError:
     """Test ValidationError exception."""
 
-    def test_validation_error_creation(self):
+    def test_validation_error_creation(self) -> None:
         """Test creating ValidationError."""
         result = SemanticValidationResult(
             is_valid=False,
@@ -278,14 +285,14 @@ class TestValidationError:
 class TestCreateDefaultValidator:
     """Test default validator creation."""
 
-    def test_create_default_validator_normal(self):
+    def test_create_default_validator_normal(self) -> None:
         """Test creating default validator in normal mode."""
         validator = create_default_validator(strict_mode=False)
 
         assert isinstance(validator, CogniVaultValidator)
         assert not validator.strict_mode
 
-    def test_create_default_validator_strict(self):
+    def test_create_default_validator_strict(self) -> None:
         """Test creating default validator in strict mode."""
         validator = create_default_validator(strict_mode=True)
 
@@ -296,7 +303,7 @@ class TestCreateDefaultValidator:
 class TestSemanticValidatorIntegration:
     """Integration tests for semantic validation."""
 
-    def test_validator_workflow_comprehensive(self):
+    def test_validator_workflow_comprehensive(self) -> None:
         """Test comprehensive workflow validation scenarios."""
         validator = CogniVaultValidator(strict_mode=False)
 
@@ -313,7 +320,7 @@ class TestSemanticValidatorIntegration:
             result = validator.validate_workflow(agents=agents, pattern=pattern)
             assert result.is_valid, f"Expected {agents} with {pattern} to be valid"
 
-    def test_validator_edge_cases(self):
+    def test_validator_edge_cases(self) -> None:
         """Test edge cases in validation."""
         validator = CogniVaultValidator(strict_mode=False)
 
@@ -327,7 +334,7 @@ class TestSemanticValidatorIntegration:
         )
         assert result.is_valid
 
-    def test_validation_performance(self):
+    def test_validation_performance(self) -> None:
         """Test validation performance doesn't degrade with complex workflows."""
         validator = CogniVaultValidator(strict_mode=False)
 
@@ -347,10 +354,12 @@ class TestSemanticValidatorIntegration:
 class MockValidator(SemanticValidator):
     """Mock validator for testing abstract interface."""
 
-    def __init__(self, should_fail=False):
+    def __init__(self, should_fail: bool = False) -> None:
         self.should_fail = should_fail
 
-    def validate_workflow(self, agents, pattern, **kwargs):
+    def validate_workflow(
+        self, agents: Any, pattern: Any, **kwargs: Any
+    ) -> SemanticValidationResult:
         result = SemanticValidationResult(is_valid=True, issues=[])
 
         if self.should_fail:
@@ -360,19 +369,19 @@ class MockValidator(SemanticValidator):
 
         return result
 
-    def get_supported_patterns(self):
+    def get_supported_patterns(self) -> set[str]:
         return {"mock_pattern"}
 
 
 class TestSemanticValidatorInterface:
     """Test the abstract SemanticValidator interface."""
 
-    def test_abstract_validator_cannot_be_instantiated(self):
+    def test_abstract_validator_cannot_be_instantiated(self) -> None:
         """Test that SemanticValidator cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            SemanticValidator()
+            SemanticValidator()  # type: ignore[abstract]
 
-    def test_mock_validator_implementation(self):
+    def test_mock_validator_implementation(self) -> None:
         """Test mock validator implementation."""
         validator = MockValidator(should_fail=False)
 
@@ -380,7 +389,7 @@ class TestSemanticValidatorInterface:
         assert result.is_valid
         assert "mock_pattern" in validator.get_supported_patterns()
 
-    def test_mock_validator_failure(self):
+    def test_mock_validator_failure(self) -> None:
         """Test mock validator with failure."""
         validator = MockValidator(should_fail=True)
 

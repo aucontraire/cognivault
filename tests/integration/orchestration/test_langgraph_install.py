@@ -6,7 +6,7 @@ StateGraph functionality works as expected for Phase 1 integration.
 """
 
 import pytest
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional, TypedDict
 
 
 class TestLangGraphInstallation:
@@ -29,7 +29,7 @@ class TestLangGraphInstallation:
         from langgraph.graph import StateGraph
 
         # Define a simple state schema
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
 
         class SimpleState(TypedDict):
             counter: int
@@ -48,7 +48,7 @@ class TestLangGraphInstallation:
         """Test that basic node operations work."""
         # Arrange
         from langgraph.graph import StateGraph, END
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
 
         class TestState(TypedDict):
             count: int
@@ -77,7 +77,7 @@ class TestLangGraphInstallation:
         """Test that basic StateGraph execution works."""
         # Arrange
         from langgraph.graph import StateGraph, END
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
 
         class ExecutionState(TypedDict):
             input: str
@@ -113,7 +113,7 @@ class TestLangGraphInstallation:
         """Test that conditional routing works in StateGraph."""
         # Arrange
         from langgraph.graph import StateGraph, END
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
 
         class ConditionalState(TypedDict):
             value: int
@@ -174,7 +174,7 @@ class TestLangGraphInstallation:
         """Test that async execution works with StateGraph."""
         # Arrange
         from langgraph.graph import StateGraph, END
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
         import asyncio
 
         class AsyncState(TypedDict):
@@ -199,9 +199,9 @@ class TestLangGraphInstallation:
         app = graph.compile()
 
         # Act
-        async def run_test():
-            result = await app.ainvoke({"message": "test async", "processed": False})
-            return result
+        async def run_test() -> AsyncState:
+            result = await app.ainvoke({"message": "test async", "processed": False})  # type: ignore[arg-type]
+            return result  # type: ignore[return-value]
 
         # Execute async test
         result = asyncio.run(run_test())
@@ -216,7 +216,7 @@ class TestLangGraphInstallation:
         # Arrange
         from langgraph.graph import StateGraph, END
         from langgraph.checkpoint.memory import MemorySaver
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
 
         class CheckpointState(TypedDict):
             step: int
@@ -298,7 +298,7 @@ class TestLangGraphInstallation:
         """Test that LangGraph works with Python typing system."""
         # Arrange
         from langgraph.graph import StateGraph
-        from typing import TypedDict, Dict, Any, Optional, List
+        from typing import Any, Dict, List, Optional
 
         class ComplexState(TypedDict):
             data: Dict[str, Any]
@@ -323,7 +323,7 @@ class TestLangGraphInstallation:
         """Test that LangGraph handles errors appropriately."""
         # Arrange
         from langgraph.graph import StateGraph, END
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
 
         class ErrorState(TypedDict):
             should_fail: bool
@@ -360,7 +360,7 @@ class TestLangGraphInstallation:
         # Arrange
         from langgraph.graph import StateGraph, END
         from langgraph.checkpoint.memory import MemorySaver
-        from typing import TypedDict
+        from typing import Any, Dict, List, Optional
 
         # Test state schema (similar to what we'll need for AgentContext)
         class CogniVaultCompatibleState(TypedDict):

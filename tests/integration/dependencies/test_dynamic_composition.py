@@ -6,12 +6,17 @@ composition rules, and runtime agent management.
 """
 
 import pytest
+from typing import Any
 import tempfile
 import os
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.dependencies.graph_engine import (
     DependencyGraphEngine,
@@ -35,7 +40,7 @@ from cognivault.dependencies.dynamic_composition import (
 class MockAgent(BaseAgent):
     """Mock agent for testing."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         super().__init__(name=name)
         self.version = "1.0.0"
         self.capabilities = ["test_capability"]
@@ -49,18 +54,18 @@ class MockAgent(BaseAgent):
 class MockRegistry:
     """Mock agent registry for testing."""
 
-    def __init__(self):
-        self._agents = {}
+    def __init__(self) -> None:
+        self._agents: dict[str, Any] = {}
 
-    def register(self, agent_id: str, agent_metadata):
+    def register(self, agent_id: str, agent_metadata: Any) -> None:
         self._agents[agent_id] = agent_metadata
 
-    def get_agent(self, agent_id: str):
+    def get_agent(self, agent_id: str) -> Any:
         return self._agents.get(agent_id)
 
 
 @pytest.fixture
-def graph_engine():
+def graph_engine() -> Any:
     """Create a graph engine with sample agents."""
     engine = DependencyGraphEngine()
 
@@ -82,21 +87,21 @@ def graph_engine():
 
 
 @pytest.fixture
-def composer(graph_engine):
+def composer(graph_engine: Any) -> Any:
     """Create a dynamic agent composer for testing."""
     return DynamicAgentComposer(graph_engine)
 
 
 @pytest.fixture
-def context():
+def context() -> Any:
     """Create a basic agent context."""
-    return AgentContext(query="test query")
+    return AgentContextPatterns.simple_query("test query")
 
 
 class TestDiscoveredAgentInfo:
     """Test DiscoveredAgentInfo functionality."""
 
-    def test_metadata_creation(self):
+    def test_metadata_creation(self) -> None:
         """Test creating agent metadata."""
         metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
@@ -119,7 +124,7 @@ class TestDiscoveredAgentInfo:
         assert metadata.load_count == 0
         assert metadata.is_loaded is False
 
-    def test_metadata_can_replace(self):
+    def test_metadata_can_replace(self) -> None:
         """Test metadata replacement compatibility checking."""
         metadata1 = DiscoveredAgentInfo(
             agent_id="test_agent",
@@ -161,7 +166,7 @@ class TestDiscoveredAgentInfo:
         )
         assert metadata4.can_replace(metadata1) is False
 
-    def test_metadata_version_compatibility(self):
+    def test_metadata_version_compatibility(self) -> None:
         """Test version compatibility checking."""
         metadata1 = DiscoveredAgentInfo(
             agent_id="test_agent",
@@ -181,7 +186,7 @@ class TestDiscoveredAgentInfo:
         # Version too low - should not replace
         assert metadata2.can_replace(metadata1) is False
 
-    def test_metadata_to_dict(self):
+    def test_metadata_to_dict(self) -> None:
         """Test converting metadata to dictionary."""
         metadata = DiscoveredAgentInfo(
             agent_id="test_agent",
@@ -209,13 +214,13 @@ class TestDiscoveredAgentInfo:
 class TestCompositionRule:
     """Test CompositionRule functionality."""
 
-    def test_rule_creation(self):
+    def test_rule_creation(self) -> None:
         """Test creating a composition rule."""
 
-        def test_condition(context, metadata):
+        def test_condition(context: Any, metadata: Any) -> bool:
             return True
 
-        def test_action(context, metadata):
+        def test_action(context: Any, metadata: Any) -> dict[str, str]:
             return {"action": "test"}
 
         rule = CompositionRule(
@@ -233,19 +238,19 @@ class TestCompositionRule:
         assert rule.enabled is True
         assert rule.description == "A test rule"
 
-    def test_rule_evaluation(self, context):
+    def test_rule_evaluation(self, context: Any) -> None:
         """Test rule evaluation."""
 
-        def true_condition(context, metadata):
+        def true_condition(context: Any, metadata: Any) -> bool:
             return True
 
-        def false_condition(context, metadata):
+        def false_condition(context: Any, metadata: Any) -> bool:
             return False
 
-        def error_condition(context, metadata):
+        def error_condition(context: Any, metadata: Any) -> bool:
             raise Exception("Test error")
 
-        def test_action(context, metadata):
+        def test_action(context: Any, metadata: Any) -> dict[str, str]:
             return {"result": "success"}
 
         # True condition
@@ -282,16 +287,16 @@ class TestCompositionRule:
         )
         assert rule4.evaluate(context, {}) is False
 
-    def test_rule_application(self, context):
+    def test_rule_application(self, context: Any) -> None:
         """Test rule application."""
 
-        def test_condition(context, metadata):
+        def test_condition(context: Any, metadata: Any) -> bool:
             return True
 
-        def success_action(context, metadata):
+        def success_action(context: Any, metadata: Any) -> dict[str, str]:
             return {"status": "applied"}
 
-        def error_action(context, metadata):
+        def error_action(context: Any, metadata: Any) -> dict[str, str]:
             raise Exception("Action failed")
 
         # Successful application
@@ -318,7 +323,7 @@ class TestCompositionRule:
 class TestFilesystemDiscoverer:
     """Test FilesystemDiscoverer functionality."""
 
-    def test_discoverer_creation(self):
+    def test_discoverer_creation(self) -> None:
         """Test creating a filesystem discoverer."""
         search_paths = [Path("/test/path1"), Path("/test/path2")]
         patterns = ["*_agent.py", "*agent*.py"]
@@ -330,7 +335,7 @@ class TestFilesystemDiscoverer:
         assert discoverer.can_hot_reload() is True
 
     @pytest.mark.asyncio
-    async def test_discover_agents_no_paths(self):
+    async def test_discover_agents_no_paths(self) -> None:
         """Test discovery with non-existent paths."""
         discoverer = FilesystemDiscoverer([Path("/nonexistent/path")])
 
@@ -339,7 +344,7 @@ class TestFilesystemDiscoverer:
         assert len(agents) == 0
 
     @pytest.mark.asyncio
-    async def test_discover_agents_with_files(self):
+    async def test_discover_agents_with_files(self) -> None:
         """Test discovery with actual Python files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -354,7 +359,7 @@ class TestAgent(BaseAgent):
     version = "1.0.0"
     capabilities = ["test"]
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("test_agent")
     
     async def run(self, context):
@@ -370,16 +375,18 @@ class TestAgent(BaseAgent):
                 patch("importlib.util.module_from_spec") as mock_module_from_spec,
             ):
                 # Create mock spec and module
-                mock_spec = Mock()
-                mock_spec.loader = Mock()
+                mock_spec: Mock = Mock()
+                mock_spec.loader = (
+                    Mock()
+                )  # Remove type annotation on attribute assignment
                 mock_spec_from_file.return_value = mock_spec
 
-                mock_module = Mock()
+                mock_module: Mock = Mock()
                 mock_module.__name__ = "test_module"
                 mock_module_from_spec.return_value = mock_module
 
                 # Mock the TestAgent class
-                mock_agent_class = Mock()
+                mock_agent_class: Mock = Mock()
                 mock_agent_class.__name__ = "TestAgent"
                 mock_agent_class.__module__ = "test_module"
                 mock_agent_class.agent_id = "test_agent"
@@ -391,13 +398,13 @@ class TestAgent(BaseAgent):
                 mock_agent_class.__bases__ = (BaseAgent,)
 
                 # Set up the module to return our mock class
-                def mock_getmembers(module, predicate):
+                def mock_getmembers(module: Any, predicate: Any) -> Any:
                     if predicate == __import__("inspect").isclass:
                         return [("TestAgent", mock_agent_class)]
                     return []
 
                 # Mock issubclass to return True for our mock class
-                def mock_issubclass(cls, classinfo):
+                def mock_issubclass(cls: Any, classinfo: Any) -> bool:
                     if cls == mock_agent_class and classinfo == BaseAgent:
                         return True
                     return False
@@ -413,7 +420,7 @@ class TestAgent(BaseAgent):
                         else __builtins__.issubclass
                     )
 
-                    def mock_issubclass_func(cls, classinfo):
+                    def mock_issubclass_func(cls: Any, classinfo: Any) -> bool:
                         if cls == mock_agent_class and classinfo == BaseAgent:
                             return True
                         return original_issubclass(cls, classinfo)
@@ -427,7 +434,7 @@ class TestAgent(BaseAgent):
             assert agent_metadata.version == "1.0.0"
             assert agent_metadata.capabilities == ["test"]
 
-    def test_calculate_checksum(self):
+    def test_calculate_checksum(self) -> None:
         """Test file checksum calculation."""
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
             temp_file.write("test content")
@@ -445,7 +452,7 @@ class TestAgent(BaseAgent):
 
             os.unlink(temp_file.name)
 
-    def test_path_to_module(self):
+    def test_path_to_module(self) -> None:
         """Test converting file path to module path."""
         discoverer = FilesystemDiscoverer([])
 
@@ -458,7 +465,7 @@ class TestAgent(BaseAgent):
 class TestRegistryDiscoverer:
     """Test RegistryDiscoverer functionality."""
 
-    def test_discoverer_creation(self):
+    def test_discoverer_creation(self) -> None:
         """Test creating a registry discoverer."""
         registry = MockRegistry()
         discoverer = RegistryDiscoverer(registry)
@@ -467,7 +474,7 @@ class TestRegistryDiscoverer:
         assert discoverer.can_hot_reload() is False
 
     @pytest.mark.asyncio
-    async def test_discover_agents_empty_registry(self):
+    async def test_discover_agents_empty_registry(self) -> None:
         """Test discovery with empty registry."""
         registry = MockRegistry()
         discoverer = RegistryDiscoverer(registry)
@@ -477,12 +484,12 @@ class TestRegistryDiscoverer:
         assert len(agents) == 0
 
     @pytest.mark.asyncio
-    async def test_discover_agents_with_registry(self):
+    async def test_discover_agents_with_registry(self) -> None:
         """Test discovery with populated registry."""
         registry = MockRegistry()
 
         # Mock agent metadata in registry
-        mock_metadata = Mock()
+        mock_metadata: Mock = Mock()
         mock_metadata.agent_class = MockAgent
         mock_metadata.dependencies = ["dep1"]
 
@@ -501,7 +508,7 @@ class TestRegistryDiscoverer:
 class TestDynamicAgentComposer:
     """Test DynamicAgentComposer functionality."""
 
-    def test_composer_creation(self, graph_engine):
+    def test_composer_creation(self, graph_engine: Any) -> None:
         """Test creating a dynamic agent composer."""
         composer = DynamicAgentComposer(graph_engine)
 
@@ -512,7 +519,7 @@ class TestDynamicAgentComposer:
         assert composer.auto_discovery_enabled is False
         assert composer.auto_swap_enabled is False
 
-    def test_add_discoverer(self, composer):
+    def test_add_discoverer(self, composer: Any) -> None:
         """Test adding a discoverer."""
         discoverer = FilesystemDiscoverer([Path("/test")])
 
@@ -521,13 +528,13 @@ class TestDynamicAgentComposer:
         assert len(composer.discoverers) == 1
         assert composer.discoverers[0] == discoverer
 
-    def test_add_composition_rule(self, composer, context):
+    def test_add_composition_rule(self, composer: Any, context: Any) -> None:
         """Test adding a composition rule."""
 
-        def test_condition(ctx, metadata):
+        def test_condition(ctx: Any, metadata: Any) -> bool:
             return True
 
-        def test_action(ctx, metadata):
+        def test_action(ctx: Any, metadata: Any) -> dict[str, str]:
             return {"action": "test"}
 
         rule1 = CompositionRule(
@@ -553,10 +560,10 @@ class TestDynamicAgentComposer:
         assert composer.composition_rules[0].priority == 10
         assert composer.composition_rules[1].priority == 5
 
-    def test_add_event_handler(self, composer):
+    def test_add_event_handler(self, composer: Any) -> None:
         """Test adding event handlers."""
-        handler1 = Mock()
-        handler2 = Mock()
+        handler1: Mock = Mock()
+        handler2: Mock = Mock()
 
         composer.add_event_handler(CompositionEvent.AGENT_DISCOVERED, handler1)
         composer.add_event_handler(CompositionEvent.AGENT_DISCOVERED, handler2)
@@ -564,14 +571,14 @@ class TestDynamicAgentComposer:
         assert len(composer.event_handlers[CompositionEvent.AGENT_DISCOVERED]) == 2
 
     @pytest.mark.asyncio
-    async def test_discover_agents_no_discoverers(self, composer):
+    async def test_discover_agents_no_discoverers(self, composer: Any) -> None:
         """Test discovery with no discoverers."""
         discovered = await composer.discover_agents()
 
         assert len(discovered) == 0
 
     @pytest.mark.asyncio
-    async def test_discover_agents_with_discoverers(self, composer):
+    async def test_discover_agents_with_discoverers(self, composer: Any) -> None:
         """Test discovery with mock discoverers."""
         # Create mock discoverer
         mock_discoverer = Mock(spec=AgentDiscoverer)
@@ -591,7 +598,7 @@ class TestDynamicAgentComposer:
         assert discovered["test_agent"] == mock_metadata
 
     @pytest.mark.asyncio
-    async def test_discover_agents_version_merging(self, composer):
+    async def test_discover_agents_version_merging(self, composer: Any) -> None:
         """Test discovery with version merging."""
         # Create two discoverers with different versions of same agent
         mock_discoverer1 = Mock(spec=AgentDiscoverer)
@@ -622,14 +629,14 @@ class TestDynamicAgentComposer:
         assert discovered["test_agent"].version == "2.0.0"
 
     @pytest.mark.asyncio
-    async def test_load_agent_not_discovered(self, composer):
+    async def test_load_agent_not_discovered(self, composer: Any) -> None:
         """Test loading agent that hasn't been discovered."""
         agent = await composer.load_agent("unknown_agent")
 
         assert agent is None
 
     @pytest.mark.asyncio
-    async def test_load_agent_already_loaded(self, composer):
+    async def test_load_agent_already_loaded(self, composer: Any) -> None:
         """Test loading agent that's already loaded."""
         # Mock discovered agent
         metadata = DiscoveredAgentInfo(
@@ -648,7 +655,7 @@ class TestDynamicAgentComposer:
         assert agent == mock_agent
 
     @pytest.mark.asyncio
-    async def test_load_agent_with_mocking(self, composer):
+    async def test_load_agent_with_mocking(self, composer: Any) -> None:
         """Test loading agent with mocked imports."""
         # Mock discovered agent
         metadata = DiscoveredAgentInfo(
@@ -662,7 +669,7 @@ class TestDynamicAgentComposer:
         mock_agent = MockAgent("test_agent")
 
         with patch("importlib.import_module") as mock_import:
-            mock_module = Mock()
+            mock_module: Mock = Mock()
             mock_module.TestAgent = Mock(return_value=mock_agent)
             mock_import.return_value = mock_module
 
@@ -674,14 +681,16 @@ class TestDynamicAgentComposer:
         assert metadata.is_loaded is True
 
     @pytest.mark.asyncio
-    async def test_hot_swap_agent_not_found(self, composer, context):
+    async def test_hot_swap_agent_not_found(self, composer: Any, context: Any) -> None:
         """Test hot swapping with agent not found."""
         result = await composer.hot_swap_agent("old_agent", "new_agent", context)
 
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_hot_swap_agent_incompatible(self, composer, context):
+    async def test_hot_swap_agent_incompatible(
+        self, composer: Any, context: Any
+    ) -> None:
         """Test hot swapping with incompatible agents."""
         # Mock metadata for incompatible agents
         old_metadata = DiscoveredAgentInfo(
@@ -710,14 +719,18 @@ class TestDynamicAgentComposer:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_auto_discover_and_swap_disabled(self, composer, context):
+    async def test_auto_discover_and_swap_disabled(
+        self, composer: Any, context: Any
+    ) -> None:
         """Test auto discovery when disabled."""
         result = await composer.auto_discover_and_swap(context)
 
         assert result["auto_discovery_disabled"] is True
 
     @pytest.mark.asyncio
-    async def test_auto_discover_and_swap_enabled(self, composer, context):
+    async def test_auto_discover_and_swap_enabled(
+        self, composer: Any, context: Any
+    ) -> None:
         """Test auto discovery when enabled."""
         composer.auto_discovery_enabled = True
 
@@ -733,14 +746,14 @@ class TestDynamicAgentComposer:
         assert "opportunities_found" in result
 
     @pytest.mark.asyncio
-    async def test_optimize_composition(self, composer, context):
+    async def test_optimize_composition(self, composer: Any, context: Any) -> None:
         """Test composition optimization."""
 
         # Add a test rule
-        def test_condition(ctx, metadata):
+        def test_condition(ctx: Any, metadata: Any) -> bool:
             return True
 
-        def test_action(ctx, metadata):
+        def test_action(ctx: Any, metadata: Any) -> dict[str, str]:
             return {"optimization": "applied"}
 
         rule = CompositionRule(
@@ -757,7 +770,7 @@ class TestDynamicAgentComposer:
         assert result["rules_applied"] == 1
         assert len(result["changes_made"]) == 1
 
-    def test_get_composition_status(self, composer):
+    def test_get_composition_status(self, composer: Any) -> None:
         """Test getting composition status."""
         # Add some test data
         composer.discovered_agents["agent1"] = DiscoveredAgentInfo(
@@ -777,20 +790,20 @@ class TestDynamicAgentComposer:
         assert status["auto_swap_enabled"] is False
         assert "discovery_stats" in status
 
-    def test_enable_auto_discovery(self, composer):
+    def test_enable_auto_discovery(self, composer: Any) -> None:
         """Test enabling auto discovery."""
         composer.enable_auto_discovery(interval_seconds=60)
 
         assert composer.auto_discovery_enabled is True
 
-    def test_enable_auto_swap(self, composer):
+    def test_enable_auto_swap(self, composer: Any) -> None:
         """Test enabling auto swap."""
         composer.enable_auto_swap()
 
         assert composer.auto_swap_enabled is True
 
     @pytest.mark.asyncio
-    async def test_find_swap_opportunities(self, composer, context):
+    async def test_find_swap_opportunities(self, composer: Any, context: Any) -> None:
         """Test finding swap opportunities."""
         # Create metadata for agents with version differences
         old_metadata = DiscoveredAgentInfo(
@@ -820,9 +833,9 @@ class TestDynamicAgentComposer:
         assert opportunity["new_agent"] == "test_agent_new"
         assert opportunity["reason"] == "version_upgrade"
 
-    def test_emit_event(self, composer):
+    def test_emit_event(self, composer: Any) -> None:
         """Test event emission."""
-        handler = Mock()
+        handler: Mock = Mock()
         composer.add_event_handler(CompositionEvent.AGENT_DISCOVERED, handler)
 
         composer._emit_event(CompositionEvent.AGENT_DISCOVERED, {"agent_id": "test"})
@@ -836,7 +849,7 @@ class TestDynamicAgentComposer:
         assert event["event"] == "agent_discovered"
         assert event["data"]["agent_id"] == "test"
 
-    def test_create_context_snapshot(self, composer, context):
+    def test_create_context_snapshot(self, composer: Any, context: Any) -> None:
         """Test creating context snapshot."""
         context.agent_outputs["agent1"] = "output1"
         context.execution_state["key"] = "value"
@@ -852,7 +865,7 @@ class TestDynamicAgentComposer:
 class TestCompositionRules:
     """Test predefined composition rules."""
 
-    def test_version_upgrade_rule(self, context):
+    def test_version_upgrade_rule(self, context: Any) -> None:
         """Test version upgrade rule."""
         rule = create_version_upgrade_rule()
 
@@ -861,7 +874,7 @@ class TestCompositionRules:
         assert rule.priority == 10
 
         # Test condition with newer version available
-        metadata = {
+        metadata: dict[str, Any] = {
             "discovered_agents": {
                 "agent1": DiscoveredAgentInfo(
                     agent_id="agent1",
@@ -884,7 +897,7 @@ class TestCompositionRules:
         action_result = rule.apply(context, metadata)
         assert action_result["strategy"] == "version_upgrade"
 
-    def test_failure_recovery_rule(self, context):
+    def test_failure_recovery_rule(self, context: Any) -> None:
         """Test failure recovery rule."""
         rule = create_failure_recovery_rule()
 
@@ -894,7 +907,7 @@ class TestCompositionRules:
 
         # Test condition with failed agents
         context.execution_state["failed_agents"] = ["agent1"]
-        metadata = {"discovered_agents": {}, "loaded_agents": {}}
+        metadata: dict[str, Any] = {"discovered_agents": {}, "loaded_agents": {}}
 
         assert rule.evaluate(context, metadata) is True
 
@@ -910,7 +923,7 @@ class TestIntegration:
     """Integration tests for dynamic composition."""
 
     @pytest.mark.asyncio
-    async def test_complete_composition_workflow(self, graph_engine):
+    async def test_complete_composition_workflow(self, graph_engine: Any) -> None:
         """Test complete dynamic composition workflow."""
         composer = DynamicAgentComposer(graph_engine)
 
@@ -953,7 +966,7 @@ class TestIntegration:
         mock_agent2 = MockAgent("agent2")
 
         with patch("importlib.import_module") as mock_import:
-            mock_module = Mock()
+            mock_module: Mock = Mock()
             mock_module.Agent1 = Mock(return_value=mock_agent1)
             mock_module.Agent2 = Mock(return_value=mock_agent2)
             mock_import.return_value = mock_module
@@ -966,7 +979,7 @@ class TestIntegration:
         assert agent2 == mock_agent2
 
         # Test composition optimization
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         result = await composer.optimize_composition(context)
 
         assert "rules_evaluated" in result
@@ -984,10 +997,10 @@ class TestIntegration:
         assert status["auto_swap_enabled"] is True
 
     @pytest.mark.asyncio
-    async def test_hot_swapping_scenario(self, graph_engine):
+    async def test_hot_swapping_scenario(self, graph_engine: Any) -> None:
         """Test hot swapping scenario."""
         composer = DynamicAgentComposer(graph_engine)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Create old and new agent metadata
         old_metadata = DiscoveredAgentInfo(
@@ -1037,7 +1050,7 @@ class TestIntegration:
         assert "processor_v2" in graph_engine.nodes
 
     @pytest.mark.asyncio
-    async def test_filesystem_discovery_integration(self):
+    async def test_filesystem_discovery_integration(self) -> None:
         """Test filesystem discovery integration."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -1057,7 +1070,7 @@ class TestAgent(BaseAgent):
     capabilities = ["test"]
     dependencies = []
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("test_agent")
     
     async def run(self, context):
@@ -1089,11 +1102,11 @@ class TestAgent(BaseAgent):
                     # Expected due to mocking complexities
                     pass
 
-    def test_event_handling_integration(self, composer):
+    def test_event_handling_integration(self, composer: Any) -> None:
         """Test event handling integration."""
-        events_received = []
+        events_received: list[Any] = []
 
-        def event_handler(event):
+        def event_handler(event: Any) -> None:
             events_received.append(event)
 
         # Add handlers for different events

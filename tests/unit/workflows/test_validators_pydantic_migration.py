@@ -8,7 +8,7 @@ enforcement.
 
 import pytest
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 from cognivault.workflows.validators import (
     WorkflowValidator,
@@ -73,7 +73,7 @@ def create_test_workflow(
 class TestValidationIssue:
     """Test ValidationIssue Pydantic model."""
 
-    def test_basic_creation(self):
+    def test_basic_creation(self) -> None:
         """Test basic ValidationIssue creation."""
         issue = ValidationIssue(
             issue_type=ValidationIssueType.ERROR,
@@ -90,7 +90,7 @@ class TestValidationIssue:
         assert issue.rule_id == "TEST_001"
         assert issue.suggestion is None
 
-    def test_with_suggestion(self):
+    def test_with_suggestion(self) -> None:
         """Test ValidationIssue with suggestion."""
         issue = ValidationIssue(
             issue_type=ValidationIssueType.WARNING,
@@ -103,7 +103,7 @@ class TestValidationIssue:
 
         assert issue.suggestion == "Consider adding terminal nodes"
 
-    def test_severity_validation(self):
+    def test_severity_validation(self) -> None:
         """Test severity validation (1-10 range)."""
         # Valid severities
         for severity in [1, 5, 10]:
@@ -141,7 +141,7 @@ class TestValidationIssue:
 class TestWorkflowValidationResult:
     """Test ValidationResult Pydantic model."""
 
-    def test_basic_creation(self):
+    def test_basic_creation(self) -> None:
         """Test basic ValidationResult creation."""
         result = WorkflowValidationResult(
             is_valid=True, validation_level=WorkflowValidationLevel.STANDARD
@@ -153,7 +153,7 @@ class TestWorkflowValidationResult:
         assert result.summary == {}
         assert result.workflow_metadata == {}
 
-    def test_with_issues(self):
+    def test_with_issues(self) -> None:
         """Test ValidationResult with issues."""
         issues = [
             ValidationIssue(
@@ -183,7 +183,7 @@ class TestWorkflowValidationResult:
         assert result.summary["errors"] == 1
         assert result.summary["warnings"] == 1
 
-    def test_has_errors(self):
+    def test_has_errors(self) -> None:
         """Test has_errors() method."""
         # No errors
         result = WorkflowValidationResult(
@@ -206,7 +206,7 @@ class TestWorkflowValidationResult:
         )
         assert result_with_errors.has_errors()
 
-    def test_has_warnings(self):
+    def test_has_warnings(self) -> None:
         """Test has_warnings() method."""
         # No warnings
         result = WorkflowValidationResult(
@@ -229,7 +229,7 @@ class TestWorkflowValidationResult:
         )
         assert result_with_warnings.has_warnings()
 
-    def test_get_issues_by_type(self):
+    def test_get_issues_by_type(self) -> None:
         """Test get_issues_by_type() method."""
         issues = [
             ValidationIssue(
@@ -271,7 +271,7 @@ class TestWorkflowValidationResult:
         assert errors[0].message == "Error"
         assert warnings[0].message == "Warning 1"
 
-    def test_get_highest_severity(self):
+    def test_get_highest_severity(self) -> None:
         """Test get_highest_severity() method."""
         # No issues
         result = WorkflowValidationResult(
@@ -315,7 +315,7 @@ class TestWorkflowValidationResult:
 class TestWorkflowValidationConfig:
     """Test WorkflowValidationConfig Pydantic model."""
 
-    def test_defaults(self):
+    def test_defaults(self) -> None:
         """Test default configuration values."""
         config = WorkflowValidationConfig()
 
@@ -331,7 +331,7 @@ class TestWorkflowValidationConfig:
         assert config.validate_naming_conventions is False
         assert config.validate_performance_hints is False
 
-    def test_custom_values(self):
+    def test_custom_values(self) -> None:
         """Test custom configuration values."""
         config = WorkflowValidationConfig(
             validation_level=WorkflowValidationLevel.STRICT,
@@ -349,7 +349,7 @@ class TestWorkflowValidationConfig:
         assert config.allow_cycles is True
         assert config.validate_naming_conventions is True
 
-    def test_validation_constraints(self):
+    def test_validation_constraints(self) -> None:
         """Test validation constraints."""
         from pydantic import ValidationError
 
@@ -369,12 +369,12 @@ class TestWorkflowValidationConfig:
 class TestWorkflowValidator:
     """Test WorkflowValidator class functionality."""
 
-    def test_basic_initialization(self):
+    def test_basic_initialization(self) -> None:
         """Test basic validator initialization."""
         validator = WorkflowValidator()
         assert validator.config.validation_level == WorkflowValidationLevel.STANDARD
 
-    def test_custom_config_initialization(self):
+    def test_custom_config_initialization(self) -> None:
         """Test validator with custom configuration."""
         config = WorkflowValidationConfig(
             validation_level=WorkflowValidationLevel.STRICT, fail_on_warnings=True
@@ -383,7 +383,7 @@ class TestWorkflowValidator:
         assert validator.config.validation_level == WorkflowValidationLevel.STRICT
         assert validator.config.fail_on_warnings is True
 
-    def test_validate_valid_workflow(self):
+    def test_validate_valid_workflow(self) -> None:
         """Test validation of a valid workflow."""
         workflow = create_test_workflow()
         validator = WorkflowValidator()
@@ -397,7 +397,7 @@ class TestWorkflowValidator:
         assert "node_count" in result.workflow_metadata
         assert result.workflow_metadata["node_count"] == 2
 
-    def test_validate_workflow_missing_name(self):
+    def test_validate_workflow_missing_name(self) -> None:
         """Test validation of workflow with missing name."""
         workflow = create_test_workflow(name="")
         validator = WorkflowValidator()
@@ -412,7 +412,7 @@ class TestWorkflowValidator:
         assert any("name is required" in error.message.lower() for error in errors)
         assert any(error.rule_id == "STRUCT_001" for error in errors)
 
-    def test_validate_workflow_no_nodes(self):
+    def test_validate_workflow_no_nodes(self) -> None:
         """Test validation of workflow with no nodes."""
         workflow = create_test_workflow(nodes=[])
         validator = WorkflowValidator()
@@ -424,7 +424,7 @@ class TestWorkflowValidator:
         assert any("at least one node" in error.message.lower() for error in errors)
         assert any(error.rule_id == "STRUCT_003" for error in errors)
 
-    def test_validate_workflow_invalid_entry_point(self):
+    def test_validate_workflow_invalid_entry_point(self) -> None:
         """Test validation of workflow with invalid entry point."""
         workflow = create_test_workflow(entry_point="nonexistent_node")
         validator = WorkflowValidator()
@@ -440,7 +440,7 @@ class TestWorkflowValidator:
         )
         assert any(error.rule_id == "REF_001" for error in errors)
 
-    def test_validate_workflow_invalid_edge_references(self):
+    def test_validate_workflow_invalid_edge_references(self) -> None:
         """Test validation of workflow with invalid edge references."""
         invalid_edges = [
             EdgeDefinition(
@@ -478,7 +478,7 @@ class TestWorkflowValidator:
         assert any(error.rule_id == "REF_003" for error in from_node_errors)
         assert any(error.rule_id == "REF_004" for error in to_node_errors)
 
-    def test_validate_workflow_duplicate_node_ids(self):
+    def test_validate_workflow_duplicate_node_ids(self) -> None:
         """Test validation of workflow with duplicate node IDs."""
         duplicate_nodes = [
             NodeConfiguration(
@@ -501,7 +501,7 @@ class TestWorkflowValidator:
         )
         assert any(error.rule_id == "BIZ_001" for error in errors)
 
-    def test_validation_levels(self):
+    def test_validation_levels(self) -> None:
         """Test different validation levels."""
         workflow = create_test_workflow()
 
@@ -544,7 +544,7 @@ class TestWorkflowValidator:
         assert strict_result.validation_level == WorkflowValidationLevel.STRICT
         assert pedantic_result.validation_level == WorkflowValidationLevel.PEDANTIC
 
-    def test_workflow_size_limits(self):
+    def test_workflow_size_limits(self) -> None:
         """Test workflow size limit validation."""
         config = WorkflowValidationConfig(max_nodes=2, max_edges=1)
         validator = WorkflowValidator(config=config)
@@ -584,7 +584,7 @@ class TestWorkflowValidator:
         assert any(error.rule_id == "BIZ_002" for error in node_limit_errors)
         assert any(error.rule_id == "BIZ_003" for error in edge_limit_errors)
 
-    def test_fail_on_warnings(self):
+    def test_fail_on_warnings(self) -> None:
         """Test fail_on_warnings configuration."""
         # Create workflow that might generate warnings (e.g., no description)
         workflow = create_test_workflow()
@@ -608,7 +608,7 @@ class TestWorkflowValidator:
         if result_allow.has_warnings():
             assert result_fail.is_valid != result_allow.is_valid
 
-    def test_cycle_detection(self):
+    def test_cycle_detection(self) -> None:
         """Test cycle detection in workflows."""
         # Create a workflow with a cycle
         cycle_edges = [
@@ -653,7 +653,7 @@ class TestWorkflowValidator:
 class TestConvenienceFunctions:
     """Test convenience validation functions."""
 
-    def test_validate_workflow_basic(self):
+    def test_validate_workflow_basic(self) -> None:
         """Test validate_workflow_basic convenience function."""
         workflow = create_test_workflow()
         result = validate_workflow_basic(workflow)
@@ -661,7 +661,7 @@ class TestConvenienceFunctions:
         assert isinstance(result, WorkflowValidationResult)
         assert result.validation_level == WorkflowValidationLevel.BASIC
 
-    def test_validate_workflow_standard(self):
+    def test_validate_workflow_standard(self) -> None:
         """Test validate_workflow_standard convenience function."""
         workflow = create_test_workflow()
         result = validate_workflow_standard(workflow)
@@ -669,7 +669,7 @@ class TestConvenienceFunctions:
         assert isinstance(result, WorkflowValidationResult)
         assert result.validation_level == WorkflowValidationLevel.STANDARD
 
-    def test_validate_workflow_strict(self):
+    def test_validate_workflow_strict(self) -> None:
         """Test validate_workflow_strict convenience function."""
         workflow = create_test_workflow()
         result = validate_workflow_strict(workflow)
@@ -677,7 +677,7 @@ class TestConvenienceFunctions:
         assert isinstance(result, WorkflowValidationResult)
         assert result.validation_level == WorkflowValidationLevel.STRICT
 
-    def test_validate_workflow_pedantic(self):
+    def test_validate_workflow_pedantic(self) -> None:
         """Test validate_workflow_pedantic convenience function."""
         workflow = create_test_workflow()
         result = validate_workflow_pedantic(workflow)
@@ -689,7 +689,7 @@ class TestConvenienceFunctions:
 class TestAdvancedValidationFeatures:
     """Test advanced validation features."""
 
-    def test_workflow_metadata_generation(self):
+    def test_workflow_metadata_generation(self) -> None:
         """Test workflow metadata generation during validation."""
         nodes = [
             NodeConfiguration(
@@ -728,7 +728,7 @@ class TestAdvancedValidationFeatures:
         assert "historian" in metadata["node_types"]
         assert NodeCategory.BASE in metadata["categories"]
 
-    def test_issue_severity_and_categorization(self):
+    def test_issue_severity_and_categorization(self) -> None:
         """Test that issues are properly categorized and have appropriate severity levels."""
         # Create a workflow with various issues
         problematic_workflow = WorkflowDefinition(
@@ -770,7 +770,7 @@ class TestAdvancedValidationFeatures:
             assert error.location is not None
             assert error.message is not None
 
-    def test_performance_hints_validation(self):
+    def test_performance_hints_validation(self) -> None:
         """Test performance hints validation when enabled."""
         # Create workflow with multiple incoming edges to a node (potential parallel optimization)
         nodes = [
@@ -811,7 +811,7 @@ class TestAdvancedValidationFeatures:
             assert len(parallel_hints) >= 1
             assert any(issue.rule_id == "PERF_001" for issue in parallel_hints)
 
-    def test_naming_convention_validation(self):
+    def test_naming_convention_validation(self) -> None:
         """Test naming convention validation when enabled."""
         # Create workflow with invalid node ID naming
         invalid_nodes = [
@@ -839,7 +839,7 @@ class TestAdvancedValidationFeatures:
             assert len(naming_issues) >= 1
             assert any(issue.rule_id == "STYLE_001" for issue in naming_issues)
 
-    def test_unreachable_nodes_detection(self):
+    def test_unreachable_nodes_detection(self) -> None:
         """Test detection of unreachable nodes."""
         # Create workflow with unreachable node
         nodes = [
@@ -887,7 +887,7 @@ class TestAdvancedValidationFeatures:
 class TestIntegrationWithComposer:
     """Test integration with the updated composer validation."""
 
-    def test_composer_uses_new_validation(self):
+    def test_composer_uses_new_validation(self) -> None:
         """Test that the composer uses the new Pydantic validation system."""
         from cognivault.workflows.composer import DagComposer, WorkflowCompositionError
 
@@ -903,7 +903,7 @@ class TestIntegrationWithComposer:
         assert "validation failed" in error_message.lower()
         assert "entry point" in error_message.lower()
 
-    def test_composer_validation_with_warnings(self):
+    def test_composer_validation_with_warnings(self) -> None:
         """Test that composer logs warnings but doesn't fail."""
         from cognivault.workflows.composer import DagComposer
         import logging

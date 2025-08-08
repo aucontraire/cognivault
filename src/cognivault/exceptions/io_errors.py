@@ -30,7 +30,7 @@ class IOError(CogniVaultError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         context = context or {}
         if file_path:
             context["file_path"] = file_path
@@ -69,7 +69,7 @@ class FileOperationError(IOError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or f"File {operation} failed for '{file_path}': {reason}"
 
         context = context or {}
@@ -145,7 +145,7 @@ class DiskSpaceError(IOError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         deficit_mb = required_space_mb - available_space_mb
         message = message or (
             f"Insufficient disk space: need {required_space_mb:.1f}MB, "
@@ -203,7 +203,7 @@ class PermissionError(IOError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message
             or f"Permission denied for {operation} on '{file_path}': {permission_type}"
@@ -266,7 +266,7 @@ class MarkdownExportError(IOError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message or f"Markdown export failed at '{export_stage}': {export_details}"
         )
@@ -337,7 +337,7 @@ class DirectoryCreationError(IOError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message
             or f"Failed to create directory '{directory_path}': {creation_reason}"

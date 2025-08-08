@@ -6,7 +6,7 @@ import asyncio
 import json
 import time
 import os
-from typing import Optional, List
+from typing import Optional, List, Any
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -120,7 +120,7 @@ async def run(
     rollback_last_checkpoint: bool = False,
     use_api: bool = False,
     api_mode: Optional[str] = None,
-):
+) -> None:
     cli_name = "CLI"
     # Configure logging based on CLI-provided level
     try:
@@ -463,7 +463,9 @@ async def _run_with_api(
             logger.warning(f"API cleanup warning: {e}")
 
 
-async def _run_health_check(orchestrator, console, agents_to_run):
+async def _run_health_check(
+    orchestrator: Any, console: Console, agents_to_run: Optional[List[str]]
+) -> None:
     """Run health checks for all agents without executing the pipeline."""
     console.print("🩺 [bold]Running Agent Health Checks[/bold]")
 
@@ -511,7 +513,9 @@ async def _run_health_check(orchestrator, console, agents_to_run):
         console.print("\n[red]❌ Some agents failed health checks[/red]")
 
 
-async def _run_dry_run(orchestrator, console, query, agents_to_run):
+async def _run_dry_run(
+    orchestrator: Any, console: Console, query: str, agents_to_run: Optional[List[str]]
+) -> None:
     """Validate pipeline configuration without executing agents."""
     console.print("🧪 [bold]Dry Run - Pipeline Validation[/bold]")
 
@@ -544,7 +548,9 @@ async def _run_dry_run(orchestrator, console, query, agents_to_run):
     )
 
 
-def _display_standard_output(console, context, execution_time):
+def _display_standard_output(
+    console: Console, context: Any, execution_time: float
+) -> None:
     """Display standard agent outputs with performance metrics."""
     emoji_map = {
         "refiner": "🧠",
@@ -577,7 +583,9 @@ def _display_standard_output(console, context, execution_time):
         console.print(output.strip())
 
 
-def _display_detailed_trace(console, context, execution_time):
+def _display_detailed_trace(
+    console: Console, context: Any, execution_time: float
+) -> None:
     """Display detailed execution trace with timing and metadata."""
     # Main execution summary
     summary_panel = Panel(
@@ -661,7 +669,7 @@ def _display_detailed_trace(console, context, execution_time):
         console.print(output_panel)
 
 
-def _export_trace_data(context, export_path, execution_time):
+def _export_trace_data(context: Any, export_path: str, execution_time: float) -> None:
     """Export detailed trace data to JSON file."""
     trace_data = {
         "pipeline_id": context.context_id,
@@ -692,7 +700,9 @@ def _export_trace_data(context, export_path, execution_time):
 # These functions will be reimplemented to compare different configurations of langgraph-real mode only
 
 
-async def _run_rollback_mode(orchestrator, console, thread_id):
+async def _run_rollback_mode(
+    orchestrator: Any, console: Console, thread_id: str
+) -> None:
     """Handle rollback to latest checkpoint."""
     console.print("🔄 [bold]Rolling back to latest checkpoint[/bold]")
 

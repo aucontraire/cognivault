@@ -1,14 +1,17 @@
 import pytest
+from typing import Any
 from cognivault.llm.llm_interface import LLMResponse, LLMInterface
 
 
 class DummyLLM(LLMInterface):
-    def generate(self, prompt, *, stream=False, on_log=None, **kwargs):
+    def generate(
+        self, prompt: Any, *, stream: bool = False, on_log: Any = None, **kwargs: Any
+    ) -> Any:
         super().generate(prompt, stream=stream, on_log=on_log, **kwargs)
         return "dummy"
 
 
-def test_llm_response_fields():
+def test_llm_response_fields() -> None:
     response = LLMResponse(
         text="Hello, world!",
         tokens_used=10,
@@ -21,7 +24,7 @@ def test_llm_response_fields():
     assert response.finish_reason == "stop"
 
 
-def test_llm_interface_is_abstract():
+def test_llm_interface_is_abstract() -> None:
     with pytest.raises(TypeError):
         LLMInterface()  # should raise because it's abstract
 

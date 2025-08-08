@@ -30,7 +30,7 @@ class LLMResponse:
         output_tokens: Optional[int] = None,
         model_name: Optional[str] = None,
         finish_reason: Optional[str] = None,
-    ):
+    ) -> None:
         self.text = text
         self.tokens_used = tokens_used
         self.input_tokens = input_tokens

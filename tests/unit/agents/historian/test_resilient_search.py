@@ -11,8 +11,8 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Dict, Any, List
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from pydantic import ValidationError
 
 from cognivault.agents.historian.resilient_search import (
@@ -34,11 +34,11 @@ from cognivault.llm.llm_interface import LLMInterface, LLMResponse
 class MockLLM(LLMInterface):
     """Mock LLM for testing title generation."""
 
-    def __init__(self, response_text: str = "Generated Title"):
+    def __init__(self, response_text: str = "Generated Title") -> None:
         self.response_text = response_text
         self.call_count = 0
 
-    def generate(self, prompt: str, **kwargs) -> LLMResponse:
+    def generate(self, prompt: str, **kwargs: Any) -> LLMResponse:
         self.call_count += 1
         return LLMResponse(
             text=self.response_text,
@@ -68,11 +68,11 @@ class FailingSearchEngine(HistorianSearchInterface):
 class TestTitleGenerator:
     """Test TitleGenerator functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.llm = MockLLM("AI and Machine Learning: Core Concepts")
 
-    def test_title_generator_short_title(self):
+    def test_title_generator_short_title(self) -> None:
         """Test that short titles are returned unchanged."""
         generator = TitleGenerator(self.llm)
 
@@ -88,7 +88,7 @@ class TestTitleGenerator:
         assert self.llm.call_count == 0  # LLM shouldn't be called
 
     @pytest.mark.asyncio
-    async def test_title_generator_long_title_llm_generation(self):
+    async def test_title_generator_long_title_llm_generation(self) -> None:
         """Test LLM-powered title generation for long titles."""
         generator = TitleGenerator(self.llm)
 
@@ -106,9 +106,9 @@ class TestTitleGenerator:
         assert len(result) <= 450
 
     @pytest.mark.asyncio
-    async def test_title_generator_llm_failure_fallback(self):
+    async def test_title_generator_llm_failure_fallback(self) -> None:
         """Test fallback when LLM title generation fails."""
-        failing_llm = Mock()
+        failing_llm: Mock = Mock()
         failing_llm.generate.side_effect = Exception("LLM failed")
 
         generator = TitleGenerator(failing_llm)
@@ -123,7 +123,7 @@ class TestTitleGenerator:
         assert len(result) <= 450
         assert result.endswith("...")
 
-    def test_smart_truncate_title(self):
+    def test_smart_truncate_title(self) -> None:
         """Test smart title truncation."""
         generator = TitleGenerator()
 
@@ -137,7 +137,7 @@ class TestTitleGenerator:
         assert len(result) <= 450
         assert "This is the first sentence." in result
 
-    def test_generate_topic_based_title(self):
+    def test_generate_topic_based_title(self) -> None:
         """Test topic-based title generation."""
         generator = TitleGenerator()
 
@@ -153,7 +153,7 @@ class TestTitleGenerator:
         assert "machine_learning" in result or "artificial_intelligence" in result
         assert len(result) <= 450
 
-    def test_generate_fallback_title(self):
+    def test_generate_fallback_title(self) -> None:
         """Test fallback title generation."""
         generator = TitleGenerator()
 
@@ -167,7 +167,7 @@ class TestTitleGenerator:
 class TestProcessingStats:
     """Test ProcessingStats functionality."""
 
-    def test_processing_stats_initialization(self):
+    def test_processing_stats_initialization(self) -> None:
         """Test ProcessingStats initialization."""
         stats = ProcessingStats()
 
@@ -177,7 +177,7 @@ class TestProcessingStats:
         assert isinstance(stats.failure_breakdown, dict)
         assert len(stats.failure_breakdown) == 0
 
-    def test_record_failure(self):
+    def test_record_failure(self) -> None:
         """Test failure recording."""
         stats = ProcessingStats()
 
@@ -192,7 +192,7 @@ class TestProcessingStats:
 class TestResilientSearchProcessor:
     """Test ResilientSearchProcessor functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -201,11 +201,11 @@ class TestResilientSearchProcessor:
         # Create test notes including one with a problematic long title
         self._create_test_notes()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
-    def _create_test_notes(self):
+    def _create_test_notes(self) -> None:
         """Create test notes for resilient processing tests."""
         import yaml
 
@@ -241,7 +241,9 @@ class TestResilientSearchProcessor:
             "More content for comprehensive testing.",
         )
 
-    def _write_note(self, filename: str, frontmatter: Dict[str, Any], content: str):
+    def _write_note(
+        self, filename: str, frontmatter: Dict[str, Any], content: str
+    ) -> None:
         """Write a note to the test directory."""
         import yaml
 
@@ -253,7 +255,7 @@ class TestResilientSearchProcessor:
             f.write(full_content)
 
     @pytest.mark.asyncio
-    async def test_successful_search_passthrough(self):
+    async def test_successful_search_passthrough(self) -> None:
         """Test that successful searches pass through without modification."""
         processor = ResilientSearchProcessor()
         search_engine = TagBasedSearch(str(self.notes_dir))
@@ -272,7 +274,7 @@ class TestResilientSearchProcessor:
         assert isinstance(report.data_quality_insights, list)
 
     @pytest.mark.asyncio
-    async def test_validation_error_recovery(self):
+    async def test_validation_error_recovery(self) -> None:
         """Test recovery from validation errors."""
         llm = MockLLM("Gentrification and Urban Economics")
         processor = ResilientSearchProcessor(llm)
@@ -291,7 +293,7 @@ class TestResilientSearchProcessor:
         assert llm.call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_resilient_processing_with_failures(self):
+    async def test_resilient_processing_with_failures(self) -> None:
         """Test resilient processing when original search fails completely."""
         processor = ResilientSearchProcessor()
         failing_search = FailingSearchEngine()
@@ -306,7 +308,7 @@ class TestResilientSearchProcessor:
         assert report.total_processed >= 0
 
     @pytest.mark.asyncio
-    async def test_individual_document_processing(self):
+    async def test_individual_document_processing(self) -> None:
         """Test individual document processing with error handling."""
         processor = ResilientSearchProcessor()
 
@@ -329,7 +331,7 @@ class TestResilientSearchProcessor:
         assert result.relevance_score > 0
 
     @pytest.mark.asyncio
-    async def test_validation_recovery_title_errors(self):
+    async def test_validation_recovery_title_errors(self) -> None:
         """Test specific recovery from title validation errors."""
         llm = MockLLM("Recovered Title")
         processor = ResilientSearchProcessor(llm)
@@ -364,7 +366,7 @@ class TestResilientSearchProcessor:
         assert len(result.title) <= 450
         assert llm.call_count >= 1
 
-    def test_data_quality_insights_generation(self):
+    def test_data_quality_insights_generation(self) -> None:
         """Test generation of data quality insights."""
         processor = ResilientSearchProcessor()
 
@@ -386,7 +388,7 @@ class TestResilientSearchProcessor:
         assert len(insights) > 0
         assert any("validation" in insight.lower() for insight in insights)
 
-    def test_data_quality_insights_no_failures(self):
+    def test_data_quality_insights_no_failures(self) -> None:
         """Test data quality insights with no failures."""
         processor = ResilientSearchProcessor()
 
@@ -399,7 +401,7 @@ class TestResilientSearchProcessor:
 class TestIntegrationScenarios:
     """Test integration scenarios with the historian agent."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up integration test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -408,11 +410,11 @@ class TestIntegrationScenarios:
         # Create notes that will trigger validation errors
         self._create_integration_test_notes()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test directory."""
         shutil.rmtree(self.temp_dir)
 
-    def _create_integration_test_notes(self):
+    def _create_integration_test_notes(self) -> None:
         """Create notes for integration testing."""
         import yaml
 
@@ -449,7 +451,7 @@ class TestIntegrationScenarios:
         ]
 
         for note in notes:
-            filepath = self.notes_dir / note["filename"]
+            filepath = self.notes_dir / str(note["filename"])
             frontmatter_yaml = yaml.dump(note["frontmatter"])
             full_content = f"---\n{frontmatter_yaml}---\n{note['content']}"
 
@@ -457,7 +459,7 @@ class TestIntegrationScenarios:
                 f.write(full_content)
 
     @pytest.mark.asyncio
-    async def test_end_to_end_resilient_search(self):
+    async def test_end_to_end_resilient_search(self) -> None:
         """Test end-to-end resilient search processing."""
         llm = MockLLM("Recovered Problematic Note Title")
         processor = ResilientSearchProcessor(llm)
@@ -481,7 +483,7 @@ class TestIntegrationScenarios:
             assert len(report.data_quality_insights) > 0
 
     @pytest.mark.asyncio
-    async def test_performance_with_many_documents(self):
+    async def test_performance_with_many_documents(self) -> None:
         """Test performance characteristics with many documents."""
         # Create many more notes for performance testing
         for i in range(20):
@@ -506,7 +508,7 @@ class TestIntegrationScenarios:
         assert len(results) <= 25
         assert report.total_processed >= 20
 
-    def _write_additional_note(self, filename: str, title: str):
+    def _write_additional_note(self, filename: str, title: str) -> None:
         """Write additional note for performance testing."""
         import yaml
 
@@ -533,13 +535,13 @@ class TestAsyncSupport:
     """Test async functionality support."""
 
     @pytest.mark.asyncio
-    async def test_async_title_generation(self):
+    async def test_async_title_generation(self) -> None:
         """Test that title generation works in async context."""
         llm = MockLLM("Async Generated Title")
         generator = TitleGenerator(llm)
 
         # Test in async context
-        async def generate_titles():
+        async def generate_titles() -> List[str]:
             tasks = []
             for i in range(3):
                 task = generator.generate_safe_title(
@@ -557,7 +559,7 @@ class TestAsyncSupport:
         assert llm.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_async_resilient_processing(self):
+    async def test_async_resilient_processing(self) -> None:
         """Test that resilient processing works with async operations."""
         processor = ResilientSearchProcessor()
 

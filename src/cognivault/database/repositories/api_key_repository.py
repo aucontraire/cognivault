@@ -6,6 +6,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import and_, desc, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from cognivault.database.models import APIKey
 from cognivault.observability import get_logger
@@ -23,7 +24,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
     rate limiting validation, and key lifecycle management.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, APIKey)
 
     async def create_api_key(
@@ -241,7 +242,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
             # Keys by rate limit
             rate_limit_distribution: dict[int, int] = {}
             for key in all_keys:
-                from typing import cast
+                from typing import cast, Any
 
                 limit = cast(int, key.rate_limit)
                 rate_limit_distribution[limit] = (
@@ -282,7 +283,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
                     if key.is_active:
                         from typing import cast
 
-                        key_id = cast(UUID, key.id)
+                        key_id = key.id
                         success = await self.deactivate_key(key_id)
                         if success:
                             deactivated_count += 1

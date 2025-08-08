@@ -3,8 +3,8 @@
 import pytest
 import asyncio
 import time
-from typing import Dict, Any
-from unittest.mock import Mock, patch
+from typing import Any, Dict
+from unittest.mock import MagicMock, Mock, patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
@@ -33,7 +33,7 @@ from cognivault.orchestration.state_schemas import (
 
 
 @pytest.fixture(autouse=True)
-def reset_circuit_breaker():
+def reset_circuit_breaker() -> None:
     """Reset circuit breaker state before each test."""
     # Reset circuit breaker state for all node functions
     for node_func in [refiner_node, critic_node, historian_node, synthesis_node]:
@@ -59,7 +59,7 @@ class MockAgent(BaseAgent):
 
     def __init__(
         self, name: str, output: str = "Mock output", should_fail: bool = False
-    ):
+    ) -> None:
         super().__init__(name=name)
         self.output = output
         self.should_fail = should_fail
@@ -96,12 +96,12 @@ class MockAgent(BaseAgent):
 class TestNodeExecutionError:
     """Test NodeExecutionError exception."""
 
-    def test_node_execution_error_creation(self):
+    def test_node_execution_error_creation(self) -> None:
         """Test creating NodeExecutionError."""
         error = NodeExecutionError("Test error message")
         assert str(error) == "Test error message"
 
-    def test_node_execution_error_inheritance(self):
+    def test_node_execution_error_inheritance(self) -> None:
         """Test that NodeExecutionError inherits from Exception."""
         error = NodeExecutionError("Test")
         assert isinstance(error, Exception)
@@ -110,12 +110,12 @@ class TestNodeExecutionError:
 class TestCircuitBreaker:
     """Test circuit breaker decorator."""
 
-    def test_circuit_breaker_initialization(self):
+    def test_circuit_breaker_initialization(self) -> None:
         """Test circuit breaker initializes function attributes."""
 
         @circuit_breaker(max_failures=2, reset_timeout=60.0)
-        async def test_func():
-            return "success"
+        async def test_func() -> None:
+            pass
 
         assert hasattr(test_func, "_failure_count")
         assert hasattr(test_func, "_last_failure_time")
@@ -125,11 +125,11 @@ class TestCircuitBreaker:
         assert test_func._circuit_open is False
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_success(self):
+    async def test_circuit_breaker_success(self) -> None:
         """Test circuit breaker with successful execution."""
 
         @circuit_breaker(max_failures=2, reset_timeout=60.0)
-        async def test_func():
+        async def test_func() -> str:
             return "success"
 
         result = await test_func()
@@ -138,12 +138,12 @@ class TestCircuitBreaker:
         assert test_func._circuit_open is False
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_failure_counting(self):
+    async def test_circuit_breaker_failure_counting(self) -> None:
         """Test circuit breaker counts failures correctly."""
         call_count = 0
 
         @circuit_breaker(max_failures=2, reset_timeout=60.0)
-        async def test_func():
+        async def test_func() -> None:
             nonlocal call_count
             call_count += 1
             raise RuntimeError("Test error")
@@ -166,11 +166,11 @@ class TestCircuitBreaker:
         assert call_count == 2  # Function should not be called again
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_reset_after_timeout(self):
+    async def test_circuit_breaker_reset_after_timeout(self) -> None:
         """Test circuit breaker resets after timeout."""
 
         @circuit_breaker(max_failures=1, reset_timeout=0.1)  # Short timeout
-        async def test_func():
+        async def test_func() -> str:
             return "success"
 
         # Trigger circuit breaker
@@ -192,12 +192,12 @@ class TestCircuitBreaker:
         assert test_func._circuit_open is False
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_success_resets_count(self):
+    async def test_circuit_breaker_success_resets_count(self) -> None:
         """Test that success resets failure count."""
         call_count = 0
 
         @circuit_breaker(max_failures=2, reset_timeout=60.0)
-        async def test_func():
+        async def test_func() -> str:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -220,11 +220,11 @@ class TestNodeMetrics:
     """Test node metrics decorator."""
 
     @pytest.mark.asyncio
-    async def test_node_metrics_logging(self):
+    async def test_node_metrics_logging(self) -> None:
         """Test node metrics logs execution information."""
 
         @node_metrics
-        async def test_func():
+        async def test_func() -> str:
             await asyncio.sleep(0.01)  # Small delay for timing
             return "success"
 
@@ -243,11 +243,11 @@ class TestNodeMetrics:
             assert len(completion_calls) == 1
 
     @pytest.mark.asyncio
-    async def test_node_metrics_error_logging(self):
+    async def test_node_metrics_error_logging(self) -> None:
         """Test node metrics logs errors."""
 
         @node_metrics
-        async def test_func():
+        async def test_func() -> None:
             raise RuntimeError("Test error")
 
         with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
@@ -263,13 +263,12 @@ class TestNodeMetrics:
             assert len(error_calls) == 1
 
     @pytest.mark.asyncio
-    async def test_node_metrics_timing(self):
+    async def test_node_metrics_timing(self) -> None:
         """Test node metrics includes timing information."""
 
         @node_metrics
-        async def test_func():
+        async def test_func() -> None:
             await asyncio.sleep(0.01)
-            return "success"
 
         with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
             await test_func()
@@ -289,10 +288,10 @@ class TestCreateAgentWithLLM:
     """Test create_agent_with_llm function."""
 
     @pytest.mark.asyncio
-    async def test_create_agent_with_llm_basic(self):
+    async def test_create_agent_with_llm_basic(self) -> None:
         """Test creating agent with LLM."""
-        mock_registry = Mock()
-        mock_agent = Mock()
+        mock_registry: Mock = Mock()
+        mock_agent: Mock = Mock()
         mock_registry.create_agent.return_value = mock_agent
 
         with patch(
@@ -306,13 +305,13 @@ class TestCreateAgentWithLLM:
                     "cognivault.orchestration.node_wrappers.OpenAIChatLLM"
                 ) as mock_llm_class:
                     # Setup mocks
-                    mock_config_instance = Mock()
+                    mock_config_instance: Mock = Mock()
                     mock_config_instance.api_key = "test-key"
                     mock_config_instance.model = "gpt-3.5-turbo"
                     mock_config_instance.base_url = "https://api.openai.com/v1"
                     mock_config.load.return_value = mock_config_instance
 
-                    mock_llm = Mock()
+                    mock_llm: Mock = Mock()
                     mock_llm_class.return_value = mock_llm
 
                     # Test
@@ -331,10 +330,10 @@ class TestCreateAgentWithLLM:
                     assert result == mock_agent
 
     @pytest.mark.asyncio
-    async def test_create_agent_with_llm_case_handling(self):
+    async def test_create_agent_with_llm_case_handling(self) -> None:
         """Test create_agent_with_llm handles case properly."""
-        mock_registry = Mock()
-        mock_agent = Mock()
+        mock_registry: Mock = Mock()
+        mock_agent: Mock = Mock()
         mock_registry.create_agent.return_value = mock_agent
 
         with patch(
@@ -347,13 +346,13 @@ class TestCreateAgentWithLLM:
                 with patch(
                     "cognivault.orchestration.node_wrappers.OpenAIChatLLM"
                 ) as mock_llm_class:
-                    mock_config_instance = Mock()
+                    mock_config_instance: Mock = Mock()
                     mock_config_instance.api_key = "test-key"
                     mock_config_instance.model = "gpt-3.5-turbo"
                     mock_config_instance.base_url = "https://api.openai.com/v1"
                     mock_config.load.return_value = mock_config_instance
 
-                    mock_llm_instance = Mock()
+                    mock_llm_instance: Mock = Mock()
                     mock_llm_class.return_value = mock_llm_instance
 
                     await create_agent_with_llm("REFINER")
@@ -368,7 +367,7 @@ class TestConvertStateToContext:
     """Test convert_state_to_context function."""
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_basic(self):
+    async def test_convert_state_to_context_basic(self) -> None:
         """Test basic state to context conversion."""
         state = create_initial_state("What is AI?", "exec-123")
 
@@ -433,7 +432,7 @@ class TestConvertStateToContext:
             assert context.execution_state["critic_severity"] == "medium"
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_empty_outputs(self):
+    async def test_convert_state_to_context_empty_outputs(self) -> None:
         """Test conversion with empty agent outputs."""
         state = create_initial_state("Test query", "exec-empty")
 
@@ -464,7 +463,7 @@ def create_test_runtime(
     enable_checkpoints: bool = False,
 ) -> Mock:
     """Create mock Runtime[CogniVaultContext] for testing."""
-    mock_runtime = Mock()
+    mock_runtime: Mock = Mock()
     mock_runtime.context = CogniVaultContext(
         thread_id=thread_id,
         execution_id=execution_id,
@@ -479,7 +478,7 @@ class TestRefinerNode:
     """Test refiner_node function."""
 
     @pytest.mark.asyncio
-    async def test_refiner_node_success(self):
+    async def test_refiner_node_success(self) -> None:
         """Test successful refiner node execution."""
         state = create_initial_state("What is AI?", "exec-refiner")
         runtime = create_test_runtime(
@@ -507,7 +506,7 @@ class TestRefinerNode:
             assert "refiner" in result_state["successful_agents"]
 
     @pytest.mark.asyncio
-    async def test_refiner_node_failure(self):
+    async def test_refiner_node_failure(self) -> None:
         """Test refiner node handling failure."""
         state = create_initial_state("Test query", "exec-refiner-fail")
         runtime = create_test_runtime(
@@ -566,7 +565,7 @@ class TestCriticNode:
             assert "critic" in result_state["successful_agents"]
 
     @pytest.mark.asyncio
-    async def test_critic_node_missing_dependency(self):
+    async def test_critic_node_missing_dependency(self) -> None:
         """Test critic node fails without refiner output."""
         state = create_initial_state("Test query", "exec-critic-missing")
         runtime = create_test_runtime(
@@ -679,7 +678,7 @@ class TestSynthesisNode:
             assert "synthesis" in result_state["successful_agents"]
 
     @pytest.mark.asyncio
-    async def test_synthesis_node_missing_refiner_dependency(self):
+    async def test_synthesis_node_missing_refiner_dependency(self) -> None:
         """Test synthesis node fails without refiner output."""
         state = create_initial_state("Test query", "exec-synthesis-missing")
         runtime = create_test_runtime(
@@ -813,10 +812,10 @@ class TestHandleNodeTimeout:
     """Test handle_node_timeout function."""
 
     @pytest.mark.asyncio
-    async def test_handle_node_timeout_success(self):
+    async def test_handle_node_timeout_success(self) -> None:
         """Test timeout handling with successful execution."""
 
-        async def fast_coro():
+        async def fast_coro() -> str:
             await asyncio.sleep(0.01)
             return "success"
 
@@ -824,10 +823,10 @@ class TestHandleNodeTimeout:
         assert result == "success"
 
     @pytest.mark.asyncio
-    async def test_handle_node_timeout_timeout(self):
+    async def test_handle_node_timeout_timeout(self) -> None:
         """Test timeout handling with timeout."""
 
-        async def slow_coro():
+        async def slow_coro() -> str:
             await asyncio.sleep(1.0)
             return "success"
 
@@ -838,7 +837,7 @@ class TestHandleNodeTimeout:
 class TestGetNodeDependencies:
     """Test get_node_dependencies function."""
 
-    def test_get_node_dependencies(self):
+    def test_get_node_dependencies(self) -> None:
         """Test getting node dependencies."""
         deps = get_node_dependencies()
 
@@ -852,7 +851,7 @@ class TestGetNodeDependencies:
 class TestValidateNodeInput:
     """Test validate_node_input function."""
 
-    def test_validate_node_input_refiner(self):
+    def test_validate_node_input_refiner(self) -> None:
         """Test validating refiner node input."""
         state = create_initial_state("Test query", "exec-validate")
 
@@ -875,7 +874,7 @@ class TestValidateNodeInput:
 
         assert validate_node_input(state, "critic") is True
 
-    def test_validate_node_input_critic_invalid(self):
+    def test_validate_node_input_critic_invalid(self) -> None:
         """Test validating critic node input with missing dependencies."""
         state = create_initial_state("Test query", "exec-validate")
 
@@ -927,7 +926,7 @@ class TestValidateNodeInput:
 
         assert validate_node_input(state, "synthesis") is True
 
-    def test_validate_node_input_synthesis_invalid(self):
+    def test_validate_node_input_synthesis_invalid(self) -> None:
         """Test validating synthesis node input with missing dependencies."""
         state = create_initial_state("Test query", "exec-validate")
 
@@ -941,7 +940,7 @@ class TestValidateNodeInput:
             assert "critic" in str(warning_calls[0])
             assert "historian" in str(warning_calls[1])
 
-    def test_validate_node_input_unknown_node(self):
+    def test_validate_node_input_unknown_node(self) -> None:
         """Test validating unknown node."""
         state = create_initial_state("Test query", "exec-validate")
 
@@ -975,7 +974,7 @@ class TestIntegration:
         return merged_state  # type: ignore
 
     @pytest.mark.asyncio
-    async def test_full_node_pipeline(self):
+    async def test_full_node_pipeline(self) -> None:
         """Test complete node execution pipeline."""
         state = create_initial_state("What is machine learning?", "exec-pipeline")
         runtime = create_test_runtime(
@@ -992,7 +991,7 @@ class TestIntegration:
         synthesis_agent = MockAgent("Synthesis", "ML is a key AI technology")
 
         # Mock agent creation
-        def create_mock_agent(name: str):
+        def create_mock_agent(name: str) -> MockAgent:
             if name == "refiner":
                 return refiner_agent
             elif name == "critic":
@@ -1038,7 +1037,7 @@ class TestIntegration:
             assert len(state["errors"]) == 0
 
     @pytest.mark.asyncio
-    async def test_node_failure_handling(self):
+    async def test_node_failure_handling(self) -> None:
         """Test node failure handling in pipeline."""
         state = create_initial_state("Test query", "exec-failure")
         runtime = create_test_runtime(
@@ -1052,7 +1051,7 @@ class TestIntegration:
         refiner_agent = MockAgent("Refiner", "Success")
         critic_agent = MockAgent("Critic", should_fail=True)
 
-        def create_mock_agent(name: str):
+        def create_mock_agent(name: str) -> MockAgent:
             if name == "refiner":
                 return refiner_agent
             elif name == "critic":
@@ -1073,7 +1072,7 @@ class TestIntegration:
                 await critic_node(state, runtime)
 
     @pytest.mark.asyncio
-    async def test_node_decorators_integration(self):
+    async def test_node_decorators_integration(self) -> None:
         """Test that node decorators work together properly."""
         state = create_initial_state("Test query", "exec-decorators")
         runtime = create_test_runtime(

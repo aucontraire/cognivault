@@ -6,9 +6,9 @@ for executing declarative workflows.
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict, Union
 
 from cognivault.workflows.executor import (
     DeclarativeOrchestrator,
@@ -23,6 +23,10 @@ from cognivault.workflows.definition import (
     EdgeDefinition,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 # Resolve forward references for Pydantic models
 try:
@@ -32,7 +36,7 @@ except (ImportError, Exception):
     pass
 
 
-def create_test_workflow():
+def create_test_workflow() -> Union[object, Mock]:
     """Create a test WorkflowDefinition for testing."""
     try:
         node = NodeConfiguration(
@@ -48,7 +52,7 @@ def create_test_workflow():
         )
     except ImportError:
         # Fallback to using a mock with required attributes
-        mock_workflow = Mock()
+        mock_workflow: Mock = Mock()
         mock_workflow.name = "Test Workflow"
         mock_workflow.version = "1.0.0"
         mock_workflow.workflow_id = "test-workflow-123"
@@ -58,7 +62,7 @@ def create_test_workflow():
 class TestExecutionContext:
     """Test ExecutionContext functionality."""
 
-    def test_create_execution_context(self):
+    def test_create_execution_context(self) -> None:
         """Test creating an execution context."""
         workflow_def = create_test_workflow()
 
@@ -76,7 +80,7 @@ class TestExecutionContext:
         assert context.start_time is not None
         assert context.status == "pending"
 
-    def test_update_execution_status(self):
+    def test_update_execution_status(self) -> None:
         """Test updating execution status."""
         context = ExecutionContext(
             workflow_id="test-123",
@@ -91,7 +95,7 @@ class TestExecutionContext:
         context.update_status("completed")
         assert context.status == "completed"
 
-    def test_add_execution_metadata(self):
+    def test_add_execution_metadata(self) -> None:
         """Test adding execution metadata."""
         context = ExecutionContext(
             workflow_id="test-123",
@@ -110,7 +114,7 @@ class TestExecutionContext:
 class TestWorkflowExecutor:
     """Test WorkflowExecutor functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.workflow_def = WorkflowDefinition(
             name="test_workflow",
@@ -136,7 +140,7 @@ class TestWorkflowExecutor:
         )
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_success(self):
+    async def test_execute_workflow_success(self) -> None:
         """Test successful workflow execution."""
         executor = WorkflowExecutor()
 
@@ -149,11 +153,11 @@ class TestWorkflowExecutor:
             "errors": [],
         }
 
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
         mock_graph.compile.return_value = mock_compiled_graph
 
         with patch("cognivault.workflows.executor.DagComposer") as mock_composer_class:
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.compose_workflow.return_value = mock_graph
             mock_composer._validate_workflow.return_value = (
                 None  # Mock validation success
@@ -171,12 +175,12 @@ class TestWorkflowExecutor:
             mock_compiled_graph.ainvoke.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_composition_failure(self):
+    async def test_execute_workflow_composition_failure(self) -> None:
         """Test workflow execution with composition failure."""
         executor = WorkflowExecutor()
 
         with patch("cognivault.workflows.executor.DagComposer") as mock_composer_class:
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.compose_workflow.side_effect = Exception("Composition failed")
             mock_composer_class.return_value = mock_composer
 
@@ -188,7 +192,7 @@ class TestWorkflowExecutor:
                 )
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_execution_failure(self):
+    async def test_execute_workflow_execution_failure(self) -> None:
         """Test workflow execution with graph execution failure."""
         executor = WorkflowExecutor()
 
@@ -196,7 +200,7 @@ class TestWorkflowExecutor:
         mock_graph.ainvoke.side_effect = Exception("Graph execution failed")
 
         with patch("cognivault.workflows.executor.DagComposer") as mock_composer_class:
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.compose_workflow.return_value = mock_graph
             mock_composer_class.return_value = mock_composer
 
@@ -208,7 +212,7 @@ class TestWorkflowExecutor:
                 )
 
     @pytest.mark.asyncio
-    async def test_validate_workflow_definition_success(self):
+    async def test_validate_workflow_definition_success(self) -> None:
         """Test successful workflow definition validation."""
         executor = WorkflowExecutor()
 
@@ -216,7 +220,7 @@ class TestWorkflowExecutor:
         await executor.validate_workflow_definition(self.workflow_def)
 
     @pytest.mark.asyncio
-    async def test_validate_workflow_definition_failure(self):
+    async def test_validate_workflow_definition_failure(self) -> None:
         """Test workflow definition validation failure."""
         executor = WorkflowExecutor()
 
@@ -227,7 +231,7 @@ class TestWorkflowExecutor:
         with pytest.raises(WorkflowExecutionError, match="Workflow validation failed"):
             await executor.validate_workflow_definition(invalid_workflow)
 
-    def test_convert_state_to_context(self):
+    def test_convert_state_to_context(self) -> None:
         """Test converting LangGraph state to AgentContext."""
         executor = WorkflowExecutor()
 
@@ -249,7 +253,7 @@ class TestWorkflowExecutor:
         assert context.successful_agents == {"refiner", "critic"}
         assert len(context.failed_agents) == 0
 
-    def test_convert_empty_state_to_context(self):
+    def test_convert_empty_state_to_context(self) -> None:
         """Test converting empty LangGraph state to AgentContext."""
         executor = WorkflowExecutor()
 
@@ -265,7 +269,7 @@ class TestWorkflowExecutor:
 class TestDeclarativeOrchestrator:
     """Test DeclarativeOrchestrator functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.workflow_def = WorkflowDefinition(
             name="test_workflow",
@@ -290,7 +294,7 @@ class TestDeclarativeOrchestrator:
             metadata={},
         )
 
-    def test_init_declarative_orchestrator(self):
+    def test_init_declarative_orchestrator(self) -> None:
         """Test DeclarativeOrchestrator initialization."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
 
@@ -298,16 +302,16 @@ class TestDeclarativeOrchestrator:
         assert isinstance(orchestrator.executor, WorkflowExecutor)
 
     @pytest.mark.asyncio
-    async def test_run_workflow_success(self):
+    async def test_run_workflow_success(self) -> None:
         """Test successful workflow execution via orchestrator."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
 
-        mock_context = AgentContext(query="test query")
+        mock_context = AgentContextPatterns.simple_query("test query")
         mock_context.add_agent_output("refiner", "refined output")
 
         with patch.object(orchestrator, "execute_workflow") as mock_execute:
             # Mock the WorkflowResult that execute_workflow returns
-            mock_workflow_result = Mock()
+            mock_workflow_result: Mock = Mock()
             mock_workflow_result.final_context = mock_context
             mock_execute.return_value = mock_workflow_result
 
@@ -321,15 +325,15 @@ class TestDeclarativeOrchestrator:
             assert call_args[0][1].query == "test query"  # initial_context
 
     @pytest.mark.asyncio
-    async def test_run_workflow_with_config(self):
+    async def test_run_workflow_with_config(self) -> None:
         """Test workflow execution with custom configuration."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
 
-        mock_context = AgentContext(query="test query")
+        mock_context = AgentContextPatterns.simple_query("test query")
 
         with patch.object(orchestrator, "execute_workflow") as mock_execute:
             # Mock the WorkflowResult that execute_workflow returns
-            mock_workflow_result = Mock()
+            mock_workflow_result: Mock = Mock()
             mock_workflow_result.final_context = mock_context
             mock_execute.return_value = mock_workflow_result
 
@@ -340,12 +344,12 @@ class TestDeclarativeOrchestrator:
             mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_validate_workflow(self):
+    async def test_validate_workflow(self) -> None:
         """Test workflow validation via orchestrator."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
 
         with patch.object(orchestrator, "dag_composer") as mock_composer:
-            mock_composition_result = Mock()
+            mock_composition_result: Mock = Mock()
             mock_composition_result.validation_errors = []
             mock_composition_result.metadata = {"test": True}
             mock_composition_result.node_mapping = {"refiner": Mock()}
@@ -358,7 +362,7 @@ class TestDeclarativeOrchestrator:
             assert result["errors"] == []
             mock_composer.compose_dag.assert_called_once_with(self.workflow_def)
 
-    def test_get_workflow_metadata(self):
+    def test_get_workflow_metadata(self) -> None:
         """Test getting workflow metadata."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
 
@@ -371,7 +375,7 @@ class TestDeclarativeOrchestrator:
         assert "node_count" in metadata
         assert "edge_count" in metadata
 
-    def test_update_workflow_definition(self):
+    def test_update_workflow_definition(self) -> None:
         """Test updating workflow definition."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
 
@@ -396,7 +400,7 @@ class TestWorkflowExecutionIntegration:
     """Integration tests for workflow execution."""
 
     @pytest.mark.asyncio
-    async def test_end_to_end_simple_workflow_execution(self):
+    async def test_end_to_end_simple_workflow_execution(self) -> None:
         """Test complete workflow execution process."""
         # Create a simple workflow
         workflow = WorkflowDefinition(
@@ -423,11 +427,11 @@ class TestWorkflowExecutionIntegration:
         orchestrator = DeclarativeOrchestrator(workflow)
 
         # Mock the workflow execution result directly
-        mock_context = AgentContext(query="integration test query")
+        mock_context = AgentContextPatterns.simple_query("integration test query")
         mock_context.add_agent_output("refiner", "successfully refined query")
         mock_context.successful_agents.add("refiner")
 
-        mock_workflow_result = Mock()
+        mock_workflow_result: Mock = Mock()
         mock_workflow_result.final_context = mock_context
         mock_workflow_result.success = True
 
@@ -442,7 +446,7 @@ class TestWorkflowExecutionIntegration:
             assert result.agent_outputs["refiner"] == "successfully refined query"
 
     @pytest.mark.asyncio
-    async def test_workflow_execution_error_handling(self):
+    async def test_workflow_execution_error_handling(self) -> None:
         """Test error handling during workflow execution."""
         workflow = WorkflowDefinition(
             name="error_test",
@@ -466,7 +470,7 @@ class TestWorkflowExecutionIntegration:
             await orchestrator.run("test query")
 
     @pytest.mark.asyncio
-    async def test_workflow_with_execution_config(self):
+    async def test_workflow_with_execution_config(self) -> None:
         """Test workflow execution with various configuration options."""
         workflow = WorkflowDefinition(
             name="config_test",
@@ -492,11 +496,11 @@ class TestWorkflowExecutionIntegration:
         orchestrator = DeclarativeOrchestrator(workflow)
 
         # Mock the workflow execution result directly
-        mock_context = AgentContext(query="configured query")
+        mock_context = AgentContextPatterns.simple_query("configured query")
         mock_context.add_agent_output("refiner", "configured execution")
         mock_context.successful_agents.add("refiner")
 
-        mock_workflow_result = Mock()
+        mock_workflow_result: Mock = Mock()
         mock_workflow_result.final_context = mock_context
         mock_workflow_result.success = True
 
@@ -526,9 +530,9 @@ class TestWorkflowExecutionIntegration:
 class TestWorkflowResult:
     """Test WorkflowResult functionality for comprehensive result tracking."""
 
-    def test_workflow_result_creation(self):
+    def test_workflow_result_creation(self) -> None:
         """Test creating workflow result with all fields."""
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.add_agent_output("agent1", "output1")
         context.execution_state["key"] = "value"
 
@@ -553,9 +557,9 @@ class TestWorkflowResult:
         assert result.success is True
         assert result.event_correlation_id == "correlation-123"
 
-    def test_workflow_result_to_dict(self):
+    def test_workflow_result_to_dict(self) -> None:
         """Test converting workflow result to dictionary."""
-        context = AgentContext(query="test query with\nnewlines")
+        context = AgentContextPatterns.simple_query("test query with\nnewlines")
         context.add_agent_output("agent1", "output with\ttabs and\nnewlines")
         context.execution_state["state_key"] = "state_value"
 

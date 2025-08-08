@@ -8,22 +8,26 @@ and that agent-level completion events now include actual agent output content.
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
-from typing import Dict, Any
+from typing import Any, Dict
 
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.llm.llm_interface import LLMInterface, LLMResponse
 
 
 class MockLLMForIntegration(LLMInterface):
     """Mock LLM that provides realistic responses for integration testing."""
 
-    def __init__(self, responses: Dict[str, str]):
+    def __init__(self, responses: Dict[str, str]) -> None:
         self.responses = responses
         self.call_count = 0
 
-    def generate(self, prompt: str, **kwargs) -> LLMResponse:
+    def generate(self, prompt: str, **kwargs: Any) -> LLMResponse:
         """Generate mock response with token usage."""
         self.call_count += 1
 
@@ -54,7 +58,7 @@ class MockLLMForIntegration(LLMInterface):
             finish_reason="stop",
         )
 
-    async def agenerate(self, prompt: str, **kwargs) -> LLMResponse:
+    async def agenerate(self, prompt: str, **kwargs: Any) -> LLMResponse:
         """Async version of generate."""
         return self.generate(prompt, **kwargs)
 
@@ -62,18 +66,18 @@ class MockLLMForIntegration(LLMInterface):
 class EventCapture:
     """Helper class to capture emitted events for verification."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.events = []
         self.completed_events = []
 
-    async def capture_completed_event(self, **kwargs):
+    async def capture_completed_event(self, **kwargs: Any) -> Any:
         """Mock function to capture agent execution completed events."""
         self.completed_events.append(kwargs)
         return AsyncMock()
 
 
 @pytest.mark.asyncio
-async def test_pattern2_refiner_agent_content_integration():
+async def test_pattern2_refiner_agent_content_integration() -> None:
     """
     Integration test: RefinerAgent emits events with actual content (PATTERN 2 fix).
 
@@ -91,7 +95,7 @@ async def test_pattern2_refiner_agent_content_integration():
     refiner = RefinerAgent(llm=mock_llm)
 
     # Create test context
-    context = AgentContext(
+    context = AgentContextFactory.basic(
         user_id="test_user",
         session_id="test_session",
         query="What is machine learning?",
@@ -169,7 +173,7 @@ async def test_pattern2_refiner_agent_content_integration():
 
 
 @pytest.mark.asyncio
-async def test_pattern2_critic_agent_content_integration():
+async def test_pattern2_critic_agent_content_integration() -> None:
     """
     Integration test: CriticAgent emits events with actual content (PATTERN 2 fix).
     """
@@ -184,7 +188,7 @@ async def test_pattern2_critic_agent_content_integration():
     critic = CriticAgent(llm=mock_llm)
 
     # Create test context with refiner output (critic depends on refiner)
-    context = AgentContext(
+    context = AgentContextFactory.basic(
         user_id="test_user",
         session_id="test_session",
         query="What are the fundamental principles of machine learning?",
@@ -254,7 +258,7 @@ async def test_pattern2_critic_agent_content_integration():
 
 
 @pytest.mark.asyncio
-async def test_pattern2_content_truncation_for_large_outputs():
+async def test_pattern2_content_truncation_for_large_outputs() -> None:
     """
     Test that very large agent outputs are properly truncated in events while preserving metadata.
 
@@ -269,7 +273,7 @@ async def test_pattern2_content_truncation_for_large_outputs():
     )
 
     refiner = RefinerAgent(llm=mock_llm)
-    context = AgentContext(
+    context = AgentContextFactory.basic(
         user_id="test_user",
         session_id="test_session",
         query="Generate a comprehensive analysis",

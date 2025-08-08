@@ -7,8 +7,8 @@ infrastructure. Missing coverage here poses immediate risk to architectural migr
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from typing import Dict, Any, Optional
+from unittest.mock import MagicMock, Mock, patch
+from typing import Any, Dict, List, Tuple
 
 from cognivault.workflows.prompt_loader import (
     load_agent_prompts,
@@ -27,10 +27,10 @@ class TestLoadAgentPrompts:
     """Test loading prompts from agent prompts.py modules."""
 
     @patch("cognivault.workflows.prompt_loader.importlib.import_module")
-    def test_load_agent_prompts_success(self, mock_import):
+    def test_load_agent_prompts_success(self, mock_import: Mock) -> None:
         """Test successful loading of agent prompts."""
         # Create a mock prompts module
-        mock_module = Mock()
+        mock_module: Mock = Mock()
         mock_module.REFINER_SYSTEM_PROMPT = "You are a query refiner."
         mock_module.REFINER_ANALYSIS_TEMPLATE = "Analyze: {query}"
         mock_module._private_var = "should be ignored"
@@ -61,7 +61,7 @@ class TestLoadAgentPrompts:
             assert result == expected
 
     @patch("cognivault.workflows.prompt_loader.importlib.import_module")
-    def test_load_agent_prompts_import_error(self, mock_import):
+    def test_load_agent_prompts_import_error(self, mock_import: Mock) -> None:
         """Test handling of missing prompts.py file."""
         mock_import.side_effect = ImportError(
             "No module named 'cognivault.agents.nonexistent.prompts'"
@@ -73,7 +73,7 @@ class TestLoadAgentPrompts:
         mock_import.assert_called_once_with("cognivault.agents.nonexistent.prompts")
 
     @patch("cognivault.workflows.prompt_loader.importlib.import_module")
-    def test_load_agent_prompts_general_exception(self, mock_import):
+    def test_load_agent_prompts_general_exception(self, mock_import: Mock) -> None:
         """Test handling of general exceptions during prompt loading."""
         mock_import.side_effect = AttributeError("Some unexpected error")
 
@@ -83,9 +83,9 @@ class TestLoadAgentPrompts:
         mock_import.assert_called_once_with("cognivault.agents.broken.prompts")
 
     @patch("cognivault.workflows.prompt_loader.importlib.import_module")
-    def test_load_agent_prompts_empty_module(self, mock_import):
+    def test_load_agent_prompts_empty_module(self, mock_import: Mock) -> None:
         """Test loading from module with no relevant attributes."""
-        mock_module = Mock()
+        mock_module: Mock = Mock()
         with patch("builtins.dir", return_value=["__name__", "__doc__"]):
             mock_import.return_value = mock_module
 
@@ -94,9 +94,9 @@ class TestLoadAgentPrompts:
             assert result == {}
 
     @patch("cognivault.workflows.prompt_loader.importlib.import_module")
-    def test_load_agent_prompts_mixed_attributes(self, mock_import):
+    def test_load_agent_prompts_mixed_attributes(self, mock_import: Mock) -> None:
         """Test loading from module with mixed attribute types."""
-        mock_module = Mock()
+        mock_module: Mock = Mock()
         mock_module.STRING_PROMPT = "Valid prompt"
         mock_module.DICT_CONFIG = {"key": "value"}
         mock_module.LIST_ITEMS = ["item1", "item2"]
@@ -127,7 +127,7 @@ class TestGetSystemPrompt:
     """Test system prompt retrieval with custom overrides."""
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_system_prompt_with_custom_override(self, mock_load):
+    def test_get_system_prompt_with_custom_override(self, mock_load: Mock) -> None:
         """Test that custom prompt overrides default."""
         mock_load.return_value = {"REFINER_SYSTEM_PROMPT": "Default prompt"}
 
@@ -138,7 +138,7 @@ class TestGetSystemPrompt:
         mock_load.assert_not_called()
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_system_prompt_standard_key(self, mock_load):
+    def test_get_system_prompt_standard_key(self, mock_load: Mock) -> None:
         """Test retrieval using standard system prompt key."""
         mock_load.return_value = {"REFINER_SYSTEM_PROMPT": "Standard refiner prompt"}
 
@@ -148,7 +148,7 @@ class TestGetSystemPrompt:
         mock_load.assert_called_once_with("refiner")
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_system_prompt_fallback_key(self, mock_load):
+    def test_get_system_prompt_fallback_key(self, mock_load: Mock) -> None:
         """Test fallback to generic SYSTEM_PROMPT key."""
         mock_load.return_value = {"SYSTEM_PROMPT": "Generic system prompt"}
 
@@ -158,7 +158,7 @@ class TestGetSystemPrompt:
         mock_load.assert_called_once_with("custom_agent")
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_system_prompt_no_prompt_found(self, mock_load):
+    def test_get_system_prompt_no_prompt_found(self, mock_load: Mock) -> None:
         """Test handling when no system prompt is found."""
         mock_load.return_value = {"OTHER_PROMPT": "Not a system prompt"}
 
@@ -168,7 +168,7 @@ class TestGetSystemPrompt:
         mock_load.assert_called_once_with("agent_without_system_prompt")
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_system_prompt_empty_prompts(self, mock_load):
+    def test_get_system_prompt_empty_prompts(self, mock_load: Mock) -> None:
         """Test handling when no prompts are loaded."""
         mock_load.return_value = {}
 
@@ -182,7 +182,7 @@ class TestGetTemplatePrompt:
     """Test template prompt retrieval and formatting."""
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_template_prompt_success(self, mock_load):
+    def test_get_template_prompt_success(self, mock_load: Mock) -> None:
         """Test successful template prompt retrieval and formatting."""
         mock_load.return_value = {
             "REFINER_ANALYSIS_TEMPLATE": "Analyze this query: {query} with focus on {focus}"
@@ -196,7 +196,7 @@ class TestGetTemplatePrompt:
         mock_load.assert_called_once_with("refiner")
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_template_prompt_missing_variable(self, mock_load):
+    def test_get_template_prompt_missing_variable(self, mock_load: Mock) -> None:
         """Test handling of missing template variables."""
         mock_load.return_value = {
             "REFINER_ANALYSIS_TEMPLATE": "Analyze this query: {query} with focus on {missing_var}"
@@ -208,7 +208,7 @@ class TestGetTemplatePrompt:
         mock_load.assert_called_once_with("refiner")
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_template_prompt_not_found(self, mock_load):
+    def test_get_template_prompt_not_found(self, mock_load: Mock) -> None:
         """Test handling when template is not found."""
         mock_load.return_value = {"OTHER_TEMPLATE": "Not the template we want"}
 
@@ -218,7 +218,7 @@ class TestGetTemplatePrompt:
         mock_load.assert_called_once_with("refiner")
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_get_template_prompt_no_variables(self, mock_load):
+    def test_get_template_prompt_no_variables(self, mock_load: Mock) -> None:
         """Test template prompt without variables."""
         mock_load.return_value = {
             "CRITIC_FEEDBACK_TEMPLATE": "Provide feedback on the analysis."
@@ -234,7 +234,7 @@ class TestApplyRichConfigurationToPrompts:
     """Test rich configuration application to prompts."""
 
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_rich_config_refiner(self, mock_get_prompt):
+    def test_apply_rich_config_refiner(self, mock_get_prompt: Mock) -> None:
         """Test applying rich configuration to refiner agent."""
         mock_get_prompt.return_value = "Base refiner prompt."
 
@@ -256,7 +256,7 @@ class TestApplyRichConfigurationToPrompts:
         mock_get_prompt.assert_called_once_with("refiner")
 
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_rich_config_historian(self, mock_get_prompt):
+    def test_apply_rich_config_historian(self, mock_get_prompt: Mock) -> None:
         """Test applying rich configuration to historian agent."""
         mock_get_prompt.return_value = "Base historian prompt."
 
@@ -276,7 +276,7 @@ class TestApplyRichConfigurationToPrompts:
         mock_get_prompt.assert_called_once_with("historian")
 
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_rich_config_critic(self, mock_get_prompt):
+    def test_apply_rich_config_critic(self, mock_get_prompt: Mock) -> None:
         """Test applying rich configuration to critic agent."""
         mock_get_prompt.return_value = "Base critic prompt."
 
@@ -296,7 +296,7 @@ class TestApplyRichConfigurationToPrompts:
         mock_get_prompt.assert_called_once_with("critic")
 
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_rich_config_synthesis(self, mock_get_prompt):
+    def test_apply_rich_config_synthesis(self, mock_get_prompt: Mock) -> None:
         """Test applying rich configuration to synthesis agent."""
         mock_get_prompt.return_value = "Base synthesis prompt."
 
@@ -319,7 +319,7 @@ class TestApplyRichConfigurationToPrompts:
         mock_get_prompt.assert_called_once_with("synthesis")
 
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_rich_config_unknown_agent(self, mock_get_prompt):
+    def test_apply_rich_config_unknown_agent(self, mock_get_prompt: Mock) -> None:
         """Test handling unknown agent type."""
         mock_get_prompt.return_value = "Base prompt."
 
@@ -329,7 +329,7 @@ class TestApplyRichConfigurationToPrompts:
         mock_get_prompt.assert_called_once_with("unknown_agent")
 
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_rich_config_no_base_prompt(self, mock_get_prompt):
+    def test_apply_rich_config_no_base_prompt(self, mock_get_prompt: Mock) -> None:
         """Test handling when no base prompt is available."""
         mock_get_prompt.return_value = None
 
@@ -342,7 +342,7 @@ class TestApplyRichConfigurationToPrompts:
 class TestRefinerConfigApplication:
     """Test refiner-specific configuration application."""
 
-    def test_apply_refiner_config_detailed_level(self):
+    def test_apply_refiner_config_detailed_level(self) -> None:
         """Test detailed refinement level configuration."""
         base_prompt = "Base prompt."
         config = {"refinement_level": "detailed"}
@@ -352,7 +352,7 @@ class TestRefinerConfigApplication:
         assert "Base prompt." in result
         assert "ACTIVE MODE. Provide comprehensive refinements" in result
 
-    def test_apply_refiner_config_minimal_level(self):
+    def test_apply_refiner_config_minimal_level(self) -> None:
         """Test minimal refinement level configuration."""
         base_prompt = "Base prompt."
         config = {"refinement_level": "minimal"}
@@ -361,7 +361,7 @@ class TestRefinerConfigApplication:
 
         assert "PASSIVE MODE. Only refine if critically necessary" in result
 
-    def test_apply_refiner_config_comprehensive_level(self):
+    def test_apply_refiner_config_comprehensive_level(self) -> None:
         """Test comprehensive refinement level configuration."""
         base_prompt = "Base prompt."
         config = {"refinement_level": "comprehensive"}
@@ -370,7 +370,7 @@ class TestRefinerConfigApplication:
 
         assert "ACTIVE MODE with maximum thoroughness" in result
 
-    def test_apply_refiner_config_behavioral_modes(self):
+    def test_apply_refiner_config_behavioral_modes(self) -> None:
         """Test behavioral mode configurations."""
         base_prompt = "Base prompt."
 
@@ -382,7 +382,7 @@ class TestRefinerConfigApplication:
         result = _apply_refiner_config(base_prompt, {"behavioral_mode": "passive"})
         assert "Only refine when significant improvements" in result
 
-    def test_apply_refiner_config_output_formats(self):
+    def test_apply_refiner_config_output_formats(self) -> None:
         """Test output format configurations."""
         base_prompt = "Base prompt."
 
@@ -394,7 +394,7 @@ class TestRefinerConfigApplication:
         result = _apply_refiner_config(base_prompt, {"output_format": "raw"})
         assert "without prefixes or formatting" in result
 
-    def test_apply_refiner_config_custom_constraints(self):
+    def test_apply_refiner_config_custom_constraints(self) -> None:
         """Test custom constraints application."""
         base_prompt = "Base prompt."
         config = {
@@ -407,10 +407,10 @@ class TestRefinerConfigApplication:
         assert "maintain_technical_accuracy" in result
         assert "preserve_context" in result
 
-    def test_apply_refiner_config_empty_config(self):
+    def test_apply_refiner_config_empty_config(self) -> None:
         """Test applying empty configuration."""
         base_prompt = "Base prompt."
-        config = {}
+        config: Dict[str, Any] = {}
 
         result = _apply_refiner_config(base_prompt, config)
 
@@ -420,7 +420,7 @@ class TestRefinerConfigApplication:
 class TestHistorianConfigApplication:
     """Test historian-specific configuration application."""
 
-    def test_apply_historian_config_search_depths(self):
+    def test_apply_historian_config_search_depths(self) -> None:
         """Test search depth configurations."""
         base_prompt = "Base prompt."
 
@@ -432,7 +432,7 @@ class TestHistorianConfigApplication:
         result = _apply_historian_config(base_prompt, {"search_depth": "basic"})
         assert "Basic - focus on most relevant and recent" in result
 
-    def test_apply_historian_config_analysis_modes(self):
+    def test_apply_historian_config_analysis_modes(self) -> None:
         """Test analysis mode configurations."""
         base_prompt = "Base prompt."
 
@@ -444,7 +444,7 @@ class TestHistorianConfigApplication:
         result = _apply_historian_config(base_prompt, {"analysis_mode": "factual"})
         assert "factual content and documented evidence" in result
 
-    def test_apply_historian_config_focus_areas(self):
+    def test_apply_historian_config_focus_areas(self) -> None:
         """Test focus areas configuration."""
         base_prompt = "Base prompt."
         config = {
@@ -462,10 +462,10 @@ class TestHistorianConfigApplication:
         assert "market_analysis" in result
         assert "regulatory_changes" in result
 
-    def test_apply_historian_config_empty_focus_areas(self):
+    def test_apply_historian_config_empty_focus_areas(self) -> None:
         """Test empty focus areas."""
         base_prompt = "Base prompt."
-        config = {"focus_areas": []}
+        config: Dict[str, Any] = {"focus_areas": []}
 
         result = _apply_historian_config(base_prompt, config)
 
@@ -475,7 +475,7 @@ class TestHistorianConfigApplication:
 class TestCriticConfigApplication:
     """Test critic-specific configuration application."""
 
-    def test_apply_critic_config_analysis_depths(self):
+    def test_apply_critic_config_analysis_depths(self) -> None:
         """Test analysis depth configurations."""
         base_prompt = "Base prompt."
 
@@ -487,7 +487,7 @@ class TestCriticConfigApplication:
         result = _apply_critic_config(base_prompt, {"analysis_depth": "shallow"})
         assert "Shallow - focus on obvious issues" in result
 
-    def test_apply_critic_config_bias_detection(self):
+    def test_apply_critic_config_bias_detection(self) -> None:
         """Test bias detection configuration."""
         base_prompt = "Base prompt."
 
@@ -499,7 +499,7 @@ class TestCriticConfigApplication:
         result = _apply_critic_config(base_prompt, {"bias_detection": True})
         assert "BIAS DETECTION: Disabled" not in result
 
-    def test_apply_critic_config_categories(self):
+    def test_apply_critic_config_categories(self) -> None:
         """Test categories focus configuration."""
         base_prompt = "Base prompt."
         config = {
@@ -521,7 +521,7 @@ class TestCriticConfigApplication:
 class TestSynthesisConfigApplication:
     """Test synthesis-specific configuration application."""
 
-    def test_apply_synthesis_config_synthesis_modes(self):
+    def test_apply_synthesis_config_synthesis_modes(self) -> None:
         """Test synthesis mode configurations."""
         base_prompt = "Base prompt."
 
@@ -535,7 +535,7 @@ class TestSynthesisConfigApplication:
         )
         assert "Comprehensive - detailed integration with full analysis" in result
 
-    def test_apply_synthesis_config_output_styles(self):
+    def test_apply_synthesis_config_output_styles(self) -> None:
         """Test output style configurations."""
         base_prompt = "Base prompt."
 
@@ -551,7 +551,7 @@ class TestSynthesisConfigApplication:
             result = _apply_synthesis_config(base_prompt, {"output_style": style})
             assert expected_text in result
 
-    def test_apply_synthesis_config_integration_strategies(self):
+    def test_apply_synthesis_config_integration_strategies(self) -> None:
         """Test integration strategy configurations."""
         base_prompt = "Base prompt."
 
@@ -567,7 +567,7 @@ class TestSynthesisConfigApplication:
         )
         assert "sequential approach - integrate in order" in result
 
-    def test_apply_synthesis_config_structure(self):
+    def test_apply_synthesis_config_structure(self) -> None:
         """Test structure requirements configuration."""
         base_prompt = "Base prompt."
         config = {
@@ -587,7 +587,9 @@ class TestApplyPromptConfiguration:
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_prompt_config_custom_prompts(self, mock_get_prompt, mock_load):
+    def test_apply_prompt_config_custom_prompts(
+        self, mock_get_prompt: Mock, mock_load: Mock
+    ) -> None:
         """Test applying custom prompt configuration."""
         mock_get_prompt.return_value = "Custom system prompt"
         mock_load.return_value = {
@@ -615,7 +617,9 @@ class TestApplyPromptConfiguration:
         mock_get_prompt.assert_called_once_with("refiner", "Custom system prompt")
 
     @patch("cognivault.workflows.prompt_loader.apply_rich_configuration_to_prompts")
-    def test_apply_prompt_config_rich_configuration(self, mock_rich_config):
+    def test_apply_prompt_config_rich_configuration(
+        self, mock_rich_config: Mock
+    ) -> None:
         """Test applying rich configuration when no custom prompts."""
         mock_rich_config.return_value = "Rich configured prompt"
 
@@ -629,7 +633,9 @@ class TestApplyPromptConfiguration:
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_prompt_config_no_system_prompt(self, mock_get_prompt, mock_load):
+    def test_apply_prompt_config_no_system_prompt(
+        self, mock_get_prompt: Mock, mock_load: Mock
+    ) -> None:
         """Test handling when no system prompt is available."""
         mock_get_prompt.return_value = None
         mock_load.return_value = {}
@@ -642,7 +648,9 @@ class TestApplyPromptConfiguration:
         assert result == expected
 
     @patch("cognivault.workflows.prompt_loader.apply_rich_configuration_to_prompts")
-    def test_apply_prompt_config_empty_rich_result(self, mock_rich_config):
+    def test_apply_prompt_config_empty_rich_result(
+        self, mock_rich_config: Mock
+    ) -> None:
         """Test handling when rich configuration returns empty result."""
         mock_rich_config.return_value = ""
 
@@ -654,7 +662,7 @@ class TestApplyPromptConfiguration:
         mock_rich_config.assert_called_once_with("refiner", config)
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_apply_prompt_config_empty_config(self, mock_load):
+    def test_apply_prompt_config_empty_config(self, mock_load: Mock) -> None:
         """Test handling empty configuration."""
         mock_load.return_value = {}
 
@@ -671,8 +679,8 @@ class TestApplyPromptConfiguration:
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
     def test_apply_prompt_config_missing_default_template(
-        self, mock_get_prompt, mock_load
-    ):
+        self, mock_get_prompt: Mock, mock_load: Mock
+    ) -> None:
         """Test handling when default template is not available for empty custom template."""
         mock_get_prompt.return_value = (
             "Custom prompt"  # get_system_prompt returns custom prompt when provided
@@ -697,7 +705,7 @@ class TestEdgeCasesAndErrorHandling:
     """Test edge cases and error handling scenarios."""
 
     @patch("cognivault.workflows.prompt_loader.get_system_prompt")
-    def test_apply_rich_config_all_agent_types(self, mock_get_prompt):
+    def test_apply_rich_config_all_agent_types(self, mock_get_prompt: Mock) -> None:
         """Test rich configuration for all supported agent types."""
         mock_get_prompt.return_value = "Base prompt"
 
@@ -710,7 +718,7 @@ class TestEdgeCasesAndErrorHandling:
         # Verify all agent types were processed
         assert mock_get_prompt.call_count == len(agent_types)
 
-    def test_refiner_config_all_options_combination(self):
+    def test_refiner_config_all_options_combination(self) -> None:
         """Test refiner configuration with all options combined."""
         base_prompt = "Base prompt."
         config = {
@@ -730,7 +738,7 @@ class TestEdgeCasesAndErrorHandling:
         assert "constraint1" in result
         assert "constraint2" in result
 
-    def test_historian_config_all_options_combination(self):
+    def test_historian_config_all_options_combination(self) -> None:
         """Test historian configuration with all options combined."""
         base_prompt = "Base prompt."
         config = {
@@ -748,7 +756,7 @@ class TestEdgeCasesAndErrorHandling:
         assert "area1" in result
         assert "area2" in result
 
-    def test_synthesis_config_all_options_combination(self):
+    def test_synthesis_config_all_options_combination(self) -> None:
         """Test synthesis configuration with all options combined."""
         base_prompt = "Base prompt."
         config = {
@@ -769,7 +777,7 @@ class TestEdgeCasesAndErrorHandling:
         assert "section2" in result
 
     @patch("cognivault.workflows.prompt_loader.load_agent_prompts")
-    def test_template_prompt_case_sensitivity(self, mock_load):
+    def test_template_prompt_case_sensitivity(self, mock_load: Mock) -> None:
         """Test template prompt key case sensitivity."""
         mock_load.return_value = {
             "REFINER_ANALYSIS_TEMPLATE": "Correct template",
@@ -781,7 +789,7 @@ class TestEdgeCasesAndErrorHandling:
 
         assert result == "Correct template"
 
-    def test_config_with_none_values(self):
+    def test_config_with_none_values(self) -> None:
         """Test configuration handling with None values."""
         base_prompt = "Base prompt."
 
@@ -797,12 +805,12 @@ class TestEdgeCasesAndErrorHandling:
         # Should handle None values gracefully
         assert result == "Base prompt."
 
-    def test_config_with_empty_lists(self):
+    def test_config_with_empty_lists(self) -> None:
         """Test configuration handling with empty lists."""
         base_prompt = "Base prompt."
 
         # Test all agents with empty constraint/area lists
-        configs = [
+        configs: List[Tuple[str, Dict[str, Any]]] = [
             ("refiner", {"custom_constraints": []}),
             ("historian", {"focus_areas": []}),
             ("critic", {"categories": []}),

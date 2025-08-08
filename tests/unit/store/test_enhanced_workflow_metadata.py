@@ -6,7 +6,8 @@ and configuration fingerprinting capabilities.
 """
 
 import pytest
-from unittest.mock import patch, Mock
+from typing import Any
+from unittest.mock import MagicMock, Mock, patch
 from pydantic import ValidationError
 
 from cognivault.store.frontmatter import WorkflowExecutionMetadata
@@ -16,7 +17,7 @@ from cognivault.llm.provider_enum import LLMModel, LLMProvider
 class TestWorkflowExecutionMetadata:
     """Test suite for enhanced workflow execution metadata."""
 
-    def test_basic_metadata_creation(self):
+    def test_basic_metadata_creation(self) -> None:
         """Test creation of basic workflow metadata."""
         metadata = WorkflowExecutionMetadata(
             workflow_id="test-workflow-123",
@@ -34,7 +35,7 @@ class TestWorkflowExecutionMetadata:
         assert metadata.nodes_executed == ["refiner", "critic", "synthesis"]
         assert metadata.event_correlation_id == "corr-789"
 
-    def test_enhanced_metadata_creation(self):
+    def test_enhanced_metadata_creation(self) -> None:
         """Test creation of metadata with all enhanced fields."""
         node_times = {"refiner": 5.2, "critic": 8.1, "synthesis": 12.2}
 
@@ -67,7 +68,7 @@ class TestWorkflowExecutionMetadata:
         assert metadata.response_quality_score == 0.92
         assert metadata.query_complexity == "medium"
 
-    def test_config_fingerprint_creation(self):
+    def test_config_fingerprint_creation(self) -> None:
         """Test configuration fingerprinting functionality."""
         workflow_config = {
             "name": "test-workflow",
@@ -97,7 +98,7 @@ class TestWorkflowExecutionMetadata:
         )
         assert fingerprint != fingerprint3
 
-    def test_cost_calculation(self):
+    def test_cost_calculation(self) -> None:
         """Test cost estimation functionality."""
         metadata = WorkflowExecutionMetadata()
 
@@ -117,7 +118,7 @@ class TestWorkflowExecutionMetadata:
         cost = metadata.calculate_cost_estimate(500, "gpt-4")
         assert cost == 0.015  # Half the rate
 
-    def test_response_quality_score_validation(self):
+    def test_response_quality_score_validation(self) -> None:
         """Test validation of response quality score bounds."""
         # Valid scores
         metadata = WorkflowExecutionMetadata(response_quality_score=0.0)
@@ -136,7 +137,7 @@ class TestWorkflowExecutionMetadata:
         with pytest.raises(ValidationError):
             WorkflowExecutionMetadata(response_quality_score=1.1)
 
-    def test_optional_fields_default_behavior(self):
+    def test_optional_fields_default_behavior(self) -> None:
         """Test that all enhanced fields are optional with proper defaults."""
         metadata = WorkflowExecutionMetadata()
 
@@ -162,7 +163,7 @@ class TestWorkflowExecutionMetadata:
         assert metadata.query_complexity is None
         assert metadata.logging_level is None
 
-    def test_model_serialization(self):
+    def test_model_serialization(self) -> None:
         """Test that metadata can be serialized/deserialized properly."""
         original_metadata = WorkflowExecutionMetadata(
             workflow_id="serialize-test-123",
@@ -193,7 +194,7 @@ class TestWorkflowExecutionMetadata:
             == original_metadata.response_quality_score
         )
 
-    def test_backward_compatibility(self):
+    def test_backward_compatibility(self) -> None:
         """Test that old-style metadata still works."""
         # Test creation with only original fields
         metadata = WorkflowExecutionMetadata(
@@ -217,24 +218,24 @@ class TestWorkflowExecutionMetadata:
 class TestLLMModelEnum:
     """Test suite for LLM model enumeration."""
 
-    def test_llm_model_enum_values(self):
+    def test_llm_model_enum_values(self) -> None:
         """Test that LLM model enum has expected values."""
         # Test OpenAI models
-        assert LLMModel.GPT_4 == "gpt-4"
-        assert LLMModel.GPT_4_TURBO == "gpt-4-turbo"
-        assert LLMModel.GPT_4O == "gpt-4o"
-        assert LLMModel.GPT_4O_MINI == "gpt-4o-mini"
-        assert LLMModel.GPT_3_5_TURBO == "gpt-3.5-turbo"
+        assert LLMModel.GPT_4.value == "gpt-4"
+        assert LLMModel.GPT_4_TURBO.value == "gpt-4-turbo"
+        assert LLMModel.GPT_4O.value == "gpt-4o"
+        assert LLMModel.GPT_4O_MINI.value == "gpt-4o-mini"
+        assert LLMModel.GPT_3_5_TURBO.value == "gpt-3.5-turbo"
 
         # Test future models
-        assert LLMModel.CLAUDE_OPUS == "claude-3-opus"
-        assert LLMModel.MISTRAL_7B == "mistral-7b"
+        assert LLMModel.CLAUDE_OPUS.value == "claude-3-opus"
+        assert LLMModel.MISTRAL_7B.value == "mistral-7b"
 
         # Test special models
-        assert LLMModel.STUB == "stub"
-        assert LLMModel.LOCAL_CUSTOM == "local-custom"
+        assert LLMModel.STUB.value == "stub"
+        assert LLMModel.LOCAL_CUSTOM.value == "local-custom"
 
-    def test_llm_model_enum_type_safety(self):
+    def test_llm_model_enum_type_safety(self) -> None:
         """Test type safety of LLM model enum."""
         # Valid enum usage
         model = LLMModel.GPT_4
@@ -242,19 +243,19 @@ class TestLLMModelEnum:
         assert isinstance(model, str)  # str Enum
 
         # Can be used as string
-        assert model == "gpt-4"
+        assert model.value == "gpt-4"
         assert model.value == "gpt-4"
 
-    def test_llm_provider_enum_values(self):
+    def test_llm_provider_enum_values(self) -> None:
         """Test that LLM provider enum has expected values."""
-        assert LLMProvider.OPENAI == "openai"
-        assert LLMProvider.STUB == "stub"
+        assert LLMProvider.OPENAI.value == "openai"
+        assert LLMProvider.STUB.value == "stub"
 
 
 class TestWorkflowMetadataIntegration:
     """Integration tests for workflow metadata with other components."""
 
-    def test_metadata_with_real_workflow_structure(self):
+    def test_metadata_with_real_workflow_structure(self) -> None:
         """Test metadata creation with realistic workflow data."""
         # Simulate a real workflow execution result
         workflow_result_data = {
@@ -287,25 +288,32 @@ class TestWorkflowMetadataIntegration:
         metadata = WorkflowExecutionMetadata(**workflow_result_data, **enhanced_data)
 
         # Calculate cost estimate
-        metadata.cost_estimate = metadata.calculate_cost_estimate(
-            metadata.total_tokens_used, metadata.llm_model
-        )
+        if metadata.total_tokens_used is not None and metadata.llm_model is not None:
+            metadata.cost_estimate = metadata.calculate_cost_estimate(
+                metadata.total_tokens_used, metadata.llm_model
+            )
 
         assert metadata.workflow_id == "agent-config-comprehensive"
+        assert metadata.node_execution_times is not None
         assert len(metadata.node_execution_times) == 4
+        assert metadata.cost_estimate is not None
         assert metadata.cost_estimate > 0
         assert metadata.query_complexity == "medium"
 
         # Verify total execution time roughly matches sum of node times
-        total_node_time = sum(metadata.node_execution_times.values())
-        assert (
-            abs(metadata.execution_time_seconds - total_node_time) < 10
-        )  # Allow for overhead
+        if (
+            metadata.node_execution_times is not None
+            and metadata.execution_time_seconds is not None
+        ):
+            total_node_time = sum(metadata.node_execution_times.values())
+            assert (
+                abs(metadata.execution_time_seconds - total_node_time) < 10
+            )  # Allow for overhead
 
     @patch("cognivault.store.frontmatter.hashlib.sha256")
-    def test_config_fingerprint_hashing(self, mock_sha256):
+    def test_config_fingerprint_hashing(self, mock_sha256: Any) -> None:
         """Test that config fingerprinting uses proper hashing."""
-        mock_hash = Mock()
+        mock_hash: Mock = Mock()
         mock_hash.hexdigest.return_value = "mocked_hash_123"
         mock_sha256.return_value = mock_hash
 
@@ -320,7 +328,7 @@ class TestWorkflowMetadataIntegration:
         mock_sha256.assert_called_once()
         mock_hash.hexdigest.assert_called_once()
 
-    def test_performance_analytics_ready(self):
+    def test_performance_analytics_ready(self) -> None:
         """Test that metadata structure supports performance analytics."""
         metadata = WorkflowExecutionMetadata(
             execution_time_seconds=50.0,
@@ -335,18 +343,24 @@ class TestWorkflowMetadataIntegration:
         )
 
         # Analytics calculations
-        total_node_time = sum(metadata.node_execution_times.values())
-        overhead_time = metadata.execution_time_seconds - total_node_time
-        avg_node_time = total_node_time / len(metadata.node_execution_times)
-        cost_per_second = metadata.cost_estimate / metadata.execution_time_seconds
+        if (
+            metadata.node_execution_times is not None
+            and metadata.execution_time_seconds is not None
+            and metadata.cost_estimate is not None
+        ):
+            total_node_time = sum(metadata.node_execution_times.values())
+            overhead_time = metadata.execution_time_seconds - total_node_time
+            avg_node_time = total_node_time / len(metadata.node_execution_times)
+            cost_per_second = metadata.cost_estimate / metadata.execution_time_seconds
 
-        assert total_node_time == 50.0
-        assert overhead_time == 0.0  # Perfect efficiency in this test
-        assert avg_node_time == 12.5
-        assert cost_per_second == 0.0015
+            assert total_node_time == 50.0
+            assert overhead_time == 0.0  # Perfect efficiency in this test
+            assert avg_node_time == 12.5
+            assert cost_per_second == 0.0015
 
         # Verify all data needed for performance analytics is present
         assert metadata.execution_time_seconds is not None
+        assert metadata.node_execution_times is not None
         assert len(metadata.node_execution_times) > 0
         assert metadata.total_tokens_used is not None
         assert metadata.cost_estimate is not None

@@ -1,3 +1,5 @@
+from typing import Any
+
 #!/usr/bin/env python3
 """
 Configuration parsing and validation round-trip testing.
@@ -17,7 +19,7 @@ from pathlib import Path
 from cognivault.workflows.definition import WorkflowDefinition
 
 
-def test_yaml_to_json_roundtrip():
+def test_yaml_to_json_roundtrip() -> bool:
     """Test YAML -> WorkflowDefinition -> JSON -> WorkflowDefinition -> YAML consistency."""
 
     print("🔄 Testing YAML to JSON Round-trip Conversion")
@@ -149,7 +151,7 @@ def test_yaml_to_json_roundtrip():
     return passed == total
 
 
-def test_configuration_parameter_preservation():
+def test_configuration_parameter_preservation() -> bool:
     """Test that complex configuration parameters are preserved through round-trips."""
 
     print("\n🔍 Testing Configuration Parameter Preservation")
@@ -248,7 +250,7 @@ def test_configuration_parameter_preservation():
         return False
 
 
-def test_format_specific_features():
+def test_format_specific_features() -> bool:
     """Test format-specific features and edge cases."""
 
     print("\n⚙️  Testing Format-Specific Features")
@@ -331,7 +333,7 @@ def test_format_specific_features():
         return False
 
 
-def main():
+def main() -> bool:
     """Run all configuration parsing and validation tests."""
 
     print("🚀 Starting Configuration Parsing and Validation Testing")

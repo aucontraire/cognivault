@@ -6,7 +6,7 @@ including validation, serialization, template management, and backward compatibi
 """
 
 import pytest
-from typing import Dict, Any
+from typing import Any, Dict
 from unittest.mock import Mock
 
 from pydantic import ValidationError
@@ -21,7 +21,7 @@ from cognivault.workflows.prompt_composer import (
 class TestComposedPromptPydanticMigration:
     """Test ComposedPrompt Pydantic model migration."""
 
-    def test_basic_creation(self):
+    def test_basic_creation(self) -> None:
         """Test basic ComposedPrompt creation with required fields."""
         prompt = ComposedPrompt(system_prompt="You are a helpful assistant.")
 
@@ -30,7 +30,7 @@ class TestComposedPromptPydanticMigration:
         assert prompt.variables == {}
         assert prompt.metadata == {}
 
-    def test_field_descriptions(self):
+    def test_field_descriptions(self) -> None:
         """Test that all fields have proper descriptions."""
         schema = ComposedPrompt.model_json_schema()
         properties = schema["properties"]
@@ -42,7 +42,7 @@ class TestComposedPromptPydanticMigration:
             assert "description" in properties[field]
             assert len(properties[field]["description"]) > 10
 
-    def test_system_prompt_validation(self):
+    def test_system_prompt_validation(self) -> None:
         """Test system prompt validation."""
         # Valid system prompt
         prompt = ComposedPrompt(system_prompt="Valid prompt")
@@ -62,7 +62,7 @@ class TestComposedPromptPydanticMigration:
         prompt = ComposedPrompt(system_prompt="  Valid prompt with spaces  ")
         assert prompt.system_prompt == "Valid prompt with spaces"
 
-    def test_template_name_validation(self):
+    def test_template_name_validation(self) -> None:
         """Test template name validation."""
         # Valid template names
         valid_templates = {
@@ -91,7 +91,7 @@ class TestComposedPromptPydanticMigration:
             )
         assert "must be a valid identifier" in str(exc_info.value)
 
-    def test_comprehensive_creation(self):
+    def test_comprehensive_creation(self) -> None:
         """Test ComposedPrompt creation with all fields populated."""
         variables = {
             "refinement_level": "detailed",
@@ -122,7 +122,7 @@ class TestComposedPromptPydanticMigration:
         assert prompt.variables == variables
         assert prompt.metadata == metadata
 
-    def test_get_template_method(self):
+    def test_get_template_method(self) -> None:
         """Test get_template method functionality."""
         templates = {"greeting": "Hello there!", "farewell": "Goodbye!"}
 
@@ -132,7 +132,7 @@ class TestComposedPromptPydanticMigration:
         assert prompt.get_template("farewell") == "Goodbye!"
         assert prompt.get_template("nonexistent") is None
 
-    def test_substitute_variables_method(self):
+    def test_substitute_variables_method(self) -> None:
         """Test substitute_variables method functionality."""
         variables = {"style": "professional", "domain": "technology"}
 
@@ -148,7 +148,7 @@ class TestComposedPromptPydanticMigration:
         result = prompt.substitute_variables("Use {nonexistent} variable")
         assert result == "Use {nonexistent} variable"
 
-    def test_model_serialization(self):
+    def test_model_serialization(self) -> None:
         """Test Pydantic serialization features."""
         variables = {"refinement_level": "detailed", "style": "academic"}
 
@@ -171,7 +171,7 @@ class TestComposedPromptPydanticMigration:
         assert isinstance(json_str, str)
         assert "academic assistant" in json_str
 
-    def test_model_validation_from_dict(self):
+    def test_model_validation_from_dict(self) -> None:
         """Test model validation when created from dictionary."""
         data = {
             "system_prompt": "Test prompt",
@@ -186,7 +186,7 @@ class TestComposedPromptPydanticMigration:
         assert prompt.variables == {"style": "formal"}
         assert prompt.metadata == {"agent": "test"}
 
-    def test_required_fields_validation(self):
+    def test_required_fields_validation(self) -> None:
         """Test that required fields are properly validated."""
         # system_prompt is required
         with pytest.raises(ValidationError) as exc_info:
@@ -194,7 +194,7 @@ class TestComposedPromptPydanticMigration:
         assert "system_prompt" in str(exc_info.value)
         assert "Field required" in str(exc_info.value)
 
-    def test_extra_fields_forbidden(self):
+    def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError) as exc_info:
             ComposedPrompt.model_validate(
@@ -202,7 +202,7 @@ class TestComposedPromptPydanticMigration:
             )
         assert "Extra inputs are not permitted" in str(exc_info.value)
 
-    def test_empty_collections_defaults(self):
+    def test_empty_collections_defaults(self) -> None:
         """Test that empty collections default correctly."""
         prompt = ComposedPrompt(system_prompt="Test")
 
@@ -213,7 +213,7 @@ class TestComposedPromptPydanticMigration:
         assert isinstance(prompt.metadata, dict)
         assert len(prompt.metadata) == 0
 
-    def test_template_variables_typing(self):
+    def test_template_variables_typing(self) -> None:
         """Test template variables type handling."""
         # Valid template variables with various types
         variables = {
@@ -232,7 +232,7 @@ class TestComposedPromptPydanticMigration:
         assert prompt.variables["count"] == 5
         assert prompt.variables["enabled"] is True
 
-    def test_complex_metadata_structures(self):
+    def test_complex_metadata_structures(self) -> None:
         """Test handling of complex metadata structures."""
         complex_metadata = {
             "agent_info": {
@@ -259,7 +259,7 @@ class TestComposedPromptPydanticMigration:
         assert prompt.metadata["agent_info"]["type"] == "refiner"
         assert prompt.metadata["performance_metrics"]["composition_time_ms"] == 150
 
-    def test_large_templates_collection(self):
+    def test_large_templates_collection(self) -> None:
         """Test handling of large template collections."""
         large_templates = {
             f"template_{i}": f"Content for template {i}" for i in range(100)
@@ -273,7 +273,7 @@ class TestComposedPromptPydanticMigration:
         assert prompt.get_template("template_50") == "Content for template 50"
         assert prompt.get_template("template_99") == "Content for template 99"
 
-    def test_variable_substitution_edge_cases(self):
+    def test_variable_substitution_edge_cases(self) -> None:
         """Test edge cases in variable substitution."""
         variables = {"style": "formal", "domain": "science"}
 
@@ -293,7 +293,7 @@ class TestComposedPromptPydanticMigration:
         result = prompt.substitute_variables("{style} and {invalid}")
         assert result == "{style} and {invalid}"
 
-    def test_schema_generation(self):
+    def test_schema_generation(self) -> None:
         """Test that model generates proper JSON schema."""
         schema = ComposedPrompt.model_json_schema()
 
@@ -312,7 +312,7 @@ class TestComposedPromptPydanticMigration:
 class TestComposedPromptBackwardCompatibility:
     """Test backward compatibility with existing ComposedPrompt usage."""
 
-    def test_method_signatures_preserved(self):
+    def test_method_signatures_preserved(self) -> None:
         """Test that existing method signatures are preserved."""
         prompt = ComposedPrompt(
             system_prompt="Test prompt", templates={"test": "template content"}
@@ -326,7 +326,7 @@ class TestComposedPromptBackwardCompatibility:
         assert prompt.get_template("test") == "template content"
         assert prompt.substitute_variables("static text") == "static text"
 
-    def test_attribute_access_preserved(self):
+    def test_attribute_access_preserved(self) -> None:
         """Test that attribute access patterns are preserved."""
         variables = {"style": "professional"}
 
@@ -343,7 +343,7 @@ class TestComposedPromptBackwardCompatibility:
         assert prompt.variables["style"] == "professional"
         assert prompt.metadata["version"] == "1.0"
 
-    def test_integration_with_prompt_composer(self):
+    def test_integration_with_prompt_composer(self) -> None:
         """Test that ComposedPrompt works with PromptComposer."""
         # This tests that the migration doesn't break existing integrations
         composer = PromptComposer()
@@ -359,7 +359,7 @@ class TestComposedPromptBackwardCompatibility:
         is_valid = composer.validate_composition(prompt)
         assert is_valid is True
 
-    def test_template_and_variable_interaction(self):
+    def test_template_and_variable_interaction(self) -> None:
         """Test template and variable interaction still works."""
         variables = {"refinement_level": "detailed", "behavioral_mode": "active"}
 
@@ -386,7 +386,7 @@ class TestComposedPromptBackwardCompatibility:
 class TestComposedPromptValidationEdgeCases:
     """Test edge cases and error conditions for ComposedPrompt validation."""
 
-    def test_system_prompt_whitespace_handling(self):
+    def test_system_prompt_whitespace_handling(self) -> None:
         """Test system prompt whitespace handling."""
         # Leading/trailing whitespace should be stripped
         prompt = ComposedPrompt(system_prompt="  Valid prompt  ")
@@ -396,7 +396,7 @@ class TestComposedPromptValidationEdgeCases:
         prompt = ComposedPrompt(system_prompt="Valid  prompt  with  spaces")
         assert prompt.system_prompt == "Valid  prompt  with  spaces"
 
-    def test_template_name_edge_cases(self):
+    def test_template_name_edge_cases(self) -> None:
         """Test template name validation edge cases."""
         # Valid names with underscores and numbers
         valid_templates = {
@@ -428,7 +428,7 @@ class TestComposedPromptValidationEdgeCases:
                 exc_info.value
             ) or "must be a valid identifier" in str(exc_info.value)
 
-    def test_variables_type_flexibility(self):
+    def test_variables_type_flexibility(self) -> None:
         """Test that variables field accepts various dict types."""
         # Empty dict
         prompt = ComposedPrompt(system_prompt="Test", variables={})
@@ -445,7 +445,7 @@ class TestComposedPromptValidationEdgeCases:
         assert prompt.variables["count"] == 42
         assert prompt.variables["enabled"] is True
 
-    def test_nested_template_substitution(self):
+    def test_nested_template_substitution(self) -> None:
         """Test complex template substitution scenarios."""
         variables = {
             "style": "formal",
@@ -465,7 +465,7 @@ class TestComposedPromptValidationEdgeCases:
         result = prompt.substitute_variables("Use {style} approach with {missing_var}")
         assert result == "Use {style} approach with {missing_var}"
 
-    def test_metadata_type_flexibility(self):
+    def test_metadata_type_flexibility(self) -> None:
         """Test metadata field accepts various types."""
         # Simple metadata
         prompt = ComposedPrompt(system_prompt="Test", metadata={"key": "value"})
@@ -480,7 +480,7 @@ class TestComposedPromptValidationEdgeCases:
         assert prompt.metadata["config"]["version"] == "1.0"
         assert prompt.metadata["stats"]["count"] == 42
 
-    def test_serialization_roundtrip(self):
+    def test_serialization_roundtrip(self) -> None:
         """Test serialization and deserialization roundtrip."""
         variables = {"style": "academic", "refinement_level": "comprehensive"}
 

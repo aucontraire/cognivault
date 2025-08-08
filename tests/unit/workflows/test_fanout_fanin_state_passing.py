@@ -7,10 +7,15 @@ agents in the diamond pattern: Refiner → (Critic + Historian) → Synthesis
 """
 
 import pytest
+from typing import Any
 import asyncio
 import json
 from unittest.mock import patch, MagicMock
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.workflows.executor import DeclarativeOrchestrator, WorkflowResult
 from cognivault.workflows import WorkflowDefinition
 
@@ -19,7 +24,7 @@ class TestFanoutFaninStatePasssing:
     """Test state passing in diamond workflow patterns."""
 
     @pytest.fixture
-    def sample_workflow_definition(self):
+    def sample_workflow_definition(self) -> Any:
         """Create a minimal workflow definition for testing."""
         return {
             "workflow_id": "fanout-fanin-test",
@@ -102,7 +107,7 @@ class TestFanoutFaninStatePasssing:
         }
 
     @pytest.mark.asyncio
-    async def test_workflow_state_capture(self, sample_workflow_definition):
+    async def test_workflow_state_capture(self, sample_workflow_definition: Any) -> Any:
         """Test that we can capture and inspect state passing between agents."""
 
         # Track state at each agent execution
@@ -117,8 +122,8 @@ class TestFanoutFaninStatePasssing:
 
         # Create a mock execution that simulates the diamond pattern
         async def mock_execute_workflow(
-            workflow_def, initial_context, execution_id=None
-        ):
+            workflow_def: Any, initial_context: Any, execution_id: Any = None
+        ) -> Any:
             """Mock execute_workflow that captures state passing."""
 
             # Create initial state from context
@@ -198,7 +203,7 @@ class TestFanoutFaninStatePasssing:
             execution_states["final"] = current_state.copy()
 
             # Create final context with agent outputs
-            final_context = AgentContext(query=initial_context.query)
+            final_context = AgentContextPatterns.simple_query(initial_context.query)
             for agent_name in ["refiner", "critic", "historian", "synthesis"]:
                 if agent_name in current_state:
                     final_context.add_agent_output(
@@ -226,7 +231,9 @@ class TestFanoutFaninStatePasssing:
         ):
             # Execute workflow
             orchestrator = DeclarativeOrchestrator()
-            initial_context = AgentContext(query="What is the most complete protein?")
+            initial_context = AgentContextPatterns.simple_query(
+                "What is the most complete protein?"
+            )
 
             result = await orchestrator.execute_workflow(workflow_def, initial_context)
 
@@ -239,7 +246,9 @@ class TestFanoutFaninStatePasssing:
             }
 
     @pytest.mark.asyncio
-    async def test_state_passing_analysis(self, sample_workflow_definition):
+    async def test_state_passing_analysis(
+        self, sample_workflow_definition: Any
+    ) -> None:
         """Run the state capture test and analyze the results."""
 
         test_results = await self.test_workflow_state_capture(
@@ -361,7 +370,7 @@ class TestFanoutFaninStatePasssing:
         return test_results
 
     @pytest.mark.asyncio
-    async def test_real_workflow_state_inspection(self):
+    async def test_real_workflow_state_inspection(self) -> None:
         """Test with the actual enhanced_prompts_example.yaml workflow to inspect real state."""
 
         # This test will help us understand what's happening in the real workflow
@@ -390,7 +399,7 @@ class TestFanoutFaninStatePasssing:
 
         # Execute with simple query to minimize LLM costs but still test state passing
         orchestrator = DeclarativeOrchestrator()
-        initial_context = AgentContext(query="What is protein?")
+        initial_context = AgentContextPatterns.simple_query("What is protein?")
 
         # TODO: Add state inspection hooks here
         # For now, just validate the workflow loads and can be executed

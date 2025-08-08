@@ -10,25 +10,29 @@ import tempfile
 import shutil
 import asyncio
 from pathlib import Path
-from typing import Dict, Optional
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Dict, Optional, Any, List
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.agents.historian.search import SearchResult
 from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.base_agent import NodeType
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class MockLLM(LLMInterface):
     """Mock LLM for testing purposes."""
 
-    def __init__(self, responses: Optional[Dict[str, str]] = None):
+    def __init__(self, responses: Optional[Dict[str, str]] = None) -> None:
         self.responses = responses or {}
         self.call_count = 0
         self.last_prompt = ""
 
-    def generate(self, prompt: str, **kwargs) -> Mock:
+    def generate(self, prompt: str, **kwargs: Any) -> Mock:
         """Generate mock response based on prompt content."""
         self.call_count += 1
         self.last_prompt = prompt
@@ -46,14 +50,14 @@ class MockLLM(LLMInterface):
             # Default response
             response_text = self.responses.get("default", "Mock response")
 
-        mock_response = Mock()
+        mock_response: Mock = Mock()
         mock_response.text = response_text
         mock_response.tokens_used = 180
         mock_response.input_tokens = 120
         mock_response.output_tokens = 60
         return mock_response
 
-    async def agenerate(self, prompt: str, **kwargs) -> Mock:
+    async def agenerate(self, prompt: str, **kwargs: Any) -> Mock:
         """Async version of generate."""
         return self.generate(prompt, **kwargs)
 
@@ -61,7 +65,7 @@ class MockLLM(LLMInterface):
 class TestHistorianAgentInitialization:
     """Test HistorianAgent initialization and setup."""
 
-    def test_default_initialization(self):
+    def test_default_initialization(self) -> None:
         """Test default agent initialization."""
         # Use llm=None to prevent real API calls during testing
         agent = HistorianAgent(llm=None)
@@ -71,7 +75,7 @@ class TestHistorianAgentInitialization:
         assert agent.search_engine is not None
         assert agent.llm is None
 
-    def test_initialization_with_custom_llm(self):
+    def test_initialization_with_custom_llm(self) -> None:
         """Test initialization with custom LLM."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
@@ -80,7 +84,7 @@ class TestHistorianAgentInitialization:
         assert agent.llm is mock_llm
         assert agent.search_type == "hybrid"
 
-    def test_initialization_with_search_type(self):
+    def test_initialization_with_search_type(self) -> None:
         """Test initialization with custom search type."""
         agent = HistorianAgent(search_type="tag")
 
@@ -89,17 +93,19 @@ class TestHistorianAgentInitialization:
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig")
-    def test_default_llm_creation_success(self, mock_config_class, mock_llm_class):
+    def test_default_llm_creation_success(
+        self, mock_config_class: Any, mock_llm_class: Any
+    ) -> None:
         """Test successful default LLM creation."""
         # Mock config
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.api_key = "test-key"
         mock_config.model = "gpt-4"
         mock_config.base_url = "https://api.openai.com/v1"
         mock_config_class.load.return_value = mock_config
 
         # Mock LLM
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm_class.return_value = mock_llm
 
         agent = HistorianAgent()
@@ -112,7 +118,9 @@ class TestHistorianAgentInitialization:
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig")
-    def test_default_llm_creation_failure(self, mock_config_class, mock_llm_class):
+    def test_default_llm_creation_failure(
+        self, mock_config_class: Any, mock_llm_class: Any
+    ) -> None:
         """Test default LLM creation failure handling."""
         mock_config_class.load.side_effect = Exception("Config error")
 
@@ -126,7 +134,7 @@ class TestHistorianAgentInitialization:
 class TestHistorianAgentExecution:
     """Test HistorianAgent execution workflows."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
@@ -181,12 +189,12 @@ class TestHistorianAgentExecution:
             ),
         ]
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test environment."""
         shutil.rmtree(self.temp_dir)
 
     @pytest.mark.asyncio
-    async def test_successful_execution_with_llm(self):
+    async def test_successful_execution_with_llm(self) -> None:
         """Test successful agent execution with LLM."""
         # Set up mock LLM with appropriate responses
         mock_llm = MockLLM(
@@ -204,7 +212,7 @@ class TestHistorianAgentExecution:
         agent.search_engine.search.return_value = self.mock_search_results
 
         # Create test context
-        context = AgentContext(query="What is artificial intelligence?")
+        context = AgentContextPatterns.simple_query("What is artificial intelligence?")
 
         # Execute agent
         result_context = await agent.run(context)
@@ -222,7 +230,7 @@ class TestHistorianAgentExecution:
         assert mock_llm.call_count == 2  # Once for relevance, once for synthesis
 
     @pytest.mark.asyncio
-    async def test_successful_execution_without_llm(self):
+    async def test_successful_execution_without_llm(self) -> None:
         """Test successful agent execution without LLM."""
         # Create agent without LLM
         agent = HistorianAgent(llm=None)
@@ -235,7 +243,7 @@ class TestHistorianAgentExecution:
         agent.search_engine.search.return_value = self.mock_search_results
 
         # Create test context
-        context = AgentContext(query="What is machine learning?")
+        context = AgentContextPatterns.simple_query("What is machine learning?")
 
         # Execute agent
         result_context = await agent.run(context)
@@ -250,7 +258,7 @@ class TestHistorianAgentExecution:
         assert "Found" in output or "Machine Learning Basics" in output
 
     @pytest.mark.asyncio
-    async def test_execution_with_no_search_results(self):
+    async def test_execution_with_no_search_results(self) -> None:
         """Test execution when search returns no results."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
@@ -259,7 +267,7 @@ class TestHistorianAgentExecution:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = []
 
-        context = AgentContext(query="nonexistent topic")
+        context = AgentContextPatterns.simple_query("nonexistent topic")
         result_context = await agent.run(context)
 
         # Should handle gracefully
@@ -270,7 +278,7 @@ class TestHistorianAgentExecution:
         )
 
     @pytest.mark.asyncio
-    async def test_execution_with_search_failure(self):
+    async def test_execution_with_search_failure(self) -> None:
         """Test execution when search fails."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
@@ -279,17 +287,17 @@ class TestHistorianAgentExecution:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.side_effect = Exception("Search failed")
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Should handle gracefully
         result_context = await agent.run(context)
         assert agent.name in result_context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_execution_with_llm_failure(self):
+    async def test_execution_with_llm_failure(self) -> None:
         """Test execution when LLM calls fail."""
         # Create LLM that raises exceptions
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM failed")
 
         agent = HistorianAgent(llm=mock_llm)
@@ -298,7 +306,7 @@ class TestHistorianAgentExecution:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = self.mock_search_results
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         result_context = await agent.run(context)
 
         # Should fall back gracefully
@@ -307,12 +315,12 @@ class TestHistorianAgentExecution:
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_execution_with_mock_fallback(self, mock_get_config):
+    async def test_execution_with_mock_fallback(self, mock_get_config: Any) -> None:
         """Test execution with mock data fallback."""
 
         # Create proper mock objects with necessary attributes
         class MockTesting:
-            mock_history_entries = ["mock_note_1.md", "mock_note_2.md"]
+            mock_history_entries: List[Any] = ["mock_note_1.md", "mock_note_2.md"]
 
         class MockExecution:
             enable_simulation_delay = False
@@ -335,7 +343,7 @@ class TestHistorianAgentExecution:
         ) as mock_parser:
             mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
 
-            context = AgentContext(query="test query")
+            context = AgentContextPatterns.simple_query()
             result_context = await agent.run(context)
 
             # Should use mock fallback when mock_history_entries exists
@@ -358,13 +366,13 @@ class TestHistorianAgentExecution:
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_execution_with_simulation_delay(self, mock_get_config):
+    async def test_execution_with_simulation_delay(self, mock_get_config: Any) -> None:
         """Test execution with simulation delay enabled."""
 
         # Create proper mock objects
         class MockTesting:
             historian_search_limit = 5
-            mock_history_entries = []
+            mock_history_entries: List[Any] = []
 
         class MockExecution:
             enable_simulation_delay = True
@@ -380,7 +388,7 @@ class TestHistorianAgentExecution:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = []
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Time the execution
         import time
@@ -396,20 +404,23 @@ class TestHistorianAgentExecution:
 class TestHistorianAgentSearchIntegration:
     """Test integration with search functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
         self.notes_dir = Path(self.temp_dir) / "notes"
         self.notes_dir.mkdir()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up test environment."""
         shutil.rmtree(self.temp_dir)
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_search_historical_content_success(self, mock_get_config):
+    async def test_search_historical_content_success(
+        self, mock_get_config: Any
+    ) -> None:
         """Test successful historical content search."""
+
         # Configure to disable hybrid search for this test to match expected behavior
         class MockTesting:
             historian_search_limit = 10
@@ -419,7 +430,7 @@ class TestHistorianAgentSearchIntegration:
             testing = MockTesting()
 
         mock_get_config.return_value = MockConfig()
-        
+
         agent = HistorianAgent(llm=None)
         agent.config.hybrid_search_enabled = False  # Ensure hybrid is disabled
 
@@ -441,7 +452,7 @@ class TestHistorianAgentSearchIntegration:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = expected_results
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         results = await agent._search_historical_content("test query", context)
 
         assert results == expected_results
@@ -449,7 +460,7 @@ class TestHistorianAgentSearchIntegration:
         agent.search_engine.search.assert_called_once_with("test query", 10)
 
     @pytest.mark.asyncio
-    async def test_search_historical_content_failure(self):
+    async def test_search_historical_content_failure(self) -> None:
         """Test search failure handling."""
         agent = HistorianAgent(llm=None)
 
@@ -462,14 +473,14 @@ class TestHistorianAgentSearchIntegration:
         ) as mock_parser:
             mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
 
-            context = AgentContext(query="test query")
+            context = AgentContextPatterns.simple_query()
             results = await agent._search_historical_content("test query", context)
 
             assert results == []
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_search_with_custom_limit(self, mock_get_config):
+    async def test_search_with_custom_limit(self, mock_get_config: Any) -> None:
         """Test search with custom search limit from config."""
 
         # Create a more sophisticated mock that properly handles getattr
@@ -487,7 +498,7 @@ class TestHistorianAgentSearchIntegration:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = []
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         await agent._search_historical_content("test query", context)
 
         # The actual call uses positional argument, not keyword
@@ -497,7 +508,7 @@ class TestHistorianAgentSearchIntegration:
 class TestHistorianAgentRelevanceAnalysis:
     """Test LLM-powered relevance analysis functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.mock_search_results = [
             SearchResult(
@@ -536,12 +547,12 @@ class TestHistorianAgentRelevanceAnalysis:
         ]
 
     @pytest.mark.asyncio
-    async def test_analyze_relevance_with_llm(self):
+    async def test_analyze_relevance_with_llm(self) -> None:
         """Test relevance analysis with LLM."""
         mock_llm = MockLLM({"relevance": "0,2"})  # Select indices 0 and 2
         agent = HistorianAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         filtered_results = await agent._analyze_relevance(
             "test query", self.mock_search_results, context
         )
@@ -552,11 +563,11 @@ class TestHistorianAgentRelevanceAnalysis:
         assert mock_llm.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_analyze_relevance_without_llm(self):
+    async def test_analyze_relevance_without_llm(self) -> None:
         """Test relevance analysis fallback without LLM."""
         agent = HistorianAgent(llm=None)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Verify agent has no LLM
         assert agent.llm is None
@@ -571,26 +582,26 @@ class TestHistorianAgentRelevanceAnalysis:
         assert len(filtered_results) == 3
 
     @pytest.mark.asyncio
-    async def test_analyze_relevance_empty_results(self):
+    async def test_analyze_relevance_empty_results(self) -> None:
         """Test relevance analysis with empty search results."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         filtered_results = await agent._analyze_relevance("test query", [], context)
 
         assert filtered_results == []
         assert mock_llm.call_count == 0  # LLM should not be called for empty results
 
     @pytest.mark.asyncio
-    async def test_analyze_relevance_llm_failure(self):
+    async def test_analyze_relevance_llm_failure(self) -> None:
         """Test relevance analysis when LLM fails."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM error")
 
         agent = HistorianAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         filtered_results = await agent._analyze_relevance(
             "test query", self.mock_search_results, context
         )
@@ -599,7 +610,7 @@ class TestHistorianAgentRelevanceAnalysis:
         assert len(filtered_results) <= 5
         assert len(filtered_results) > 0
 
-    def test_build_relevance_prompt(self):
+    def test_build_relevance_prompt(self) -> None:
         """Test relevance prompt building."""
         agent = HistorianAgent(llm=None)
 
@@ -611,7 +622,7 @@ class TestHistorianAgentRelevanceAnalysis:
         assert "maximum 5 most relevant" in prompt
         assert "[0]" in prompt and "[1]" in prompt and "[2]" in prompt
 
-    def test_parse_relevance_response_valid(self):
+    def test_parse_relevance_response_valid(self) -> None:
         """Test parsing valid relevance response."""
         agent = HistorianAgent(llm=None)
 
@@ -627,7 +638,7 @@ class TestHistorianAgentRelevanceAnalysis:
         indices = agent._parse_relevance_response("NONE")
         assert indices == []
 
-    def test_parse_relevance_response_invalid(self):
+    def test_parse_relevance_response_invalid(self) -> None:
         """Test parsing invalid relevance response."""
         agent = HistorianAgent(llm=None)
 
@@ -639,7 +650,7 @@ class TestHistorianAgentRelevanceAnalysis:
         indices = agent._parse_relevance_response("")
         assert isinstance(indices, list)
 
-    def test_parse_relevance_response_limit(self):
+    def test_parse_relevance_response_limit(self) -> None:
         """Test that relevance response parsing limits to 5 results."""
         agent = HistorianAgent(llm=None)
 
@@ -650,7 +661,7 @@ class TestHistorianAgentRelevanceAnalysis:
 class TestHistorianAgentSynthesis:
     """Test historical context synthesis functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.mock_filtered_results = [
             SearchResult(
@@ -684,7 +695,7 @@ class TestHistorianAgentSynthesis:
         ]
 
     @pytest.mark.asyncio
-    async def test_synthesize_historical_context_with_llm(self):
+    async def test_synthesize_historical_context_with_llm(self) -> None:
         """Test historical context synthesis with LLM."""
         mock_llm = MockLLM(
             {
@@ -694,7 +705,7 @@ class TestHistorianAgentSynthesis:
 
         agent = HistorianAgent(llm=mock_llm)
 
-        context = AgentContext(query="How has AI evolved?")
+        context = AgentContextPatterns.simple_query("How has AI evolved?")
         synthesis = await agent._synthesize_historical_context(
             "How has AI evolved?", self.mock_filtered_results, context
         )
@@ -704,14 +715,14 @@ class TestHistorianAgentSynthesis:
         assert mock_llm.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_synthesize_historical_context_without_llm(self):
+    async def test_synthesize_historical_context_without_llm(self) -> None:
         """Test historical context synthesis without LLM."""
         agent = HistorianAgent(llm=None)
 
         # Verify agent has no LLM
         assert agent.llm is None
 
-        context = AgentContext(query="How has AI evolved?")
+        context = AgentContextPatterns.simple_query("How has AI evolved?")
         synthesis = await agent._synthesize_historical_context(
             "How has AI evolved?", self.mock_filtered_results, context
         )
@@ -723,12 +734,12 @@ class TestHistorianAgentSynthesis:
         assert "Machine Learning Evolution" in synthesis
 
     @pytest.mark.asyncio
-    async def test_synthesize_historical_context_empty_results(self):
+    async def test_synthesize_historical_context_empty_results(self) -> None:
         """Test synthesis with empty filtered results."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         synthesis = await agent._synthesize_historical_context(
             "test query", [], context
         )
@@ -737,14 +748,14 @@ class TestHistorianAgentSynthesis:
         assert mock_llm.call_count == 0
 
     @pytest.mark.asyncio
-    async def test_synthesize_historical_context_llm_failure(self):
+    async def test_synthesize_historical_context_llm_failure(self) -> None:
         """Test synthesis when LLM fails."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM synthesis error")
 
         agent = HistorianAgent(llm=mock_llm)
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         synthesis = await agent._synthesize_historical_context(
             "test query", self.mock_filtered_results, context
         )
@@ -754,7 +765,7 @@ class TestHistorianAgentSynthesis:
             word in synthesis for word in ["Found", "relevant", "historical", "notes"]
         )
 
-    def test_build_synthesis_prompt(self):
+    def test_build_synthesis_prompt(self) -> None:
         """Test synthesis prompt building."""
         agent = HistorianAgent(llm=None)
 
@@ -768,7 +779,7 @@ class TestHistorianAgentSynthesis:
         assert "Machine Learning Evolution" in prompt
         assert "coherent narrative" in prompt
 
-    def test_create_basic_summary(self):
+    def test_create_basic_summary(self) -> None:
         """Test basic summary creation."""
         agent = HistorianAgent(llm=None)
 
@@ -780,7 +791,7 @@ class TestHistorianAgentSynthesis:
         assert "AI Development Timeline" in summary
         assert "Machine Learning Evolution" in summary
 
-    def test_create_basic_summary_empty(self):
+    def test_create_basic_summary_empty(self) -> None:
         """Test basic summary with empty results."""
         agent = HistorianAgent(llm=None)
 
@@ -793,7 +804,7 @@ class TestHistorianAgentFallbackMethods:
     """Test fallback and error handling methods."""
 
     @pytest.mark.asyncio
-    async def test_create_fallback_output(self):
+    async def test_create_fallback_output(self) -> None:
         """Test fallback output creation."""
         agent = HistorianAgent(llm=None)
 
@@ -806,7 +817,7 @@ class TestHistorianAgentFallbackMethods:
         assert "note2.md" in output
 
     @pytest.mark.asyncio
-    async def test_create_no_context_output(self):
+    async def test_create_no_context_output(self) -> None:
         """Test no context output creation."""
         agent = HistorianAgent(llm=None)
 
@@ -820,7 +831,7 @@ class TestHistorianAgentFallbackMethods:
 class TestHistorianAgentNodeMetadata:
     """Test LangGraph node metadata definition."""
 
-    def test_define_node_metadata(self):
+    def test_define_node_metadata(self) -> None:
         """Test node metadata definition."""
         agent = HistorianAgent(llm=None)
 
@@ -842,7 +853,7 @@ class TestHistorianAgentContextTracking:
     """Test context tracking and execution metadata."""
 
     @pytest.mark.asyncio
-    async def test_context_execution_tracking(self):
+    async def test_context_execution_tracking(self) -> None:
         """Test that agent properly tracks execution in context."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
@@ -851,7 +862,7 @@ class TestHistorianAgentContextTracking:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = []
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Track initial state
         initial_executions = len(context.agent_trace)
@@ -863,7 +874,7 @@ class TestHistorianAgentContextTracking:
         assert agent.name in result_context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_context_retrieved_notes_tracking(self):
+    async def test_context_retrieved_notes_tracking(self) -> None:
         """Test that retrieved notes are properly tracked in context."""
         mock_llm = MockLLM({"relevance": "0", "synthesis": "Test synthesis"})
         agent = HistorianAgent(llm=mock_llm)
@@ -886,7 +897,7 @@ class TestHistorianAgentContextTracking:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = mock_results
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         result_context = await agent.run(context)
 
         # Verify retrieved notes tracking
@@ -899,7 +910,7 @@ class TestHistorianAgentErrorHandling:
     """Test comprehensive error handling scenarios."""
 
     @pytest.mark.asyncio
-    async def test_graceful_degradation_search_failure(self):
+    async def test_graceful_degradation_search_failure(self) -> None:
         """Test graceful degradation when search completely fails."""
         agent = HistorianAgent(llm=None)
 
@@ -913,7 +924,7 @@ class TestHistorianAgentErrorHandling:
         ) as mock_parser:
             mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
 
-            context = AgentContext(query="test query")
+            context = AgentContextPatterns.simple_query()
 
             # Should not raise exception
             result_context = await agent.run(context)
@@ -928,10 +939,10 @@ class TestHistorianAgentErrorHandling:
             )
 
     @pytest.mark.asyncio
-    async def test_graceful_degradation_llm_failure(self):
+    async def test_graceful_degradation_llm_failure(self) -> None:
         """Test graceful degradation when LLM completely fails."""
         # Create LLM that always fails
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate.side_effect = Exception("LLM completely down")
 
         agent = HistorianAgent(llm=mock_llm)
@@ -954,7 +965,7 @@ class TestHistorianAgentErrorHandling:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = mock_results
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
         result_context = await agent.run(context)
 
         # Should still produce output using fallback methods
@@ -962,7 +973,7 @@ class TestHistorianAgentErrorHandling:
         assert result_context.retrieved_notes is not None
 
     @pytest.mark.asyncio
-    async def test_edge_case_malformed_search_results(self):
+    async def test_edge_case_malformed_search_results(self) -> None:
         """Test handling of malformed search results."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
@@ -986,14 +997,14 @@ class TestHistorianAgentErrorHandling:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = malformed_results
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Should handle gracefully
         result_context = await agent.run(context)
         assert agent.name in result_context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_concurrent_execution_safety(self):
+    async def test_concurrent_execution_safety(self) -> None:
         """Test that agent can handle concurrent executions safely."""
         mock_llm = MockLLM()
         agent = HistorianAgent(llm=mock_llm)
@@ -1002,7 +1013,7 @@ class TestHistorianAgentErrorHandling:
         agent.search_engine.search.return_value = []
 
         # Create multiple contexts
-        contexts = [AgentContext(query=f"query {i}") for i in range(3)]
+        contexts = [AgentContextPatterns.simple_query(f"query {i}") for i in range(3)]
 
         # Execute concurrently
         results = await asyncio.gather(*[agent.run(context) for context in contexts])
@@ -1018,7 +1029,7 @@ class TestHistorianAgentIntegration:
     """Test integration scenarios with the broader agent system."""
 
     @pytest.mark.asyncio
-    async def test_integration_with_agent_context(self):
+    async def test_integration_with_agent_context(self) -> None:
         """Test full integration with AgentContext system."""
         mock_llm = MockLLM(
             {
@@ -1053,8 +1064,8 @@ class TestHistorianAgentIntegration:
         agent.search_engine.search.return_value = comprehensive_results
 
         # Create realistic context
-        context = AgentContext(
-            query="What are the comprehensive approaches to analyzing complex systems?"
+        context = AgentContextPatterns.simple_query(
+            "What are the comprehensive approaches to analyzing complex systems?"
         )
 
         # Execute
@@ -1067,7 +1078,7 @@ class TestHistorianAgentIntegration:
         assert len(result_context.agent_trace) > 0
 
     @pytest.mark.asyncio
-    async def test_performance_with_large_result_sets(self):
+    async def test_performance_with_large_result_sets(self) -> None:
         """Test performance and behavior with large search result sets."""
         mock_llm = MockLLM({"relevance": "0,1,2,3,4"})  # Select first 5
         agent = HistorianAgent(llm=mock_llm)
@@ -1091,11 +1102,14 @@ class TestHistorianAgentIntegration:
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = large_results
 
-        context = AgentContext(query="broad topic search")
+        context = AgentContextPatterns.simple_query("broad topic search")
 
         # Should handle large result sets efficiently
         result_context = await agent.run(context)
 
         assert agent.name in result_context.agent_outputs
         # Should limit to reasonable number of retrieved notes
-        assert len(result_context.retrieved_notes) <= 5
+        assert (
+            result_context.retrieved_notes is not None
+            and len(result_context.retrieved_notes) <= 5
+        )

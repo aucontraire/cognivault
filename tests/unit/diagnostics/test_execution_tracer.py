@@ -6,9 +6,10 @@ debugging capabilities, and trace analysis features.
 """
 
 import pytest
+from typing import Any
 import json
 import time
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime, timezone
 
 from cognivault.diagnostics.execution_tracer import (
@@ -20,12 +21,16 @@ from cognivault.diagnostics.execution_tracer import (
     TracingSession,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestTraceLevel:
     """Test suite for TraceLevel enum."""
 
-    def test_trace_levels(self):
+    def test_trace_levels(self) -> None:
         """Test trace level values."""
         assert TraceLevel.BASIC.value == "basic"
         assert TraceLevel.DETAILED.value == "detailed"
@@ -36,7 +41,7 @@ class TestTraceLevel:
 class TestExecutionState:
     """Test suite for ExecutionState enum."""
 
-    def test_execution_states(self):
+    def test_execution_states(self) -> None:
         """Test execution state values."""
         assert ExecutionState.PENDING.value == "pending"
         assert ExecutionState.RUNNING.value == "running"
@@ -49,7 +54,7 @@ class TestExecutionState:
 class TestTraceEvent:
     """Test suite for TraceEvent dataclass."""
 
-    def test_trace_event_creation(self):
+    def test_trace_event_creation(self) -> None:
         """Test TraceEvent creation with all fields."""
         timestamp = datetime.now(timezone.utc)
         event = TraceEvent(
@@ -78,7 +83,7 @@ class TestTraceEvent:
         assert event.error is None
         assert event.metadata == {"step": 1}
 
-    def test_trace_event_minimal(self):
+    def test_trace_event_minimal(self) -> None:
         """Test TraceEvent creation with minimal required fields."""
         timestamp = datetime.now(timezone.utc)
         event = TraceEvent(
@@ -102,7 +107,7 @@ class TestTraceEvent:
 class TestExecutionTrace:
     """Test suite for ExecutionTrace dataclass."""
 
-    def test_execution_trace_creation(self):
+    def test_execution_trace_creation(self) -> None:
         """Test ExecutionTrace creation."""
         start_time = datetime.now(timezone.utc)
         trace = ExecutionTrace(
@@ -123,7 +128,7 @@ class TestExecutionTrace:
         assert len(trace.events) == 0
         assert len(trace.agent_stats) == 0
 
-    def test_execution_trace_with_events(self):
+    def test_execution_trace_with_events(self) -> None:
         """Test ExecutionTrace with events."""
         trace = ExecutionTrace(
             trace_id="trace_with_events",
@@ -144,7 +149,7 @@ class TestExecutionTrace:
         assert len(trace.events) == 1
         assert trace.events[0].event_id == "evt1"
 
-    def test_execution_trace_failed(self):
+    def test_execution_trace_failed(self) -> None:
         """Test ExecutionTrace for failed execution."""
         trace = ExecutionTrace(
             trace_id="trace_failed",
@@ -161,7 +166,7 @@ class TestExecutionTrace:
 class TestTracingSession:
     """Test suite for TracingSession dataclass."""
 
-    def test_tracing_session_creation(self):
+    def test_tracing_session_creation(self) -> None:
         """Test TracingSession creation."""
         session = TracingSession(
             session_id="session_123",
@@ -180,20 +185,20 @@ class TestTracingSession:
         assert session.capture_io is True
         assert session.capture_timing is True
         assert session.capture_memory is False
-        assert len(session.filter_agents) == 2
-        assert len(session.breakpoints) == 2
+        assert session.filter_agents is not None and len(session.filter_agents) == 2
+        assert session.breakpoints is not None and len(session.breakpoints) == 2
 
 
 class TestExecutionTracer:
     """Test suite for ExecutionTracer class."""
 
     @pytest.fixture
-    def tracer(self):
+    def tracer(self) -> Any:
         """Create an ExecutionTracer instance for testing."""
         return ExecutionTracer()
 
     @pytest.fixture
-    def sample_trace(self):
+    def sample_trace(self) -> Any:
         """Create a sample execution trace for testing."""
         start_time = datetime.now(timezone.utc)
         return ExecutionTrace(
@@ -217,23 +222,23 @@ class TestExecutionTracer:
             success=True,
         )
 
-    def test_initialization(self, tracer):
+    def test_initialization(self, tracer: Mock) -> None:
         """Test ExecutionTracer initialization."""
         assert tracer.console is not None
         assert tracer.active_sessions == {}
         assert tracer.traces == {}
         assert tracer.active_sessions == {}
 
-    def test_create_app(self, tracer):
+    def test_create_app(self, tracer: Mock) -> None:
         """Test CLI app creation."""
         app = tracer.create_app()
         assert app is not None
         assert app.info.name == "execution-tracer"
 
     @patch("cognivault.diagnostics.execution_tracer.LangGraphOrchestrator")
-    def test_trace_execution_basic(self, mock_orchestrator, tracer):
+    def test_trace_execution_basic(self, mock_orchestrator: Mock, tracer: Mock) -> None:
         """Test basic execution tracing."""
-        mock_orchestrator_instance = Mock()
+        mock_orchestrator_instance: Mock = Mock()
         mock_orchestrator.return_value = mock_orchestrator_instance
 
         with patch.object(tracer, "_execute_with_tracing") as mock_execute:
@@ -254,7 +259,7 @@ class TestExecutionTracer:
 
                 mock_execute.assert_called_once()
 
-    def test_debug_execution_basic(self, tracer):
+    def test_debug_execution_basic(self, tracer: Mock) -> None:
         """Test debug execution with breakpoints."""
         with patch.object(tracer, "_execute_debug_session") as mock_debug:
             with patch.object(tracer, "_display_trace_summary"):
@@ -270,7 +275,7 @@ class TestExecutionTracer:
 
                 mock_debug.assert_called_once()
 
-    def test_analyze_trace_basic(self, tracer, sample_trace):
+    def test_analyze_trace_basic(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test trace analysis."""
         with patch.object(tracer, "_load_trace") as mock_load:
             with patch.object(tracer, "_analyze_execution_trace") as mock_analyze:
@@ -287,7 +292,7 @@ class TestExecutionTracer:
 
                 mock_analyze.assert_called_once()
 
-    def test_compare_traces(self, tracer):
+    def test_compare_traces(self, tracer: Mock) -> None:
         """Test execution comparison."""
         with patch.object(tracer, "_load_trace") as mock_load:
             with patch.object(tracer, "_compare_execution_traces") as mock_compare:
@@ -315,7 +320,9 @@ class TestExecutionTracer:
 
                 mock_compare.assert_called_once()
 
-    def test_export_trace_json(self, tracer, sample_trace, tmp_path):
+    def test_export_trace_json(
+        self, tracer: Mock, sample_trace: Mock, tmp_path: Mock
+    ) -> None:
         """Test trace export to JSON."""
         output_file = tmp_path / "trace_export.json"
         expected_file = (
@@ -333,7 +340,9 @@ class TestExecutionTracer:
 
             assert expected_file.exists()
 
-    def test_export_trace_csv(self, tracer, sample_trace, tmp_path):
+    def test_export_trace_csv(
+        self, tracer: Mock, sample_trace: Mock, tmp_path: Mock
+    ) -> None:
         """Test trace export to CSV."""
         output_file = tmp_path / "trace_export.csv"
         expected_file = (
@@ -351,7 +360,7 @@ class TestExecutionTracer:
 
             assert expected_file.exists()
 
-    def test_replay_trace(self, tracer, sample_trace):
+    def test_replay_trace(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test trace replay functionality."""
         with patch.object(tracer, "_load_trace") as mock_load:
             with patch.object(tracer, "_automated_replay") as mock_replay:
@@ -367,7 +376,7 @@ class TestExecutionTracer:
 
                 mock_replay.assert_called_once()
 
-    def test_execute_with_tracing(self, tracer):
+    def test_execute_with_tracing(self, tracer: Mock) -> None:
         """Test execution with tracing."""
         session = TracingSession(
             session_id="test_session",
@@ -381,16 +390,18 @@ class TestExecutionTracer:
         with patch(
             "cognivault.diagnostics.execution_tracer.LangGraphOrchestrator"
         ) as mock_orch:
-            mock_orchestrator = Mock()
+            mock_orchestrator: Mock = Mock()
             mock_orch.return_value = mock_orchestrator
-            mock_orchestrator.run = AsyncMock(return_value=AgentContext(query="test"))
+            mock_orchestrator.run = AsyncMock(
+                return_value=AgentContextPatterns.simple_query("test")
+            )
 
             result = tracer._execute_with_tracing("test query", ["refiner"], session)
 
             assert isinstance(result, ExecutionTrace)
             assert result.query == "test query"
 
-    def test_execute_with_debugging(self, tracer):
+    def test_execute_with_debugging(self, tracer: Mock) -> None:
         """Test execution with debugging."""
         # Create a mock session
         session = TracingSession(
@@ -416,7 +427,7 @@ class TestExecutionTracer:
         if result is not None:
             assert "breakpoints_hit" in result
 
-    def test_analyze_execution_trace(self, tracer, sample_trace):
+    def test_analyze_execution_trace(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test execution trace analysis."""
         result = tracer._analyze_execution_trace(
             trace=sample_trace, analysis_type="comprehensive", focus_agent="refiner"
@@ -426,62 +437,68 @@ class TestExecutionTracer:
         assert "trace_summary" in result
         assert "performance_metrics" in result
 
-    def test_analyze_performance_metrics(self, tracer, sample_trace):
+    def test_analyze_performance_metrics(
+        self, tracer: Mock, sample_trace: Mock
+    ) -> None:
         """Test performance metrics analysis."""
         result = tracer._analyze_performance_metrics(sample_trace)
 
         assert isinstance(result, dict)
 
-    def test_analyze_execution_patterns(self, tracer, sample_trace):
+    def test_analyze_execution_patterns(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test execution pattern analysis."""
         result = tracer._analyze_execution_patterns(sample_trace)
 
         assert isinstance(result, dict)
 
-    def test_analyze_errors(self, tracer, sample_trace):
+    def test_analyze_errors(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test error analysis."""
         result = tracer._analyze_errors(sample_trace)
 
         assert isinstance(result, dict)
 
-    def test_analyze_agent_performance(self, tracer, sample_trace):
+    def test_analyze_agent_performance(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test agent performance analysis."""
         result = tracer._analyze_agent_performance(sample_trace, "refiner")
 
         assert isinstance(result, dict)
 
-    def test_generate_optimization_suggestions(self, tracer, sample_trace):
+    def test_generate_optimization_suggestions(
+        self, tracer: Mock, sample_trace: Mock
+    ) -> None:
         """Test optimization suggestions generation."""
         result = tracer._generate_optimization_suggestions(sample_trace)
 
         assert isinstance(result, list)
 
-    def test_generate_detailed_timeline(self, tracer, sample_trace):
+    def test_generate_detailed_timeline(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test detailed timeline generation."""
         result = tracer._generate_detailed_timeline(sample_trace)
 
         assert isinstance(result, list)
         assert len(result) > 0
 
-    def test_analyze_dependencies(self, tracer, sample_trace):
+    def test_analyze_dependencies(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test dependency analysis."""
         result = tracer._analyze_dependencies(sample_trace)
 
         assert isinstance(result, dict)
 
-    def test_analyze_resource_utilization(self, tracer, sample_trace):
+    def test_analyze_resource_utilization(
+        self, tracer: Mock, sample_trace: Mock
+    ) -> None:
         """Test resource utilization analysis."""
         result = tracer._analyze_resource_utilization(sample_trace)
 
         assert isinstance(result, dict)
 
-    def test_display_trace_summary(self, tracer, sample_trace):
+    def test_display_trace_summary(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test trace summary display."""
         with patch.object(tracer.console, "print") as mock_print:
             tracer._display_trace_summary(sample_trace)
             mock_print.assert_called()
 
-    def test_display_trace_analysis(self, tracer):
+    def test_display_trace_analysis(self, tracer: Mock) -> None:
         """Test trace analysis display."""
         analysis = {
             "trace_summary": {
@@ -506,7 +523,7 @@ class TestExecutionTracer:
             tracer._display_trace_analysis(analysis, performance_analysis=True)
             mock_print.assert_called()
 
-    def test_display_debug_results(self, tracer, sample_trace):
+    def test_display_debug_results(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test debug results display."""
         debug_results = sample_trace  # Use ExecutionTrace object instead of dict
 
@@ -514,7 +531,7 @@ class TestExecutionTracer:
             tracer._display_trace_summary(debug_results)
             mock_print.assert_called()
 
-    def test_compare_execution_traces(self, tracer, sample_trace):
+    def test_compare_execution_traces(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test execution trace comparison."""
         baseline = sample_trace
         comparison = ExecutionTrace(
@@ -530,7 +547,7 @@ class TestExecutionTracer:
         assert isinstance(result, dict)
         assert "performance_delta" in result
 
-    def test_display_comparison_results(self, tracer):
+    def test_display_comparison_results(self, tracer: Mock) -> None:
         """Test comparison results display."""
         comparison = {
             "performance_delta": {
@@ -558,7 +575,7 @@ class TestExecutionTracer:
             tracer._display_trace_comparison(comparison)
             mock_print.assert_called()
 
-    def test_load_trace_from_dict(self, tracer, tmp_path):
+    def test_load_trace_from_dict(self, tracer: Mock, tmp_path: Mock) -> None:
         """Test loading trace data from dictionary."""
         trace_dict = {
             "trace_id": "test_trace",
@@ -580,7 +597,7 @@ class TestExecutionTracer:
         assert isinstance(result, ExecutionTrace)
         assert result.trace_id == "test_trace"
 
-    def test_load_trace_from_string(self, tracer, tmp_path):
+    def test_load_trace_from_string(self, tracer: Mock, tmp_path: Mock) -> None:
         """Test loading trace data from JSON string."""
         trace_data = {
             "trace_id": "string_trace",
@@ -602,7 +619,9 @@ class TestExecutionTracer:
         assert isinstance(result, ExecutionTrace)
         assert result.trace_id == "string_trace"
 
-    def test_export_trace_json_format(self, tracer, sample_trace, tmp_path):
+    def test_export_trace_json_format(
+        self, tracer: Mock, sample_trace: Mock, tmp_path: Mock
+    ) -> None:
         """Test JSON export format."""
         output_file = tmp_path / "export_test.json"
 
@@ -615,7 +634,9 @@ class TestExecutionTracer:
             assert data["trace_id"] == sample_trace.trace_id
             assert data["query"] == sample_trace.query
 
-    def test_export_trace_csv_format(self, tracer, sample_trace, tmp_path):
+    def test_export_trace_csv_format(
+        self, tracer: Mock, sample_trace: Mock, tmp_path: Mock
+    ) -> None:
         """Test CSV export format."""
         output_file = tmp_path / "export_test.csv"
 
@@ -629,7 +650,7 @@ class TestExecutionTracer:
             assert "timestamp" in content
             assert "agent" in content
 
-    def test_replay_trace_execution(self, tracer, sample_trace):
+    def test_replay_trace_execution(self, tracer: Mock, sample_trace: Mock) -> None:
         """Test trace replay execution."""
         result = tracer._automated_replay(
             trace=sample_trace, speed=1.0, highlight_list=[]
@@ -640,7 +661,7 @@ class TestExecutionTracer:
         if result is not None:
             assert "replay_successful" in result
 
-    def test_create_tracing_session(self, tracer):
+    def test_create_tracing_session(self, tracer: Mock) -> None:
         """Test tracing session creation."""
         # This functionality is likely built into the tracer setup
         # Let's test that we can create a session ID and store it
@@ -659,7 +680,7 @@ class TestExecutionTracer:
         assert len(session["agents"]) == 2
         assert len(session["breakpoints"]) == 2
 
-    def test_save_comparison(self, tracer, tmp_path):
+    def test_save_comparison(self, tracer: Mock, tmp_path: Mock) -> None:
         """Test saving comparison results."""
         comparison = {
             "baseline": {"trace_id": "baseline"},
@@ -683,11 +704,11 @@ class TestExecutionTracerIntegration:
     """Integration tests for ExecutionTracer."""
 
     @pytest.fixture
-    def tracer(self):
+    def tracer(self) -> Any:
         """Create tracer for integration tests."""
         return ExecutionTracer()
 
-    def test_full_tracing_workflow(self, tracer):
+    def test_full_tracing_workflow(self, tracer: Mock) -> None:
         """Test complete tracing workflow."""
         with patch("cognivault.diagnostics.execution_tracer.LangGraphOrchestrator"):
             with patch.object(tracer, "_execute_with_tracing") as mock_execute:
@@ -706,7 +727,7 @@ class TestExecutionTracerIntegration:
                     output_file=None,
                 )
 
-    def test_cli_app_integration(self, tracer):
+    def test_cli_app_integration(self, tracer: Mock) -> None:
         """Test CLI app creation and commands."""
         app = tracer.create_app()
 
@@ -720,11 +741,11 @@ class TestExecutionTracerPerformance:
     """Performance tests for ExecutionTracer."""
 
     @pytest.fixture
-    def tracer(self):
+    def tracer(self) -> Any:
         """Create tracer for performance tests."""
         return ExecutionTracer()
 
-    def test_trace_analysis_performance(self, tracer):
+    def test_trace_analysis_performance(self, tracer: Mock) -> None:
         """Test performance of trace analysis."""
         # Create a larger trace for performance testing
         events = []
@@ -756,7 +777,7 @@ class TestExecutionTracerPerformance:
         assert (end_time - start_time) < 2.0
         assert isinstance(result, dict)
 
-    def test_timeline_generation_performance(self, tracer):
+    def test_timeline_generation_performance(self, tracer: Mock) -> None:
         """Test performance of timeline generation."""
         # Create trace with many events
         events = [

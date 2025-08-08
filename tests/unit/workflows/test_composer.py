@@ -6,9 +6,9 @@ that transforms workflow definitions into executable LangGraph structures.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 from cognivault.workflows.composer import (
     DagComposer,
@@ -28,7 +28,7 @@ from cognivault.agents.metadata import AgentMetadata
 class TestNodeFactory:
     """Test the NodeFactory for creating workflow nodes."""
 
-    def test_create_base_node_success(self):
+    def test_create_base_node_success(self) -> None:
         """Test successful BASE node creation."""
         factory = NodeFactory()
 
@@ -41,7 +41,7 @@ class TestNodeFactory:
         )
 
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
+            mock_agent_class: Mock = Mock()
             mock_get_agent.return_value = mock_agent_class
 
             node_func = factory.create_node(node_config)
@@ -49,7 +49,7 @@ class TestNodeFactory:
             assert callable(node_func)
             mock_get_agent.assert_called_once_with("refiner")
 
-    def test_create_advanced_decision_node(self):
+    def test_create_advanced_decision_node(self) -> None:
         """Test ADVANCED DecisionNode creation."""
         factory = NodeFactory()
 
@@ -65,7 +65,7 @@ class TestNodeFactory:
         )
 
         with patch("cognivault.workflows.composer.DecisionNodeType") as mock_decision:
-            mock_decision_instance = Mock()
+            mock_decision_instance: Mock = Mock()
             mock_decision.return_value = mock_decision_instance
 
             node_func = factory.create_node(node_config)
@@ -73,7 +73,7 @@ class TestNodeFactory:
             assert callable(node_func)
             mock_decision.assert_called_once()
 
-    def test_create_advanced_aggregator_node(self):
+    def test_create_advanced_aggregator_node(self) -> None:
         """Test ADVANCED AggregatorNode creation."""
         factory = NodeFactory()
 
@@ -92,7 +92,7 @@ class TestNodeFactory:
         with patch(
             "cognivault.workflows.composer.AggregatorNodeType"
         ) as mock_aggregator:
-            mock_aggregator_instance = Mock()
+            mock_aggregator_instance: Mock = Mock()
             mock_aggregator.return_value = mock_aggregator_instance
 
             node_func = factory.create_node(node_config)
@@ -100,7 +100,7 @@ class TestNodeFactory:
             assert callable(node_func)
             mock_aggregator.assert_called_once()
 
-    def test_create_node_unsupported_category(self):
+    def test_create_node_unsupported_category(self) -> None:
         """Test error handling for unsupported node category."""
         factory = NodeFactory()
 
@@ -115,7 +115,7 @@ class TestNodeFactory:
         with pytest.raises(WorkflowCompositionError, match="Unsupported node category"):
             factory.create_node(node_config)
 
-    def test_create_node_unsupported_advanced_type(self):
+    def test_create_node_unsupported_advanced_type(self) -> None:
         """Test error handling for unsupported ADVANCED node type."""
         factory = NodeFactory()
 
@@ -136,7 +136,7 @@ class TestNodeFactory:
 class TestEdgeBuilder:
     """Test the EdgeBuilder for creating workflow edges."""
 
-    def test_build_simple_edge(self):
+    def test_build_simple_edge(self) -> None:
         """Test building a simple sequential edge."""
         builder = EdgeBuilder()
 
@@ -148,7 +148,7 @@ class TestEdgeBuilder:
 
         assert callable(edge_func)
 
-    def test_build_conditional_edge(self):
+    def test_build_conditional_edge(self) -> None:
         """Test building a conditional edge."""
         builder = EdgeBuilder()
 
@@ -168,7 +168,7 @@ class TestEdgeBuilder:
 
         assert callable(edge_func)
 
-    def test_build_parallel_edge(self):
+    def test_build_parallel_edge(self) -> None:
         """Test building a parallel edge."""
         builder = EdgeBuilder()
 
@@ -183,7 +183,7 @@ class TestEdgeBuilder:
 
         assert callable(edge_func)
 
-    def test_build_edge_unsupported_type(self):
+    def test_build_edge_unsupported_type(self) -> None:
         """Test error handling for unsupported edge type."""
         builder = EdgeBuilder()
 
@@ -198,7 +198,7 @@ class TestEdgeBuilder:
 class TestDagComposer:
     """Test the main DAG composition orchestrator."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.workflow_def = WorkflowDefinition(
             name="test_workflow",
@@ -239,7 +239,7 @@ class TestDagComposer:
             metadata={},
         )
 
-    def test_compose_workflow_success(self):
+    def test_compose_workflow_success(self) -> None:
         """Test successful workflow composition."""
         composer = DagComposer()
 
@@ -249,15 +249,15 @@ class TestDagComposer:
             patch("cognivault.workflows.composer.StateGraph") as mock_state_graph,
         ):
             # Mock node creation
-            mock_node_func = Mock()
+            mock_node_func: Mock = Mock()
             mock_factory.create_node.return_value = mock_node_func
 
             # Mock edge creation
-            mock_edge_func = Mock()
+            mock_edge_func: Mock = Mock()
             mock_edge_builder.build_edge.return_value = mock_edge_func
 
             # Mock StateGraph
-            mock_graph = Mock()
+            mock_graph: Mock = Mock()
             mock_state_graph.return_value = mock_graph
 
             result = composer.compose_workflow(self.workflow_def)
@@ -277,7 +277,7 @@ class TestDagComposer:
             # Verify entry point was set
             mock_graph.set_entry_point.assert_called_once_with("refiner")
 
-    def test_compose_workflow_validation_error(self):
+    def test_compose_workflow_validation_error(self) -> None:
         """Test workflow composition with validation error."""
         composer = DagComposer()
 
@@ -302,7 +302,7 @@ class TestDagComposer:
         ):
             composer.compose_workflow(invalid_workflow)
 
-    def test_compose_workflow_node_creation_error(self):
+    def test_compose_workflow_node_creation_error(self) -> None:
         """Test workflow composition with node creation error."""
         composer = DagComposer()
 
@@ -312,14 +312,14 @@ class TestDagComposer:
             with pytest.raises(WorkflowCompositionError, match="Failed to create node"):
                 composer.compose_workflow(self.workflow_def)
 
-    def test_validate_workflow_success(self):
+    def test_validate_workflow_success(self) -> None:
         """Test successful workflow validation."""
         composer = DagComposer()
 
         # Should not raise any exception
         composer._validate_workflow(self.workflow_def)
 
-    def test_validate_workflow_no_entry_point(self):
+    def test_validate_workflow_no_entry_point(self) -> None:
         """Test workflow validation with missing entry point."""
         composer = DagComposer()
 
@@ -331,7 +331,7 @@ class TestDagComposer:
         ):
             composer._validate_workflow(invalid_workflow)
 
-    def test_validate_workflow_entry_point_not_in_nodes(self):
+    def test_validate_workflow_entry_point_not_in_nodes(self) -> None:
         """Test workflow validation with invalid entry point."""
         composer = DagComposer()
 
@@ -344,7 +344,7 @@ class TestDagComposer:
         ):
             composer._validate_workflow(invalid_workflow)
 
-    def test_validate_workflow_edge_references_missing_node(self):
+    def test_validate_workflow_edge_references_missing_node(self) -> None:
         """Test workflow validation with edge referencing missing node."""
         composer = DagComposer()
 
@@ -356,12 +356,12 @@ class TestDagComposer:
         ):
             composer._validate_workflow(invalid_workflow)
 
-    def test_export_workflow_snapshot(self):
+    def test_export_workflow_snapshot(self) -> None:
         """Test workflow snapshot export functionality."""
         composer = DagComposer()
 
         with patch("builtins.open", create=True) as mock_open:
-            mock_file = MagicMock()
+            mock_file: MagicMock = MagicMock()
             mock_open.return_value.__enter__.return_value = mock_file
 
             composer.export_workflow_snapshot(
@@ -371,7 +371,7 @@ class TestDagComposer:
             mock_open.assert_called_once_with("/tmp/test_export.json", "w")
             mock_file.write.assert_called()  # json.dump calls write multiple times
 
-    def test_import_workflow_snapshot(self):
+    def test_import_workflow_snapshot(self) -> None:
         """Test workflow snapshot import functionality."""
         composer = DagComposer()
 
@@ -402,7 +402,7 @@ class TestDagComposer:
 class TestWorkflowCompositionIntegration:
     """Integration tests for workflow composition."""
 
-    def test_end_to_end_simple_workflow(self):
+    def test_end_to_end_simple_workflow(self) -> None:
         """Test complete workflow composition process."""
         composer = DagComposer()
 
@@ -431,7 +431,7 @@ class TestWorkflowCompositionIntegration:
             patch("cognivault.workflows.composer.StateGraph") as mock_state_graph,
             patch("cognivault.workflows.composer.get_agent_class"),
         ):
-            mock_graph = Mock()
+            mock_graph: Mock = Mock()
             mock_state_graph.return_value = mock_graph
 
             result = composer.compose_workflow(simple_workflow)
@@ -440,7 +440,7 @@ class TestWorkflowCompositionIntegration:
             mock_graph.add_node.assert_called_once()
             mock_graph.set_entry_point.assert_called_once_with("start")
 
-    def test_advanced_node_integration(self):
+    def test_advanced_node_integration(self) -> None:
         """Test workflow with ADVANCED nodes."""
         composer = DagComposer()
 
@@ -489,7 +489,7 @@ class TestWorkflowCompositionIntegration:
             patch("cognivault.workflows.composer.get_agent_class"),
             patch("cognivault.workflows.composer.DecisionNode"),
         ):
-            mock_graph = Mock()
+            mock_graph: Mock = Mock()
             mock_state_graph.return_value = mock_graph
 
             result = composer.compose_workflow(advanced_workflow)

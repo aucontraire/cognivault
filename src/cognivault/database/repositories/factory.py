@@ -27,7 +27,7 @@ class RepositoryFactory:
     session for transaction consistency and proper resource management.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         """
         Initialize factory with database session.
 

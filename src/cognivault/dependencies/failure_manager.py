@@ -323,7 +323,7 @@ class DependencyCircuitBreaker:
         failure_threshold: int = 5,
         recovery_timeout_ms: float = 60000.0,
         half_open_max_calls: int = 3,
-    ):
+    ) -> None:
         self.failure_threshold = failure_threshold
         self.recovery_timeout_ms = recovery_timeout_ms
         self.half_open_max_calls = half_open_max_calls
@@ -386,7 +386,7 @@ class FailureManager:
     cascade prevention, retry management, and recovery coordination.
     """
 
-    def __init__(self, graph_engine: DependencyGraphEngine):
+    def __init__(self, graph_engine: DependencyGraphEngine) -> None:
         self.graph_engine = graph_engine
         self.failure_history: List[FailureRecord] = []
         self.circuit_breakers: Dict[str, DependencyCircuitBreaker] = {}

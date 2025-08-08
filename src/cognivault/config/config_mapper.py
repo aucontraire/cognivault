@@ -18,6 +18,8 @@ from cognivault.config.agent_configs import (
     CriticConfig,
     HistorianConfig,
     SynthesisConfig,
+    AgentConfigType,
+    get_agent_config_class,
 )
 
 T = TypeVar("T", bound=BaseModel)
@@ -280,7 +282,7 @@ class ConfigMapper:
     @classmethod
     def create_agent_config(
         cls, flat_config: Dict[str, Any], agent_type: str
-    ) -> BaseModel:
+    ) -> AgentConfigType:
         """
         Create a Pydantic agent configuration from flat configuration format.
 
@@ -297,18 +299,8 @@ class ConfigMapper:
         # Map flat config to nested format
         nested_config = cls.map_flat_to_nested(flat_config, agent_type)
 
-        # Create appropriate config class
-        config_classes = {
-            "refiner": RefinerConfig,
-            "critic": CriticConfig,
-            "historian": HistorianConfig,
-            "synthesis": SynthesisConfig,
-        }
-
-        if agent_type not in config_classes:
-            raise ValueError(f"Unsupported agent type: {agent_type}")
-
-        config_class = config_classes[agent_type]
+        # Get appropriate config class using existing function
+        config_class = get_agent_config_class(agent_type)
 
         try:
             return config_class(**nested_config)
@@ -392,16 +384,8 @@ class ConfigMapper:
         cls, config_data: Dict[str, Any], agent_type: str
     ) -> Optional[BaseModel]:
         """Create config using only fields that are known to the Pydantic schema."""
-        config_classes = {
-            "refiner": RefinerConfig,
-            "critic": CriticConfig,
-            "historian": HistorianConfig,
-            "synthesis": SynthesisConfig,
-        }
 
-        config_class = config_classes.get(agent_type)
-        if not config_class:
-            return None
+        config_class = get_agent_config_class(agent_type)
 
         # Get field mapping for this agent type
         field_mapping = cls._get_field_mapping(agent_type)

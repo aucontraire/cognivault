@@ -6,7 +6,8 @@ exploration modes, and analysis capabilities.
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from rich.console import Console
 
 from cognivault.diagnostics.dag_explorer import (
@@ -16,25 +17,29 @@ from cognivault.diagnostics.dag_explorer import (
     ExplorerState,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestInteractiveDAGExplorer:
     """Test suite for InteractiveDAGExplorer class."""
 
     @pytest.fixture
-    def explorer(self):
+    def explorer(self) -> Any:
         """Create an InteractiveDAGExplorer instance for testing."""
         return InteractiveDAGExplorer()
 
     @pytest.fixture
-    def mock_graph_factory(self):
+    def mock_graph_factory(self) -> Any:
         """Mock GraphFactory for testing."""
         factory = Mock()
         factory.create_graph.return_value = Mock()
         return factory
 
     @pytest.fixture
-    def sample_dag_structure(self):
+    def sample_dag_structure(self) -> Any:
         """Sample DAG structure for testing."""
         return {
             "pattern_name": "test_pattern",
@@ -49,7 +54,7 @@ class TestInteractiveDAGExplorer:
         }
 
     @pytest.fixture
-    def sample_dag_execution(self):
+    def sample_dag_execution(self) -> Any:
         """Sample DAG execution for testing."""
         return ExplorerState(
             execution_id="test_exec_123",
@@ -65,7 +70,7 @@ class TestInteractiveDAGExplorer:
             success=True,
         )
 
-    def test_initialization(self, explorer):
+    def test_initialization(self, explorer: Mock) -> None:
         """Test InteractiveDAGExplorer initialization."""
         assert explorer.console is not None
         assert isinstance(explorer.console, Console)
@@ -73,7 +78,7 @@ class TestInteractiveDAGExplorer:
         assert explorer.current_nodes == {}
         assert explorer.graph_factory is not None
 
-    def test_create_app(self, explorer):
+    def test_create_app(self, explorer: Mock) -> None:
         """Test CLI app creation."""
         app = explorer.create_app()
         assert app is not None
@@ -81,8 +86,8 @@ class TestInteractiveDAGExplorer:
 
     @patch("cognivault.diagnostics.dag_explorer.GraphConfig")
     def test_explore_dag_console_output(
-        self, mock_config, explorer, mock_graph_factory
-    ):
+        self, mock_config: Mock, explorer: Mock, mock_graph_factory: Mock
+    ) -> None:
         """Test DAG structure exploration with console output."""
         explorer.graph_factory = mock_graph_factory
 
@@ -101,8 +106,8 @@ class TestInteractiveDAGExplorer:
 
     @patch("cognivault.diagnostics.dag_explorer.GraphConfig")
     def test_explore_structure_json_output(
-        self, mock_config, explorer, mock_graph_factory, capsys
-    ):
+        self, mock_config: Mock, explorer: Mock, mock_graph_factory: Mock, capsys: Mock
+    ) -> None:
         """Test DAG structure exploration with JSON output."""
         explorer.graph_factory = mock_graph_factory
 
@@ -121,8 +126,8 @@ class TestInteractiveDAGExplorer:
 
     @patch("cognivault.diagnostics.dag_explorer.GraphConfig")
     def test_explore_structure_dot_output(
-        self, mock_config, explorer, mock_graph_factory, capsys
-    ):
+        self, mock_config: Mock, explorer: Mock, mock_graph_factory: Mock, capsys: Mock
+    ) -> None:
         """Test DAG structure exploration with DOT output."""
         explorer.graph_factory = mock_graph_factory
 
@@ -136,7 +141,7 @@ class TestInteractiveDAGExplorer:
             assert "digraph DAG {" in captured.out
             assert "}" in captured.out
 
-    def test_explore_structure_error_handling(self, explorer):
+    def test_explore_structure_error_handling(self, explorer: Mock) -> None:
         """Test error handling during structure exploration."""
         # Mock the graph factory to raise an exception
         with patch.object(
@@ -153,7 +158,9 @@ class TestInteractiveDAGExplorer:
                 )
 
     @patch("cognivault.diagnostics.dag_explorer.GraphConfig")
-    def test_analyze_structure(self, mock_config, explorer, mock_graph_factory):
+    def test_analyze_structure(
+        self, mock_config: Mock, explorer: Mock, mock_graph_factory: Mock
+    ) -> None:
         """Test DAG structural analysis."""
         explorer.graph_factory = mock_graph_factory
 
@@ -173,8 +180,8 @@ class TestInteractiveDAGExplorer:
     @patch("asyncio.run")
     @patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator")
     def test_trace_execution_without_live(
-        self, mock_orchestrator, mock_asyncio, explorer
-    ):
+        self, mock_orchestrator: Mock, mock_asyncio: Mock, explorer: Mock
+    ) -> None:
         """Test DAG execution tracing without live monitoring."""
         mock_orchestrator_instance = Mock()
         mock_orchestrator.return_value = mock_orchestrator_instance
@@ -197,8 +204,8 @@ class TestInteractiveDAGExplorer:
     @patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator")
     @patch("asyncio.run")
     def test_trace_execution_with_live(
-        self, mock_asyncio, mock_orchestrator, explorer, capsys
-    ):
+        self, mock_asyncio: Mock, mock_orchestrator: Mock, explorer: Mock, capsys: Mock
+    ) -> None:
         """Test DAG execution tracing with live monitoring."""
         mock_orchestrator_instance = Mock()
         mock_orchestrator.return_value = mock_orchestrator_instance
@@ -208,7 +215,7 @@ class TestInteractiveDAGExplorer:
         mock_asyncio.return_value = mock_execution
 
         # Create a simple sync function that returns the mock (not async)
-        def sync_execute_and_trace(*args, **kwargs):
+        def sync_execute_and_trace(*args: Mock, **kwargs: Mock) -> Mock:
             return mock_execution
 
         with patch.object(
@@ -226,7 +233,9 @@ class TestInteractiveDAGExplorer:
                 assert "Live tracing would be implemented here" in captured.out
 
     @patch("cognivault.diagnostics.dag_explorer.LangGraphOrchestrator")
-    def test_analyze_performance_basic(self, mock_orchestrator, explorer):
+    def test_analyze_performance_basic(
+        self, mock_orchestrator: Mock, explorer: Mock
+    ) -> None:
         """Test basic performance analysis."""
         # Create non-async mock orchestrator
         mock_orchestrator_instance = Mock()
@@ -246,14 +255,14 @@ class TestInteractiveDAGExplorer:
 
                     mock_benchmark.assert_called_once()
 
-    def test_explore_patterns_specific(self, explorer, capsys):
+    def test_explore_patterns_specific(self, explorer: Mock, capsys: Mock) -> None:
         """Test specific pattern exploration."""
         explorer.explore_patterns(pattern="conditional", compare=False, validate=False)
 
         captured = capsys.readouterr()
         assert "Exploring pattern: conditional" in captured.out
 
-    def test_explore_patterns_compare(self, explorer, capsys):
+    def test_explore_patterns_compare(self, explorer: Mock, capsys: Mock) -> None:
         """Test pattern comparison."""
         explorer.explore_patterns(pattern=None, compare=True, validate=False)
 
@@ -262,7 +271,7 @@ class TestInteractiveDAGExplorer:
         assert "standard" in captured.out
         assert "conditional" in captured.out
 
-    def test_explore_patterns_validate(self, explorer, capsys):
+    def test_explore_patterns_validate(self, explorer: Mock, capsys: Mock) -> None:
         """Test pattern validation."""
         explorer.explore_patterns(pattern=None, compare=False, validate=True)
 
@@ -270,21 +279,23 @@ class TestInteractiveDAGExplorer:
         assert "Pattern Validation Results" in captured.out
         assert "All patterns passed validation" in captured.out
 
-    def test_explore_patterns_list_all(self, explorer):
+    def test_explore_patterns_list_all(self, explorer: Mock) -> None:
         """Test listing all available patterns."""
         with patch.object(explorer, "_list_available_patterns") as mock_list:
             explorer.explore_patterns(pattern=None, compare=False, validate=False)
 
             mock_list.assert_called_once()
 
-    def test_interactive_mode_basic(self, explorer):
+    def test_interactive_mode_basic(self, explorer: Mock) -> None:
         """Test interactive mode initialization."""
         with patch.object(explorer, "_start_interactive_session") as mock_session:
             explorer.interactive_mode(agents="refiner,critic", pattern="standard")
 
             mock_session.assert_called_once()
 
-    def test_analyze_graph_structure(self, explorer, sample_dag_structure):
+    def test_analyze_graph_structure(
+        self, explorer: Mock, sample_dag_structure: Mock
+    ) -> None:
         """Test graph structure analysis."""
         # Mock current graph
         explorer.current_graph = Mock()
@@ -295,7 +306,9 @@ class TestInteractiveDAGExplorer:
         # Should not raise any exceptions
         assert True
 
-    def test_display_structure_console(self, explorer, sample_dag_structure):
+    def test_display_structure_console(
+        self, explorer: Mock, sample_dag_structure: Mock
+    ) -> None:
         """Test console display of structure."""
         explorer.current_structure = sample_dag_structure
 
@@ -305,7 +318,7 @@ class TestInteractiveDAGExplorer:
             # Should print structure information
             mock_print.assert_called()
 
-    def test_display_structure_console_no_structure(self, explorer):
+    def test_display_structure_console_no_structure(self, explorer: Mock) -> None:
         """Test console display when no structure is available."""
         explorer.current_structure = None
 
@@ -315,7 +328,7 @@ class TestInteractiveDAGExplorer:
             # Should handle None structure gracefully
             mock_print.assert_called()
 
-    def test_perform_structural_analysis(self, explorer):
+    def test_perform_structural_analysis(self, explorer: Mock) -> None:
         """Test structural analysis method."""
         result = explorer._perform_structural_analysis("basic")
 
@@ -323,7 +336,7 @@ class TestInteractiveDAGExplorer:
         assert "complexity_score" in result
         assert "parallel_branches" in result
 
-    def test_display_structural_analysis(self, explorer):
+    def test_display_structural_analysis(self, explorer: Mock) -> None:
         """Test display of structural analysis results."""
         analysis = {
             "node_count": 3,
@@ -338,13 +351,15 @@ class TestInteractiveDAGExplorer:
 
             mock_print.assert_called()
 
-    def test_execute_and_trace_async(self, explorer):
+    def test_execute_and_trace_async(self, explorer: Mock) -> None:
         """Test async execution and tracing."""
         import asyncio
 
-        async def test_execution():
+        async def test_execution() -> None:
             mock_orchestrator = Mock()
-            mock_orchestrator.run = AsyncMock(return_value=AgentContext(query="test"))
+            mock_orchestrator.run = AsyncMock(
+                return_value=AgentContextPatterns.simple_query("test")
+            )
 
             result = await explorer._execute_and_trace(mock_orchestrator, "test query")
 
@@ -355,14 +370,16 @@ class TestInteractiveDAGExplorer:
         # Run the async test
         asyncio.run(test_execution())
 
-    def test_display_execution_trace(self, explorer, sample_dag_execution):
+    def test_display_execution_trace(
+        self, explorer: Mock, sample_dag_execution: Mock
+    ) -> None:
         """Test display of execution trace."""
         with patch.object(explorer.console, "print") as mock_print:
             explorer._display_execution_trace(sample_dag_execution)
 
             mock_print.assert_called()
 
-    def test_run_performance_benchmark(self, explorer):
+    def test_run_performance_benchmark(self, explorer: Mock) -> None:
         """Test performance benchmarking."""
         result = explorer._run_performance_analysis(
             agents=["refiner", "critic"],
@@ -375,7 +392,7 @@ class TestInteractiveDAGExplorer:
         assert "avg_execution_time" in result
         assert "memory_usage" in result
 
-    def test_display_performance_analysis(self, explorer):
+    def test_display_performance_analysis(self, explorer: Mock) -> None:
         """Test display of performance analysis."""
         analysis = {
             "avg_execution_time": 1.5,
@@ -391,14 +408,14 @@ class TestInteractiveDAGExplorer:
 
             mock_print.assert_called()
 
-    def test_list_available_patterns(self, explorer):
+    def test_list_available_patterns(self, explorer: Mock) -> None:
         """Test listing available patterns."""
         with patch.object(explorer.console, "print") as mock_print:
             explorer._list_available_patterns()
 
             mock_print.assert_called()
 
-    def test_start_interactive_session(self, explorer):
+    def test_start_interactive_session(self, explorer: Mock) -> None:
         """Test interactive session startup."""
         with patch("rich.prompt.Prompt.ask", side_effect=["help", "exit"]):
             with patch.object(explorer, "_show_interactive_help") as mock_help:
@@ -407,7 +424,7 @@ class TestInteractiveDAGExplorer:
                 # Should call help when help command is entered
                 mock_help.assert_called_once()
 
-    def test_show_interactive_help(self, explorer):
+    def test_show_interactive_help(self, explorer: Mock) -> None:
         """Test interactive help display."""
         with patch.object(explorer.console, "print") as mock_print:
             explorer._show_interactive_help()
@@ -418,7 +435,7 @@ class TestInteractiveDAGExplorer:
 class TestNodeInfo:
     """Test suite for NodeInfo dataclass."""
 
-    def test_dag_node_creation(self):
+    def test_dag_node_creation(self) -> None:
         """Test DAG node creation."""
         node = NodeInfo(
             name="test_node",
@@ -438,7 +455,7 @@ class TestNodeInfo:
 class TestExplorerState:
     """Test suite for ExplorerState dataclass."""
 
-    def test_dag_execution_creation(self):
+    def test_dag_execution_creation(self) -> None:
         """Test DAG execution creation."""
         execution = ExplorerState(
             execution_id="test_123",
@@ -455,7 +472,7 @@ class TestExplorerState:
         assert execution.total_duration == 1.0
         assert len(execution.nodes_executed) == 2
 
-    def test_dag_execution_with_error(self):
+    def test_dag_execution_with_error(self) -> None:
         """Test DAG execution with error details."""
         execution = ExplorerState(
             execution_id="error_123",
@@ -475,7 +492,7 @@ class TestExplorerState:
 class TestExplorationMode:
     """Test suite for ExplorationMode enum."""
 
-    def test_exploration_modes(self):
+    def test_exploration_modes(self) -> None:
         """Test exploration mode enumeration."""
         assert ExplorationMode.INTERACTIVE.value == "interactive"
         assert ExplorationMode.STRUCTURE.value == "structure"
@@ -489,11 +506,11 @@ class TestDAGExplorerIntegration:
     """Integration tests for DAG Explorer."""
 
     @pytest.fixture
-    def explorer(self):
+    def explorer(self) -> Any:
         """Create explorer for integration tests."""
         return InteractiveDAGExplorer()
 
-    def test_full_exploration_workflow(self, explorer):
+    def test_full_exploration_workflow(self, explorer: Mock) -> None:
         """Test complete exploration workflow."""
         with patch.object(explorer, "graph_factory") as mock_factory:
             mock_factory.create_graph.return_value = Mock()
@@ -505,7 +522,7 @@ class TestDAGExplorerIntegration:
                         pattern="standard", agents="refiner,critic", output="console"
                     )
 
-    def test_cli_app_integration(self, explorer):
+    def test_cli_app_integration(self, explorer: Mock) -> None:
         """Test CLI app creation and basic functionality."""
         app = explorer.create_app()
 
@@ -519,11 +536,11 @@ class TestDAGExplorerPerformance:
     """Performance tests for DAG Explorer."""
 
     @pytest.fixture
-    def explorer(self):
+    def explorer(self) -> Any:
         """Create explorer for performance tests."""
         return InteractiveDAGExplorer()
 
-    def test_structure_analysis_performance(self, explorer):
+    def test_structure_analysis_performance(self, explorer: Mock) -> None:
         """Test performance of structure analysis."""
         import time
 
@@ -535,7 +552,7 @@ class TestDAGExplorerPerformance:
         assert (end_time - start_time) < 1.0
         assert isinstance(result, dict)
 
-    def test_benchmark_performance(self, explorer):
+    def test_benchmark_performance(self, explorer: Mock) -> None:
         """Test performance benchmarking functionality."""
         import time
 

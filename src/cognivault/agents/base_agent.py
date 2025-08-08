@@ -45,7 +45,7 @@ class RetryConfig:
         max_delay: float = 60.0,
         exponential_backoff: bool = True,
         jitter: bool = True,
-    ):
+    ) -> None:
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -56,20 +56,22 @@ class RetryConfig:
 class CircuitBreakerState:
     """Simple circuit breaker state for agent execution."""
 
-    def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 300.0):
+    def __init__(
+        self, failure_threshold: int = 5, recovery_timeout: float = 300.0
+    ) -> None:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
         self.last_failure_time: Optional[datetime] = None
         self.is_open = False
 
-    def record_success(self):
+    def record_success(self) -> None:
         """Record a successful execution."""
         self.failure_count = 0
         self.is_open = False
         self.last_failure_time = None
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """Record a failed execution."""
         self.failure_count += 1
         self.last_failure_time = datetime.now(timezone.utc)
@@ -299,7 +301,7 @@ class BaseAgent(ABC):
         retry_config: Optional[RetryConfig] = None,
         timeout_seconds: float = 30.0,
         enable_circuit_breaker: bool = True,
-    ):
+    ) -> None:
         self.name: str = name
         self.retry_config = retry_config or RetryConfig()
         self.timeout_seconds = timeout_seconds
@@ -763,7 +765,7 @@ class BaseAgent(ABC):
         # Default to retry for unknown exceptions (conservative approach)
         return True
 
-    async def _handle_retry_delay(self, retry_attempt: int):
+    async def _handle_retry_delay(self, retry_attempt: int) -> None:
         """
         Handle delay between retry attempts with exponential backoff and jitter.
 

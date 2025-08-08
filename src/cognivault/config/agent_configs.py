@@ -14,7 +14,7 @@ Architecture:
 
 import os
 from enum import Enum
-from typing import Dict, List, Literal, Optional, Any, Union
+from typing import Dict, List, Literal, Optional, Any, Union, Type, cast
 from pydantic import BaseModel, Field, ConfigDict, validator
 
 
@@ -374,7 +374,7 @@ class SynthesisConfig(BaseModel):
 AgentConfigType = Union[RefinerConfig, CriticConfig, HistorianConfig, SynthesisConfig]
 
 
-def get_agent_config_class(agent_type: str) -> Any:
+def get_agent_config_class(agent_type: str) -> Type[AgentConfigType]:
     """Get the appropriate configuration class for an agent type."""
     config_mapping = {
         "refiner": RefinerConfig,
@@ -386,7 +386,7 @@ def get_agent_config_class(agent_type: str) -> Any:
     if agent_type not in config_mapping:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
-    return config_mapping[agent_type]
+    return cast(Type[AgentConfigType], config_mapping[agent_type])
 
 
 def create_agent_config(

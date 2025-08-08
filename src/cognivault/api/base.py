@@ -28,7 +28,7 @@ class HealthStatus:
         status: APIStatus,
         details: Optional[str] = None,
         checks: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         self.status = status
         self.details = details or ""
         self.checks = checks or {}

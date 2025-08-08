@@ -26,7 +26,7 @@ class JSONFormatter(logging.Formatter):
         self,
         include_correlation: bool = True,
         extra_fields: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         """
         Initialize JSON formatter.
 
@@ -121,7 +121,7 @@ class CorrelatedFormatter(logging.Formatter):
     and observability context in a readable format.
     """
 
-    def __init__(self, fmt: Optional[str] = None, include_context: bool = True):
+    def __init__(self, fmt: Optional[str] = None, include_context: bool = True) -> None:
         """
         Initialize correlated formatter.
 

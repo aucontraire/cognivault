@@ -163,7 +163,7 @@ class ValidatorNode(BaseAdvancedNode):
         required_criteria_pass_rate: float = 1.0,
         allow_warnings: bool = True,
         strict_mode: bool = False,
-    ):
+    ) -> None:
         """
         Initialize the ValidatorNode.
 

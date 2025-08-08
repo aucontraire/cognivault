@@ -169,10 +169,10 @@ class PatternTestSuite(BaseModel):
     test_cases: List[PatternTestCase] = Field(
         ..., description="List of test cases in the suite"
     )
-    setup_hooks: List[Callable] = Field(
+    setup_hooks: List[Callable[..., Any]] = Field(
         default_factory=list, description="Setup hooks to run before tests"
     )
-    teardown_hooks: List[Callable] = Field(
+    teardown_hooks: List[Callable[..., Any]] = Field(
         default_factory=list, description="Teardown hooks to run after tests"
     )
     parallel_execution: bool = Field(
@@ -339,7 +339,7 @@ class PatternTestRunner:
             "./test_results", "--output", "-o", help="Output directory"
         ),
         verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    ):
+    ) -> None:
         """Run automated tests for a pattern."""
         self.console.print("[bold blue]🧪 Pattern Test Runner[/bold blue]")
 
@@ -381,7 +381,7 @@ class PatternTestRunner:
         output_format: str = typer.Option(
             "console", "--format", "-f", help="Output format: console, json, junit"
         ),
-    ):
+    ) -> None:
         """Run a predefined test suite."""
         self.console.print("[bold green]📋 Test Suite Runner[/bold green]")
 
@@ -470,7 +470,7 @@ class PatternTestRunner:
         include_stress: bool = typer.Option(
             False, "--stress", help="Include stress tests"
         ),
-    ):
+    ) -> None:
         """Generate a comprehensive test suite for a pattern."""
         self.console.print("[bold cyan]🏗️  Test Suite Generator[/bold cyan]")
 
@@ -525,7 +525,7 @@ class PatternTestRunner:
         fix_issues: bool = typer.Option(
             False, "--fix", help="Attempt to fix validation issues"
         ),
-    ):
+    ) -> None:
         """Validate test suite configuration."""
         self.console.print("[bold yellow]✅ Test Suite Validator[/bold yellow]")
 
@@ -583,7 +583,7 @@ class PatternTestRunner:
         output_file: Optional[str] = typer.Option(
             None, "--output", "-o", help="Coverage report output"
         ),
-    ):
+    ) -> None:
         """Analyze test coverage for a pattern."""
         self.console.print("[bold magenta]📊 Coverage Analyzer[/bold magenta]")
 
@@ -636,7 +636,7 @@ class PatternTestRunner:
         output_dir: str = typer.Option(
             "./regression_results", "--output", "-o", help="Output directory"
         ),
-    ):
+    ) -> None:
         """Run regression tests against baseline results."""
         self.console.print("[bold red]🔄 Regression Test Runner[/bold red]")
 
@@ -714,7 +714,7 @@ class PatternTestRunner:
             10, "--users", "-u", help="Concurrent users"
         ),
         ramp_up: int = typer.Option(10, "--rampup", help="Ramp-up time in seconds"),
-    ):
+    ) -> None:
         """Run stress tests on pattern."""
         self.console.print("[bold red]💥 Stress Test Runner[/bold red]")
 
@@ -778,7 +778,7 @@ class PatternTestRunner:
         output_format: str = typer.Option(
             "junit", "--format", "-f", help="CI output format"
         ),
-    ):
+    ) -> None:
         """Run CI/CD pipeline tests."""
         self.console.print("[bold green]🚀 CI/CD Test Runner[/bold green]")
 
@@ -850,7 +850,7 @@ class PatternTestRunner:
         include_charts: bool = typer.Option(
             True, "--charts", help="Include performance charts"
         ),
-    ):
+    ) -> None:
         """Generate comprehensive test report."""
         self.console.print("[bold blue]📋 Test Report Generator[/bold blue]")
 
@@ -1227,7 +1227,7 @@ class PatternTestRunner:
             "avg_duration": avg_duration,
         }
 
-    def _display_test_summary(self, session: PatternTestSession):
+    def _display_test_summary(self, session: PatternTestSession) -> None:
         """Display test session summary."""
         summary = session.summary
 
@@ -1269,7 +1269,7 @@ class PatternTestRunner:
 
             self.console.print(failed_table)
 
-    def _save_test_results(self, session: PatternTestSession, output_dir: str):
+    def _save_test_results(self, session: PatternTestSession, output_dir: str) -> None:
         """Save test results to files."""
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)

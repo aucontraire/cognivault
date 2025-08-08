@@ -6,6 +6,7 @@ after the event system consolidation.
 """
 
 import pytest
+from typing import Any
 import os
 from datetime import datetime, timezone
 from unittest.mock import patch, Mock, AsyncMock
@@ -22,14 +23,14 @@ from cognivault.events import (
 class TestAPIEventIntegration:
     """Test event system integration with API layer."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for each test."""
         # Reset global event emitter
         emitter = get_global_event_emitter()
         emitter.sinks.clear()
         emitter.enabled = True
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Cleanup after each test."""
         # Reset global event emitter
         emitter = get_global_event_emitter()
@@ -37,7 +38,7 @@ class TestAPIEventIntegration:
         emitter.enabled = False
 
     @pytest.mark.asyncio
-    async def test_api_workflow_started_event(self):
+    async def test_api_workflow_started_event(self) -> None:
         """Test that API layer can emit workflow started events."""
         emitter = get_global_event_emitter()
         sink = InMemoryEventSink()
@@ -61,7 +62,7 @@ class TestAPIEventIntegration:
         assert event.data.get("agents_requested") == ["refiner", "critic"]
 
     @pytest.mark.asyncio
-    async def test_api_workflow_completed_event(self):
+    async def test_api_workflow_completed_event(self) -> None:
         """Test that API layer can emit workflow completed events."""
         emitter = get_global_event_emitter()
         sink = InMemoryEventSink()
@@ -90,7 +91,7 @@ class TestAPIEventIntegration:
         }
 
     @pytest.mark.asyncio
-    async def test_api_workflow_failed_event(self):
+    async def test_api_workflow_failed_event(self) -> None:
         """Test that API layer can emit workflow failed events."""
         emitter = get_global_event_emitter()
         sink = InMemoryEventSink()
@@ -116,7 +117,7 @@ class TestAPIEventIntegration:
         assert event.error_message == "Test error"
 
     @pytest.mark.asyncio
-    async def test_event_emission_disabled(self):
+    async def test_event_emission_disabled(self) -> None:
         """Test that event emission can be disabled."""
         emitter = get_global_event_emitter()
         emitter.enabled = False
@@ -133,7 +134,7 @@ class TestAPIEventIntegration:
         assert len(sink.events) == 0
 
     @pytest.mark.asyncio
-    async def test_multiple_events_in_sequence(self):
+    async def test_multiple_events_in_sequence(self) -> None:
         """Test that multiple events can be emitted in sequence."""
         emitter = get_global_event_emitter()
         sink = InMemoryEventSink()
@@ -167,14 +168,14 @@ class TestAPIEventIntegration:
         assert complete_event.workflow_id == "test-123"
         assert complete_event.correlation_id == "corr-456"
 
-    def test_event_emitter_singleton(self):
+    def test_event_emitter_singleton(self) -> None:
         """Test that get_global_event_emitter returns the same instance."""
         emitter1 = get_global_event_emitter()
         emitter2 = get_global_event_emitter()
         assert emitter1 is emitter2
 
     @pytest.mark.asyncio
-    async def test_event_correlation_context(self):
+    async def test_event_correlation_context(self) -> None:
         """Test that correlation context is preserved in events."""
         emitter = get_global_event_emitter()
         sink = InMemoryEventSink()

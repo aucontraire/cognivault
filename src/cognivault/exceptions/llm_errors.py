@@ -6,7 +6,7 @@ API failures, and LLM provider-specific error conditions with intelligent
 retry policies and circuit breaker support.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from . import CogniVaultError, ErrorSeverity, RetryPolicy
 
 
@@ -31,7 +31,7 @@ class LLMError(CogniVaultError):
         cause: Optional[Exception] = None,
         api_error_code: Optional[str] = None,
         api_error_type: Optional[str] = None,
-    ):
+    ) -> None:
         context = context or {}
         context.update(
             {
@@ -73,7 +73,7 @@ class LLMQuotaError(LLMError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or f"{llm_provider} API quota exceeded for {quota_type}"
 
         context = context or {}
@@ -118,7 +118,7 @@ class LLMAuthError(LLMError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or f"{llm_provider} authentication failed: {auth_issue}"
 
         context = context or {}
@@ -164,7 +164,7 @@ class LLMRateLimitError(LLMError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or f"{llm_provider} rate limit exceeded: {rate_limit_type}"
 
         context = context or {}
@@ -221,7 +221,7 @@ class LLMTimeoutError(LLMError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message or f"{llm_provider} {timeout_type} timeout after {timeout_seconds}s"
         )
@@ -277,7 +277,7 @@ class LLMContextLimitError(LLMError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message
             or f"{model_name} context limit exceeded: {token_count}/{max_tokens} tokens"
@@ -330,13 +330,13 @@ class LLMModelNotFoundError(LLMError):
         self,
         llm_provider: str,
         model_name: str,
-        available_models: Optional[list] = None,
+        available_models: Optional[List[str]] = None,
         message: Optional[str] = None,
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message or f"{llm_provider} model '{model_name}' not found or unavailable"
         )
@@ -399,7 +399,7 @@ class LLMServerError(LLMError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message
             or f"{llm_provider} server error (HTTP {http_status}): {error_details or 'Unknown'}"
@@ -457,7 +457,7 @@ class LLMValidationError(LLMError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         context = context or {}
         context.update(
             {

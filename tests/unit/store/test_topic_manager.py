@@ -1,7 +1,8 @@
 """Tests for the topic management and auto-tagging system."""
 
 import pytest
-from unittest.mock import Mock, patch
+from typing import Any
+from unittest.mock import MagicMock, Mock, patch
 from cognivault.store.topic_manager import (
     KeywordExtractor,
     TopicMapper,
@@ -15,7 +16,7 @@ from cognivault.store.topic_manager import (
 class TestKeywordExtractor:
     """Test keyword extraction functionality."""
 
-    def test_extract_keywords_basic(self):
+    def test_extract_keywords_basic(self) -> None:
         """Test basic keyword extraction."""
         extractor = KeywordExtractor()
         text = "This is a test about machine learning algorithms and artificial intelligence"
@@ -34,7 +35,7 @@ class TestKeywordExtractor:
         assert "this" not in keyword_terms
         assert "and" not in keyword_terms
 
-    def test_extract_keywords_with_technical_terms(self):
+    def test_extract_keywords_with_technical_terms(self) -> None:
         """Test extraction preserves technical terms."""
         extractor = KeywordExtractor()
         text = "API design with REST and GraphQL using JSON"
@@ -47,7 +48,7 @@ class TestKeywordExtractor:
         assert "rest" in keyword_terms or "REST" in keyword_terms
         assert "json" in keyword_terms
 
-    def test_extract_phrases(self):
+    def test_extract_phrases(self) -> None:
         """Test phrase extraction."""
         extractor = KeywordExtractor()
         text = "machine learning algorithms for natural language processing"
@@ -63,7 +64,7 @@ class TestKeywordExtractor:
 class TestTopicMapper:
     """Test topic mapping functionality."""
 
-    def test_map_terms_to_topics_technology(self):
+    def test_map_terms_to_topics_technology(self) -> None:
         """Test mapping technology-related terms."""
         mapper = TopicMapper()
         terms = [("programming", 5), ("algorithm", 3), ("software", 2)]
@@ -82,7 +83,7 @@ class TestTopicMapper:
         assert 0.0 <= tech_suggestion.confidence <= 1.0
         assert tech_suggestion.source == "domain_mapping"
 
-    def test_map_terms_to_topics_psychology(self):
+    def test_map_terms_to_topics_psychology(self) -> None:
         """Test mapping psychology-related terms."""
         mapper = TopicMapper()
         terms = [("behavior", 4), ("cognitive", 3), ("emotion", 2)]
@@ -98,7 +99,7 @@ class TestTopicManager:
     """Test the main topic manager."""
 
     @pytest.mark.asyncio
-    async def test_analyze_and_suggest_topics_basic(self):
+    async def test_analyze_and_suggest_topics_basic(self) -> None:
         """Test basic topic analysis without LLM."""
         manager = TopicManager(llm=None)  # No LLM
 
@@ -130,7 +131,7 @@ class TestTopicManager:
         assert any("machine" in term.lower() for term in analysis.key_terms)
 
     @pytest.mark.asyncio
-    async def test_analyze_with_existing_topics(self):
+    async def test_analyze_with_existing_topics(self) -> None:
         """Test topic analysis with existing topics."""
         manager = TopicManager(llm=None)
 
@@ -152,7 +153,7 @@ class TestTopicManager:
         ]
         assert len(new_topics) > 0
 
-    def test_confidence_calculation(self):
+    def test_confidence_calculation(self) -> None:
         """Test confidence score calculation."""
         manager = TopicManager(llm=None)
 
@@ -186,7 +187,7 @@ class TestTopicManager:
         assert 0.0 <= confidence <= 1.0
         assert confidence > 0.5  # Should be decent with good suggestions
 
-    def test_complexity_identification(self):
+    def test_complexity_identification(self) -> None:
         """Test complexity indicator identification."""
         manager = TopicManager(llm=None)
 
@@ -204,7 +205,7 @@ class TestTopicManager:
         complexity = manager._identify_complexity(long_text, ["various", "topics"])
         assert "comprehensive" in complexity
 
-    def test_theme_extraction(self):
+    def test_theme_extraction(self) -> None:
         """Test theme extraction from suggestions."""
         manager = TopicManager(llm=None)
 
@@ -246,7 +247,7 @@ class TestTopicManager:
 class TestTopicSuggestion:
     """Test TopicSuggestion data class."""
 
-    def test_topic_suggestion_creation(self):
+    def test_topic_suggestion_creation(self) -> None:
         """Test creating topic suggestions."""
         suggestion = TopicSuggestion(
             topic="artificial intelligence",
@@ -265,7 +266,7 @@ class TestTopicSuggestion:
 class TestTopicAnalysis:
     """Test TopicAnalysis data class."""
 
-    def test_topic_analysis_creation(self):
+    def test_topic_analysis_creation(self) -> None:
         """Test creating topic analysis results."""
         suggestions = [
             TopicSuggestion(
@@ -300,15 +301,15 @@ class TestTopicAnalysis:
 class TestTopicManagerLLMIntegration:
     """Test TopicManager with LLM integration."""
 
-    def test_topic_manager_with_llm_initialization(self):
+    def test_topic_manager_with_llm_initialization(self) -> None:
         """Test TopicManager initialization with LLM instance."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         manager = TopicManager(llm=mock_llm)
 
         # Verify LLM is passed to LLMTopicAnalyzer
         assert manager.llm_analyzer.llm == mock_llm
 
-    def test_topic_manager_without_llm_initialization(self):
+    def test_topic_manager_without_llm_initialization(self) -> None:
         """Test TopicManager initialization without LLM instance."""
         manager = TopicManager()
 
@@ -316,9 +317,9 @@ class TestTopicManagerLLMIntegration:
         assert manager.llm_analyzer.llm is None
 
     @pytest.mark.asyncio
-    async def test_topic_manager_with_llm_analysis(self):
+    async def test_topic_manager_with_llm_analysis(self) -> None:
         """Test TopicManager uses LLM for analysis when available."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         manager = TopicManager(llm=mock_llm)
 
         # Mock LLM response
@@ -349,7 +350,7 @@ class TestTopicManagerLLMIntegration:
             assert len(llm_topics) > 0
 
     @pytest.mark.asyncio
-    async def test_topic_manager_fallback_without_llm(self):
+    async def test_topic_manager_fallback_without_llm(self) -> None:
         """Test TopicManager fallback behavior when LLM not available."""
         manager = TopicManager()  # No LLM
 
@@ -373,7 +374,7 @@ class TestTopicManagerLLMIntegration:
 class TestTopicMapperEnhancements:
     """Test enhanced TopicMapper functionality."""
 
-    def test_topic_mapper_with_society_domain(self):
+    def test_topic_mapper_with_society_domain(self) -> None:
         """Test TopicMapper recognizes society domain keywords."""
         mapper = TopicMapper()
 
@@ -389,7 +390,7 @@ class TestTopicMapperEnhancements:
         assert len(domain_suggestions) > 0
         assert any(s.topic == "society" for s in domain_suggestions)
 
-    def test_topic_mapper_fallback_behavior(self):
+    def test_topic_mapper_fallback_behavior(self) -> None:
         """Test TopicMapper fallback behavior when no domain match."""
         mapper = TopicMapper()
 
@@ -404,7 +405,7 @@ class TestTopicMapperEnhancements:
         fallback_topics = [s for s in suggestions if s.source == "keyword_extraction"]
         assert len(fallback_topics) > 0
 
-    def test_topic_mapper_enhanced_domain_keywords(self):
+    def test_topic_mapper_enhanced_domain_keywords(self) -> None:
         """Test enhanced domain keywords include politics/democracy terms."""
         mapper = TopicMapper()
 
@@ -420,7 +421,7 @@ class TestTopicMapperEnhancements:
 class TestEnhancedDomainMapping:
     """Test enhanced domain mapping logic."""
 
-    def test_suggest_domain_with_keyword_extraction(self):
+    def test_suggest_domain_with_keyword_extraction(self) -> None:
         """Test domain suggestion from keyword extraction."""
         manager = TopicManager()
 
@@ -447,7 +448,7 @@ class TestEnhancedDomainMapping:
         # Should suggest society domain
         assert domain == "society"
 
-    def test_suggest_domain_fallback_to_key_terms(self):
+    def test_suggest_domain_fallback_to_key_terms(self) -> None:
         """Test domain suggestion fallback to key terms."""
         manager = TopicManager()
 
@@ -469,7 +470,7 @@ class TestEnhancedDomainMapping:
         # Should suggest society domain based on key terms
         assert domain == "society"
 
-    def test_suggest_domain_no_match(self):
+    def test_suggest_domain_no_match(self) -> None:
         """Test domain suggestion when no match found."""
         manager = TopicManager()
 
@@ -495,21 +496,21 @@ class TestEnhancedDomainMapping:
 class TestLLMTopicAnalyzer:
     """Test LLMTopicAnalyzer functionality."""
 
-    def test_llm_topic_analyzer_initialization(self):
+    def test_llm_topic_analyzer_initialization(self) -> None:
         """Test LLMTopicAnalyzer initialization."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         analyzer = LLMTopicAnalyzer(llm=mock_llm)
 
         assert analyzer.llm == mock_llm
 
-    def test_llm_topic_analyzer_without_llm(self):
+    def test_llm_topic_analyzer_without_llm(self) -> None:
         """Test LLMTopicAnalyzer without LLM."""
         analyzer = LLMTopicAnalyzer()
 
         assert analyzer.llm is None
 
     @pytest.mark.asyncio
-    async def test_llm_topic_analyzer_analyze_topics_without_llm(self):
+    async def test_llm_topic_analyzer_analyze_topics_without_llm(self) -> None:
         """Test LLMTopicAnalyzer returns None when no LLM available."""
         analyzer = LLMTopicAnalyzer()
 
@@ -520,13 +521,13 @@ class TestLLMTopicAnalyzer:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_llm_topic_analyzer_analyze_topics_with_llm(self):
+    async def test_llm_topic_analyzer_analyze_topics_with_llm(self) -> None:
         """Test LLMTopicAnalyzer analyzes topics when LLM available."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         analyzer = LLMTopicAnalyzer(llm=mock_llm)
 
         # Mock LLM response
-        mock_response = Mock()
+        mock_response: Mock = Mock()
         mock_response.text = """TOPIC: democracy
 CONFIDENCE: 0.9
 REASONING: Content discusses democratic processes
@@ -553,9 +554,9 @@ RELATED: government, policy, law"""
         assert "politics" in result[0].related_terms
 
     @pytest.mark.asyncio
-    async def test_llm_topic_analyzer_error_handling(self):
+    async def test_llm_topic_analyzer_error_handling(self) -> None:
         """Test LLMTopicAnalyzer handles errors gracefully."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         analyzer = LLMTopicAnalyzer(llm=mock_llm)
 
         # Mock LLM throws exception

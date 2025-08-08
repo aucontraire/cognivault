@@ -1,4 +1,5 @@
 import pytest
+from typing import Any, Dict
 import asyncio
 from unittest.mock import patch
 from cognivault.agents.base_agent import (
@@ -11,6 +12,10 @@ from cognivault.agents.base_agent import (
     LangGraphNodeDefinition,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.exceptions import (
     AgentExecutionError,
     AgentTimeoutError,
@@ -18,12 +23,14 @@ from cognivault.exceptions import (
     RetryPolicy,
 )
 
+from tests.factories import AgentContextFactory, AgentContextPatterns
+
 
 # Test fixtures and helper classes
 class ConcreteAgent(BaseAgent):
     """Concrete implementation for testing BaseAgent functionality."""
 
-    def __init__(self, name: str = "TestAgent", **kwargs):
+    def __init__(self, name: str = "TestAgent", **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
         self.run_called = False
 
@@ -40,8 +47,8 @@ class FailingAgent(BaseAgent):
         self,
         name: str = "FailingAgent",
         failure_type: Exception = Exception("Test failure"),
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(name, **kwargs)
         self.failure_type = failure_type
         self.attempts = 0
@@ -54,7 +61,9 @@ class FailingAgent(BaseAgent):
 class TimeoutAgent(BaseAgent):
     """Agent that times out for testing timeout handling."""
 
-    def __init__(self, name: str = "TimeoutAgent", delay: float = 5.0, **kwargs):
+    def __init__(
+        self, name: str = "TimeoutAgent", delay: float = 5.0, **kwargs: Any
+    ) -> None:
         super().__init__(name, **kwargs)
         self.delay = delay
 
@@ -68,8 +77,8 @@ class FlakyAgent(BaseAgent):
     """Agent that fails N times before succeeding."""
 
     def __init__(
-        self, name: str = "FlakyAgent", failures_before_success: int = 2, **kwargs
-    ):
+        self, name: str = "FlakyAgent", failures_before_success: int = 2, **kwargs: Any
+    ) -> None:
         super().__init__(name, **kwargs)
         self.failures_before_success = failures_before_success
         self.attempts = 0
@@ -85,14 +94,14 @@ class FlakyAgent(BaseAgent):
 class CustomNodeAgent(BaseAgent):
     """Agent with custom node metadata for testing."""
 
-    def __init__(self, name: str = "CustomNodeAgent", **kwargs):
+    def __init__(self, name: str = "CustomNodeAgent", **kwargs: Any) -> None:
         super().__init__(name, **kwargs)
 
     async def run(self, context: AgentContext) -> AgentContext:
         context.agent_outputs[self.name] = "custom node output"
         return context
 
-    def define_node_metadata(self) -> dict:
+    def define_node_metadata(self) -> Dict[str, Any]:
         """Override to provide custom node metadata."""
         return {
             "node_type": NodeType.DECISION,
@@ -132,9 +141,9 @@ class CustomNodeAgent(BaseAgent):
 
 
 @pytest.mark.asyncio
-async def test_base_agent_run_concrete():
+async def test_base_agent_run_concrete() -> None:
     agent = ConcreteAgent(name="TestAgent")
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
     result = await agent.run(context)
 
     assert isinstance(result, AgentContext)
@@ -142,13 +151,13 @@ async def test_base_agent_run_concrete():
     assert agent.run_called
 
 
-def test_base_agent_run_abstract_error():
+def test_base_agent_run_abstract_error() -> None:
     with pytest.raises(TypeError):
         BaseAgent(name="Test")  # Directly instantiating BaseAgent should fail
 
 
 # RetryConfig tests
-def test_retry_config_defaults():
+def test_retry_config_defaults() -> None:
     config = RetryConfig()
     assert config.max_retries == 3
     assert config.base_delay == 1.0
@@ -157,7 +166,7 @@ def test_retry_config_defaults():
     assert config.jitter is True
 
 
-def test_retry_config_custom():
+def test_retry_config_custom() -> None:
     config = RetryConfig(
         max_retries=5,
         base_delay=2.0,
@@ -173,7 +182,7 @@ def test_retry_config_custom():
 
 
 # CircuitBreakerState tests
-def test_circuit_breaker_initialization():
+def test_circuit_breaker_initialization() -> None:
     cb = CircuitBreakerState()
     assert cb.failure_threshold == 5
     assert cb.recovery_timeout == 300.0
@@ -182,13 +191,13 @@ def test_circuit_breaker_initialization():
     assert cb.is_open is False
 
 
-def test_circuit_breaker_custom_initialization():
+def test_circuit_breaker_custom_initialization() -> None:
     cb = CircuitBreakerState(failure_threshold=3, recovery_timeout=60.0)
     assert cb.failure_threshold == 3
     assert cb.recovery_timeout == 60.0
 
 
-def test_circuit_breaker_record_success():
+def test_circuit_breaker_record_success() -> None:
     cb = CircuitBreakerState()
     cb.failure_count = 3
     cb.is_open = True
@@ -200,7 +209,7 @@ def test_circuit_breaker_record_success():
     assert cb.last_failure_time is None
 
 
-def test_circuit_breaker_record_failure():
+def test_circuit_breaker_record_failure() -> None:
     cb = CircuitBreakerState(failure_threshold=2)
 
     # First failure
@@ -215,7 +224,7 @@ def test_circuit_breaker_record_failure():
     assert cb.is_open is True
 
 
-def test_circuit_breaker_can_execute():
+def test_circuit_breaker_can_execute() -> None:
     cb = CircuitBreakerState()
 
     # Initially can execute
@@ -227,7 +236,7 @@ def test_circuit_breaker_can_execute():
 
 
 @patch("cognivault.agents.base_agent.datetime")
-def test_circuit_breaker_recovery_timeout(mock_datetime):
+def test_circuit_breaker_recovery_timeout(mock_datetime: Any) -> None:
     from datetime import datetime, timezone, timedelta
 
     # Mock time progression
@@ -253,7 +262,7 @@ def test_circuit_breaker_recovery_timeout(mock_datetime):
 
 
 # BaseAgent initialization tests
-def test_base_agent_initialization_defaults():
+def test_base_agent_initialization_defaults() -> None:
     agent = ConcreteAgent("TestAgent")
     assert agent.name == "TestAgent"
     assert agent.timeout_seconds == 30.0
@@ -264,7 +273,7 @@ def test_base_agent_initialization_defaults():
     assert isinstance(agent.retry_config, RetryConfig)
 
 
-def test_base_agent_initialization_custom():
+def test_base_agent_initialization_custom() -> None:
     retry_config = RetryConfig(max_retries=5)
     agent = ConcreteAgent(
         "CustomAgent",
@@ -278,7 +287,7 @@ def test_base_agent_initialization_custom():
     assert agent.circuit_breaker is None
 
 
-def test_generate_step_id():
+def test_generate_step_id() -> None:
     agent = ConcreteAgent("TestAgent")
     step_id = agent.generate_step_id()
     assert step_id.startswith("testagent_")
@@ -287,9 +296,10 @@ def test_generate_step_id():
 
 # run_with_retry tests
 @pytest.mark.asyncio
-async def test_run_with_retry_success():
+async def test_run_with_retry_success() -> None:
+    """🚩 LIBERATED: Manual AgentContext construction eliminated, revolutionary factory deployed!"""
     agent = ConcreteAgent("TestAgent")
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")  # LIBERATION ACHIEVED!
 
     result = await agent.run_with_retry(context)
 
@@ -301,9 +311,9 @@ async def test_run_with_retry_success():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_with_step_id():
+async def test_run_with_retry_with_step_id() -> None:
     agent = ConcreteAgent("TestAgent")
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
     step_id = "custom_step_123"
 
     await agent.run_with_retry(context, step_id=step_id)
@@ -316,11 +326,11 @@ async def test_run_with_retry_with_step_id():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_circuit_breaker_open():
+async def test_run_with_retry_circuit_breaker_open() -> None:
     agent = ConcreteAgent("TestAgent")
     agent.circuit_breaker.is_open = True
     agent.circuit_breaker.failure_count = 5
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     with pytest.raises(AgentExecutionError) as exc_info:
         await agent.run_with_retry(context)
@@ -330,9 +340,9 @@ async def test_run_with_retry_circuit_breaker_open():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_timeout():
+async def test_run_with_retry_timeout() -> None:
     agent = TimeoutAgent("TimeoutAgent", delay=2.0, timeout_seconds=0.1)
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     with pytest.raises(AgentTimeoutError) as exc_info:
         await agent.run_with_retry(context)
@@ -344,10 +354,10 @@ async def test_run_with_retry_timeout():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_retries_on_failure():
+async def test_run_with_retry_retries_on_failure() -> None:
     agent = FlakyAgent("FlakyAgent", failures_before_success=2)
     agent.retry_config = RetryConfig(max_retries=3, base_delay=0.01)
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     result = await agent.run_with_retry(context)
 
@@ -358,10 +368,10 @@ async def test_run_with_retry_retries_on_failure():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_max_retries_exceeded():
+async def test_run_with_retry_max_retries_exceeded() -> None:
     agent = FailingAgent("FailingAgent")
     agent.retry_config = RetryConfig(max_retries=2, base_delay=0.01)
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     with pytest.raises(AgentExecutionError) as exc_info:
         await agent.run_with_retry(context)
@@ -373,33 +383,33 @@ async def test_run_with_retry_max_retries_exceeded():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_llm_error_passthrough():
+async def test_run_with_retry_llm_error_passthrough() -> None:
     llm_error = LLMError("Test LLM error", "llm_test_error")
     agent = FailingAgent("FailingAgent", failure_type=llm_error)
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     with pytest.raises(LLMError):
         await agent.run_with_retry(context)
 
 
 # _should_retry_exception tests
-def test_should_retry_exception_with_retry_policy():
+def test_should_retry_exception_with_retry_policy() -> None:
     agent = ConcreteAgent("TestAgent")
 
     # Create mock exception with retry policy
     class RetryableException(Exception):
-        def __init__(self):
+        def __init__(self) -> None:
             self.retry_policy = RetryPolicy.BACKOFF
 
     class NonRetryableException(Exception):
-        def __init__(self):
+        def __init__(self) -> None:
             self.retry_policy = RetryPolicy.NEVER
 
     assert agent._should_retry_exception(RetryableException()) is True
     assert agent._should_retry_exception(NonRetryableException()) is False
 
 
-def test_should_retry_exception_standard_exceptions():
+def test_should_retry_exception_standard_exceptions() -> None:
     agent = ConcreteAgent("TestAgent")
 
     # Should retry
@@ -415,7 +425,7 @@ def test_should_retry_exception_standard_exceptions():
 
 # _handle_retry_delay tests
 @pytest.mark.asyncio
-async def test_handle_retry_delay_zero_delay():
+async def test_handle_retry_delay_zero_delay() -> None:
     agent = ConcreteAgent("TestAgent")
     agent.retry_config.base_delay = 0
 
@@ -428,7 +438,7 @@ async def test_handle_retry_delay_zero_delay():
 
 
 @pytest.mark.asyncio
-async def test_handle_retry_delay_exponential_backoff():
+async def test_handle_retry_delay_exponential_backoff() -> None:
     agent = ConcreteAgent("TestAgent")
     agent.retry_config = RetryConfig(
         base_delay=0.01, exponential_backoff=True, jitter=False, max_delay=1.0
@@ -447,7 +457,7 @@ async def test_handle_retry_delay_exponential_backoff():
 
 
 @pytest.mark.asyncio
-async def test_handle_retry_delay_with_jitter():
+async def test_handle_retry_delay_with_jitter() -> None:
     agent = ConcreteAgent("TestAgent")
     agent.retry_config = RetryConfig(
         base_delay=0.1, exponential_backoff=False, jitter=True
@@ -461,7 +471,7 @@ async def test_handle_retry_delay_with_jitter():
 
 
 # get_execution_stats tests
-def test_get_execution_stats():
+def test_get_execution_stats() -> None:
     agent = ConcreteAgent("TestAgent")
     agent.execution_count = 10
     agent.success_count = 8
@@ -478,7 +488,7 @@ def test_get_execution_stats():
     assert "circuit_breaker" in stats
 
 
-def test_get_execution_stats_no_executions():
+def test_get_execution_stats_no_executions() -> None:
     agent = ConcreteAgent("TestAgent")
 
     stats = agent.get_execution_stats()
@@ -486,7 +496,7 @@ def test_get_execution_stats_no_executions():
     assert stats["success_rate"] == 0.0
 
 
-def test_get_execution_stats_no_circuit_breaker():
+def test_get_execution_stats_no_circuit_breaker() -> None:
     agent = ConcreteAgent("TestAgent", enable_circuit_breaker=False)
 
     stats = agent.get_execution_stats()
@@ -495,7 +505,7 @@ def test_get_execution_stats_no_circuit_breaker():
 
 
 # Additional coverage tests for missing lines
-def test_circuit_breaker_threshold_behavior():
+def test_circuit_breaker_threshold_behavior() -> None:
     cb = CircuitBreakerState(failure_threshold=3)
 
     # Test threshold exactly
@@ -507,7 +517,7 @@ def test_circuit_breaker_threshold_behavior():
     assert cb.is_open is True
 
 
-def test_circuit_breaker_time_calculation_edge_cases():
+def test_circuit_breaker_time_calculation_edge_cases() -> None:
     cb = CircuitBreakerState(recovery_timeout=60.0)
     cb.is_open = True
     cb.last_failure_time = None  # Edge case
@@ -516,14 +526,14 @@ def test_circuit_breaker_time_calculation_edge_cases():
     assert cb.can_execute() is False
 
 
-def test_should_retry_connection_error():
+def test_should_retry_connection_error() -> None:
     agent = ConcreteAgent("TestAgent")
 
     # Test ConnectionError specifically
     assert agent._should_retry_exception(ConnectionError("Network error")) is True
 
 
-def test_should_retry_default_exception_behavior():
+def test_should_retry_default_exception_behavior() -> None:
     agent = ConcreteAgent("TestAgent")
 
     # Test default behavior for unknown exception types
@@ -534,7 +544,7 @@ def test_should_retry_default_exception_behavior():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_circuit_breaker_time_calculation():
+async def test_run_with_retry_circuit_breaker_time_calculation() -> None:
     agent = ConcreteAgent("TestAgent")
 
     # Force circuit breaker to have a failure time for time calculation
@@ -546,7 +556,7 @@ async def test_run_with_retry_circuit_breaker_time_calculation():
         seconds=100
     )
 
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     with pytest.raises(AgentExecutionError) as exc_info:
         await agent.run_with_retry(context)
@@ -558,9 +568,9 @@ async def test_run_with_retry_circuit_breaker_time_calculation():
 
 # Integration tests
 @pytest.mark.asyncio
-async def test_context_execution_tracking():
+async def test_context_execution_tracking() -> None:
     agent = ConcreteAgent("TestAgent")
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     await agent.run_with_retry(context)
 
@@ -580,9 +590,9 @@ async def test_context_execution_tracking():
 
 
 @pytest.mark.asyncio
-async def test_context_trace_logging():
+async def test_context_trace_logging() -> None:
     agent = ConcreteAgent("TestAgent")
-    context = AgentContext(query="test")
+    context = AgentContextPatterns.simple_query("test")
 
     await agent.run_with_retry(context)
 
@@ -599,9 +609,9 @@ async def test_context_trace_logging():
 
 
 @pytest.mark.asyncio
-async def test_run_with_retry_unreachable_fallback():
+async def test_run_with_retry_unreachable_fallback() -> None:
     class NoExceptionAgent(BaseAgent):
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__("NoExceptionAgent")
 
         async def run(self, context: AgentContext) -> AgentContext:
@@ -610,7 +620,7 @@ async def test_run_with_retry_unreachable_fallback():
     agent = NoExceptionAgent()
     agent.retry_config = RetryConfig(max_retries=-1)  # Forces loop to skip entirely
 
-    context = AgentContext(query="force fallback path")
+    context = AgentContextPatterns.force_fallback()
     with pytest.raises(AgentExecutionError) as exc_info:
         await agent.run_with_retry(context)
 
@@ -619,11 +629,11 @@ async def test_run_with_retry_unreachable_fallback():
 
 # LangGraph invoke() method tests
 @pytest.mark.asyncio
-async def test_invoke_method_basic():
+async def test_invoke_method_basic() -> None:
     """Test basic invoke() method functionality."""
 
     agent = ConcreteAgent("TestAgent")
-    context = AgentContext(query="test invoke")
+    context = AgentContextPatterns.invoke_test()
 
     result = await agent.invoke(context)
 
@@ -635,11 +645,11 @@ async def test_invoke_method_basic():
 
 
 @pytest.mark.asyncio
-async def test_invoke_method_with_config():
+async def test_invoke_method_with_config() -> None:
     """Test invoke() method with configuration parameters."""
 
     agent = ConcreteAgent("TestAgent")
-    context = AgentContext(query="test invoke with config")
+    context = AgentContextPatterns.invoke_with_config()
     config = {"step_id": "custom_invoke_step_123", "timeout_seconds": 45.0}
 
     result = await agent.invoke(context, config=config)
@@ -657,11 +667,11 @@ async def test_invoke_method_with_config():
 
 
 @pytest.mark.asyncio
-async def test_invoke_method_timeout_override():
+async def test_invoke_method_timeout_override() -> None:
     """Test that invoke() method can override timeout and restores it properly."""
 
     agent = ConcreteAgent("TestAgent", timeout_seconds=30.0)
-    context = AgentContext(query="test timeout override")
+    context = AgentContextPatterns.simple_query("test timeout override")
     config = {"timeout_seconds": 60.0}
 
     # Capture the timeout during execution
@@ -674,11 +684,11 @@ async def test_invoke_method_timeout_override():
 
 
 @pytest.mark.asyncio
-async def test_invoke_method_no_config():
+async def test_invoke_method_no_config() -> None:
     """Test invoke() method without config parameter."""
 
     agent = ConcreteAgent("TestAgent")
-    context = AgentContext(query="test invoke no config")
+    context = AgentContextPatterns.simple_query("test invoke no config")
 
     result = await agent.invoke(context, config=None)
 
@@ -688,12 +698,12 @@ async def test_invoke_method_no_config():
 
 
 @pytest.mark.asyncio
-async def test_invoke_method_error_propagation():
+async def test_invoke_method_error_propagation() -> None:
     """Test that invoke() method properly propagates errors."""
 
     agent = FailingAgent("FailingAgent")
     agent.retry_config = RetryConfig(max_retries=1, base_delay=0.01)
-    context = AgentContext(query="test error propagation")
+    context = AgentContextPatterns.simple_query("test error propagation")
 
     with pytest.raises(AgentExecutionError):
         await agent.invoke(context)
@@ -703,12 +713,12 @@ async def test_invoke_method_error_propagation():
 
 
 @pytest.mark.asyncio
-async def test_invoke_method_timeout_override_with_exception():
+async def test_invoke_method_timeout_override_with_exception() -> None:
     """Test that timeout is restored even when an exception occurs."""
 
     agent = FailingAgent("FailingAgent", timeout_seconds=30.0)
     agent.retry_config = RetryConfig(max_retries=0, base_delay=0.01)  # Fail immediately
-    context = AgentContext(query="test timeout restore on exception")
+    context = AgentContextPatterns.simple_query("test timeout restore on exception")
     config = {"timeout_seconds": 60.0}
 
     original_timeout = agent.timeout_seconds
@@ -721,13 +731,13 @@ async def test_invoke_method_timeout_override_with_exception():
 
 
 @pytest.mark.asyncio
-async def test_invoke_method_preserves_all_functionality():
+async def test_invoke_method_preserves_all_functionality() -> None:
     """Test that invoke() preserves all BaseAgent functionality like retry, circuit breaker, etc."""
 
     # Use FlakyAgent to test retry behavior through invoke()
     agent = FlakyAgent("FlakyAgent", failures_before_success=1)
     agent.retry_config = RetryConfig(max_retries=2, base_delay=0.01)
-    context = AgentContext(query="test invoke preserves functionality")
+    context = AgentContextPatterns.simple_query("test invoke preserves functionality")
 
     result = await agent.invoke(context)
 
@@ -738,7 +748,7 @@ async def test_invoke_method_preserves_all_functionality():
 
 
 # LangGraph Node Metadata Tests
-def test_node_type_enum():
+def test_node_type_enum() -> None:
     """Test NodeType enum values."""
     assert NodeType.PROCESSOR.value == "processor"
     assert NodeType.DECISION.value == "decision"
@@ -746,7 +756,7 @@ def test_node_type_enum():
     assert NodeType.AGGREGATOR.value == "aggregator"
 
 
-def test_node_input_schema():
+def test_node_input_schema() -> None:
     """Test NodeInputSchema creation and defaults."""
     # Required input
     input_schema = NodeInputSchema(
@@ -768,7 +778,7 @@ def test_node_input_schema():
     assert optional_input.type_hint == "str"
 
 
-def test_node_output_schema():
+def test_node_output_schema() -> None:
     """Test NodeOutputSchema creation."""
     output_schema = NodeOutputSchema(
         name="test_output",
@@ -780,7 +790,7 @@ def test_node_output_schema():
     assert output_schema.type_hint == "AgentContext"
 
 
-def test_langgraph_node_definition():
+def test_langgraph_node_definition() -> None:
     """Test LangGraphNodeDefinition creation and to_dict method."""
     inputs = [
         NodeInputSchema(
@@ -828,7 +838,7 @@ def test_langgraph_node_definition():
     assert node_dict["tags"] == ["test", "processor"]
 
 
-def test_base_agent_default_node_definition():
+def test_base_agent_default_node_definition() -> None:
     """Test default node definition generation."""
     agent = ConcreteAgent("TestAgent")
 
@@ -858,7 +868,7 @@ def test_base_agent_default_node_definition():
     assert "agent" in node_def.tags
 
 
-def test_base_agent_node_definition_caching():
+def test_base_agent_node_definition_caching() -> None:
     """Test that node definition is cached after first creation."""
     agent = ConcreteAgent("TestAgent")
 
@@ -871,7 +881,7 @@ def test_base_agent_node_definition_caching():
     assert node_def1 is node_def2  # Same object reference
 
 
-def test_custom_node_agent_metadata():
+def test_custom_node_agent_metadata() -> None:
     """Test custom node metadata override."""
     agent = CustomNodeAgent("CustomAgent")
 
@@ -900,7 +910,7 @@ def test_custom_node_agent_metadata():
     assert "custom" in node_def.tags
 
 
-def test_set_node_definition():
+def test_set_node_definition() -> None:
     """Test setting a custom node definition."""
     agent = ConcreteAgent("TestAgent")
 
@@ -923,12 +933,12 @@ def test_set_node_definition():
     assert retrieved_def.description == "Custom terminator node"
 
 
-def test_validate_node_compatibility():
+def test_validate_node_compatibility() -> None:
     """Test node compatibility validation."""
     agent = ConcreteAgent("TestAgent")
 
     # Valid context should pass
-    valid_context = AgentContext(query="test")
+    valid_context = AgentContextPatterns.simple_query("test")
     assert agent.validate_node_compatibility(valid_context) is True
 
     # Invalid input should fail
@@ -936,7 +946,7 @@ def test_validate_node_compatibility():
     assert agent.validate_node_compatibility(invalid_input) is False
 
 
-def test_node_definition_to_dict_comprehensive():
+def test_node_definition_to_dict_comprehensive() -> None:
     """Test comprehensive node definition dictionary conversion."""
     agent = CustomNodeAgent("CustomAgent")
     node_def = agent.get_node_definition()
@@ -966,14 +976,14 @@ def test_node_definition_to_dict_comprehensive():
         assert "type" in out
 
 
-def test_node_definition_with_empty_override():
+def test_node_definition_with_empty_override() -> None:
     """Test that empty define_node_metadata override uses defaults."""
 
     class EmptyMetadataAgent(BaseAgent):
-        async def run(self, context):
+        async def run(self, context: AgentContext) -> AgentContext:
             return context
 
-        def define_node_metadata(self):
+        def define_node_metadata(self) -> Dict[str, Any]:
             return {}  # Empty override
 
     agent = EmptyMetadataAgent("EmptyAgent")
@@ -986,14 +996,14 @@ def test_node_definition_with_empty_override():
     assert node_def.dependencies == []
 
 
-def test_node_definition_partial_override():
+def test_node_definition_partial_override() -> None:
     """Test partial override of node metadata."""
 
     class PartialMetadataAgent(BaseAgent):
-        async def run(self, context):
+        async def run(self, context: AgentContext) -> AgentContext:
             return context
 
-        def define_node_metadata(self):
+        def define_node_metadata(self) -> Dict[str, Any]:
             return {
                 "node_type": NodeType.AGGREGATOR,
                 "tags": ["partial", "test"],
@@ -1015,7 +1025,7 @@ def test_node_definition_partial_override():
 
 
 @pytest.mark.asyncio
-async def test_agent_event_emission_includes_actual_content():
+async def test_agent_event_emission_includes_actual_content() -> None:
     """
     Test PATTERN 2 fix: Agent-level events should include actual agent output content.
 
@@ -1028,7 +1038,7 @@ async def test_agent_event_emission_includes_actual_content():
     class ContentProducingAgent(BaseAgent):
         """Agent that produces specific content for testing."""
 
-        def __init__(self, name: str = "content_agent"):
+        def __init__(self, name: str = "content_agent") -> None:
             super().__init__(name)
 
         async def run(self, context: AgentContext) -> AgentContext:
@@ -1050,11 +1060,10 @@ async def test_agent_event_emission_includes_actual_content():
 
     # Create agent and context
     agent = ContentProducingAgent("test_content_agent")
-    context = AgentContext(
-        user_id="test_user",
-        session_id="test_session",
+    context = AgentContextFactory.basic(
         query="Test query for content verification",
-        workflow_metadata={},
+        user_config={"user_id": "test_user", "session_id": "test_session"},
+        metadata={"workflow_metadata": {}},
     )
 
     # Mock the event emission to capture what gets emitted
@@ -1128,7 +1137,7 @@ async def test_agent_event_emission_includes_actual_content():
 
 
 @pytest.mark.asyncio
-async def test_agent_event_emission_with_empty_content():
+async def test_agent_event_emission_with_empty_content() -> None:
     """
     Test edge case: Agent that produces no output should handle gracefully.
     """
@@ -1138,7 +1147,7 @@ async def test_agent_event_emission_with_empty_content():
     class EmptyContentAgent(BaseAgent):
         """Agent that produces no content for edge case testing."""
 
-        def __init__(self, name: str = "empty_agent"):
+        def __init__(self, name: str = "empty_agent") -> None:
             super().__init__(name)
 
         async def run(self, context: AgentContext) -> AgentContext:
@@ -1148,11 +1157,10 @@ async def test_agent_event_emission_with_empty_content():
 
     # Create agent and context
     agent = EmptyContentAgent("test_empty_agent")
-    context = AgentContext(
-        user_id="test_user",
-        session_id="test_session",
+    context = AgentContextFactory.basic(
         query="Test query for empty content",
-        workflow_metadata={},
+        user_config={"user_id": "test_user", "session_id": "test_session"},
+        metadata={"workflow_metadata": {}},
     )
 
     # Mock the event emission to capture what gets emitted

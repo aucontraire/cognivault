@@ -8,6 +8,7 @@ through database storage to JSONB querying with real OpenAI API calls.
 import asyncio
 import os
 import pytest
+from typing import Any, AsyncGenerator, Union, Iterator
 from uuid import uuid4
 from datetime import datetime, timezone
 
@@ -17,6 +18,10 @@ from cognivault.llm.llm_interface import LLMInterface, LLMResponse
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.agents.models import CriticOutput, ProcessingMode, ConfidenceLevel
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.database.session_factory import DatabaseSessionFactory
 from cognivault.database.repositories.question_repository import QuestionRepository
 from cognivault.exceptions import LLMValidationError
@@ -25,12 +30,18 @@ from cognivault.exceptions import LLMValidationError
 class MockStructuredLLM(LLMInterface):
     """Mock LLM that provides realistic structured responses for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.model = "mock-gpt-4"
 
     def generate(
-        self, prompt, *, stream=False, on_log=None, system_prompt=None, **kwargs
-    ):
+        self,
+        prompt: Any,
+        *,
+        stream: bool = False,
+        on_log: Any = None,
+        system_prompt: Any = None,
+        **kwargs: Any,
+    ) -> Union[LLMResponse, Iterator[str]]:
         """Generate mock responses that work with structured LLM calls."""
         if on_log:
             on_log(f"[MockLLM] Processing prompt: {prompt[:50]}...")
@@ -62,7 +73,7 @@ class TestPydanticAIDatabaseIntegration:
     """
 
     @pytest.fixture
-    async def db_session_manager(self):
+    async def db_session_manager(self) -> AsyncGenerator[Any, None]:
         """Setup database session manager for testing."""
         session_manager = DatabaseSessionFactory()
         try:
@@ -75,13 +86,15 @@ class TestPydanticAIDatabaseIntegration:
                 await session_manager.shutdown()
 
     @pytest.fixture
-    async def question_repository(self, db_session_manager):
+    async def question_repository(
+        self, db_session_manager: Any
+    ) -> AsyncGenerator[Any, None]:
         """Setup question repository with database session."""
         async with db_session_manager.get_session() as session:
             yield QuestionRepository(session)
 
     @pytest.fixture
-    def openai_llm(self):
+    def openai_llm(self) -> Any:
         """Setup LLM - use real OpenAI if API key available, otherwise use mock."""
         # Check if we have a valid OpenAI API key
         api_key = os.getenv("OPENAI_API_KEY")
@@ -110,15 +123,15 @@ class TestPydanticAIDatabaseIntegration:
         return MockStructuredLLM()
 
     @pytest.fixture
-    def critic_agent(self, openai_llm):
+    def critic_agent(self, openai_llm: Any) -> Any:
         """Setup CriticAgent with real LLM for structured responses."""
         return CriticAgent(openai_llm)
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_end_to_end_structured_llm_database_pipeline(
-        self, critic_agent, question_repository
-    ):
+        self, critic_agent: Any, question_repository: Any
+    ) -> None:
         """
         Test complete pipeline: LLM structured response → database storage → querying.
 
@@ -135,7 +148,9 @@ class TestPydanticAIDatabaseIntegration:
         print(f"\n🔄 Testing end-to-end pipeline with query: '{test_query}'")
 
         # Step 1: Execute structured agent with real LLM
-        context = AgentContext(query=test_query, correlation_id=correlation_id)
+        context = AgentContextFactory.basic(
+            query=test_query, correlation_id=correlation_id
+        )
         context.add_agent_output("refiner", test_query)  # Simulate refiner output
 
         print("📡 Calling real OpenAI API for structured response...")
@@ -299,8 +314,8 @@ class TestPydanticAIDatabaseIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_structured_llm_fallback_behavior(
-        self, critic_agent, question_repository
-    ):
+        self, critic_agent: Any, question_repository: Any
+    ) -> None:
         """
         Test that structured LLM gracefully falls back to unstructured when validation fails.
 
@@ -317,7 +332,9 @@ class TestPydanticAIDatabaseIntegration:
             f"\n🔄 Testing fallback behavior with edge case query: '{edge_case_query}'"
         )
 
-        context = AgentContext(query=edge_case_query, correlation_id=correlation_id)
+        context = AgentContextFactory.basic(
+            query=edge_case_query, correlation_id=correlation_id
+        )
         context.add_agent_output("refiner", edge_case_query)
 
         try:
@@ -391,8 +408,8 @@ class TestPydanticAIDatabaseIntegration:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_pydantic_ai_performance_benchmarking(
-        self, critic_agent, question_repository
-    ):
+        self, critic_agent: Any, question_repository: Any
+    ) -> None:
         """
         Performance test comparing structured vs unstructured LLM calls.
 
@@ -417,7 +434,9 @@ class TestPydanticAIDatabaseIntegration:
 
         for i, query in enumerate(test_queries):
             correlation_id = f"perf-test-{i}-{uuid4().hex[:6]}"
-            context = AgentContext(query=query, correlation_id=correlation_id)
+            context = AgentContextFactory.basic(
+                query=query, correlation_id=correlation_id
+            )
             context.add_agent_output("refiner", query)
 
             # Test structured call
@@ -439,7 +458,7 @@ class TestPydanticAIDatabaseIntegration:
                 structured_times.append(float("inf"))  # Mark as failed
 
             # Test unstructured call for comparison
-            context_unstructured = AgentContext(
+            context_unstructured = AgentContextFactory.basic(
                 query=query, correlation_id=f"{correlation_id}-unstructured"
             )
             context_unstructured.add_agent_output("refiner", query)

@@ -308,7 +308,7 @@ class AdvancedOrchestrator:
         self,
         graph_engine: DependencyGraphEngine,
         config: OrchestratorConfig,
-    ):
+    ) -> None:
         # Core components
         self.graph_engine = graph_engine
         self.config = config
@@ -620,7 +620,7 @@ class AdvancedOrchestrator:
             "total_duration_ms", (time.time() - start_time) * 1000
         )
 
-    async def _execute_parallel_stage(self, stage, context: AgentContext) -> None:
+    async def _execute_parallel_stage(self, stage: Any, context: AgentContext) -> None:
         """Execute a parallel stage with concurrent agent execution."""
         tasks = []
 
@@ -637,7 +637,9 @@ class AdvancedOrchestrator:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _execute_sequential_stage(self, stage, context: AgentContext) -> None:
+    async def _execute_sequential_stage(
+        self, stage: Any, context: AgentContext
+    ) -> None:
         """Execute a sequential stage with one-by-one agent execution."""
         for agent_id in stage.agents:
             if agent_id in self.loaded_agents:
@@ -752,7 +754,7 @@ class AdvancedOrchestrator:
         return False
 
     async def _attempt_stage_recovery(
-        self, stage, error: Exception, context: AgentContext
+        self, stage: Any, error: Exception, context: AgentContext
     ) -> bool:
         """Attempt to recover from stage failure."""
         logger.info(f"Attempting stage recovery for: {stage.stage_id}")

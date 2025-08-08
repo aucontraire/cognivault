@@ -6,6 +6,7 @@ coordination between health checks and metrics collection.
 """
 
 import pytest
+from typing import Any
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
@@ -20,7 +21,7 @@ from cognivault.diagnostics.metrics import PerformanceMetrics
 class TestSystemDiagnostics:
     """Test SystemDiagnostics dataclass."""
 
-    def test_system_diagnostics_creation(self):
+    def test_system_diagnostics_creation(self) -> None:
         """Test creating SystemDiagnostics."""
         timestamp = datetime.now()
 
@@ -79,7 +80,7 @@ class TestSystemDiagnostics:
         assert diagnostics.configuration_status == {"debug": True}
         assert diagnostics.environment_info == {"env": "test"}
 
-    def test_system_diagnostics_to_dict(self):
+    def test_system_diagnostics_to_dict(self) -> None:
         """Test SystemDiagnostics to_dict method."""
         timestamp = datetime.now()
 
@@ -135,12 +136,12 @@ class TestSystemDiagnostics:
 class TestDiagnosticsManager:
     """Test DiagnosticsManager functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.manager = DiagnosticsManager()
 
     @pytest.mark.asyncio
-    async def test_full_diagnostics(self):
+    async def test_full_diagnostics(self) -> None:
         """Test full diagnostics collection."""
         # Mock health checker
         mock_health_results = {
@@ -184,7 +185,7 @@ class TestDiagnosticsManager:
                 assert diagnostics.performance_metrics is not None
 
     @pytest.mark.asyncio
-    async def test_full_diagnostics_with_unhealthy_components(self):
+    async def test_full_diagnostics_with_unhealthy_components(self) -> None:
         """Test full diagnostics when components are unhealthy."""
         # Mock health checker with unhealthy component
         mock_health_results = {
@@ -222,7 +223,7 @@ class TestDiagnosticsManager:
                 assert diagnostics.overall_health == HealthStatus.UNHEALTHY
 
     @pytest.mark.asyncio
-    async def test_quick_health_check(self):
+    async def test_quick_health_check(self) -> None:
         """Test quick health check functionality."""
         mock_health_results = {
             "agent_registry": ComponentHealth(
@@ -248,7 +249,7 @@ class TestDiagnosticsManager:
             assert "uptime_seconds" in health_summary
 
     @pytest.mark.asyncio
-    async def test_quick_health_check_with_exception(self):
+    async def test_quick_health_check_with_exception(self) -> None:
         """Test quick health check handles exceptions."""
         with patch.object(self.manager.health_checker, "check_all") as mock_check_all:
             mock_check_all.side_effect = Exception("Health check failed")
@@ -257,7 +258,7 @@ class TestDiagnosticsManager:
             with pytest.raises(Exception, match="Health check failed"):
                 await self.manager.quick_health_check()
 
-    def test_performance_summary(self):
+    def test_performance_summary(self) -> None:
         """Test performance summary generation."""
         # Mock metrics collector with sample data
         mock_metrics = PerformanceMetrics(
@@ -284,7 +285,7 @@ class TestDiagnosticsManager:
             assert summary["resources"]["total_tokens"] == 1500
             assert summary["timing_ms"]["average"] == 150.0
 
-    def test_performance_summary_with_no_data(self):
+    def test_performance_summary_with_no_data(self) -> None:
         """Test performance summary when no data is available."""
         # Mock empty metrics
         mock_metrics = PerformanceMetrics()
@@ -304,7 +305,7 @@ class TestDiagnosticsManager:
             assert summary["resources"]["total_tokens"] == 0
             assert summary["timing_ms"]["average"] == 0.0
 
-    def test_get_system_info(self):
+    def test_get_system_info(self) -> None:
         """Test system info collection."""
         with (
             patch("platform.platform") as mock_platform,
@@ -328,7 +329,7 @@ class TestDiagnosticsManager:
             assert system_info["python_executable"] == "/usr/bin/python"
             assert system_info["architecture"] == ("64bit", "")
 
-    def test_get_system_info_with_exceptions(self):
+    def test_get_system_info_with_exceptions(self) -> None:
         """Test system info collection handles exceptions."""
         with (
             patch("platform.platform") as mock_platform,
@@ -345,7 +346,7 @@ class TestDiagnosticsManager:
             with pytest.raises(Exception):
                 self.manager._get_system_info()
 
-    def test_get_overall_status(self):
+    def test_get_overall_status(self) -> None:
         """Test overall status calculation."""
         # Test all healthy
         health_results = {
@@ -395,7 +396,7 @@ class TestDiagnosticsManager:
         assert status == HealthStatus.UNKNOWN
 
     @pytest.mark.asyncio
-    async def test_diagnostics_manager_integration(self):
+    async def test_diagnostics_manager_integration(self) -> None:
         """Test full integration of diagnostics manager."""
         # This test verifies that all components work together
 

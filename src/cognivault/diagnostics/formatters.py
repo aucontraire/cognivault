@@ -11,7 +11,7 @@ import json
 import io
 import time
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 
 from .diagnostics import SystemDiagnostics
 from .health import ComponentHealth, HealthStatus
@@ -41,7 +41,9 @@ class DiagnosticFormatter:
 class JSONFormatter(DiagnosticFormatter):
     """JSON formatter for diagnostic data."""
 
-    def __init__(self, indent: Optional[int] = 2, include_metadata: bool = True):
+    def __init__(
+        self, indent: Optional[int] = 2, include_metadata: bool = True
+    ) -> None:
         """
         Initialize JSON formatter.
 
@@ -106,7 +108,7 @@ class JSONFormatter(DiagnosticFormatter):
 class CSVFormatter(DiagnosticFormatter):
     """CSV formatter for diagnostic data."""
 
-    def __init__(self, include_headers: bool = True):
+    def __init__(self, include_headers: bool = True) -> None:
         """
         Initialize CSV formatter.
 
@@ -698,7 +700,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
         return self.format_metrics_data(metrics)
 
 
-def get_formatter(format_type: str, **kwargs) -> DiagnosticFormatter:
+def get_formatter(format_type: str, **kwargs: Any) -> DiagnosticFormatter:
     """
     Get formatter instance by type.
 
@@ -727,4 +729,4 @@ def get_formatter(format_type: str, **kwargs) -> DiagnosticFormatter:
             f"Unknown format type: {format_type}. Available: {list(formatters.keys())}"
         )
 
-    return formatter_class(**kwargs)
+    return cast(DiagnosticFormatter, formatter_class(**kwargs))

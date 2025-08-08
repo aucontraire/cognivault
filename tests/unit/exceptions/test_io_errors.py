@@ -6,6 +6,7 @@ markdown export errors, and other file system related errors.
 """
 
 import pytest
+from typing import Any
 from pathlib import Path
 from cognivault.exceptions import (
     CogniVaultError,
@@ -23,7 +24,7 @@ from cognivault.exceptions import (
 class TestFileOperationError:
     """Test FileOperationError functionality."""
 
-    def test_file_operation_error_creation(self):
+    def test_file_operation_error_creation(self) -> None:
         """Test basic FileOperationError creation."""
         error = FileOperationError(
             operation="read",
@@ -41,7 +42,7 @@ class TestFileOperationError:
         expected_msg = "File read failed for '/path/to/file.txt': file not found"
         assert error.message == expected_msg
 
-    def test_file_operation_error_with_all_params(self):
+    def test_file_operation_error_with_all_params(self) -> None:
         """Test FileOperationError with all parameters."""
         cause = OSError("Permission denied")
         context = {"file_size": 1024, "permissions": "644"}
@@ -66,7 +67,7 @@ class TestFileOperationError:
         assert error.cause == cause
         assert error.context["file_size"] == 1024
 
-    def test_file_operation_context_injection(self):
+    def test_file_operation_context_injection(self) -> None:
         """Test that file operation information is added to context."""
         error = FileOperationError(
             operation="delete",
@@ -80,7 +81,7 @@ class TestFileOperationError:
         assert "file_exists" in error.context
         assert "parent_exists" in error.context
 
-    def test_file_operation_path_object_handling(self):
+    def test_file_operation_path_object_handling(self) -> None:
         """Test FileOperationError with Path objects."""
         path_obj = Path("/home/user/documents/note.md")
 
@@ -93,7 +94,7 @@ class TestFileOperationError:
         assert error.file_path == str(path_obj)
         assert error.reason == "directory not found"
 
-    def test_file_operation_with_empty_path(self):
+    def test_file_operation_with_empty_path(self) -> None:
         """Test FileOperationError with empty path."""
         error = FileOperationError(
             operation="validate",
@@ -106,7 +107,7 @@ class TestFileOperationError:
         assert error.reason == "invalid path"
         assert error.operation == "validate"
 
-    def test_file_operation_user_message(self):
+    def test_file_operation_user_message(self) -> None:
         """Test user-friendly message for file operation errors."""
         error = FileOperationError(
             operation="read",
@@ -120,7 +121,7 @@ class TestFileOperationError:
             in user_msg
         )
 
-    def test_file_operation_inheritance(self):
+    def test_file_operation_inheritance(self) -> None:
         """Test FileOperationError inheritance hierarchy."""
         error = FileOperationError(
             operation="test",
@@ -135,7 +136,7 @@ class TestFileOperationError:
 class TestMarkdownExportError:
     """Test MarkdownExportError functionality."""
 
-    def test_markdown_export_error_creation(self):
+    def test_markdown_export_error_creation(self) -> None:
         """Test basic MarkdownExportError creation."""
         error = MarkdownExportError(
             export_stage="template_rendering",
@@ -153,7 +154,7 @@ class TestMarkdownExportError:
         expected_msg = "Markdown export failed at 'template_rendering': template compilation failed"
         assert error.message == expected_msg
 
-    def test_markdown_export_error_with_all_params(self):
+    def test_markdown_export_error_with_all_params(self) -> None:
         """Test MarkdownExportError with all parameters."""
         cause = ValueError("Invalid template syntax")
         context = {"template_name": "research_summary", "note_count": 15}
@@ -178,7 +179,7 @@ class TestMarkdownExportError:
         assert error.cause == cause
         assert error.context["template_name"] == "research_summary"
 
-    def test_markdown_export_context_injection(self):
+    def test_markdown_export_context_injection(self) -> None:
         """Test that markdown export information is added to context."""
         error = MarkdownExportError(
             export_stage="file_writing",
@@ -191,7 +192,7 @@ class TestMarkdownExportError:
         assert error.context["export_details"] == "Template compilation failed"
         assert error.context["file_size_kb"] == 256
 
-    def test_markdown_export_stages(self):
+    def test_markdown_export_stages(self) -> None:
         """Test various markdown export stages."""
         stages = [
             "initialization",
@@ -213,7 +214,7 @@ class TestMarkdownExportError:
             assert error.context["export_stage"] == stage
             assert f"'{stage}'" in error.message
 
-    def test_markdown_export_with_template_issues(self):
+    def test_markdown_export_with_template_issues(self) -> None:
         """Test markdown export errors with various template issues."""
         template_issues = [
             "Missing required variables",
@@ -233,7 +234,7 @@ class TestMarkdownExportError:
             assert error.export_details == issue
             assert error.context["export_details"] == issue
 
-    def test_markdown_export_user_message(self):
+    def test_markdown_export_user_message(self) -> None:
         """Test user-friendly message for markdown export errors."""
         error = MarkdownExportError(
             export_stage="content_generation",
@@ -244,7 +245,7 @@ class TestMarkdownExportError:
         user_msg = error.get_user_message()
         assert "💡 Tip: Check agent outputs for valid content" in user_msg
 
-    def test_markdown_export_inheritance(self):
+    def test_markdown_export_inheritance(self) -> None:
         """Test MarkdownExportError inheritance hierarchy."""
         error = MarkdownExportError(
             export_stage="test",
@@ -255,7 +256,7 @@ class TestMarkdownExportError:
         assert isinstance(error, CogniVaultError)
         assert isinstance(error, MarkdownExportError)
 
-    def test_markdown_export_serialization(self):
+    def test_markdown_export_serialization(self) -> None:
         """Test MarkdownExportError serialization."""
         error = MarkdownExportError(
             export_stage="serialization_test",
@@ -281,19 +282,19 @@ class TestMarkdownExportError:
 class TestIOErrorInheritance:
     """Test proper inheritance hierarchy for I/O errors."""
 
-    def test_markdown_export_inherits_from_io_error(self):
+    def test_markdown_export_inherits_from_io_error(self) -> None:
         """Test that MarkdownExportError inherits properly."""
         export_error = MarkdownExportError("stage", "/file.md", "test issue")
 
         assert isinstance(export_error, CogniVaultError)
         assert isinstance(export_error, MarkdownExportError)
 
-    def test_file_operation_inherits_from_io_error(self):
+    def test_file_operation_inherits_from_io_error(self) -> None:
         """Test that FileOperationError inherits properly."""
         file_error = FileOperationError("read", "/file.txt", "test reason")
         assert isinstance(file_error, CogniVaultError)
 
-    def test_polymorphic_behavior(self):
+    def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of I/O errors."""
 
         def handle_io_error(error: CogniVaultError) -> dict:
@@ -323,7 +324,7 @@ class TestIOErrorInheritance:
 class TestIOErrorIntegration:
     """Test integration aspects of I/O errors."""
 
-    def test_io_error_with_step_metadata(self):
+    def test_io_error_with_step_metadata(self) -> None:
         """Test I/O errors work properly with step metadata."""
         error = FileOperationError(
             operation="write",
@@ -351,7 +352,7 @@ class TestIOErrorIntegration:
         assert data["agent_id"] == "IntegrationAgent"
         assert "file_size" in data["context"]
 
-    def test_io_error_chaining_scenarios(self):
+    def test_io_error_chaining_scenarios(self) -> None:
         """Test various I/O error chaining scenarios."""
         # Original OS error
         original = OSError("No space left on device")
@@ -385,7 +386,7 @@ class TestIOErrorIntegration:
         assert "File write failed" in export_data["cause"]
         assert "No space left on device" in file_data["cause"]
 
-    def test_exception_raising_and_catching(self):
+    def test_exception_raising_and_catching(self) -> None:
         """Test that I/O errors can be properly raised and caught."""
         # Test specific exception catching
         with pytest.raises(MarkdownExportError) as exc_info:
@@ -406,7 +407,7 @@ class TestIOErrorIntegration:
 
         assert exc_info.value.error_code == "file_operation_failed"
 
-    def test_io_error_retry_semantics(self):
+    def test_io_error_retry_semantics(self) -> None:
         """Test retry semantics for I/O operations."""
         # File operations with different reasons have different retry policies
         file_error_busy = FileOperationError("read", "/temp/file.txt", "file busy")
@@ -430,7 +431,7 @@ class TestIOErrorIntegration:
         )
         assert not export_error_perm.is_retryable()  # NEVER for config issues
 
-    def test_io_error_with_path_validation(self):
+    def test_io_error_with_path_validation(self) -> None:
         """Test I/O errors with various path scenarios."""
         path_scenarios = [
             ("/absolute/path/file.txt", "absolute path"),
@@ -451,7 +452,7 @@ class TestIOErrorIntegration:
             assert error.file_path == path
             assert error.context["path_type"] == description
 
-    def test_io_error_user_message_variations(self):
+    def test_io_error_user_message_variations(self) -> None:
         """Test user messages for various I/O error scenarios."""
         scenarios = [
             (
@@ -479,7 +480,7 @@ class TestIOErrorIntegration:
 class TestIOError:
     """Test IOError base class functionality."""
 
-    def test_io_error_creation(self):
+    def test_io_error_creation(self) -> None:
         """Test basic IOError creation."""
         error = IOError(
             message="File operation failed",
@@ -494,7 +495,7 @@ class TestIOError:
         assert error.severity == ErrorSeverity.MEDIUM
         assert error.retry_policy == RetryPolicy.BACKOFF
 
-    def test_io_error_with_all_params(self):
+    def test_io_error_with_all_params(self) -> None:
         """Test IOError with all parameters."""
         cause = OSError("System error")
         context = {"bytes_processed": 1024}
@@ -523,7 +524,7 @@ class TestIOError:
         assert error.cause == cause
         assert error.context["bytes_processed"] == 1024
 
-    def test_io_error_context_injection(self):
+    def test_io_error_context_injection(self) -> None:
         """Test that I/O information is added to context."""
         error = IOError(
             message="Test I/O error",
@@ -536,7 +537,7 @@ class TestIOError:
         assert error.context["operation"] == "read"
         assert error.context["user_data"] == "test"
 
-    def test_io_error_without_file_info(self):
+    def test_io_error_without_file_info(self) -> None:
         """Test IOError without file path or operation."""
         error = IOError(
             message="Generic I/O error",
@@ -547,7 +548,7 @@ class TestIOError:
         assert "file_path" not in error.context
         assert "operation" not in error.context
 
-    def test_io_error_with_null_context(self):
+    def test_io_error_with_null_context(self) -> None:
         """Test IOError when both file_path and operation are None and context is omitted."""
         error = IOError(message="Null path and operation")
         assert "file_path" not in error.context
@@ -555,7 +556,7 @@ class TestIOError:
         assert error.file_path is None
         assert error.operation is None
 
-    def test_io_error_custom_context_coverage(self):
+    def test_io_error_custom_context_coverage(self) -> None:
         """Explicitly test edge case where context keys are not added."""
         error = IOError(
             message="No context keys added",
@@ -571,7 +572,7 @@ class TestIOError:
 class TestDiskSpaceError:
     """Test DiskSpaceError functionality."""
 
-    def test_disk_space_error_creation(self):
+    def test_disk_space_error_creation(self) -> None:
         """Test basic DiskSpaceError creation."""
         error = DiskSpaceError(
             required_space_mb=100.0,
@@ -587,7 +588,7 @@ class TestDiskSpaceError:
         assert error.severity == ErrorSeverity.HIGH
         assert error.retry_policy == RetryPolicy.NEVER
 
-    def test_disk_space_error_with_custom_message(self):
+    def test_disk_space_error_with_custom_message(self) -> None:
         """Test DiskSpaceError with custom message."""
         error = DiskSpaceError(
             required_space_mb=200.0,
@@ -603,7 +604,7 @@ class TestDiskSpaceError:
         assert error.agent_id == "SpaceAgent"
         assert error.deficit_mb == 50.0
 
-    def test_disk_space_error_context_injection(self):
+    def test_disk_space_error_context_injection(self) -> None:
         """Test that disk space information is added to context."""
         error = DiskSpaceError(
             required_space_mb=75.5,
@@ -618,7 +619,7 @@ class TestDiskSpaceError:
         assert error.context["space_check_failed"] is True
         assert error.context["volume"] == "/dev/sda1"
 
-    def test_disk_space_error_user_message(self):
+    def test_disk_space_error_user_message(self) -> None:
         """Test user-friendly message for disk space errors."""
         error = DiskSpaceError(
             required_space_mb=100.0,
@@ -634,7 +635,7 @@ class TestDiskSpaceError:
 class TestPermissionError:
     """Test PermissionError functionality."""
 
-    def test_permission_error_creation(self):
+    def test_permission_error_creation(self) -> None:
         """Test basic PermissionError creation."""
         error = PermissionError(
             operation="write",
@@ -649,7 +650,7 @@ class TestPermissionError:
         assert error.severity == ErrorSeverity.HIGH
         assert error.retry_policy == RetryPolicy.NEVER
 
-    def test_permission_error_with_custom_message(self):
+    def test_permission_error_with_custom_message(self) -> None:
         """Test PermissionError with custom message."""
         error = PermissionError(
             operation="execute",
@@ -664,7 +665,7 @@ class TestPermissionError:
         assert error.step_id == "perm_step"
         assert error.agent_id == "PermAgent"
 
-    def test_permission_error_context_injection(self):
+    def test_permission_error_context_injection(self) -> None:
         """Test that permission information is added to context."""
         error = PermissionError(
             operation="read",
@@ -678,7 +679,7 @@ class TestPermissionError:
         assert error.context["owner_info"] is None
         assert error.context["user"] == "testuser"
 
-    def test_permission_error_user_message(self):
+    def test_permission_error_user_message(self) -> None:
         """Test user-friendly message for permission errors."""
         error = PermissionError(
             operation="delete",
@@ -694,7 +695,7 @@ class TestPermissionError:
 class TestDirectoryCreationError:
     """Test DirectoryCreationError functionality."""
 
-    def test_directory_creation_error_creation(self):
+    def test_directory_creation_error_creation(self) -> None:
         """Test basic DirectoryCreationError creation."""
         error = DirectoryCreationError(
             directory_path="/new/directory",
@@ -707,7 +708,7 @@ class TestDirectoryCreationError:
         assert error.severity == ErrorSeverity.MEDIUM
         assert error.retry_policy == RetryPolicy.NEVER
 
-    def test_directory_creation_error_with_custom_message(self):
+    def test_directory_creation_error_with_custom_message(self) -> None:
         """Test DirectoryCreationError with custom message."""
         error = DirectoryCreationError(
             directory_path="/custom/dir",
@@ -721,7 +722,7 @@ class TestDirectoryCreationError:
         assert error.step_id == "dir_step"
         assert error.agent_id == "DirAgent"
 
-    def test_directory_creation_error_context_injection(self):
+    def test_directory_creation_error_context_injection(self) -> None:
         """Test that directory creation information is added to context."""
         error = DirectoryCreationError(
             directory_path="/test/newdir",
@@ -734,7 +735,7 @@ class TestDirectoryCreationError:
         assert "directory_exists" in error.context
         assert error.context["mode"] == "755"
 
-    def test_directory_creation_error_user_message(self):
+    def test_directory_creation_error_user_message(self) -> None:
         """Test user-friendly message for directory creation errors."""
         error = DirectoryCreationError(
             directory_path="/failed/directory",
@@ -752,7 +753,7 @@ class TestDirectoryCreationError:
 class TestIOErrorUserMessages:
     """Test user message variations for comprehensive coverage."""
 
-    def test_file_operation_user_message_variations(self):
+    def test_file_operation_user_message_variations(self) -> None:
         """Test all user message branches for FileOperationError."""
         # Test permission error message
         perm_error = FileOperationError(
@@ -799,7 +800,7 @@ class TestIOErrorUserMessages:
         generic_msg = generic_error.get_user_message()
         assert "Check file path and permissions: '/generic/file.txt'" in generic_msg
 
-    def test_markdown_export_user_message_variations(self):
+    def test_markdown_export_user_message_variations(self) -> None:
         """Test all user message branches for MarkdownExportError."""
         # Test initialization stage
         init_error = MarkdownExportError(
@@ -828,7 +829,7 @@ class TestIOErrorUserMessages:
         generic_msg = generic_error.get_user_message()
         assert "Check export configuration and try again" in generic_msg
 
-    def test_permission_error_file_mode_extraction(self):
+    def test_permission_error_file_mode_extraction(self) -> None:
         """Test PermissionError file mode extraction logic."""
         # Create a temporary file to test file mode extraction
         import tempfile
@@ -856,13 +857,13 @@ class TestIOErrorUserMessages:
             # Clean up
             os.unlink(tmp_path)
 
-    def test_permission_error_file_mode_exception_handling(self):
+    def test_permission_error_file_mode_exception_handling(self) -> None:
         """Test PermissionError handles file stat exceptions gracefully."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
 
         # Test with mock that raises exception during stat() call
         with patch("cognivault.exceptions.io_errors.Path") as mock_path:
-            mock_path_obj = MagicMock()
+            mock_path_obj: MagicMock = MagicMock()
             mock_path.return_value = mock_path_obj
             mock_path_obj.exists.return_value = True  # File exists
             mock_path_obj.stat.side_effect = OSError(

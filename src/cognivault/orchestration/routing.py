@@ -47,7 +47,7 @@ class ConditionalRouter(RoutingFunction):
 
     def __init__(
         self, conditions: List[tuple[Callable[[AgentContext], bool], str]], default: str
-    ):
+    ) -> None:
         """
         Initialize the conditional router.
 
@@ -78,7 +78,7 @@ class ConditionalRouter(RoutingFunction):
 class SuccessFailureRouter(RoutingFunction):
     """Router based on agent execution success/failure."""
 
-    def __init__(self, success_target: str, failure_target: str):
+    def __init__(self, success_target: str, failure_target: str) -> None:
         self.success_target = success_target
         self.failure_target = failure_target
 
@@ -96,7 +96,7 @@ class SuccessFailureRouter(RoutingFunction):
 class OutputBasedRouter(RoutingFunction):
     """Router based on agent output content."""
 
-    def __init__(self, output_patterns: Dict[str, str], default: str):
+    def __init__(self, output_patterns: Dict[str, str], default: str) -> None:
         """
         Initialize output-based router.
 
@@ -166,7 +166,7 @@ class FailureHandlingRouter(RoutingFunction):
         retry_target: Optional[str] = None,
         max_failures: int = 3,
         enable_circuit_breaker: bool = True,
-    ):
+    ) -> None:
         """
         Initialize failure handling router.
 
@@ -241,7 +241,7 @@ class AgentDependencyRouter(RoutingFunction):
         success_target: str,
         wait_target: str,
         failure_target: str,
-    ):
+    ) -> None:
         """
         Initialize dependency router.
 
@@ -285,7 +285,7 @@ class AgentDependencyRouter(RoutingFunction):
 class PipelineStageRouter(RoutingFunction):
     """Router for managing multi-stage pipeline execution."""
 
-    def __init__(self, stage_map: Dict[str, str], default_target: str):
+    def __init__(self, stage_map: Dict[str, str], default_target: str) -> None:
         """
         Initialize pipeline stage router.
 

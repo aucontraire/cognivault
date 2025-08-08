@@ -6,6 +6,7 @@ and their integration with the historian agent.
 """
 
 import pytest
+from typing import Any
 from unittest.mock import AsyncMock, patch
 import os
 
@@ -13,12 +14,16 @@ from cognivault.config.agent_configs import HistorianConfig
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.agents.historian.search import SearchResult
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestHistorianConfig:
     """Test HistorianConfig hybrid search parameters."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test that default configuration values are correct."""
         config = HistorianConfig()
 
@@ -29,7 +34,7 @@ class TestHistorianConfig:
         assert config.search_timeout_seconds == 5
         assert config.deduplication_threshold == 0.8
 
-    def test_validation_constraints(self):
+    def test_validation_constraints(self) -> None:
         """Test configuration parameter validation."""
         # Valid configuration
         config = HistorianConfig(
@@ -60,7 +65,7 @@ class TestHistorianConfig:
         with pytest.raises(ValueError):
             HistorianConfig(search_timeout_seconds=35)  # > 30
 
-    def test_environment_variable_loading(self):
+    def test_environment_variable_loading(self) -> None:
         """Test loading configuration from environment variables."""
         # Set environment variables
         env_vars = {
@@ -80,7 +85,7 @@ class TestHistorianConfig:
             assert config.search_timeout_seconds == 8
             assert config.deduplication_threshold == 0.9
 
-    def test_dict_creation(self):
+    def test_dict_creation(self) -> None:
         """Test creating configuration from dictionary."""
         config_dict = {
             "hybrid_search_enabled": True,
@@ -98,7 +103,7 @@ class TestHistorianConfig:
         assert config.search_timeout_seconds == 15
         assert config.deduplication_threshold == 0.75
 
-    def test_prompt_config_export(self):
+    def test_prompt_config_export(self) -> None:
         """Test conversion to prompt configuration format."""
         config = HistorianConfig(
             hybrid_search_enabled=True,
@@ -121,7 +126,7 @@ class TestHistorianAgentConfiguration:
     """Test HistorianAgent integration with configuration parameters."""
 
     @pytest.mark.asyncio
-    async def test_hybrid_search_configuration_integration(self):
+    async def test_hybrid_search_configuration_integration(self) -> None:
         """Test that configuration parameters are used in hybrid search."""
         # Create custom configuration
         config = HistorianConfig(
@@ -165,7 +170,7 @@ class TestHistorianAgentConfiguration:
         agent._search_database_content = AsyncMock(return_value=db_results)
 
         # Execute search
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         results = await agent._search_historical_content("test query", context)
 
         # Verify 70/30 split (out of 10 total)
@@ -177,7 +182,7 @@ class TestHistorianAgentConfiguration:
         # Results should include both
         assert len(results) == 2
 
-    def test_relevance_boost_calculation(self):
+    def test_relevance_boost_calculation(self) -> None:
         """Test that database relevance boost is applied correctly."""
         config = HistorianConfig(database_relevance_boost=0.3)
         agent = HistorianAgent(llm=None, config=config)
@@ -196,7 +201,7 @@ class TestHistorianAgentConfiguration:
         expected_score = 0.8 + 0.3  # base score + boost
         assert expected_score == 1.1
 
-    def test_deduplication_threshold_integration(self):
+    def test_deduplication_threshold_integration(self) -> None:
         """Test that deduplication threshold affects similarity matching."""
         # Test with high threshold (0.95) - should allow more results
         config_strict = HistorianConfig(deduplication_threshold=0.95)
@@ -239,7 +244,7 @@ class TestHistorianAgentConfiguration:
         deduplicated_loose = agent_loose._deduplicate_search_results([result1, result2])
         assert len(deduplicated_loose) == 1  # One removed due to low threshold
 
-    def test_text_similarity_calculation(self):
+    def test_text_similarity_calculation(self) -> None:
         """Test text similarity calculation method."""
         config = HistorianConfig()
         agent = HistorianAgent(llm=None, config=config)

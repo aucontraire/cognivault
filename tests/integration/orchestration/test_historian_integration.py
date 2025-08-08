@@ -11,8 +11,8 @@ This test suite covers:
 """
 
 import pytest
-from typing import cast
-from unittest.mock import AsyncMock, patch, Mock
+from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
@@ -47,7 +47,7 @@ def create_test_runtime(
     enable_checkpoints: bool = False,
 ) -> Mock:
     """Create a mock runtime for testing with CogniVaultContext."""
-    mock_runtime = Mock()
+    mock_runtime: Mock = Mock()
     mock_runtime.context = CogniVaultContext(
         thread_id=thread_id,
         execution_id=execution_id,
@@ -61,7 +61,7 @@ def create_test_runtime(
 class MockHistorianAgent(BaseAgent):
     """Mock historian agent for testing."""
 
-    def __init__(self, name: str = "historian", should_fail: bool = False):
+    def __init__(self, name: str = "historian", should_fail: bool = False) -> None:
         super().__init__(name)
         self.should_fail = should_fail
         self.execution_count = 0
@@ -243,7 +243,7 @@ class TestHistorianOutputSchema:
 class TestHistorianStateIntegration:
     """Test historian integration with CogniVaultState."""
 
-    def test_historian_field_in_state(self):
+    def test_historian_field_in_state(self) -> None:
         """Test that historian field is properly defined in CogniVaultState."""
         state = create_initial_state("Test query", "exec-123")
 
@@ -311,7 +311,7 @@ class TestHistorianStateIntegration:
         assert historian_result["search_strategy"] == "tag-based"
         assert historian_result["confidence"] == 0.9
 
-    def test_historian_error_recording(self):
+    def test_historian_error_recording(self) -> None:
         """Test recording historian errors in state."""
         state = create_initial_state("Test query", "exec-123")
 
@@ -372,7 +372,7 @@ class TestHistorianStateIntegration:
         # State with invalid historian should fail validation
         assert validate_state_integrity(state_with_invalid) is False
 
-    def test_state_phase_2_1_metadata(self):
+    def test_state_phase_2_1_metadata(self) -> None:
         """Test that state includes Phase 2.1 metadata."""
         state = create_initial_state("Test query", "exec-123")
 
@@ -386,7 +386,7 @@ class TestHistorianNode:
     """Test historian_node() function."""
 
     @pytest.fixture
-    def mock_historian_agent(self):
+    def mock_historian_agent(self) -> Any:
         """Create a mock historian agent."""
         return MockHistorianAgent()
 
@@ -408,8 +408,8 @@ class TestHistorianNode:
 
     @pytest.mark.asyncio
     async def test_historian_node_basic_execution(
-        self, initial_state, mock_historian_agent
-    ):
+        self, initial_state: Any, mock_historian_agent: Any
+    ) -> None:
         """Test basic historian node execution."""
         runtime = create_test_runtime()
 
@@ -431,7 +431,7 @@ class TestHistorianNode:
             assert "historian" in result_state["successful_agents"]
 
     @pytest.mark.asyncio
-    async def test_historian_node_dependency_validation(self):
+    async def test_historian_node_dependency_validation(self) -> None:
         """Test that historian node validates dependencies."""
         # Create state without refiner output
         state = create_initial_state("Test query", "exec-123")
@@ -444,7 +444,7 @@ class TestHistorianNode:
             await historian_node(state, runtime)
 
     @pytest.mark.asyncio
-    async def test_historian_node_failure_handling(self, initial_state):
+    async def test_historian_node_failure_handling(self, initial_state: Any) -> None:
         """Test historian node failure handling."""
         failing_agent = MockHistorianAgent(should_fail=True)
         runtime = create_test_runtime()
@@ -458,8 +458,8 @@ class TestHistorianNode:
 
     @pytest.mark.asyncio
     async def test_historian_node_output_format(
-        self, initial_state, mock_historian_agent
-    ):
+        self, initial_state: Any, mock_historian_agent: Any
+    ) -> None:
         """Test that historian node produces correctly formatted output."""
         runtime = create_test_runtime()
 
@@ -496,7 +496,7 @@ class TestHistorianNode:
             assert isinstance(historian_output["timestamp"], str)
 
     @pytest.mark.asyncio
-    async def test_historian_node_context_conversion(self, initial_state) -> None:
+    async def test_historian_node_context_conversion(self, initial_state: Any) -> None:
         """Test that historian node properly converts state to context."""
         mock_agent = MockHistorianAgent()
         runtime = create_test_runtime()
@@ -529,7 +529,7 @@ class TestHistorianNode:
 class TestHistorianNodeDependencies:
     """Test historian node dependencies and validation."""
 
-    def test_get_node_dependencies_includes_historian(self):
+    def test_get_node_dependencies_includes_historian(self) -> None:
         """Test that node dependencies include historian."""
         dependencies = get_node_dependencies()
 
@@ -614,7 +614,7 @@ class TestHistorianNodeDependencies:
 class TestHistorianDAGVisualization:
     """Test DAG visualization with historian integration."""
 
-    def test_dag_visualization_includes_historian(self):
+    def test_dag_visualization_includes_historian(self) -> None:
         """Test that DAG visualization includes historian node."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "critic", "historian", "synthesis"]
@@ -637,7 +637,7 @@ class TestHistorianDAGVisualization:
         assert "class HISTORIAN historian-node" in diagram
         assert "historian-node fill:#e8f5e8" in diagram
 
-    def test_dag_visualization_phase_2_1_config(self):
+    def test_dag_visualization_phase_2_1_config(self) -> None:
         """Test DAG visualization with Phase 2.1 configuration."""
         config = DAGVisualizationConfig(version="Phase 2.1")
         visualizer = DAGVisualizer(config)
@@ -651,7 +651,7 @@ class TestHistorianDAGVisualization:
         assert 'state["historian"]' in diagram
         assert "HistorianOutput" in diagram
 
-    def test_dag_visualization_historian_metadata(self):
+    def test_dag_visualization_historian_metadata(self) -> None:
         """Test that historian metadata is included in visualization."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "critic", "historian", "synthesis"]
@@ -759,7 +759,7 @@ class TestHistorianIntegration:
     """Integration tests for historian with the full system."""
 
     @pytest.mark.asyncio
-    async def test_historian_with_orchestrator_mock(self):
+    async def test_historian_with_orchestrator_mock(self) -> None:
         """Test historian integration with LangGraphOrchestrator using mocks."""
         # Create orchestrator with historian support
         orchestrator = LangGraphOrchestrator(
@@ -847,7 +847,7 @@ class TestHistorianIntegration:
             assert result_context.execution_state["phase"] == "phase2_1"
             assert "historian" in result_context.execution_state["agents_requested"]
 
-    def test_historian_agents_list_includes_historian(self):
+    def test_historian_agents_list_includes_historian(self) -> None:
         """Test that orchestrator includes historian in agents list."""
         orchestrator = LangGraphOrchestrator()
 
@@ -861,7 +861,7 @@ class TestHistorianIntegration:
             "synthesis",
         ]
 
-    def test_historian_custom_agents_list(self):
+    def test_historian_custom_agents_list(self) -> None:
         """Test orchestrator with custom agents list including historian."""
         custom_agents = ["refiner", "historian", "synthesis"]
         orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
@@ -869,7 +869,7 @@ class TestHistorianIntegration:
         assert orchestrator.agents_to_run == custom_agents
         assert "historian" in orchestrator.agents_to_run
 
-    def test_historian_performance_tracking(self):
+    def test_historian_performance_tracking(self) -> None:
         """Test that historian performance is tracked properly."""
         orchestrator = LangGraphOrchestrator()
 

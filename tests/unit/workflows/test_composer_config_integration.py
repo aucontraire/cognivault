@@ -6,8 +6,8 @@ that integrates with the agent configuration system.
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
-from typing import Dict, Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from typing import Any, Dict
 
 from cognivault.workflows.composer import (
     create_agent_config,
@@ -27,7 +27,7 @@ from cognivault.config.agent_configs import (
 class TestCreateAgentConfig:
     """Test the create_agent_config function for workflow integration."""
 
-    def test_create_default_config_without_dict(self):
+    def test_create_default_config_without_dict(self) -> None:
         """Test creating default configuration when no config dict provided."""
         # Test each agent type gets its appropriate default config
         refiner_config = create_agent_config("refiner")
@@ -50,13 +50,13 @@ class TestCreateAgentConfig:
         assert synthesis_config.synthesis_strategy == "balanced"
         assert synthesis_config.meta_analysis is True
 
-    def test_create_config_with_empty_dict(self):
+    def test_create_config_with_empty_dict(self) -> None:
         """Test creating configuration with empty dictionary."""
         config = create_agent_config("refiner", {})
         assert isinstance(config, RefinerConfig)
         assert config.refinement_level == "standard"  # Default value
 
-    def test_create_refiner_config_with_agent_specific_fields(self):
+    def test_create_refiner_config_with_agent_specific_fields(self) -> None:
         """Test creating RefinerConfig with agent-specific configuration."""
         config_dict = {
             "refinement_level": "comprehensive",
@@ -70,7 +70,7 @@ class TestCreateAgentConfig:
         assert config.behavioral_mode == "active"
         assert config.output_format == "structured"
 
-    def test_create_critic_config_with_agent_specific_fields(self):
+    def test_create_critic_config_with_agent_specific_fields(self) -> None:
         """Test creating CriticConfig with agent-specific configuration."""
         config_dict = {
             "analysis_depth": "deep",
@@ -86,7 +86,7 @@ class TestCreateAgentConfig:
         assert config.bias_detection is True
         assert config.scoring_criteria == ["accuracy", "objectivity"]
 
-    def test_create_historian_config_with_agent_specific_fields(self):
+    def test_create_historian_config_with_agent_specific_fields(self) -> None:
         """Test creating HistorianConfig with agent-specific configuration."""
         config_dict = {
             "search_depth": "exhaustive",
@@ -102,7 +102,7 @@ class TestCreateAgentConfig:
         assert config.context_expansion is False
         assert config.memory_scope == "full"
 
-    def test_create_synthesis_config_with_agent_specific_fields(self):
+    def test_create_synthesis_config_with_agent_specific_fields(self) -> None:
         """Test creating SynthesisConfig with agent-specific configuration."""
         config_dict = {
             "synthesis_strategy": "creative",
@@ -118,7 +118,7 @@ class TestCreateAgentConfig:
         assert config.meta_analysis is False
         assert config.integration_mode == "hierarchical"
 
-    def test_create_config_with_legacy_prompt_format(self):
+    def test_create_config_with_legacy_prompt_format(self) -> None:
         """Test creating configuration with legacy prompt format."""
         config_dict = {
             "prompts": {
@@ -137,7 +137,7 @@ class TestCreateAgentConfig:
             "analysis": "Custom analysis template"
         }
 
-    def test_create_config_with_behavioral_constraints(self):
+    def test_create_config_with_behavioral_constraints(self) -> None:
         """Test creating configuration with behavioral constraints."""
         config_dict = {
             "custom_constraints": ["preserve_intent", "enhance_clarity"],
@@ -152,7 +152,7 @@ class TestCreateAgentConfig:
         ]
         assert config.behavioral_config.fallback_mode == "strict"
 
-    def test_create_config_with_mixed_configuration(self):
+    def test_create_config_with_mixed_configuration(self) -> None:
         """Test creating configuration with both agent-specific and nested configs."""
         config_dict = {
             "refinement_level": "detailed",
@@ -168,7 +168,7 @@ class TestCreateAgentConfig:
         assert config.prompt_config.custom_system_prompt == "Mixed config prompt"
         assert config.behavioral_config.custom_constraints == ["mixed_constraint"]
 
-    def test_create_config_ignores_unknown_fields(self):
+    def test_create_config_ignores_unknown_fields(self) -> None:
         """Test that unknown fields are ignored without errors."""
         config_dict = {
             "refinement_level": "standard",
@@ -181,12 +181,12 @@ class TestCreateAgentConfig:
         assert config.refinement_level == "standard"
         # Unknown fields should not cause errors or be included
 
-    def test_create_config_fallback_for_unknown_agent_type(self):
+    def test_create_config_fallback_for_unknown_agent_type(self) -> None:
         """Test that unknown agent types fall back to RefinerConfig."""
         config = create_agent_config("unknown_agent")
         assert isinstance(config, RefinerConfig)
 
-    def test_create_config_with_template_variables(self):
+    def test_create_config_with_template_variables(self) -> None:
         """Test creating configuration with template variables."""
         config_dict = {
             "prompts": {
@@ -205,14 +205,14 @@ class TestCreateAgentConfig:
 class TestNodeFactoryConfigIntegration:
     """Test NodeFactory integration with agent configuration system."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.node_factory = NodeFactory()
 
     @pytest.fixture
-    def mock_node_config(self):
+    def mock_node_config(self) -> Any:
         """Create a mock NodeConfiguration for testing."""
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.node_id = "test_refiner"
         mock_config.node_type = "refiner"
         mock_config.category = "BASE"
@@ -223,9 +223,9 @@ class TestNodeFactoryConfigIntegration:
         return mock_config
 
     @pytest.fixture
-    def mock_node_config_with_prompts(self):
+    def mock_node_config_with_prompts(self) -> Any:
         """Create a mock NodeConfiguration with legacy prompt config."""
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.node_id = "test_critic"
         mock_config.node_type = "critic"
         mock_config.category = "BASE"
@@ -238,26 +238,26 @@ class TestNodeFactoryConfigIntegration:
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig.load")
     def test_create_base_node_uses_agent_config(
-        self, mock_config_load, mock_llm_class, mock_node_config
-    ):
+        self, mock_config_load: Any, mock_llm_class: Any, mock_node_config: Any
+    ) -> None:
         """Test that _create_base_node creates agents with proper configuration."""
         # Setup mocks
         mock_config_load.return_value = Mock(
             api_key="test-key", model="gpt-4", base_url=None
         )
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm_class.return_value = mock_llm
 
         # Mock the agent class and instance
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
             # Create a mock agent class that accepts config parameter
-            mock_agent_class = Mock()
+            mock_agent_class: Mock = Mock()
             # Set up the mock to have a signature that accepts config
-            mock_signature = Mock()
+            mock_signature: Mock = Mock()
             mock_signature.parameters.keys.return_value = ["self", "llm", "config"]
 
             with patch("inspect.signature", return_value=mock_signature):
-                mock_agent_instance = Mock()
+                mock_agent_instance: Mock = Mock()
                 mock_agent_instance.name = "Refiner"
                 mock_agent_instance.run = AsyncMock(
                     return_value=Mock(agent_outputs={"Refiner": "Test output"})
@@ -294,24 +294,24 @@ class TestNodeFactoryConfigIntegration:
     @patch("cognivault.config.openai_config.OpenAIConfig.load")
     def test_create_base_node_applies_legacy_prompts(
         self,
-        mock_config_load,
-        mock_llm_class,
-        mock_apply_prompts,
-        mock_node_config_with_prompts,
-    ):
+        mock_config_load: Any,
+        mock_llm_class: Any,
+        mock_apply_prompts: Any,
+        mock_node_config_with_prompts: Any,
+    ) -> None:
         """Test that legacy prompt configuration is still applied for backward compatibility."""
         # Setup mocks
         mock_config_load.return_value = Mock(
             api_key="test-key", model="gpt-4", base_url=None
         )
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm_class.return_value = mock_llm
         mock_apply_prompts.return_value = {"system_prompt": "Applied legacy prompt"}
 
         # Mock the agent class and instance
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
-            mock_agent_instance = Mock()
+            mock_agent_class: Mock = Mock()
+            mock_agent_instance: Mock = Mock()
             mock_agent_instance.name = "Critic"
             mock_agent_instance.system_prompt = None
             mock_agent_instance.run = AsyncMock(
@@ -339,17 +339,19 @@ class TestNodeFactoryConfigIntegration:
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig.load")
-    def test_create_base_node_with_no_config(self, mock_config_load, mock_llm_class):
+    def test_create_base_node_with_no_config(
+        self, mock_config_load: Any, mock_llm_class: Any
+    ) -> None:
         """Test that node creation works with no configuration (backward compatibility)."""
         # Setup mocks
         mock_config_load.return_value = Mock(
             api_key="test-key", model="gpt-4", base_url=None
         )
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm_class.return_value = mock_llm
 
         # Create node config without configuration
-        mock_node_config = Mock()
+        mock_node_config: Mock = Mock()
         mock_node_config.node_id = "test_agent"
         mock_node_config.node_type = "refiner"
         mock_node_config.category = "BASE"
@@ -357,13 +359,13 @@ class TestNodeFactoryConfigIntegration:
 
         # Mock the agent class and instance
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
+            mock_agent_class: Mock = Mock()
             # Set up the mock to have a signature that accepts config
-            mock_signature = Mock()
+            mock_signature: Mock = Mock()
             mock_signature.parameters.keys.return_value = ["self", "llm", "config"]
 
             with patch("inspect.signature", return_value=mock_signature):
-                mock_agent_instance = Mock()
+                mock_agent_instance: Mock = Mock()
                 mock_agent_instance.name = "Refiner"
                 mock_agent_instance.run = AsyncMock(
                     return_value=Mock(agent_outputs={"Refiner": "Default output"})
@@ -389,9 +391,9 @@ class TestNodeFactoryConfigIntegration:
                 assert isinstance(config_arg, RefinerConfig)
                 assert config_arg.refinement_level == "standard"  # Default
 
-    def test_create_base_node_handles_agent_creation_error(self):
+    def test_create_base_node_handles_agent_creation_error(self) -> None:
         """Test that node creation handles agent creation errors gracefully."""
-        mock_node_config = Mock()
+        mock_node_config: Mock = Mock()
         mock_node_config.node_id = "failing_agent"
         mock_node_config.node_type = "nonexistent"
         mock_node_config.category = "BASE"
@@ -414,7 +416,7 @@ class TestNodeFactoryConfigIntegration:
 class TestGetAgentClass:
     """Test the get_agent_class function."""
 
-    def test_get_known_agent_classes(self):
+    def test_get_known_agent_classes(self) -> None:
         """Test getting known agent classes."""
         from cognivault.agents.refiner.agent import RefinerAgent
         from cognivault.agents.critic.agent import CriticAgent
@@ -426,7 +428,7 @@ class TestGetAgentClass:
         assert get_agent_class("historian") == HistorianAgent
         assert get_agent_class("synthesis") == SynthesisAgent
 
-    def test_get_unknown_agent_class_returns_default(self):
+    def test_get_unknown_agent_class_returns_default(self) -> None:
         """Test that unknown agent types return RefinerAgent as default."""
         from cognivault.agents.refiner.agent import RefinerAgent
 
@@ -438,7 +440,7 @@ class TestGetAgentClass:
 class TestWorkflowComposerBackwardCompatibility:
     """Test that workflow composer maintains backward compatibility."""
 
-    def test_legacy_workflow_still_works(self):
+    def test_legacy_workflow_still_works(self) -> None:
         """Test that legacy workflows without agent configs still work."""
         # This would be tested more comprehensively in integration tests
         # but we can verify the factory patterns work with legacy configs
@@ -453,7 +455,7 @@ class TestWorkflowComposerBackwardCompatibility:
         assert config.refinement_level == "detailed"
         assert config.prompt_config.custom_system_prompt == "Legacy system prompt"
 
-    def test_mixed_old_and_new_config_format(self):
+    def test_mixed_old_and_new_config_format(self) -> None:
         """Test that mixing old and new configuration formats works."""
         config_dict = {
             # New agent-specific format

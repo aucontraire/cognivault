@@ -6,8 +6,13 @@ and graph optimization capabilities.
 """
 
 import pytest
+from typing import Any
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.dependencies.graph_engine import (
     DependencyGraphEngine,
@@ -24,7 +29,7 @@ from cognivault.dependencies.graph_engine import (
 class MockAgent(BaseAgent):
     """Mock agent for testing."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         super().__init__(name=name)
         self.name = name
 
@@ -34,7 +39,7 @@ class MockAgent(BaseAgent):
 
 
 @pytest.fixture
-def mock_agents():
+def mock_agents() -> Any:
     """Create mock agents for testing."""
     return {
         "agent_a": MockAgent("agent_a"),
@@ -45,13 +50,13 @@ def mock_agents():
 
 
 @pytest.fixture
-def graph_engine():
+def graph_engine() -> Any:
     """Create a dependency graph engine for testing."""
     return DependencyGraphEngine()
 
 
 @pytest.fixture
-def sample_nodes(mock_agents):
+def sample_nodes(mock_agents: Any) -> Any:
     """Create sample dependency nodes."""
     nodes = {}
     for agent_id, agent in mock_agents.items():
@@ -64,7 +69,7 @@ def sample_nodes(mock_agents):
 class TestDependencyNode:
     """Test DependencyNode functionality."""
 
-    def test_node_creation(self, mock_agents):
+    def test_node_creation(self, mock_agents: Any) -> None:
         """Test creating a dependency node."""
         agent = mock_agents["agent_a"]
         constraint = ResourceConstraint(
@@ -89,10 +94,10 @@ class TestDependencyNode:
         assert node.execution_count == 0
         assert not node.is_executing
 
-    def test_can_execute(self, mock_agents):
+    def test_can_execute(self, mock_agents: Any) -> None:
         """Test node execution eligibility."""
         agent = mock_agents["agent_a"]
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         node = DependencyNode(agent_id="agent_a", agent=agent, max_retries=3)
 
@@ -113,7 +118,7 @@ class TestDependencyNode:
 class TestDependencyEdge:
     """Test DependencyEdge functionality."""
 
-    def test_edge_creation(self):
+    def test_edge_creation(self) -> None:
         """Test creating a dependency edge."""
         edge = DependencyEdge(
             from_agent="agent_a",
@@ -129,9 +134,9 @@ class TestDependencyEdge:
         assert edge.weight == 1.5
         assert edge.timeout_ms == 5000
 
-    def test_condition_satisfaction(self):
+    def test_condition_satisfaction(self) -> None:
         """Test conditional dependency evaluation."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Edge with no condition (always satisfied)
         edge = DependencyEdge(
@@ -156,7 +161,7 @@ class TestDependencyEdge:
         context.agent_outputs["test"] = "output"
         assert edge.is_satisfied(context)
 
-    def test_edge_hash(self):
+    def test_edge_hash(self) -> None:
         """Test edge hashing for set operations."""
         edge1 = DependencyEdge(
             from_agent="a", to_agent="b", dependency_type=DependencyType.HARD
@@ -178,7 +183,7 @@ class TestDependencyEdge:
 class TestTopologicalSort:
     """Test topological sorting functionality."""
 
-    def test_simple_topological_sort(self):
+    def test_simple_topological_sort(self) -> None:
         """Test basic topological sorting."""
         nodes = ["a", "b", "c"]
         edges = [
@@ -193,7 +198,7 @@ class TestTopologicalSort:
         result = TopologicalSort.sort(nodes, edges)
         assert result == ["a", "b", "c"]
 
-    def test_parallel_branches(self):
+    def test_parallel_branches(self) -> None:
         """Test sorting with parallel branches."""
         nodes = ["a", "b", "c", "d"]
         edges = [
@@ -210,7 +215,7 @@ class TestTopologicalSort:
         assert result.index("a") < result.index("c")
         assert result.index("b") < result.index("d")
 
-    def test_circular_dependency_detection(self):
+    def test_circular_dependency_detection(self) -> None:
         """Test detection of circular dependencies."""
         nodes = ["a", "b", "c"]
         edges = [
@@ -231,7 +236,7 @@ class TestTopologicalSort:
         assert "Circular dependency detected" in str(exc_info.value)
         assert len(exc_info.value.cycle) >= 3
 
-    def test_self_dependency(self):
+    def test_self_dependency(self) -> None:
         """Test detection of self-dependencies."""
         nodes = ["a"]
         edges = [
@@ -243,7 +248,7 @@ class TestTopologicalSort:
         with pytest.raises(CircularDependencyError):
             TopologicalSort.sort(nodes, edges)
 
-    def test_soft_dependencies_ignored(self):
+    def test_soft_dependencies_ignored(self) -> None:
         """Test that soft dependencies don't affect topological ordering."""
         nodes = ["a", "b"]
         edges = [
@@ -260,13 +265,13 @@ class TestTopologicalSort:
 class TestDependencyGraphEngine:
     """Test DependencyGraphEngine functionality."""
 
-    def test_engine_initialization(self, graph_engine):
+    def test_engine_initialization(self, graph_engine: Any) -> None:
         """Test graph engine initialization."""
         assert len(graph_engine.nodes) == 0
         assert len(graph_engine.edges) == 0
         assert len(graph_engine.conditional_dependencies) == 0
 
-    def test_add_nodes(self, graph_engine, sample_nodes):
+    def test_add_nodes(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test adding nodes to the graph."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -275,7 +280,7 @@ class TestDependencyGraphEngine:
         assert "agent_a" in graph_engine.nodes
         assert graph_engine.nodes["agent_a"] == sample_nodes["agent_a"]
 
-    def test_add_edges(self, graph_engine, sample_nodes):
+    def test_add_edges(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test adding edges to the graph."""
         # Add nodes first
         for node in sample_nodes.values():
@@ -299,7 +304,9 @@ class TestDependencyGraphEngine:
         assert len(graph_engine.edges) == 1  # Hard edge
         assert len(graph_engine.conditional_dependencies) == 1  # Conditional edge
 
-    def test_add_dependency_convenience_method(self, graph_engine, sample_nodes):
+    def test_add_dependency_convenience_method(
+        self, graph_engine: Any, sample_nodes: Any
+    ) -> None:
         """Test the convenience method for adding dependencies."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -314,7 +321,7 @@ class TestDependencyGraphEngine:
         assert edge.to_agent == "agent_b"
         assert edge.weight == 2.0
 
-    def test_remove_node(self, graph_engine, sample_nodes):
+    def test_remove_node(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test removing nodes and their edges."""
         # Add nodes and edges
         for node in sample_nodes.values():
@@ -329,7 +336,7 @@ class TestDependencyGraphEngine:
         assert "agent_b" not in graph_engine.nodes
         assert len(graph_engine.edges) == 0  # All edges involving agent_b removed
 
-    def test_get_execution_order(self, graph_engine, sample_nodes):
+    def test_get_execution_order(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test getting execution order."""
         # Add nodes
         for node in sample_nodes.values():
@@ -347,7 +354,9 @@ class TestDependencyGraphEngine:
         assert order.index("agent_b") < order.index("agent_c")
         assert order.index("agent_a") < order.index("agent_d")
 
-    def test_conditional_dependencies(self, graph_engine, sample_nodes):
+    def test_conditional_dependencies(
+        self, graph_engine: Any, sample_nodes: Any
+    ) -> None:
         """Test conditional dependency evaluation."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -359,7 +368,7 @@ class TestDependencyGraphEngine:
         )
 
         # Without trigger, should be no dependencies
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         order = graph_engine.get_execution_order(context)
         # No dependencies means any order is valid
         assert len(order) == 4
@@ -369,7 +378,7 @@ class TestDependencyGraphEngine:
         order = graph_engine.get_execution_order(context)
         assert order.index("agent_a") < order.index("agent_b")
 
-    def test_get_parallel_groups(self, graph_engine, sample_nodes):
+    def test_get_parallel_groups(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test getting parallel execution groups."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -388,7 +397,7 @@ class TestDependencyGraphEngine:
         assert set(groups[1]) == {"agent_b", "agent_c"}
         assert groups[2] == ["agent_d"]
 
-    def test_graph_validation(self, graph_engine, sample_nodes):
+    def test_graph_validation(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test graph validation."""
         # Graph with isolated nodes
         for node in sample_nodes.values():
@@ -406,7 +415,9 @@ class TestDependencyGraphEngine:
         assert len(issues) > 0
         assert any("Circular dependency" in issue for issue in issues)
 
-    def test_dependency_impact_analysis(self, graph_engine, sample_nodes):
+    def test_dependency_impact_analysis(
+        self, graph_engine: Any, sample_nodes: Any
+    ) -> None:
         """Test dependency impact analysis."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -425,7 +436,7 @@ class TestDependencyGraphEngine:
         )  # c depends on b which depends on a
         assert impact["criticality_score"] > 0
 
-    def test_optimization_modes(self, graph_engine, sample_nodes):
+    def test_optimization_modes(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test different optimization modes."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -446,7 +457,7 @@ class TestDependencyGraphEngine:
         assert order1.index("agent_a") < order1.index("agent_b")
         assert order2.index("agent_a") < order2.index("agent_b")
 
-    def test_execution_statistics(self, graph_engine, sample_nodes):
+    def test_execution_statistics(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test execution statistics generation."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -462,7 +473,7 @@ class TestDependencyGraphEngine:
         assert "HARD" in stats["dependency_type_distribution"]
         assert "SOFT" in stats["dependency_type_distribution"]
 
-    def test_cache_invalidation(self, graph_engine, sample_nodes):
+    def test_cache_invalidation(self, graph_engine: Any, sample_nodes: Any) -> None:
         """Test that cache is properly invalidated on changes."""
         for node in sample_nodes.values():
             graph_engine.add_node(node)
@@ -483,7 +494,7 @@ class TestDependencyGraphEngine:
 class TestResourceConstraint:
     """Test ResourceConstraint functionality."""
 
-    def test_constraint_creation(self):
+    def test_constraint_creation(self) -> None:
         """Test creating resource constraints."""
         constraint = ResourceConstraint(
             resource_type="cpu",
@@ -503,7 +514,9 @@ class TestResourceConstraint:
 class TestIntegration:
     """Integration tests for the dependency graph engine."""
 
-    def test_complex_dependency_scenario(self, graph_engine, mock_agents):
+    def test_complex_dependency_scenario(
+        self, graph_engine: Any, mock_agents: Any
+    ) -> None:
         """Test a complex dependency scenario."""
         # Create agents with different priorities
         nodes = {
@@ -548,7 +561,7 @@ class TestIntegration:
         )
 
         # Test execution order
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         order = graph_engine.get_execution_order(context)
 
         # Verify basic dependencies
@@ -573,7 +586,9 @@ class TestIntegration:
         issues = graph_engine.validate_graph()
         assert len(issues) == 0
 
-    def test_dynamic_graph_modification(self, graph_engine, sample_nodes):
+    def test_dynamic_graph_modification(
+        self, graph_engine: Any, sample_nodes: Any
+    ) -> None:
         """Test dynamic modification of the dependency graph."""
         # Start with simple graph
         for node in sample_nodes.values():

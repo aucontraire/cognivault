@@ -23,10 +23,10 @@ except ImportError:
         from importlib_metadata import version, PackageNotFoundError  # type: ignore
     except ImportError:
         # Create a stub if neither is available
-        class PackageNotFoundError(Exception):  # type: ignore[misc,no-redef]
+        class PackageNotFoundError(Exception):  # type: ignore[no-redef]
             pass
 
-        def version(distribution_name: str) -> str:  # type: ignore[misc]
+        def version(distribution_name: str) -> str:
             raise PackageNotFoundError(f"Package {distribution_name} not found")
 
 
@@ -90,7 +90,7 @@ class HealthChecker:
     - System dependencies
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.registry = get_agent_registry()
         self.config = get_config()
 

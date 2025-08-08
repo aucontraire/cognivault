@@ -7,6 +7,7 @@ retry and circuit breaker systems.
 """
 
 import pytest
+from typing import Any
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -23,7 +24,7 @@ from cognivault.exceptions import (
 class TestAgentExecutionError:
     """Test AgentExecutionError base functionality."""
 
-    def test_agent_execution_error_creation(self):
+    def test_agent_execution_error_creation(self) -> None:
         """Test basic AgentExecutionError creation."""
         error = AgentExecutionError(
             message="Agent failed to execute", agent_name="TestAgent"
@@ -37,7 +38,7 @@ class TestAgentExecutionError:
         assert error.retry_policy == RetryPolicy.BACKOFF
         assert isinstance(error, CogniVaultError)
 
-    def test_agent_execution_error_with_all_params(self):
+    def test_agent_execution_error_with_all_params(self) -> None:
         """Test AgentExecutionError with all parameters."""
         cause = RuntimeError("Underlying error")
         context = {"attempt": 2, "input_data": "test"}
@@ -63,7 +64,7 @@ class TestAgentExecutionError:
         assert error.context["attempt"] == 2
         assert error.context["agent_name"] == "DetailedAgent"
 
-    def test_agent_context_injection(self):
+    def test_agent_context_injection(self) -> None:
         """Test that agent_name is automatically added to context."""
         error = AgentExecutionError(
             message="Context injection test", agent_name="ContextAgent"
@@ -76,7 +77,7 @@ class TestAgentExecutionError:
 class TestAgentDependencyMissingError:
     """Test AgentDependencyMissingError functionality."""
 
-    def test_dependency_missing_error_creation(self):
+    def test_dependency_missing_error_creation(self) -> None:
         """Test basic dependency missing error creation."""
         missing_deps = ["RefinerAgent", "HistorianAgent"]
 
@@ -98,7 +99,7 @@ class TestAgentDependencyMissingError:
         )
         assert error.message == expected_msg
 
-    def test_dependency_missing_with_custom_message(self):
+    def test_dependency_missing_with_custom_message(self) -> None:
         """Test dependency error with custom message."""
         missing_deps = ["SingleDep"]
         custom_message = "Custom dependency failure message"
@@ -114,7 +115,7 @@ class TestAgentDependencyMissingError:
         assert error.missing_dependencies == missing_deps
         assert error.step_id == "dep_step"
 
-    def test_dependency_context_data(self):
+    def test_dependency_context_data(self) -> None:
         """Test that dependency information is added to context."""
         missing_deps = ["Dep1", "Dep2", "Dep3"]
 
@@ -126,7 +127,7 @@ class TestAgentDependencyMissingError:
         assert error.context["dependency_count"] == 3
         assert error.context["agent_name"] == "DependentAgent"
 
-    def test_dependency_user_message(self):
+    def test_dependency_user_message(self) -> None:
         """Test user-friendly message for dependency errors."""
         missing_deps = ["RequiredAgent1", "RequiredAgent2"]
 
@@ -141,7 +142,7 @@ class TestAgentDependencyMissingError:
 class TestAgentTimeoutError:
     """Test AgentTimeoutError functionality."""
 
-    def test_timeout_error_creation(self):
+    def test_timeout_error_creation(self) -> None:
         """Test basic timeout error creation."""
         error = AgentTimeoutError(agent_name="SlowAgent", timeout_seconds=30.0)
 
@@ -155,7 +156,7 @@ class TestAgentTimeoutError:
         expected_msg = "Agent 'SlowAgent' timed out after 30.0s"
         assert error.message == expected_msg
 
-    def test_timeout_error_with_cause(self):
+    def test_timeout_error_with_cause(self) -> None:
         """Test timeout error with cause parameter."""
         original_timeout = TimeoutError("Asyncio timeout")
 
@@ -171,7 +172,7 @@ class TestAgentTimeoutError:
         assert error.step_id == "timeout_step"
         assert error.cause == original_timeout
 
-    def test_timeout_error_with_custom_message(self):
+    def test_timeout_error_with_custom_message(self) -> None:
         """Test timeout error with custom message."""
         custom_message = "Custom timeout message"
 
@@ -184,7 +185,7 @@ class TestAgentTimeoutError:
         assert error.message == custom_message
         assert error.timeout_seconds == 60.0
 
-    def test_timeout_context_data(self):
+    def test_timeout_context_data(self) -> None:
         """Test that timeout information is added to context."""
         error = AgentTimeoutError(
             agent_name="TimeoutAgent",
@@ -197,7 +198,7 @@ class TestAgentTimeoutError:
         assert error.context["attempt"] == 3
         assert error.context["agent_name"] == "TimeoutAgent"
 
-    def test_timeout_user_message(self):
+    def test_timeout_user_message(self) -> None:
         """Test user-friendly message for timeout errors."""
         error = AgentTimeoutError(agent_name="UserTimeoutAgent", timeout_seconds=20.0)
 
@@ -210,7 +211,7 @@ class TestAgentTimeoutError:
 class TestAgentConfigurationError:
     """Test AgentConfigurationError functionality."""
 
-    def test_config_error_creation(self):
+    def test_config_error_creation(self) -> None:
         """Test basic configuration error creation."""
         error = AgentConfigurationError(
             agent_name="ConfigAgent",
@@ -227,7 +228,7 @@ class TestAgentConfigurationError:
         expected_msg = "Agent 'ConfigAgent' configuration error: Missing required parameter 'api_key'"
         assert error.message == expected_msg
 
-    def test_config_error_with_custom_message(self):
+    def test_config_error_with_custom_message(self) -> None:
         """Test configuration error with custom message."""
         custom_message = "Custom configuration failure"
 
@@ -242,7 +243,7 @@ class TestAgentConfigurationError:
         assert error.config_issue == "Invalid format"
         assert error.step_id == "config_step"
 
-    def test_config_context_data(self):
+    def test_config_context_data(self) -> None:
         """Test that configuration information is added to context."""
         error = AgentConfigurationError(
             agent_name="ContextConfigAgent",
@@ -255,7 +256,7 @@ class TestAgentConfigurationError:
         assert error.context["config_file"] == "agent.yaml"
         assert error.context["agent_name"] == "ContextConfigAgent"
 
-    def test_config_user_message(self):
+    def test_config_user_message(self) -> None:
         """Test user-friendly message for configuration errors."""
         error = AgentConfigurationError(
             agent_name="UserConfigAgent", config_issue="Invalid JSON format"
@@ -268,7 +269,7 @@ class TestAgentConfigurationError:
 class TestAgentErrorInheritance:
     """Test proper inheritance hierarchy for agent errors."""
 
-    def test_all_agent_errors_inherit_from_agent_execution_error(self):
+    def test_all_agent_errors_inherit_from_agent_execution_error(self) -> None:
         """Test that specialized agent errors inherit from AgentExecutionError."""
         dependency_error = AgentDependencyMissingError("Agent", ["Dep"])
         timeout_error = AgentTimeoutError("Agent", 30.0)
@@ -284,12 +285,12 @@ class TestAgentErrorInheritance:
         assert isinstance(timeout_error, CogniVaultError)
         assert isinstance(config_error, CogniVaultError)
 
-    def test_agent_execution_error_inherits_from_base(self):
+    def test_agent_execution_error_inherits_from_base(self) -> None:
         """Test that AgentExecutionError inherits from CogniVaultError."""
         error = AgentExecutionError("Test", "Agent")
         assert isinstance(error, CogniVaultError)
 
-    def test_polymorphic_behavior(self):
+    def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of agent errors."""
 
         def handle_agent_error(error: AgentExecutionError) -> dict:
@@ -322,7 +323,7 @@ class TestAgentErrorInheritance:
 class TestAgentErrorIntegration:
     """Test integration aspects of agent errors."""
 
-    def test_error_context_with_step_metadata(self):
+    def test_error_context_with_step_metadata(self) -> None:
         """Test that agent errors work properly with step metadata."""
         error = AgentExecutionError(
             message="Integration test",
@@ -344,7 +345,7 @@ class TestAgentErrorIntegration:
         assert data["agent_id"] == "IntegrationAgent"
         assert "execution_attempt" in data["context"]
 
-    def test_error_chaining_scenarios(self):
+    def test_error_chaining_scenarios(self) -> None:
         """Test various error chaining scenarios with agent errors."""
         # Original error
         original = ValueError("Invalid input format")
@@ -376,7 +377,7 @@ class TestAgentErrorIntegration:
         assert "Failed to process input" in timeout_data["cause"]
         assert "Invalid input format" in agent_data["cause"]
 
-    def test_exception_raising_and_catching(self):
+    def test_exception_raising_and_catching(self) -> None:
         """Test that agent errors can be properly raised and caught."""
         # Test specific exception catching
         with pytest.raises(AgentTimeoutError) as exc_info:
@@ -401,7 +402,7 @@ class TestAgentErrorIntegration:
 class TestAgentResourceError:
     """Test AgentResourceError functionality."""
 
-    def test_resource_error_creation(self):
+    def test_resource_error_creation(self) -> None:
         """Test basic AgentResourceError creation."""
         error = AgentResourceError(
             agent_name="TestAgent",
@@ -416,7 +417,7 @@ class TestAgentResourceError:
         assert error.severity == ErrorSeverity.MEDIUM
         assert error.retry_policy == RetryPolicy.NEVER  # disk_space -> NEVER
 
-    def test_resource_error_with_network_type(self):
+    def test_resource_error_with_network_type(self) -> None:
         """Test AgentResourceError with network resource type."""
         error = AgentResourceError(
             agent_name="NetworkAgent",
@@ -426,7 +427,7 @@ class TestAgentResourceError:
 
         assert error.retry_policy == RetryPolicy.BACKOFF  # network -> BACKOFF
 
-    def test_resource_error_with_api_type(self):
+    def test_resource_error_with_api_type(self) -> None:
         """Test AgentResourceError with api resource type."""
         error = AgentResourceError(
             agent_name="APIAgent",
@@ -436,7 +437,7 @@ class TestAgentResourceError:
 
         assert error.retry_policy == RetryPolicy.BACKOFF  # api -> BACKOFF
 
-    def test_resource_error_with_custom_message(self):
+    def test_resource_error_with_custom_message(self) -> None:
         """Test AgentResourceError with custom message."""
         error = AgentResourceError(
             agent_name="CustomAgent",
@@ -450,7 +451,7 @@ class TestAgentResourceError:
         assert error.step_id == "resource_step"
         assert error.retry_policy == RetryPolicy.NEVER  # not network/api -> NEVER
 
-    def test_resource_error_context_injection(self):
+    def test_resource_error_context_injection(self) -> None:
         """Test that resource information is added to context."""
         error = AgentResourceError(
             agent_name="ContextAgent",
@@ -463,7 +464,7 @@ class TestAgentResourceError:
         assert error.context["resource_details"] == "heap overflow"
         assert error.context["heap_size"] == "2GB"
 
-    def test_resource_error_user_message_disk_space(self):
+    def test_resource_error_user_message_disk_space(self) -> None:
         """Test user message for disk space resource errors."""
         error = AgentResourceError(
             agent_name="DiskAgent",
@@ -474,7 +475,7 @@ class TestAgentResourceError:
         user_msg = error.get_user_message()
         assert "💡 Tip: Free up disk space and try again." in user_msg
 
-    def test_resource_error_user_message_network(self):
+    def test_resource_error_user_message_network(self) -> None:
         """Test user message for network resource errors."""
         error = AgentResourceError(
             agent_name="NetAgent",
@@ -485,7 +486,7 @@ class TestAgentResourceError:
         user_msg = error.get_user_message()
         assert "💡 Tip: Check your internet connection." in user_msg
 
-    def test_resource_error_user_message_generic(self):
+    def test_resource_error_user_message_generic(self) -> None:
         """Test user message for generic resource errors."""
         error = AgentResourceError(
             agent_name="GenericAgent",
@@ -500,7 +501,7 @@ class TestAgentResourceError:
 class TestAgentValidationError:
     """Test AgentValidationError functionality."""
 
-    def test_validation_error_creation(self):
+    def test_validation_error_creation(self) -> None:
         """Test basic AgentValidationError creation."""
         error = AgentValidationError(
             agent_name="ValidatorAgent",
@@ -515,7 +516,7 @@ class TestAgentValidationError:
         assert error.severity == ErrorSeverity.MEDIUM
         assert error.retry_policy == RetryPolicy.NEVER
 
-    def test_validation_error_with_custom_message(self):
+    def test_validation_error_with_custom_message(self) -> None:
         """Test AgentValidationError with custom message."""
         error = AgentValidationError(
             agent_name="CustomValidator",
@@ -528,7 +529,7 @@ class TestAgentValidationError:
         assert error.message == "Custom validation error"
         assert error.step_id == "validation_step"
 
-    def test_validation_error_context_injection(self):
+    def test_validation_error_context_injection(self) -> None:
         """Test that validation information is added to context."""
         error = AgentValidationError(
             agent_name="ContextValidator",
@@ -545,7 +546,7 @@ class TestAgentValidationError:
         assert error.context["parameter"] == "temperature"
         assert error.context["value"] == 3.5
 
-    def test_validation_error_user_message(self):
+    def test_validation_error_user_message(self) -> None:
         """Test user-friendly message for validation errors."""
         error = AgentValidationError(
             agent_name="MessageValidator",

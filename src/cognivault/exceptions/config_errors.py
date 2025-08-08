@@ -28,7 +28,7 @@ class ConfigurationError(CogniVaultError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         context = context or {}
         if config_section:
             context["config_section"] = config_section
@@ -62,7 +62,7 @@ class ConfigValidationError(ConfigurationError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         error_count = len(validation_errors)
         message = (
             message
@@ -116,7 +116,7 @@ class EnvironmentError(ConfigurationError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = message or f"Environment setup error: {environment_issue}"
 
         context = context or {}
@@ -169,7 +169,7 @@ class APIKeyMissingError(ConfigurationError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = message or f"API key missing for {service_name} (set {api_key_var})"
 
         context = context or {}
@@ -219,7 +219,7 @@ class ConfigFileError(ConfigurationError):
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = (
             message or f"Configuration file error in '{config_file_path}': {file_issue}"
         )
@@ -276,7 +276,7 @@ class ModelConfigurationError(ConfigurationError):
         step_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = (
             message or f"Model configuration error for '{model_name}': {config_issue}"
         )

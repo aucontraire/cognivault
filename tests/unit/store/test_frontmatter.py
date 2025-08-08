@@ -6,6 +6,7 @@ topic taxonomy, and all related utility functions for metadata management.
 """
 
 import pytest
+from typing import Any
 import uuid
 from datetime import datetime
 
@@ -24,7 +25,7 @@ from cognivault.store.frontmatter import (
 class TestAgentStatus:
     """Test AgentStatus enum functionality."""
 
-    def test_agent_status_values(self):
+    def test_agent_status_values(self) -> None:
         """Test that all agent status values are properly defined."""
         assert AgentStatus.REFINED.value == "refined"
         assert AgentStatus.PASSTHROUGH.value == "passthrough"
@@ -39,7 +40,7 @@ class TestAgentStatus:
         assert AgentStatus.PARTIAL.value == "partial"
         assert AgentStatus.CONFLICTS_UNRESOLVED.value == "conflicts_unresolved"
 
-    def test_agent_status_coverage(self):
+    def test_agent_status_coverage(self) -> None:
         """Test that we have status values for all agent types."""
         # Refiner statuses
         refiner_statuses = [
@@ -80,14 +81,14 @@ class TestAgentStatus:
 class TestDifficultyLevel:
     """Test DifficultyLevel enum functionality."""
 
-    def test_difficulty_level_values(self):
+    def test_difficulty_level_values(self) -> None:
         """Test that difficulty levels are properly defined."""
         assert DifficultyLevel.BEGINNER.value == "beginner"
         assert DifficultyLevel.INTERMEDIATE.value == "intermediate"
         assert DifficultyLevel.ADVANCED.value == "advanced"
         assert DifficultyLevel.EXPERT.value == "expert"
 
-    def test_difficulty_level_ordering(self):
+    def test_difficulty_level_ordering(self) -> None:
         """Test that difficulty levels can be compared for ordering."""
         levels = [
             DifficultyLevel.BEGINNER,
@@ -101,14 +102,14 @@ class TestDifficultyLevel:
 class TestConfidenceLevel:
     """Test AgentConfidenceLevel enum functionality."""
 
-    def test_confidence_level_values(self):
+    def test_confidence_level_values(self) -> None:
         """Test that confidence levels are properly defined."""
         assert AgentConfidenceLevel.LOW.value == "low"
         assert AgentConfidenceLevel.MODERATE.value == "moderate"
         assert AgentConfidenceLevel.HIGH.value == "high"
         assert AgentConfidenceLevel.VERY_HIGH.value == "very_high"
 
-    def test_confidence_level_coverage(self):
+    def test_confidence_level_coverage(self) -> None:
         """Test that confidence levels cover expected ranges."""
         # These are semantic ranges based on the model_post_init logic
         low_range = (0.0, 0.4)  # LOW
@@ -123,7 +124,7 @@ class TestConfidenceLevel:
 class TestAgentExecutionResult:
     """Test AgentExecutionResult model functionality."""
 
-    def test_minimal_agent_result_creation(self):
+    def test_minimal_agent_result_creation(self) -> None:
         """Test creating agent result with minimal required fields."""
         result = AgentExecutionResult(status=AgentStatus.REFINED)
 
@@ -135,7 +136,7 @@ class TestAgentExecutionResult:
         assert result.error_message is None
         assert result.metadata == {}
 
-    def test_complete_agent_result_creation(self):
+    def test_complete_agent_result_creation(self) -> None:
         """Test creating agent result with all fields."""
         metadata = {"input_tokens": 100, "output_tokens": 200}
 
@@ -156,7 +157,7 @@ class TestAgentExecutionResult:
         assert result.error_message is None
         assert result.metadata == metadata
 
-    def test_confidence_level_auto_calculation(self):
+    def test_confidence_level_auto_calculation(self) -> None:
         """Test automatic confidence level calculation."""
         # Test LOW (0.0 - 0.4)
         result_low = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.3)
@@ -178,7 +179,7 @@ class TestAgentExecutionResult:
         )
         assert result_very_high.confidence_level == AgentConfidenceLevel.VERY_HIGH
 
-    def test_confidence_level_boundary_values(self):
+    def test_confidence_level_boundary_values(self) -> None:
         """Test boundary values for confidence level calculation."""
         # Test exact boundary values
         result_40 = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.4)
@@ -190,7 +191,7 @@ class TestAgentExecutionResult:
         result_90 = AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.9)
         assert result_90.confidence_level == AgentConfidenceLevel.VERY_HIGH
 
-    def test_manual_confidence_level_override(self):
+    def test_manual_confidence_level_override(self) -> None:
         """Test manually setting confidence level overrides auto-calculation."""
         result = AgentExecutionResult(
             status=AgentStatus.REFINED,
@@ -199,7 +200,7 @@ class TestAgentExecutionResult:
         )
         assert result.confidence_level == AgentConfidenceLevel.HIGH
 
-    def test_confidence_validation(self):
+    def test_confidence_validation(self) -> None:
         """Test confidence value validation."""
         # Valid confidence values
         AgentExecutionResult(status=AgentStatus.REFINED, confidence=0.0)
@@ -213,7 +214,7 @@ class TestAgentExecutionResult:
         with pytest.raises(ValueError):
             AgentExecutionResult(status=AgentStatus.REFINED, confidence=1.1)
 
-    def test_agent_result_with_error(self):
+    def test_agent_result_with_error(self) -> None:
         """Test agent result with error message."""
         result = AgentExecutionResult(
             status=AgentStatus.FAILED,
@@ -230,7 +231,7 @@ class TestAgentExecutionResult:
 class TestEnhancedFrontmatter:
     """Test EnhancedFrontmatter model functionality."""
 
-    def test_minimal_frontmatter_creation(self):
+    def test_minimal_frontmatter_creation(self) -> None:
         """Test creating frontmatter with only required fields."""
         frontmatter = EnhancedFrontmatter(
             title="Test Query",
@@ -248,7 +249,7 @@ class TestEnhancedFrontmatter:
         assert frontmatter.topics == []
         assert frontmatter.domain is None
 
-    def test_complete_frontmatter_creation(self):
+    def test_complete_frontmatter_creation(self) -> None:
         """Test creating frontmatter with all fields."""
         agent_result = AgentExecutionResult(
             status=AgentStatus.REFINED,
@@ -293,7 +294,7 @@ class TestEnhancedFrontmatter:
         assert frontmatter.completeness == 0.85
         assert frontmatter.agents["refiner"] == agent_result
 
-    def test_uuid_generation(self):
+    def test_uuid_generation(self) -> None:
         """Test that UUID is automatically generated and unique."""
         frontmatter1 = EnhancedFrontmatter(
             title="Test 1",
@@ -311,7 +312,7 @@ class TestEnhancedFrontmatter:
         assert isinstance(uuid.UUID(frontmatter1.uuid), uuid.UUID)
         assert isinstance(uuid.UUID(frontmatter2.uuid), uuid.UUID)
 
-    def test_add_agent_result(self):
+    def test_add_agent_result(self) -> None:
         """Test adding agent execution results."""
         frontmatter = EnhancedFrontmatter(
             title="Test",
@@ -329,7 +330,7 @@ class TestEnhancedFrontmatter:
         assert frontmatter.agents["refiner"] == result1
         assert frontmatter.agents["critic"] == result2
 
-    def test_add_agent_result_override(self):
+    def test_add_agent_result_override(self) -> None:
         """Test that adding agent result overwrites existing result."""
         frontmatter = EnhancedFrontmatter(
             title="Test",
@@ -347,7 +348,7 @@ class TestEnhancedFrontmatter:
         assert frontmatter.agents["refiner"] == result2
         assert frontmatter.agents["refiner"].status == AgentStatus.PASSTHROUGH
 
-    def test_add_topic(self):
+    def test_add_topic(self) -> None:
         """Test adding topics with deduplication."""
         frontmatter = EnhancedFrontmatter(
             title="Test",
@@ -363,7 +364,7 @@ class TestEnhancedFrontmatter:
         assert "machine_learning" in frontmatter.topics
         assert "neural_networks" in frontmatter.topics
 
-    def test_add_related_query(self):
+    def test_add_related_query(self) -> None:
         """Test adding related queries with deduplication."""
         frontmatter = EnhancedFrontmatter(
             title="Test",
@@ -379,7 +380,7 @@ class TestEnhancedFrontmatter:
         assert "What is AI?" in frontmatter.related_queries
         assert "How does ML work?" in frontmatter.related_queries
 
-    def test_update_last_modified(self):
+    def test_update_last_modified(self) -> None:
         """Test updating last modified timestamp."""
         frontmatter = EnhancedFrontmatter(
             title="Test",
@@ -394,7 +395,7 @@ class TestEnhancedFrontmatter:
         # Parse timestamp to verify format
         datetime.fromisoformat(frontmatter.last_updated)
 
-    def test_calculate_reading_time(self):
+    def test_calculate_reading_time(self) -> None:
         """Test reading time calculation."""
         frontmatter = EnhancedFrontmatter(
             title="Test",
@@ -409,7 +410,7 @@ class TestEnhancedFrontmatter:
         assert frontmatter.word_count == 450
         assert frontmatter.reading_time_minutes == 2  # 450 / 225 = 2
 
-    def test_calculate_reading_time_minimum(self):
+    def test_calculate_reading_time_minimum(self) -> None:
         """Test reading time calculation minimum value."""
         frontmatter = EnhancedFrontmatter(
             title="Test",
@@ -424,7 +425,7 @@ class TestEnhancedFrontmatter:
         assert frontmatter.word_count == 5
         assert frontmatter.reading_time_minutes == 1  # Minimum 1 minute
 
-    def test_quality_score_validation(self):
+    def test_quality_score_validation(self) -> None:
         """Test quality score field validation."""
         # Valid quality scores
         EnhancedFrontmatter(
@@ -458,7 +459,7 @@ class TestEnhancedFrontmatter:
                 quality_score=1.1,
             )
 
-    def test_completeness_validation(self):
+    def test_completeness_validation(self) -> None:
         """Test completeness field validation."""
         # Valid completeness scores
         EnhancedFrontmatter(
@@ -481,7 +482,7 @@ class TestEnhancedFrontmatter:
 class TestBasicFrontmatterFactory:
     """Test create_basic_frontmatter factory function."""
 
-    def test_create_basic_frontmatter_minimal(self):
+    def test_create_basic_frontmatter_minimal(self) -> None:
         """Test creating basic frontmatter with minimal inputs."""
         agent_outputs = {
             "refiner": "Refined query content",
@@ -506,7 +507,7 @@ class TestBasicFrontmatterFactory:
             assert result.confidence == 0.8
             assert result.changes_made is True
 
-    def test_create_basic_frontmatter_with_timestamp(self):
+    def test_create_basic_frontmatter_with_timestamp(self) -> None:
         """Test creating basic frontmatter with custom timestamp."""
         agent_outputs = {"refiner": "Content"}
         timestamp = "2024-01-01T12:00:00"
@@ -520,7 +521,7 @@ class TestBasicFrontmatterFactory:
         assert frontmatter.date == timestamp
         assert "2024-01-01T12-00-00" in frontmatter.filename
 
-    def test_create_basic_frontmatter_with_filename(self):
+    def test_create_basic_frontmatter_with_filename(self) -> None:
         """Test creating basic frontmatter with custom filename."""
         agent_outputs = {"refiner": "Content"}
         filename = "custom-file.md"
@@ -533,7 +534,7 @@ class TestBasicFrontmatterFactory:
 
         assert frontmatter.filename == filename
 
-    def test_create_basic_frontmatter_empty_agents(self):
+    def test_create_basic_frontmatter_empty_agents(self) -> None:
         """Test creating basic frontmatter with no agent outputs."""
         frontmatter = create_basic_frontmatter(
             title="Test Query",
@@ -547,7 +548,7 @@ class TestBasicFrontmatterFactory:
 class TestYamlSerialization:
     """Test frontmatter_to_yaml_dict conversion function."""
 
-    def test_frontmatter_to_yaml_basic(self):
+    def test_frontmatter_to_yaml_basic(self) -> None:
         """Test basic YAML serialization."""
         frontmatter = EnhancedFrontmatter(
             title="Test Query",
@@ -566,7 +567,7 @@ class TestYamlSerialization:
         assert yaml_dict["domain"] == "technology"
         assert yaml_dict["source"] == "cli"
 
-    def test_frontmatter_to_yaml_with_agents(self):
+    def test_frontmatter_to_yaml_with_agents(self) -> None:
         """Test YAML serialization with agent results."""
         agent_result = AgentExecutionResult(
             status=AgentStatus.REFINED,
@@ -594,7 +595,7 @@ class TestYamlSerialization:
         assert refiner_data["changes_made"] is True
         assert refiner_data["metadata"] == {"tokens": 100}
 
-    def test_frontmatter_to_yaml_enum_conversion(self):
+    def test_frontmatter_to_yaml_enum_conversion(self) -> None:
         """Test that enums are converted to string values."""
         frontmatter = EnhancedFrontmatter(
             title="Test Query",
@@ -607,7 +608,7 @@ class TestYamlSerialization:
 
         assert yaml_dict["difficulty"] == "advanced"
 
-    def test_frontmatter_to_yaml_none_removal(self):
+    def test_frontmatter_to_yaml_none_removal(self) -> None:
         """Test that None values are removed from YAML output."""
         frontmatter = EnhancedFrontmatter(
             title="Test Query",
@@ -623,7 +624,7 @@ class TestYamlSerialization:
         assert "quality_score" not in yaml_dict
         assert "title" in yaml_dict  # Non-None values should remain
 
-    def test_frontmatter_to_yaml_empty_collections_removal(self):
+    def test_frontmatter_to_yaml_empty_collections_removal(self) -> None:
         """Test that empty lists and dicts are removed from YAML output."""
         frontmatter = EnhancedFrontmatter(
             title="Test Query",
@@ -638,7 +639,7 @@ class TestYamlSerialization:
         assert "topics" not in yaml_dict
         assert "agents" not in yaml_dict
 
-    def test_frontmatter_to_yaml_agent_none_removal(self):
+    def test_frontmatter_to_yaml_agent_none_removal(self) -> None:
         """Test that None values are removed from agent results."""
         agent_result = AgentExecutionResult(
             status=AgentStatus.REFINED,
@@ -666,7 +667,7 @@ class TestYamlSerialization:
 class TestTopicTaxonomy:
     """Test TopicTaxonomy utility class."""
 
-    def test_domain_structure(self):
+    def test_domain_structure(self) -> None:
         """Test that domain structure is properly defined."""
         assert "technology" in TopicTaxonomy.DOMAINS
         assert "psychology" in TopicTaxonomy.DOMAINS
@@ -680,44 +681,44 @@ class TestTopicTaxonomy:
         assert "ai" in TopicTaxonomy.DOMAINS["technology"]
         assert "programming" in TopicTaxonomy.DOMAINS["technology"]
 
-    def test_suggest_domain_single_match(self):
+    def test_suggest_domain_single_match(self) -> None:
         """Test domain suggestion with single matching topic."""
         topics = ["machine_learning"]
         suggested = TopicTaxonomy.suggest_domain(topics)
         assert suggested == "technology"
 
-    def test_suggest_domain_multiple_matches_same_domain(self):
+    def test_suggest_domain_multiple_matches_same_domain(self) -> None:
         """Test domain suggestion with multiple topics from same domain."""
         topics = ["ai", "programming", "software"]
         suggested = TopicTaxonomy.suggest_domain(topics)
         assert suggested == "technology"
 
-    def test_suggest_domain_multiple_matches_different_domains(self):
+    def test_suggest_domain_multiple_matches_different_domains(self) -> None:
         """Test domain suggestion with topics from different domains."""
         topics = ["ai", "ethics"]  # technology + philosophy
         suggested = TopicTaxonomy.suggest_domain(topics)
         # Should return one of the domains (implementation returns highest scoring)
         assert suggested in ["technology", "philosophy"]
 
-    def test_suggest_domain_no_matches(self):
+    def test_suggest_domain_no_matches(self) -> None:
         """Test domain suggestion with no matching topics."""
         topics = ["unknown_topic", "random_stuff"]
         suggested = TopicTaxonomy.suggest_domain(topics)
         assert suggested is None
 
-    def test_suggest_domain_empty_topics(self):
+    def test_suggest_domain_empty_topics(self) -> None:
         """Test domain suggestion with empty topics list."""
         topics = []
         suggested = TopicTaxonomy.suggest_domain(topics)
         assert suggested is None
 
-    def test_suggest_domain_case_insensitive(self):
+    def test_suggest_domain_case_insensitive(self) -> None:
         """Test that domain suggestion is case insensitive."""
         topics = ["AI", "Machine_Learning", "PROGRAMMING"]
         suggested = TopicTaxonomy.suggest_domain(topics)
         assert suggested == "technology"
 
-    def test_get_related_topics_found(self):
+    def test_get_related_topics_found(self) -> None:
         """Test getting related topics for existing topic."""
         related = TopicTaxonomy.get_related_topics("ai")
         assert isinstance(related, list)
@@ -725,12 +726,12 @@ class TestTopicTaxonomy:
         assert "machine_learning" in related
         assert "programming" in related
 
-    def test_get_related_topics_not_found(self):
+    def test_get_related_topics_not_found(self) -> None:
         """Test getting related topics for non-existing topic."""
         related = TopicTaxonomy.get_related_topics("unknown_topic")
         assert related == []
 
-    def test_get_related_topics_case_insensitive(self):
+    def test_get_related_topics_case_insensitive(self) -> None:
         """Test that get_related_topics is case insensitive."""
         related_lower = TopicTaxonomy.get_related_topics("ai")
         related_upper = TopicTaxonomy.get_related_topics("AI")
@@ -738,7 +739,7 @@ class TestTopicTaxonomy:
 
         assert related_lower == related_upper == related_mixed
 
-    def test_get_related_topics_different_domains(self):
+    def test_get_related_topics_different_domains(self) -> None:
         """Test getting related topics from different domains."""
         tech_related = TopicTaxonomy.get_related_topics("ai")
         psych_related = TopicTaxonomy.get_related_topics("behavior")
@@ -746,12 +747,12 @@ class TestTopicTaxonomy:
         # Should not overlap between domains
         assert not set(tech_related).intersection(set(psych_related))
 
-    def test_society_domain_exists(self):
+    def test_society_domain_exists(self) -> None:
         """Test that society domain exists in TopicTaxonomy."""
         assert "society" in TopicTaxonomy.DOMAINS
         assert len(TopicTaxonomy.DOMAINS["society"]) > 0
 
-    def test_society_domain_democracy_terms(self):
+    def test_society_domain_democracy_terms(self) -> None:
         """Test that society domain includes democracy-related terms."""
         society_topics = TopicTaxonomy.DOMAINS["society"]
 
@@ -764,14 +765,14 @@ class TestTopicTaxonomy:
         assert "citizenship" in society_topics
         assert "political" in society_topics
 
-    def test_society_domain_suggestion_with_democracy(self):
+    def test_society_domain_suggestion_with_democracy(self) -> None:
         """Test that democracy topics suggest society domain."""
         democracy_topics = ["democracy", "politics", "voting"]
         suggested = TopicTaxonomy.suggest_domain(democracy_topics)
 
         assert suggested == "society"
 
-    def test_society_domain_suggestion_mixed_topics(self):
+    def test_society_domain_suggestion_mixed_topics(self) -> None:
         """Test domain suggestion with mixed society and other topics."""
         mixed_topics = ["democracy", "ai", "politics"]
         suggested = TopicTaxonomy.suggest_domain(mixed_topics)
@@ -780,7 +781,7 @@ class TestTopicTaxonomy:
         # Both society and technology have 1 match each, so it depends on implementation
         assert suggested in ["society", "technology"]
 
-    def test_society_domain_related_topics(self):
+    def test_society_domain_related_topics(self) -> None:
         """Test getting related topics for society domain terms."""
         politics_related = TopicTaxonomy.get_related_topics("politics")
 
@@ -792,7 +793,7 @@ class TestTopicTaxonomy:
         # Should not include the original topic
         assert "politics" not in politics_related
 
-    def test_society_domain_case_insensitive(self):
+    def test_society_domain_case_insensitive(self) -> None:
         """Test that society domain matching is case insensitive."""
         topics_lower = ["democracy", "politics"]
         topics_upper = ["DEMOCRACY", "POLITICS"]
@@ -808,7 +809,7 @@ class TestTopicTaxonomy:
 class TestFrontmatterIntegration:
     """Test integration scenarios with frontmatter components."""
 
-    def test_complete_workflow(self):
+    def test_complete_workflow(self) -> None:
         """Test complete frontmatter creation and processing workflow."""
         # Create agent results
         refiner_result = AgentExecutionResult(
@@ -894,7 +895,7 @@ class TestFrontmatterIntegration:
         assert yaml_dict["agents"]["historian"]["metadata"]["matches_found"] == 5
         assert yaml_dict["agents"]["synthesis"]["metadata"]["conflicts_resolved"] == 1
 
-    def test_error_handling_workflow(self):
+    def test_error_handling_workflow(self) -> None:
         """Test frontmatter handling with agent errors."""
         # Create failed agent result
         failed_result = AgentExecutionResult(
@@ -937,7 +938,7 @@ class TestFrontmatterIntegration:
         assert yaml_dict["quality_score"] == 0.6
         assert yaml_dict["completeness"] == 0.4
 
-    def test_migration_compatibility(self):
+    def test_migration_compatibility(self) -> None:
         """Test backward compatibility with legacy frontmatter."""
         # Simulate creating frontmatter from legacy agent outputs
         legacy_outputs = {

@@ -6,10 +6,15 @@ ensuring all features are preserved and round-trip integrity is maintained.
 """
 
 import pytest
+from typing import Any
 import time
 from unittest.mock import patch
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.orchestration.state_bridge import (
     AgentContextStateBridge,
     StateConversionError,
@@ -19,10 +24,10 @@ from cognivault.orchestration.state_bridge import (
 class TestAgentContextStateBridge:
     """Test suite for AgentContextStateBridge."""
 
-    def test_to_langgraph_state_basic(self):
+    def test_to_langgraph_state_basic(self) -> None:
         """Test basic conversion from AgentContext to LangGraph state."""
         # Arrange
-        context = AgentContext(query="Test query", context_id="test-123")
+        context = AgentContextFactory.basic(query="Test query", context_id="test-123")
         context.add_agent_output("refiner", "Refined output")
         context.successful_agents.add("refiner")
 
@@ -38,10 +43,12 @@ class TestAgentContextStateBridge:
         assert "_cognivault_metadata" in state
         assert state["_cognivault_metadata"]["bridge_version"] == "1.0.0"
 
-    def test_to_langgraph_state_comprehensive(self):
+    def test_to_langgraph_state_comprehensive(self) -> None:
         """Test comprehensive conversion with all AgentContext features."""
         # Arrange
-        context = AgentContext(query="Complex query", context_id="complex-456")
+        context = AgentContextFactory.basic(
+            query="Complex query", context_id="complex-456"
+        )
 
         # Add agent outputs
         context.add_agent_output("refiner", "Refined output")
@@ -89,7 +96,7 @@ class TestAgentContextStateBridge:
         assert state["_conditional_routing"]["refiner_decision"] == "success"
         assert state["_path_metadata"]["execution_path"] == "refiner->critic"
 
-    def test_from_langgraph_state_basic(self):
+    def test_from_langgraph_state_basic(self) -> None:
         """Test basic conversion from LangGraph state to AgentContext."""
         # Arrange
         state = {
@@ -125,7 +132,7 @@ class TestAgentContextStateBridge:
         assert context.get_output("refiner") == "Refined output"
         assert context.execution_state["mode"] == "test"
 
-    def test_from_langgraph_state_comprehensive(self):
+    def test_from_langgraph_state_comprehensive(self) -> None:
         """Test comprehensive conversion from LangGraph state to AgentContext."""
         # Arrange
         state = {
@@ -200,10 +207,12 @@ class TestAgentContextStateBridge:
         assert context.path_metadata["execution_path"] == "refiner->critic->synthesis"
         assert context.path_metadata["total_time"] == 5.5
 
-    def test_validate_round_trip_success(self):
+    def test_validate_round_trip_success(self) -> None:
         """Test successful round trip validation."""
         # Arrange
-        context = AgentContext(query="Round trip test", context_id="roundtrip-123")
+        context = AgentContextFactory.basic(
+            query="Round trip test", context_id="roundtrip-123"
+        )
         context.add_agent_output("refiner", "Refined output")
         context.add_agent_output("critic", "Critical analysis")
         context.successful_agents.add("refiner")
@@ -221,16 +230,16 @@ class TestAgentContextStateBridge:
         # Assert
         assert result is True
 
-    def test_validate_round_trip_failure(self):
+    def test_validate_round_trip_failure(self) -> None:
         """Test round trip validation with data corruption."""
         # Arrange
-        context = AgentContext(query="Test query", context_id="fail-123")
+        context = AgentContextFactory.basic(query="Test query", context_id="fail-123")
         context.add_agent_output("refiner", "Original output")
 
         # Act with mocked conversion that corrupts data
         with patch.object(AgentContextStateBridge, "from_langgraph_state") as mock_from:
             # Mock returns a different context
-            corrupted_context = AgentContext(
+            corrupted_context = AgentContextFactory.basic(
                 query="Different query", context_id="different-123"
             )
             mock_from.return_value = corrupted_context
@@ -240,10 +249,10 @@ class TestAgentContextStateBridge:
         # Assert
         assert result is False
 
-    def test_state_conversion_error_handling(self):
+    def test_state_conversion_error_handling(self) -> None:
         """Test error handling during state conversion."""
         # Arrange - create a context that will cause serialization issues
-        context = AgentContext(query="Test query", context_id="error-123")
+        context = AgentContextFactory.basic(query="Test query", context_id="error-123")
 
         # Act with mocked serialization failure
         with patch("cognivault.orchestration.state_bridge.dict") as mock_dict:
@@ -257,7 +266,7 @@ class TestAgentContextStateBridge:
             exc_info.value
         )
 
-    def test_invalid_state_dict_validation(self):
+    def test_invalid_state_dict_validation(self) -> None:
         """Test validation of invalid state dictionaries."""
         # Arrange - missing required keys
         invalid_state = {
@@ -272,7 +281,7 @@ class TestAgentContextStateBridge:
 
         assert "Missing required keys in state dict" in str(exc_info.value)
 
-    def test_invalid_metadata_validation(self):
+    def test_invalid_metadata_validation(self) -> None:
         """Test validation of invalid metadata in state dict."""
         # Arrange - invalid metadata format
         state = {
@@ -298,7 +307,7 @@ class TestAgentContextStateBridge:
 
         assert "Invalid metadata format in state dict" in str(exc_info.value)
 
-    def test_missing_bridge_version_validation(self):
+    def test_missing_bridge_version_validation(self) -> None:
         """Test validation when bridge version is missing."""
         # Arrange
         state = {
@@ -324,10 +333,10 @@ class TestAgentContextStateBridge:
 
         assert "Missing bridge version in metadata" in str(exc_info.value)
 
-    def test_serialize_snapshots_with_data(self):
+    def test_serialize_snapshots_with_data(self) -> None:
         """Test snapshot serialization with actual data."""
         # Arrange
-        context = AgentContext(query="Test query", context_id="snap-123")
+        context = AgentContextFactory.basic(query="Test query", context_id="snap-123")
 
         # Mock snapshots if the feature exists
         if hasattr(context, "_snapshots"):
@@ -354,10 +363,12 @@ class TestAgentContextStateBridge:
             # If snapshots feature doesn't exist, should return empty dict
             assert snapshots == {}
 
-    def test_serialize_snapshots_error_handling(self):
+    def test_serialize_snapshots_error_handling(self) -> None:
         """Test snapshot serialization error handling."""
         # Arrange
-        context = AgentContext(query="Test query", context_id="snap-error-123")
+        context = AgentContextFactory.basic(
+            query="Test query", context_id="snap-error-123"
+        )
 
         # Act with mocked error
         with patch("cognivault.orchestration.state_bridge.hasattr") as mock_hasattr:
@@ -368,7 +379,7 @@ class TestAgentContextStateBridge:
         # Assert - should return empty dict on error
         assert snapshots == {}
 
-    def test_get_state_summary(self):
+    def test_get_state_summary(self) -> None:
         """Test state summary generation."""
         # Arrange
         state = {
@@ -400,19 +411,19 @@ class TestAgentContextStateBridge:
         assert summary["snapshots"] == 2
         assert summary["metadata"]["bridge_version"] == "1.0.0"
 
-    def test_get_state_summary_error_handling(self):
+    def test_get_state_summary_error_handling(self) -> None:
         """Test state summary error handling."""
         # Arrange - invalid state
         invalid_state = None
 
         # Act
-        summary = AgentContextStateBridge.get_state_summary(invalid_state)
+        summary = AgentContextStateBridge.get_state_summary(invalid_state)  # type: ignore[arg-type]
 
         # Assert
         assert "error" in summary
         assert isinstance(summary["error"], str)
 
-    def test_reserved_keys_constant(self):
+    def test_reserved_keys_constant(self) -> None:
         """Test that reserved keys are properly defined."""
         # Assert
         assert isinstance(AgentContextStateBridge.RESERVED_KEYS, set)
@@ -423,10 +434,10 @@ class TestAgentContextStateBridge:
             len(AgentContextStateBridge.RESERVED_KEYS) > 10
         )  # Should have many reserved keys
 
-    def test_edge_case_minimal_context(self):
+    def test_edge_case_minimal_context(self) -> None:
         """Test conversion with minimal but valid context."""
         # Arrange - use minimal valid query (empty queries are now rejected by validation)
-        context = AgentContext(query="?", context_id="minimal-123")
+        context = AgentContextFactory.basic(query="?", context_id="minimal-123")
 
         # Act
         state = AgentContextStateBridge.to_langgraph_state(context)
@@ -439,7 +450,7 @@ class TestAgentContextStateBridge:
         assert len(restored_context.successful_agents) == 0
         assert len(restored_context.failed_agents) == 0
 
-    def test_empty_query_validation(self):
+    def test_empty_query_validation(self) -> None:
         """Test that AgentContext properly validates empty queries."""
         from pydantic import ValidationError
 
@@ -451,10 +462,12 @@ class TestAgentContextStateBridge:
         with pytest.raises(ValidationError, match="Query cannot be empty"):
             AgentContext(query="   ")
 
-    def test_edge_case_large_context(self):
+    def test_edge_case_large_context(self) -> None:
         """Test conversion with large context data."""
         # Arrange
-        context = AgentContext(query="Large test query", context_id="large-123")
+        context = AgentContextFactory.basic(
+            query="Large test query", context_id="large-123"
+        )
 
         # Add many agent outputs
         for i in range(100):
@@ -471,21 +484,23 @@ class TestAgentContextStateBridge:
         assert restored_context.get_output("agent_0") == "Large output 0" * 100
         assert restored_context.get_output("agent_99") == "Large output 99" * 100
 
-    def test_state_bridge_thread_safety(self):
+    def test_state_bridge_thread_safety(self) -> None:
         """Test that state bridge operations are thread-safe."""
         import threading
 
         # Arrange
         contexts = []
         for i in range(10):
-            context = AgentContext(query=f"Query {i}", context_id=f"thread-{i}")
+            context = AgentContextFactory.basic(
+                query=f"Query {i}", context_id=f"thread-{i}"
+            )
             context.add_agent_output("refiner", f"Output {i}")
             contexts.append(context)
 
         results = []
         errors = []
 
-        def convert_context(ctx):
+        def convert_context(ctx: AgentContext) -> None:
             try:
                 state = AgentContextStateBridge.to_langgraph_state(ctx)
                 restored = AgentContextStateBridge.from_langgraph_state(state)

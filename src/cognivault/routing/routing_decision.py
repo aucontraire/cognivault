@@ -266,7 +266,7 @@ class RoutingDecision(BaseModel):
         use_enum_values=False,  # Keep enum objects, not string values
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Post-initialization to set derived fields."""
         # Calculate confidence level if not explicitly set
         if not self.confidence_level:

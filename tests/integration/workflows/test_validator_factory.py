@@ -1,3 +1,5 @@
+from typing import Any
+
 #!/usr/bin/env python3
 """
 Manual test script for ValidatorNode factory method functionality.
@@ -18,7 +20,7 @@ from cognivault.workflows.definition import NodeConfiguration
 from cognivault.agents.metadata import AgentMetadata
 
 
-def test_validator_factory_configurations():
+def test_validator_factory_configurations() -> bool:
     """Test ValidatorNode factory with different configuration scenarios."""
 
     print("🧪 Testing ValidatorNode Factory Method Configurations")
@@ -270,7 +272,7 @@ def test_validator_factory_configurations():
         return False
 
 
-def test_validator_configuration_validation():
+def test_validator_configuration_validation() -> bool:
     """Test configuration parameter validation for ValidatorNode."""
 
     print("\n🔍 Testing ValidatorNode Configuration Validation")

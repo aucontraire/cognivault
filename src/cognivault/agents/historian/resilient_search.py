@@ -71,7 +71,7 @@ class BatchResult:
 class TitleGenerator:
     """Intelligent title generation with fallback strategies."""
 
-    def __init__(self, llm_client: Optional[LLMInterface] = None):
+    def __init__(self, llm_client: Optional[LLMInterface] = None) -> None:
         self.llm = llm_client
         self.max_title_length = 450  # Leave margin under 500 char limit
 
@@ -219,7 +219,7 @@ Title:"""
 class ResilientSearchProcessor:
     """Fault-tolerant search processing with comprehensive error recovery."""
 
-    def __init__(self, llm_client: Optional[LLMInterface] = None):
+    def __init__(self, llm_client: Optional[LLMInterface] = None) -> None:
         self.title_generator = TitleGenerator(llm_client)
         self.parser = NotesDirectoryParser()
 
