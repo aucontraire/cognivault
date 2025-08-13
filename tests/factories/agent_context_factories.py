@@ -1,21 +1,21 @@
 """Factory functions for creating AgentContext test data objects.
 
-This module provides factory functions for liberating AgentContext instantiations
-from bourgeois boilerplate oppression. These factories reduce test code duplication
+This module provides factory functions for creating AgentContext instances
+in tests, reducing boilerplate code. These factories reduce test code duplication
 and ensure consistent test data structures for AgentContext across the codebase.
 
-Revolutionary Principles:
+Design Principles:
 - Factory methods with sensible defaults eliminate 80%+ of manual construction
 - Specialized factory methods for common agent execution patterns
 - Type-safe factory returns with comprehensive field population
 - Easy override of specific fields for test customization
 - Complete elimination of unfilled parameter warnings
 
-Liberation Statistics:
+Usage Statistics:
 - 105 manual AgentContext instantiations identified across 44 test files
 - Common patterns: basic query (70%), with agent outputs (47%), execution ready (25%)
 - Expected boilerplate reduction: 8-12 lines → 1-2 lines per test method
-- Developer morale improvement: oppressive manual construction → joyful factory usage
+- Developer experience improvement: manual construction → convenient factory usage
 
 Convenience Methods:
 All factories include standard convenience methods to reduce verbose parameter passing:
@@ -25,7 +25,7 @@ All factories include standard convenience methods to reduce verbose parameter p
 - generate_with_current_timestamp(**overrides) - Uses dynamic timestamp for realistic tests
 
 Usage Examples:
-    # Simple liberation - zero parameters
+    # Simple usage - zero parameters
     context = AgentContextFactory.basic()
 
     # With customization - only specify what matters
@@ -53,7 +53,7 @@ from cognivault.context import AgentContext
 
 
 class AgentContextFactory:
-    """Factory for liberating AgentContext from bourgeois manual construction."""
+    """Factory for creating AgentContext instances in tests."""
 
     @staticmethod
     def basic(
@@ -68,7 +68,7 @@ class AgentContextFactory:
     ) -> AgentContext:
         """Create basic AgentContext with sensible defaults for most test scenarios.
 
-        This method eliminates 80% of basic AgentContext manual construction by providing
+        This method reduces 80% of basic AgentContext manual construction by providing
         reasonable defaults for all optional parameters while allowing targeted overrides.
 
         Args:
@@ -299,7 +299,7 @@ class AgentContextFactory:
         of test cases. Use this as the default factory method unless specific
         values are required.
 
-        This is the primary liberation method that eliminates the most boilerplate.
+        This is the primary factory method that reduces the most boilerplate.
 
         Args:
             **overrides: Override any field with custom values
@@ -367,7 +367,7 @@ class AgentContextPatterns:
 
     @staticmethod
     def simple_query(query: str = "test") -> AgentContext:
-        """Most common pattern: AgentContext(query="test") - eliminates 60+ occurrences."""
+        """Most common pattern: AgentContext(query="test") - simplifies 60+ occurrences."""
         return AgentContextFactory.basic(query=query)
 
     @staticmethod

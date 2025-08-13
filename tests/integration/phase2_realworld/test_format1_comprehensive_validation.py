@@ -173,13 +173,13 @@ flow:
     def test_config_validation_and_error_handling(self) -> None:
         """Test that invalid configurations are properly rejected."""
 
-        # 🚩 LIBERATED: Test invalid RefinerConfig using factory
+        # # Test invalid RefinerConfig using factory
         with pytest.raises(ValueError):
             RefinerConfigFactory.generate_valid_data(
                 refinement_level="invalid_level"  # Should fail validation
             )
 
-        # 🚩 LIBERATED: Test invalid CriticConfig using factory
+        # # Test invalid CriticConfig using factory
         with pytest.raises(ValueError):
             CriticConfigFactory.generate_valid_data(
                 analysis_depth="invalid_depth"  # Should fail validation

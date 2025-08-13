@@ -176,29 +176,28 @@ async def emit_workflow_started(
     """Emit workflow started event."""
     emitter = get_global_event_emitter()
 
-    # Create override dict without conflicting keys that factory already sets
-    overrides: Dict[str, Any] = {
-        "event_type": EventType.WORKFLOW_STARTED,
-        "event_category": EventCategory.ORCHESTRATION,
-        "timestamp": datetime.now(timezone.utc),
-        "correlation_id": correlation_id or get_correlation_id(),
-        "metadata": metadata or {},
-    }
-
-    # Only add execution_config if it's different from factory default
-    if execution_config:
-        overrides["execution_config"] = execution_config
-
     event = WorkflowStartedEvent(
+        event_type=EventType.WORKFLOW_STARTED,
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         query=query,
         agents_requested=agents or [],
-        event_type=EventType.WORKFLOW_STARTED,
-        event_category=EventCategory.ORCHESTRATION,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         execution_config=execution_config or {},
+        data={},
         metadata=metadata or {},
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
+        orchestrator_type="langgraph",
     )
 
     await emitter.emit(event)
@@ -264,31 +263,26 @@ async def emit_agent_execution_started(
     """Emit agent execution started event."""
     emitter = get_global_event_emitter()
 
-    # Create override dict without conflicting keys that factory already sets
-    overrides: Dict[str, Any] = {
-        "event_type": EventType.AGENT_EXECUTION_STARTED,
-        "event_category": event_category,
-        "timestamp": datetime.now(timezone.utc),
-        "correlation_id": correlation_id or get_correlation_id(),
-        "metadata": metadata or {},
-    }
-
-    # Only add optional parameters if provided
-    if input_context:
-        overrides["input_context"] = input_context
-    if agent_metadata:
-        overrides["agent_metadata"] = agent_metadata
-
     event = AgentExecutionStartedEvent(
-        workflow_id=workflow_id,
-        agent_name=agent_name,
         event_type=EventType.AGENT_EXECUTION_STARTED,
         event_category=event_category,
+        workflow_id=workflow_id,
+        agent_name=agent_name,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
-        input_context=input_context,
+        parent_span_id=None,
         agent_metadata=agent_metadata,
+        task_classification=None,
+        capabilities_used=[],
+        input_context=input_context,
+        data={},
         metadata=metadata or {},
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -314,41 +308,27 @@ async def emit_agent_execution_completed(
     if error_message and not error_type:
         error_type = "AgentExecutionError"
 
-    # Create override dict without conflicting keys that factory already sets
-    overrides: Dict[str, Any] = {
-        "event_type": EventType.AGENT_EXECUTION_COMPLETED,
-        "event_category": event_category,
-        "timestamp": datetime.now(timezone.utc),
-        "correlation_id": correlation_id or get_correlation_id(),
-        "metadata": metadata or {},
-    }
-
-    # Only add optional parameters if provided
-    if output_context:
-        overrides["output_context"] = output_context
-    if agent_metadata:
-        overrides["agent_metadata"] = agent_metadata
-    if execution_time_ms:
-        overrides["execution_time_ms"] = execution_time_ms
-    if error_message:
-        overrides["error_message"] = error_message
-    if error_type:
-        overrides["error_type"] = error_type
-
     event = AgentExecutionCompletedEvent(
+        event_type=EventType.AGENT_EXECUTION_COMPLETED,
+        event_category=event_category,
         workflow_id=workflow_id,
         agent_name=agent_name,
         success=success,
-        event_type=EventType.AGENT_EXECUTION_COMPLETED,
-        event_category=event_category,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
-        output_context=output_context,
+        parent_span_id=None,
         agent_metadata=agent_metadata,
+        task_classification=None,
+        capabilities_used=[],
+        output_context=output_context,
+        data={},
+        metadata=metadata or {},
         execution_time_ms=execution_time_ms,
+        memory_usage_mb=None,
         error_message=error_message,
         error_type=error_type,
-        metadata=metadata or {},
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -366,30 +346,28 @@ async def emit_routing_decision(
     """Emit routing decision event."""
     emitter = get_global_event_emitter()
 
-    # Create override dict without conflicting keys that factory already sets
-    overrides: Dict[str, Any] = {
-        "event_type": EventType.ROUTING_DECISION_MADE,
-        "event_category": EventCategory.ORCHESTRATION,
-        "timestamp": datetime.now(timezone.utc),
-        "correlation_id": correlation_id or get_correlation_id(),
-        "metadata": metadata or {},
-    }
-
-    # Only add optional parameters if provided
-    if reasoning:
-        overrides["reasoning"] = reasoning
-
     event = RoutingDecisionEvent(
+        event_type=EventType.ROUTING_DECISION_MADE,
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         selected_agents=selected_agents,
         routing_strategy=routing_strategy,
         confidence_score=confidence_score,
-        event_type=EventType.ROUTING_DECISION_MADE,
-        event_category=EventCategory.ORCHESTRATION,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         reasoning=reasoning or {},
+        data={},
         metadata=metadata or {},
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -421,15 +399,20 @@ async def emit_routing_decision_from_object(
 
     # Create enhanced event with full routing decision data
     event = RoutingDecisionEvent(
+        event_type=EventType.ROUTING_DECISION_MADE,
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         selected_agents=routing_decision.selected_agents,
         routing_strategy=routing_decision.routing_strategy,
         confidence_score=routing_decision.confidence_score,
-        event_type=EventType.ROUTING_DECISION_MADE,
-        event_category=EventCategory.ORCHESTRATION,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         reasoning=routing_decision.reasoning.to_dict(),
+        data={},
         metadata={
             **(metadata or {}),
             "decision_id": routing_decision.decision_id,
@@ -447,6 +430,12 @@ async def emit_routing_decision_from_object(
             "is_risky": routing_decision.is_risky(),
             "has_fallbacks": routing_decision.has_fallbacks(),
         },
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -491,6 +480,10 @@ async def emit_health_check_performed(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "component_name": component_name,
             "status": status,
@@ -502,6 +495,12 @@ async def emit_health_check_performed(
             "component_type": "system",
             **(metadata or {}),
         },
+        execution_time_ms=response_time_ms,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -544,6 +543,10 @@ async def emit_api_request_received(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "endpoint": endpoint,
             "request_size_bytes": request_size_bytes,
@@ -555,6 +558,12 @@ async def emit_api_request_received(
             "component_type": "api_gateway",
             **(metadata or {}),
         },
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -597,7 +606,10 @@ async def emit_api_response_sent(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
-        execution_time_ms=execution_time_ms,
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "status": status,
             "response_size_bytes": response_size_bytes,
@@ -609,6 +621,12 @@ async def emit_api_response_sent(
             "component_type": "api_gateway",
             **(metadata or {}),
         },
+        execution_time_ms=execution_time_ms,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -657,6 +675,10 @@ async def emit_service_boundary_crossed(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "source_service": source_service,
             "target_service": target_service,
@@ -670,6 +692,12 @@ async def emit_service_boundary_crossed(
             "component_type": "boundary",
             **(metadata or {}),
         },
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -715,6 +743,10 @@ async def emit_decision_made(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "decision_criteria": decision_criteria,
             "selected_path": selected_path,
@@ -728,6 +760,12 @@ async def emit_decision_made(
             "execution_pattern": "decision",
             **(metadata or {}),
         },
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -773,7 +811,10 @@ async def emit_aggregation_completed(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
-        execution_time_ms=aggregation_time_ms,
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "aggregation_strategy": aggregation_strategy,
             "input_sources": input_sources,
@@ -787,6 +828,12 @@ async def emit_aggregation_completed(
             "execution_pattern": "aggregator",
             **(metadata or {}),
         },
+        execution_time_ms=aggregation_time_ms,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -832,7 +879,10 @@ async def emit_validation_completed(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
-        execution_time_ms=validation_time_ms,
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "validation_result": validation_result,
             "quality_score": quality_score,
@@ -846,6 +896,12 @@ async def emit_validation_completed(
             "execution_pattern": "validator",
             **(metadata or {}),
         },
+        execution_time_ms=validation_time_ms,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)
@@ -888,6 +944,10 @@ async def emit_termination_triggered(
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
+        parent_span_id=None,
+        agent_metadata=None,
+        task_classification=None,
+        capabilities_used=[],
         data={
             "termination_reason": termination_reason,
             "confidence_score": confidence_score,
@@ -900,6 +960,12 @@ async def emit_termination_triggered(
             "execution_pattern": "terminator",
             **(metadata or {}),
         },
+        execution_time_ms=None,
+        memory_usage_mb=None,
+        error_message=None,
+        error_type=None,
+        service_name="cognivault-core",
+        service_version="1.0.0",
     )
 
     await emitter.emit(event)

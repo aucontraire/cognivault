@@ -316,9 +316,9 @@ def test_generate_step_id() -> None:
 # run_with_retry tests
 @pytest.mark.asyncio
 async def test_run_with_retry_success() -> None:
-    """🚩 LIBERATED: Manual AgentContext construction eliminated, revolutionary factory deployed!"""
+    """Test successful retry operation using factory patterns."""
     agent = ConcreteAgent("TestAgent")
-    context = AgentContextPatterns.simple_query("test")  # LIBERATION ACHIEVED!
+    context = AgentContextPatterns.simple_query("test")  # Using factory pattern
 
     result = await agent.run_with_retry(context)
 

@@ -1,10 +1,8 @@
-"""Agent Configuration Factories for Revolutionary Test Liberation.
+"""Agent Configuration Factories for Test Data Management.
 
-🚩 OPERATION: AGENT CONFIGURATION FACTORY LIBERATION 🚩
+These factories provide convenient methods for creating agent configuration objects in tests, eliminating manual construction boilerplate.
 
-These factories liberate agent configuration tests from bourgeois manual construction oppression!
-
-Revolutionary Statistics:
+Statistics:
 - RefinerConfig: 40+ manual constructions → Factory convenience methods
 - CriticConfig: 17+ constructions → Streamlined factory patterns
 - SynthesisConfig: 15+ constructions → Strategy-based factory methods
@@ -13,7 +11,7 @@ Revolutionary Statistics:
 Expected Impact:
 - 80-90% reduction in configuration boilerplate
 - 30-50 lines of manual construction eliminated
-- Type safety maintained throughout liberation
+- Type safety maintained throughout factory usage
 - Zero test casualties during conversion
 
 Factory Philosophy:
@@ -40,7 +38,7 @@ from cognivault.config.agent_configs import (
 
 # Base Configuration Factories
 class PromptConfigFactory:
-    """Factory for PromptConfig liberation from manual construction."""
+    """Factory for creating PromptConfig instances in tests."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> PromptConfig:
@@ -87,7 +85,7 @@ class PromptConfigFactory:
 
 
 class BehavioralConfigFactory:
-    """Factory for BehavioralConfig liberation from manual construction."""
+    """Factory for creating BehavioralConfig instances in tests."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> BehavioralConfig:
@@ -123,7 +121,7 @@ class BehavioralConfigFactory:
 
 
 class OutputConfigFactory:
-    """Factory for OutputConfig liberation from manual construction."""
+    """Factory for creating OutputConfig instances in tests."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> OutputConfig:
@@ -161,7 +159,7 @@ class OutputConfigFactory:
 
 
 class AgentExecutionConfigFactory:
-    """Factory for AgentExecutionConfig liberation from manual construction."""
+    """Factory for creating AgentExecutionConfig instances in tests."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> AgentExecutionConfig:
@@ -215,7 +213,7 @@ class AgentConfigFactory(Protocol):
 
 
 class RefinerConfigFactory:
-    """Factory for RefinerConfig liberation from manual construction chains."""
+    """Factory for creating RefinerConfig instances in tests."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> RefinerConfig:
@@ -298,7 +296,7 @@ class RefinerConfigFactory:
 
 
 class CriticConfigFactory:
-    """Factory for CriticConfig liberation from analysis depth oppression."""
+    """Factory for creating CriticConfig instances with various analysis depth settings."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> CriticConfig:
@@ -368,7 +366,7 @@ class CriticConfigFactory:
 
 
 class SynthesisConfigFactory:
-    """Factory for SynthesisConfig liberation from strategy pattern oppression."""
+    """Factory for creating SynthesisConfig instances with various synthesis strategies."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> SynthesisConfig:
@@ -438,7 +436,7 @@ class SynthesisConfigFactory:
 
 
 class HistorianConfigFactory:
-    """Factory for HistorianConfig liberation from hybrid search oppression."""
+    """Factory for creating HistorianConfig instances with various search configurations."""
 
     @staticmethod
     def generate_valid_data(**overrides: Any) -> HistorianConfig:

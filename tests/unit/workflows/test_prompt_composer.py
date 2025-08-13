@@ -114,7 +114,7 @@ class TestRefinerPromptComposition:
 
     def test_compose_refiner_prompt_defaults(self) -> None:
         """Test refiner prompt composition with default configuration."""
-        # 🚩 LIBERATED: Using factory for refiner configuration
+        # # Using factory for refiner configuration
         config = RefinerConfigFactory.generate_minimal_data()
         composed = self.composer.compose_refiner_prompt(config)
 
@@ -127,7 +127,7 @@ class TestRefinerPromptComposition:
 
     def test_compose_refiner_prompt_custom_values(self) -> None:
         """Test refiner prompt composition with custom configuration."""
-        # 🚩 LIBERATED: Using factory with custom constraints
+        # # Using factory with custom constraints
         config = RefinerConfigFactory.with_custom_constraints(
             ["preserve_tone", "maintain_clarity"],
             refinement_level="comprehensive",

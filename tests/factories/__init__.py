@@ -1,9 +1,9 @@
 """Test factories for creating consistent test data objects.
 
 Factory Organization:
-- agent_context_factories: AgentContext liberation from bourgeois boilerplate oppression
+- agent_context_factories: AgentContext factory methods for reducing test boilerplate
 - agent_output_factories: RefinerOutput, CriticOutput, SynthesisOutput, HistorianOutput
-- agent_config_factories: Configuration liberation for RefinerConfig, CriticConfig, etc.
+- agent_config_factories: Configuration factory methods for RefinerConfig, CriticConfig, etc.
 - api_model_factories: WorkflowRequest, WorkflowResponse via APIModelPatterns facade eliminating execution_config unfilled parameter warnings
 - mock_llm_factories: Mock LLM infrastructure eliminating 118+ repetitive mock setups
 - orchestration_factories: ExecutionMetadata and future orchestration objects
@@ -19,14 +19,14 @@ All factories include convenience methods to reduce verbose parameter passing:
 - generate_minimal_data(**overrides) - Minimal valid object with fewer optional fields
 - generate_with_current_timestamp(**overrides) - Uses dynamic timestamp for realistic tests
 
-Revolutionary Liberation Statistics:
-- AgentContextFactory: Liberates 105+ manual AgentContext instantiations across 44 test files
-- AgentConfigFactories: Liberates 97+ manual configuration constructions across system
+Factory Usage Statistics:
+- AgentContextFactory: Simplifies 105+ manual AgentContext instantiations across 44 test files
+- AgentConfigFactories: Simplifies 97+ manual configuration constructions across system
 - APIModelPatterns: Eliminates execution_config unfilled parameter warnings and 8+ parameter specifications per WorkflowRequest instantiation
 - MockLLMFactory: Eliminates 118+ mock LLM instantiations and 100+ lines of repetitive setup
 - ResourceSchedulerFactory: Eliminates 14+ ResourcePool unfilled parameter warnings and 6+ parameter specifications per instantiation
 - Expected boilerplate reduction: 8-12 lines → 1-2 lines per test method
-- Developer morale improvement: From oppressive manual construction to joyful factory usage
+- Developer experience improvement: From manual construction to convenient factory usage
 """
 
 from .agent_context_factories import (
@@ -132,7 +132,7 @@ from .diagnostic_health_factories import (
 
 
 __all__ = [
-    # Agent context liberation
+    # Agent context factories
     "AgentContextFactory",
     "AgentContextPatterns",
     # Agent outputs
@@ -140,7 +140,7 @@ __all__ = [
     "CriticOutputFactory",
     "SynthesisOutputFactory",
     "HistorianOutputFactory",
-    # Agent configuration liberation
+    # Agent configuration factories
     "PromptConfigFactory",
     "BehavioralConfigFactory",
     "OutputConfigFactory",
@@ -152,7 +152,7 @@ __all__ = [
     "AgentConfigFactorySelector",
     # Orchestration
     "ExecutionMetadataFactory",
-    # Advanced orchestrator liberation
+    # Advanced orchestrator factories
     "AdvancedResourceConstraintFactory",
     "OrchestratorConfigFactory",
     "ExecutionResultsFactory",
@@ -173,7 +173,7 @@ __all__ = [
     # API model factories
     "APIModelFactory",
     "APIModelPatterns",
-    # Resource scheduler liberation
+    # Resource scheduler factories
     "ResourcePoolFactory",
     "ResourceRequestFactory",
     "ResourceAllocationFactory",

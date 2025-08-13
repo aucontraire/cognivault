@@ -40,7 +40,7 @@ class TestBaseConfigurations:
 
     def test_prompt_config_defaults(self) -> None:
         """Test PromptConfig default values."""
-        # 🚩 LIBERATED: Using factory for default testing
+        # # Using factory for default testing
         config = PromptConfigFactory.generate_minimal_data()
         assert config.custom_system_prompt is None
         assert config.custom_templates == {}
@@ -48,7 +48,7 @@ class TestBaseConfigurations:
 
     def test_prompt_config_custom_values(self) -> None:
         """Test PromptConfig with custom values."""
-        # 🚩 LIBERATED: Using factory with custom values
+        # # Using factory with custom values
         config = PromptConfigFactory.generate_valid_data(
             custom_system_prompt="Custom prompt",
             custom_templates={"greeting": "Hello {name}"},
@@ -60,14 +60,14 @@ class TestBaseConfigurations:
 
     def test_behavioral_config_defaults(self) -> None:
         """Test BehavioralConfig default values."""
-        # 🚩 LIBERATED: Using factory for default testing
+        # # Using factory for default testing
         config = BehavioralConfigFactory.generate_minimal_data()
         assert config.custom_constraints == []
         assert config.fallback_mode == "adaptive"
 
     def test_output_config_defaults(self) -> None:
         """Test OutputConfig default values."""
-        # 🚩 LIBERATED: Using factory for default testing
+        # # Using factory for default testing
         config = OutputConfigFactory.generate_minimal_data()
         assert config.format_preference == "structured"
         assert config.include_metadata is True
@@ -89,7 +89,7 @@ class TestBaseConfigurations:
 
     def test_execution_config_defaults(self) -> None:
         """Test AgentExecutionConfig default values."""
-        # 🚩 LIBERATED: Using factory for default testing
+        # # Using factory for default testing
         config = AgentExecutionConfigFactory.generate_minimal_data()
         assert config.timeout_seconds == 30
         assert config.max_retries == 3
@@ -123,7 +123,7 @@ class TestRefinerConfig:
 
     def test_refiner_config_defaults(self) -> None:
         """Test RefinerConfig default values."""
-        # 🚩 LIBERATED: Using factory default generation instead of manual construction
+        # # Using factory default generation instead of manual construction
         config = RefinerConfigFactory.generate_minimal_data()
         assert config.refinement_level == "standard"
         assert config.behavioral_mode == "adaptive"
@@ -135,7 +135,7 @@ class TestRefinerConfig:
 
     def test_refiner_config_custom_values(self) -> None:
         """Test RefinerConfig with custom values."""
-        # 🚩 LIBERATED: Using factory convenience method instead of manual construction
+        # # Using factory convenience method instead of manual construction
         config = RefinerConfigFactory.comprehensive_active(output_format="prefixed")
         assert config.refinement_level == "comprehensive"
         assert config.behavioral_mode == "active"
@@ -143,7 +143,7 @@ class TestRefinerConfig:
 
     def test_refiner_config_validation(self) -> None:
         """Test RefinerConfig validation."""
-        # 🚩 LIBERATED: Using factory patterns for validation testing
+        # # Using factory patterns for validation testing
         RefinerConfigFactory.minimal_raw(refinement_level="minimal")
         RefinerConfigFactory.detailed_passive(behavioral_mode="passive")
         RefinerConfigFactory.minimal_raw(output_format="raw")
@@ -191,7 +191,7 @@ class TestRefinerConfig:
 
     def test_refiner_config_to_prompt_config(self) -> None:
         """Test RefinerConfig.to_prompt_config() method."""
-        # 🚩 LIBERATED: Using specialized factory method for serialization testing
+        # # Using specialized factory method for serialization testing
         config = RefinerConfigFactory.for_serialization_test()
 
         prompt_config = config.to_prompt_config()
@@ -207,7 +207,7 @@ class TestCriticConfig:
 
     def test_critic_config_defaults(self) -> None:
         """Test CriticConfig default values."""
-        # 🚩 LIBERATED: Using factory default generation
+        # # Using factory default generation
         config = CriticConfigFactory.generate_minimal_data()
         assert config.analysis_depth == "medium"
         assert config.confidence_reporting is True
@@ -216,7 +216,7 @@ class TestCriticConfig:
 
     def test_critic_config_custom_values(self) -> None:
         """Test CriticConfig with custom values."""
-        # 🚩 LIBERATED: Using factory custom scoring method
+        # # Using factory custom scoring method
         config = CriticConfigFactory.with_custom_scoring(
             ["accuracy", "clarity"],
             analysis_depth="deep",
@@ -245,7 +245,7 @@ class TestCriticConfig:
 
     def test_critic_config_to_prompt_config(self) -> None:
         """Test CriticConfig.to_prompt_config() method."""
-        # 🚩 LIBERATED: Using factory for prompt composition testing
+        # # Using factory for prompt composition testing
         config = CriticConfigFactory.for_prompt_composition(
             analysis_depth="deep",
             confidence_reporting=False,
@@ -263,7 +263,7 @@ class TestHistorianConfig:
 
     def test_historian_config_defaults(self) -> None:
         """Test HistorianConfig default values."""
-        # 🚩 LIBERATED: Using factory for HistorianConfig defaults
+        # # Using factory for HistorianConfig defaults
         config = HistorianConfigFactory.generate_minimal_data()
         assert config.search_depth == "standard"
         assert config.relevance_threshold == 0.6
@@ -272,7 +272,7 @@ class TestHistorianConfig:
 
     def test_historian_config_validation(self) -> None:
         """Test HistorianConfig validation."""
-        # 🚩 LIBERATED: Using factory for validation testing
+        # # Using factory for validation testing
         config = HistorianConfigFactory.generate_valid_data(relevance_threshold=0.8)
         assert config.relevance_threshold == 0.8
 
@@ -303,7 +303,7 @@ class TestSynthesisConfig:
 
     def test_synthesis_config_defaults(self) -> None:
         """Test SynthesisConfig default values."""
-        # 🚩 LIBERATED: Using factory for SynthesisConfig defaults
+        # # Using factory for SynthesisConfig defaults
         config = SynthesisConfigFactory.generate_minimal_data()
         assert config.synthesis_strategy == "balanced"
         assert config.thematic_focus is None
@@ -312,7 +312,7 @@ class TestSynthesisConfig:
 
     def test_synthesis_config_custom_values(self) -> None:
         """Test SynthesisConfig with custom values."""
-        # 🚩 LIBERATED: Using factory with thematic focus
+        # # Using factory with thematic focus
         config = SynthesisConfigFactory.with_thematic_focus(
             "innovation",
             synthesis_strategy="creative",
@@ -326,7 +326,7 @@ class TestSynthesisConfig:
 
     def test_synthesis_config_to_prompt_config(self) -> None:
         """Test SynthesisConfig.to_prompt_config() method."""
-        # 🚩 LIBERATED: Using factory for prompt config testing
+        # # Using factory for prompt config testing
         config = SynthesisConfigFactory.generate_valid_data(
             synthesis_strategy="focused",
             thematic_focus="sustainability",
@@ -370,7 +370,7 @@ class TestConfigurationIntegration:
 
     def test_nested_config_modification(self) -> None:
         """Test modifying nested configuration objects."""
-        # 🚩 LIBERATED: Using factory for nested config testing
+        # # Using factory for nested config testing
         config = RefinerConfigFactory.generate_minimal_data()
 
         # Modify nested configurations
@@ -386,7 +386,7 @@ class TestConfigurationIntegration:
 
     def test_config_serialization(self) -> None:
         """Test configuration serialization to dict."""
-        # 🚩 LIBERATED: Using factory for serialization testing
+        # # Using factory for serialization testing
         config = RefinerConfigFactory.generate_valid_data(
             refinement_level="comprehensive", behavioral_mode="active"
         )
@@ -408,13 +408,13 @@ class TestConfigurationIntegration:
 
     def test_invalid_extra_fields(self) -> None:
         """Test that extra fields are rejected."""
-        # 🚩 LIBERATED: Using factory for validation testing
+        # # Using factory for validation testing
         with pytest.raises(ValueError):
             RefinerConfigFactory.generate_valid_data(invalid_field="should_fail")
 
     def test_prompt_config_integration(self) -> None:
         """Test prompt configuration integration across all agents."""
-        # 🚩 LIBERATED: Using factory convenience methods for integration testing
+        # # Using factory convenience methods for integration testing
         agents_configs = [
             RefinerConfigFactory.comprehensive_active(),
             CriticConfigFactory.deep_analysis(),
