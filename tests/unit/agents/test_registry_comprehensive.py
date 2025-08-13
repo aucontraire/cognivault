@@ -6,14 +6,13 @@ focusing on error handling, edge cases, and advanced features.
 """
 
 import pytest
-from unittest.mock import MagicMock, Mock, patch
-from typing import Any, List, Optional
+from unittest.mock import Mock
+from typing import Any, Optional
 
 from cognivault.agents.registry import (
     AgentRegistry,
     get_agent_registry,
     register_agent,
-    create_agent,
     get_agent_metadata,
 )
 from cognivault.agents.base_agent import BaseAgent
@@ -71,7 +70,7 @@ class TestAgentRegistryAdvancedFeatures:
             "agent_with_name_llm", MockAgentWithLLMAndName, requires_llm=True
         )
 
-        agent = registry.create_agent("agent_with_name_llm", llm=mock_llm)
+        agent = registry.create_agent_with_llm("agent_with_name_llm", llm=mock_llm)
 
         assert agent is not None
         # The registry passes the registered name to the agent constructor
@@ -288,7 +287,8 @@ class TestAgentRegistryAdvancedFeatures:
         agent = registry.create_agent("agent_with_kwargs", custom_param="test_value")
 
         assert agent is not None
-        assert agent.custom_param == "test_value"
+        assert hasattr(agent, "custom_param")
+        assert getattr(agent, "custom_param") == "test_value"
 
     def test_agent_creation_constructor_inspection_edge_cases(self) -> None:
         """Test edge cases in constructor parameter inspection."""
@@ -312,13 +312,14 @@ class TestAgentRegistryAdvancedFeatures:
         registry.register("complex_agent", ComplexAgent, requires_llm=True)
 
         mock_llm: Mock = Mock()
-        agent = registry.create_agent(
+        agent = registry.create_agent_with_llm(
             "complex_agent", llm=mock_llm, extra_param="value"
         )
 
         assert agent is not None
         assert agent.llm == mock_llm
-        assert agent.extra_params == {"extra_param": "value"}
+        assert hasattr(agent, "extra_params")
+        assert getattr(agent, "extra_params") == {"extra_param": "value"}
 
 
 class TestGlobalRegistryFunctions:
@@ -461,6 +462,7 @@ class TestRegistryErrorScenarios:
         registry.register("classified_agent", MockAgentWithName)
 
         metadata = registry.get_agent_metadata("classified_agent")
+        assert metadata is not None
         assert metadata.cognitive_speed == "adaptive"
         assert metadata.cognitive_depth == "variable"
         assert metadata.processing_pattern == "atomic"

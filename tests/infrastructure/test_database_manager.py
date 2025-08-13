@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 import pytest
 
+from tests.utils.test_database_config import get_test_database_url
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class DatabaseTestManager:
             if result.returncode == 0:
                 logger.info("Local PostgreSQL database is accessible")
                 self.local_db_available = True
-                self.preferred_db_url = "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
+                self.preferred_db_url = get_test_database_url("local")
                 return True
         except (
             subprocess.TimeoutExpired,
@@ -92,7 +93,7 @@ class DatabaseTestManager:
             ):
                 logger.info("Test database container is running")
                 self.container_running = True
-                self.preferred_db_url = "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5435/cognivault"
+                self.preferred_db_url = get_test_database_url("docker")
                 return True
         except (
             subprocess.TimeoutExpired,
@@ -119,7 +120,7 @@ class DatabaseTestManager:
             if result.returncode == 0:
                 logger.info("Test database container started successfully")
                 self.container_running = True
-                self.preferred_db_url = "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5435/cognivault"
+                self.preferred_db_url = get_test_database_url("docker")
                 return True
             else:
                 logger.error(f"Failed to start container: {result.stderr}")
@@ -172,9 +173,7 @@ class DatabaseTestManager:
 
         # Fallback to local even if check failed (maybe it will work)
         logger.warning("No database available, falling back to local PostgreSQL")
-        return (
-            "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
-        )
+        return get_test_database_url("local")
 
     def ensure_database_available(self) -> tuple[str, bool]:
         """

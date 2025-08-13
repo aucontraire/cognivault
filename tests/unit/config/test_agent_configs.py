@@ -8,7 +8,6 @@ with the existing prompt system.
 
 import os
 import pytest
-from typing import Any, Dict
 from unittest.mock import patch
 
 from cognivault.config.agent_configs import (
@@ -25,6 +24,10 @@ from cognivault.config.agent_configs import (
 )
 
 from tests.factories import (
+    PromptConfigFactory,
+    BehavioralConfigFactory,
+    OutputConfigFactory,
+    AgentExecutionConfigFactory,
     RefinerConfigFactory,
     CriticConfigFactory,
     SynthesisConfigFactory,
@@ -37,14 +40,16 @@ class TestBaseConfigurations:
 
     def test_prompt_config_defaults(self) -> None:
         """Test PromptConfig default values."""
-        config = PromptConfig()
+        # 🚩 LIBERATED: Using factory for default testing
+        config = PromptConfigFactory.generate_minimal_data()
         assert config.custom_system_prompt is None
         assert config.custom_templates == {}
         assert config.template_variables == {}
 
     def test_prompt_config_custom_values(self) -> None:
         """Test PromptConfig with custom values."""
-        config = PromptConfig(
+        # 🚩 LIBERATED: Using factory with custom values
+        config = PromptConfigFactory.generate_valid_data(
             custom_system_prompt="Custom prompt",
             custom_templates={"greeting": "Hello {name}"},
             template_variables={"name": "Claude"},
@@ -55,13 +60,15 @@ class TestBaseConfigurations:
 
     def test_behavioral_config_defaults(self) -> None:
         """Test BehavioralConfig default values."""
-        config = BehavioralConfig()
+        # 🚩 LIBERATED: Using factory for default testing
+        config = BehavioralConfigFactory.generate_minimal_data()
         assert config.custom_constraints == []
         assert config.fallback_mode == "adaptive"
 
     def test_output_config_defaults(self) -> None:
         """Test OutputConfig default values."""
-        config = OutputConfig()
+        # 🚩 LIBERATED: Using factory for default testing
+        config = OutputConfigFactory.generate_minimal_data()
         assert config.format_preference == "structured"
         assert config.include_metadata is True
         assert config.confidence_threshold == 0.7
@@ -69,20 +76,21 @@ class TestBaseConfigurations:
     def test_output_config_validation(self) -> None:
         """Test OutputConfig validation constraints."""
         # Valid confidence threshold
-        config = OutputConfig(confidence_threshold=0.5)
+        config = OutputConfigFactory.with_confidence_threshold(0.5)
         assert config.confidence_threshold == 0.5
 
         # Invalid confidence threshold - too low
         with pytest.raises(ValueError):
-            OutputConfig(confidence_threshold=-0.1)
+            OutputConfigFactory.with_confidence_threshold(-0.1)
 
         # Invalid confidence threshold - too high
         with pytest.raises(ValueError):
-            OutputConfig(confidence_threshold=1.1)
+            OutputConfigFactory.with_confidence_threshold(1.1)
 
     def test_execution_config_defaults(self) -> None:
         """Test AgentExecutionConfig default values."""
-        config = AgentExecutionConfig()
+        # 🚩 LIBERATED: Using factory for default testing
+        config = AgentExecutionConfigFactory.generate_minimal_data()
         assert config.timeout_seconds == 30
         assert config.max_retries == 3
         assert config.enable_caching is True
@@ -90,24 +98,24 @@ class TestBaseConfigurations:
     def test_execution_config_validation(self) -> None:
         """Test AgentExecutionConfig validation constraints."""
         # Valid timeout
-        config = AgentExecutionConfig(timeout_seconds=60)
+        config = AgentExecutionConfigFactory.with_timeout(60)
         assert config.timeout_seconds == 60
 
         # Invalid timeout - too low
         with pytest.raises(ValueError):
-            AgentExecutionConfig(timeout_seconds=0)
+            AgentExecutionConfigFactory.with_timeout(0)
 
         # Invalid timeout - too high
         with pytest.raises(ValueError):
-            AgentExecutionConfig(timeout_seconds=400)
+            AgentExecutionConfigFactory.with_timeout(400)
 
         # Valid retries
-        config = AgentExecutionConfig(max_retries=5)
+        config = AgentExecutionConfigFactory.with_retries(5)
         assert config.max_retries == 5
 
         # Invalid retries - too high
         with pytest.raises(ValueError):
-            AgentExecutionConfig(max_retries=15)
+            AgentExecutionConfigFactory.with_retries(15)
 
 
 class TestRefinerConfig:
@@ -318,7 +326,8 @@ class TestSynthesisConfig:
 
     def test_synthesis_config_to_prompt_config(self) -> None:
         """Test SynthesisConfig.to_prompt_config() method."""
-        config = SynthesisConfig(
+        # 🚩 LIBERATED: Using factory for prompt config testing
+        config = SynthesisConfigFactory.generate_valid_data(
             synthesis_strategy="focused",
             thematic_focus="sustainability",
             meta_analysis=True,
@@ -346,14 +355,14 @@ class TestFactoryFunctions:
     def test_create_agent_config(self) -> None:
         """Test create_agent_config() factory function."""
         config_dict = {"refinement_level": "comprehensive"}
-        config = create_agent_config("refiner", config_dict)
-        assert isinstance(config, RefinerConfig)
-        assert config.refinement_level == "comprehensive"
+        refiner_config = create_agent_config("refiner", config_dict)
+        assert isinstance(refiner_config, RefinerConfig)
+        assert refiner_config.refinement_level == "comprehensive"
 
         config_dict = {"analysis_depth": "deep"}
-        config = create_agent_config("critic", config_dict)
-        assert isinstance(config, CriticConfig)
-        assert config.analysis_depth == "deep"
+        critic_config = create_agent_config("critic", config_dict)
+        assert isinstance(critic_config, CriticConfig)
+        assert critic_config.analysis_depth == "deep"
 
 
 class TestConfigurationIntegration:
@@ -361,7 +370,8 @@ class TestConfigurationIntegration:
 
     def test_nested_config_modification(self) -> None:
         """Test modifying nested configuration objects."""
-        config = RefinerConfig()
+        # 🚩 LIBERATED: Using factory for nested config testing
+        config = RefinerConfigFactory.generate_minimal_data()
 
         # Modify nested configurations
         config.prompt_config.custom_system_prompt = "Custom refiner prompt"
@@ -376,7 +386,8 @@ class TestConfigurationIntegration:
 
     def test_config_serialization(self) -> None:
         """Test configuration serialization to dict."""
-        config = RefinerConfig(
+        # 🚩 LIBERATED: Using factory for serialization testing
+        config = RefinerConfigFactory.generate_valid_data(
             refinement_level="comprehensive", behavioral_mode="active"
         )
         config.behavioral_config.custom_constraints = ["test_constraint"]
@@ -397,8 +408,9 @@ class TestConfigurationIntegration:
 
     def test_invalid_extra_fields(self) -> None:
         """Test that extra fields are rejected."""
+        # 🚩 LIBERATED: Using factory for validation testing
         with pytest.raises(ValueError):
-            RefinerConfig(invalid_field="should_fail")
+            RefinerConfigFactory.generate_valid_data(invalid_field="should_fail")
 
     def test_prompt_config_integration(self) -> None:
         """Test prompt configuration integration across all agents."""

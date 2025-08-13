@@ -97,9 +97,10 @@ class TestExecutionContext:
             )
         except ImportError:
             # Fallback to using model_validate with arbitrary_types_allowed
-            mock_workflow: Mock = Mock()
-            mock_workflow.name = "Test Workflow"
-            mock_workflow.version = "1.0.0"
+            mock_workflow_fallback: Mock = Mock()
+            mock_workflow_fallback.name = "Test Workflow"
+            mock_workflow_fallback.version = "1.0.0"
+            mock_workflow = mock_workflow_fallback
 
         context = ExecutionContext(
             workflow_id="test-123",
@@ -198,7 +199,13 @@ class TestExecutionContext:
 
         # Test that required fields are enforced
         with pytest.raises(ValidationError):
-            ExecutionContext()  # Missing required fields
+            ExecutionContext.model_validate(
+                {
+                    "workflow_id": "test-id",
+                    "workflow_definition": "mock_definition",
+                    # Missing query field should cause validation error
+                }
+            )
 
 
 class TestCompositionResult:
@@ -427,10 +434,14 @@ class TestWorkflowResult:
 
         # Missing required fields
         with pytest.raises(ValidationError):
-            WorkflowResult()  # Missing all required fields
+            WorkflowResult.model_validate(
+                {"workflow_id": "test", "execution_id": "test"}
+            )  # Missing final_context
 
         with pytest.raises(ValidationError):
-            WorkflowResult(workflow_id="test")  # Missing execution_id and final_context
+            WorkflowResult.model_validate(
+                {"workflow_id": "test"}
+            )  # Missing execution_id and final_context
 
 
 class TestBackwardCompatibility:

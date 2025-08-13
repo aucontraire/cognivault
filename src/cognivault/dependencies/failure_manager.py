@@ -395,7 +395,9 @@ class FailureManager:
 
         # Failure tracking
         self.failure_counts: Dict[str, int] = defaultdict(int)
-        self.recent_failures: Dict[str, deque] = defaultdict(lambda: deque(maxlen=10))
+        self.recent_failures: Dict[str, deque[float]] = defaultdict(
+            lambda: deque(maxlen=10)
+        )
         self.blocked_agents: Set[str] = set()
 
         # Recovery state

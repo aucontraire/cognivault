@@ -12,7 +12,7 @@ from .prompts import REFINER_SYSTEM_PROMPT
 # Configuration system imports
 from typing import Optional
 from cognivault.config.agent_configs import RefinerConfig
-from cognivault.workflows.prompt_composer import PromptComposer
+from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
 import logging
 import asyncio
@@ -49,9 +49,10 @@ class RefinerAgent(BaseAgent):
         self.llm: LLMInterface = llm
 
         # Configuration system - backward compatible
+        # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else RefinerConfig()
         self._prompt_composer = PromptComposer()
-        self._composed_prompt = None
+        self._composed_prompt: Optional[ComposedPrompt]
 
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()

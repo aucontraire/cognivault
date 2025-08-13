@@ -11,7 +11,7 @@ from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
 # Configuration system imports
 from typing import Optional, cast
 from cognivault.config.agent_configs import CriticConfig
-from cognivault.workflows.prompt_composer import PromptComposer
+from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
 # Structured LLM integration
 from cognivault.llm.structured import StructuredLLMFactory
@@ -58,9 +58,10 @@ class CriticAgent(BaseAgent):
         self.llm = llm
 
         # Configuration system - backward compatible
+        # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else CriticConfig()
         self._prompt_composer = PromptComposer()
-        self._composed_prompt = None
+        self._composed_prompt: Optional[ComposedPrompt]
 
         # Initialize structured LLM wrapper for Pydantic AI integration
         self._structured_llm = StructuredLLMFactory.create_from_llm(llm)

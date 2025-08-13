@@ -295,17 +295,17 @@ The core principles of AI emerge from the intersection of computational capabili
                 mock_response.text = "Fallback synthesis result"
                 return mock_response
 
-        mock_llm.generate = Mock(side_effect=side_effect_generate)
+        # Use patch to properly mock the method instead of direct assignment
+        with patch.object(mock_llm, "generate", side_effect=side_effect_generate):
+            agent = SynthesisAgent(llm=mock_llm)
+            context = AgentContextPatterns.simple_query("test query")
+            context.agent_outputs = self.mock_agent_outputs.copy()
 
-        agent = SynthesisAgent(llm=mock_llm)
-        context = AgentContextPatterns.simple_query("test query")
-        context.agent_outputs = self.mock_agent_outputs.copy()
+            result_context = await agent.run(context)
 
-        result_context = await agent.run(context)
-
-        # Should still complete successfully with fallback analysis
-        assert agent.name in result_context.agent_outputs
-        assert result_context.final_synthesis is not None
+            # Should still complete successfully with fallback analysis
+            assert agent.name in result_context.agent_outputs
+            assert result_context.final_synthesis is not None
 
 
 class TestSynthesisAgentAnalysis:
@@ -549,7 +549,11 @@ class TestSynthesisAgentSynthesis:
         agent = SynthesisAgent(llm=None)
 
         synthesis_result = "Basic synthesis content."
-        minimal_analysis = {"themes": [], "key_topics": [], "meta_insights": []}
+        minimal_analysis: Dict[str, Any] = {
+            "themes": [],
+            "key_topics": [],
+            "meta_insights": [],
+        }
 
         formatted_output = await agent._format_final_output(
             "test query", synthesis_result, minimal_analysis
@@ -679,23 +683,19 @@ class TestSynthesisAgentErrorHandling:
         agent = SynthesisAgent(llm=None)
 
         # Mock a scenario where even fallback synthesis fails
-        original_fallback = agent._fallback_synthesis
+        with patch.object(agent, "_fallback_synthesis") as mock_fallback:
+            mock_fallback.side_effect = Exception("Complete synthesis failure")
 
-        async def failing_fallback(*args: Any, **kwargs: Any) -> None:
-            raise Exception("Complete synthesis failure")
+            context = AgentContextPatterns.simple_query("test query")
+            context.agent_outputs = {"Agent1": "Test output"}
 
-        agent._fallback_synthesis = failing_fallback
+            # Should not raise exception
+            result_context = await agent.run(context)
 
-        context = AgentContextPatterns.simple_query("test query")
-        context.agent_outputs = {"Agent1": "Test output"}
-
-        # Should not raise exception
-        result_context = await agent.run(context)
-
-        # Should have emergency fallback output
-        assert agent.name in result_context.agent_outputs
-        assert result_context.final_synthesis is not None
-        assert "Emergency Synthesis" in result_context.final_synthesis
+            # Should have emergency fallback output
+            assert agent.name in result_context.agent_outputs
+            assert result_context.final_synthesis is not None
+            assert "Emergency Synthesis" in result_context.final_synthesis
 
     @pytest.mark.asyncio
     async def test_graceful_degradation_llm_failure(self) -> None:
@@ -863,7 +863,7 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
         agent = SynthesisAgent(llm=mock_llm)
 
         # Test different scenarios
-        scenarios = [
+        scenarios: list[Dict[str, Any]] = [
             {
                 "query": "Technical analysis",
                 "outputs": {
@@ -886,8 +886,10 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
 
         results = []
         for scenario in scenarios:
-            context = AgentContextPatterns.simple_query(scenario["query"])
-            context.agent_outputs = scenario["outputs"]
+            query: str = scenario["query"]
+            outputs: Dict[str, Any] = scenario["outputs"]
+            context = AgentContextPatterns.simple_query(query)
+            context.agent_outputs = outputs
             result = await agent.run(context)
             results.append(result)
 
@@ -897,4 +899,5 @@ The multi-agent synthesis approach demonstrates the value of systematic integrat
             assert result.final_synthesis is not None
             assert len(result.final_synthesis) > 100  # Substantial output
             # Check query is present in the final synthesis
-            assert scenarios[i]["query"].lower() in result.final_synthesis.lower()
+            query_text: str = scenarios[i]["query"]
+            assert query_text.lower() in result.final_synthesis.lower()

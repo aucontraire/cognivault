@@ -483,7 +483,7 @@ class LangGraphOrchestrator:
 
             raise NodeExecutionError(f"LangGraph execution failed: {e}") from e
 
-    async def _get_compiled_graph(self) -> None:
+    async def _get_compiled_graph(self) -> Any:
         """
         Get or create compiled LangGraph StateGraph using GraphFactory.
 

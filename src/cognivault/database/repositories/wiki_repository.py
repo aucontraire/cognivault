@@ -338,7 +338,7 @@ class WikiRepository(BaseRepository[WikiEntry]):
                 for entry in entries:
                     from typing import cast
 
-                    entry_topic_id = cast(UUID, entry.topic_id)
+                    entry_topic_id = entry.topic_id
                     entry_version = cast(int, entry.version)
                     if (
                         entry_topic_id not in topic_latest

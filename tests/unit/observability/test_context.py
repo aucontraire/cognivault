@@ -210,6 +210,7 @@ class TestCorrelationIdHelpers:
         set_correlation_id("new-correlation-id")
 
         updated_context = get_observability_context()
+        assert updated_context is not None
         assert updated_context.correlation_id == "new-correlation-id"
         assert updated_context.agent_name == "TestAgent"  # Other fields preserved
 
@@ -320,11 +321,17 @@ class TestObservabilityContextFunction:
     def test_observability_context_nested(self) -> None:
         """Test nested observability contexts."""
         with observability_context(agent_name="OuterAgent") as outer_ctx:
-            assert get_observability_context().agent_name == "OuterAgent"
+            outer_observability_context = get_observability_context()
+            assert outer_observability_context is not None
+            assert outer_observability_context.agent_name == "OuterAgent"
 
             with observability_context(agent_name="InnerAgent") as inner_ctx:
-                assert get_observability_context().agent_name == "InnerAgent"
+                inner_observability_context = get_observability_context()
+                assert inner_observability_context is not None
+                assert inner_observability_context.agent_name == "InnerAgent"
                 assert inner_ctx.agent_name == "InnerAgent"
 
             # Should restore outer context
-            assert get_observability_context().agent_name == "OuterAgent"
+            outer_observability_ctx = get_observability_context()
+            assert outer_observability_ctx is not None
+            assert outer_observability_ctx.agent_name == "OuterAgent"

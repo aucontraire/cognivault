@@ -11,7 +11,6 @@ This module tests the DAG visualization functionality including:
 """
 
 import pytest
-from typing import Any
 import tempfile
 import os
 from unittest.mock import MagicMock, patch
@@ -162,7 +161,7 @@ class TestDAGVisualizer:
         """Test edge generation when no dependencies exist."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "critic"]
-        dependencies = {}
+        dependencies: dict[str, list[str]] = {}
 
         edges = visualizer._generate_edges(agents, dependencies)
 

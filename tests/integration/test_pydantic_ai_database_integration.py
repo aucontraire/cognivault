@@ -32,6 +32,10 @@ class MockStructuredLLM(LLMInterface):
 
     def __init__(self) -> None:
         self.model = "mock-gpt-4"
+        # Flag to indicate this is a mock LLM
+        self._is_mock = True
+        # Set fake API key for mock mode
+        self.api_key = "mock-api-key-for-testing"
 
     def generate(
         self,

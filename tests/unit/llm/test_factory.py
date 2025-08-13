@@ -31,4 +31,4 @@ def test_factory_invalid_enum_value() -> None:
         pass
 
     with pytest.raises(ValueError, match="Unsupported LLM type: .*"):
-        LLMFactory.create(FakeEnum())
+        LLMFactory.create(FakeEnum())  # type: ignore[arg-type]

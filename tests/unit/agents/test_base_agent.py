@@ -1,5 +1,5 @@
 import pytest
-from typing import Any, Dict
+from typing import Any, Dict, Generator
 import asyncio
 from unittest.mock import patch
 from cognivault.agents.base_agent import (
@@ -24,6 +24,25 @@ from cognivault.exceptions import (
 )
 
 from tests.factories import AgentContextFactory, AgentContextPatterns
+
+
+@pytest.fixture(autouse=True)
+def enable_events(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Ensure events are enabled for all BaseAgent tests."""
+    monkeypatch.setenv("COGNIVAULT_EVENTS_ENABLED", "true")
+    monkeypatch.setenv("COGNIVAULT_EVENTS_IN_MEMORY", "true")
+
+    # Reset and re-enable global event emitter for each test
+    from cognivault.events import reset_global_event_emitter, get_global_event_emitter
+
+    reset_global_event_emitter()
+    emitter = get_global_event_emitter()
+    emitter.enable()
+
+    yield  # Run the test
+
+    # Reset again after the test to avoid interference with subsequent tests
+    reset_global_event_emitter()
 
 
 # Test fixtures and helper classes
@@ -153,7 +172,7 @@ async def test_base_agent_run_concrete() -> None:
 
 def test_base_agent_run_abstract_error() -> None:
     with pytest.raises(TypeError):
-        BaseAgent(name="Test")  # Directly instantiating BaseAgent should fail
+        BaseAgent(name="Test")  # type: ignore[abstract]  # Directly instantiating BaseAgent should fail
 
 
 # RetryConfig tests
@@ -328,8 +347,10 @@ async def test_run_with_retry_with_step_id() -> None:
 @pytest.mark.asyncio
 async def test_run_with_retry_circuit_breaker_open() -> None:
     agent = ConcreteAgent("TestAgent")
-    agent.circuit_breaker.is_open = True
-    agent.circuit_breaker.failure_count = 5
+    assert agent.circuit_breaker is not None
+    circuit_breaker = agent.circuit_breaker
+    circuit_breaker.is_open = True
+    circuit_breaker.failure_count = 5
     context = AgentContextPatterns.simple_query("test")
 
     with pytest.raises(AgentExecutionError) as exc_info:
@@ -550,9 +571,11 @@ async def test_run_with_retry_circuit_breaker_time_calculation() -> None:
     # Force circuit breaker to have a failure time for time calculation
     from datetime import datetime, timezone, timedelta
 
-    agent.circuit_breaker.is_open = True
-    agent.circuit_breaker.failure_count = 5
-    agent.circuit_breaker.last_failure_time = datetime.now(timezone.utc) - timedelta(
+    assert agent.circuit_breaker is not None
+    circuit_breaker = agent.circuit_breaker
+    circuit_breaker.is_open = True
+    circuit_breaker.failure_count = 5
+    circuit_breaker.last_failure_time = datetime.now(timezone.utc) - timedelta(
         seconds=100
     )
 
@@ -943,7 +966,7 @@ def test_validate_node_compatibility() -> None:
 
     # Invalid input should fail
     invalid_input = "not a context"
-    assert agent.validate_node_compatibility(invalid_input) is False
+    assert agent.validate_node_compatibility(invalid_input) is False  # type: ignore[arg-type]
 
 
 def test_node_definition_to_dict_comprehensive() -> None:

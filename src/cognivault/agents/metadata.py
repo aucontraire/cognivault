@@ -8,12 +8,26 @@ and future utility agent integration.
 
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Type, Literal, TYPE_CHECKING, Union
+from typing import Dict, Any, Optional, List, Type, Literal, TYPE_CHECKING, cast
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 if TYPE_CHECKING:
     from cognivault.agents.base_agent import BaseAgent
+    from cognivault.agents.protocols import AgentConstructorPattern
+else:
+    # Avoid circular imports for runtime
+    try:
+        from cognivault.agents.protocols import AgentConstructorPattern
+    except ImportError:
+        # Define enum here as fallback
+        class AgentConstructorPattern(Enum):
+            LLM_REQUIRED = "llm_required"
+            LLM_OPTIONAL = "llm_optional"
+            STANDARD = "standard"
+            FLEXIBLE = "flexible"
+
+
 from cognivault.exceptions import FailurePropagationStrategy
 
 
@@ -109,6 +123,11 @@ class AgentMetadata(BaseModel):
         False,
         description="Whether this agent requires an LLM interface",
         json_schema_extra={"example": True},
+    )
+    constructor_pattern: "AgentConstructorPattern" = Field(
+        AgentConstructorPattern.FLEXIBLE,
+        description="Constructor pattern for type-safe agent instantiation",
+        json_schema_extra={"example": "llm_required"},
     )
     dependencies: List[str] = Field(
         default_factory=list,
@@ -241,9 +260,12 @@ class AgentMetadata(BaseModel):
     @classmethod
     def validate_agent_class(cls, v: Any) -> Any:
         """Handle agent_class validation and conversion from string."""
-        # Handle Mock objects (for testing)
-        if hasattr(v, "_mock_name") or str(type(v)).startswith(
-            "<class 'unittest.mock."
+        # Handle Mock objects (for testing) - check for any mock-like object
+        if (
+            hasattr(v, "_mock_name")
+            or str(type(v)).startswith("<class 'unittest.mock.")
+            or hasattr(v, "_mock_methods")
+            or str(type(v).__name__) in ("Mock", "MagicMock")
         ):
             # This is a Mock object, accept it as-is for testing
             # Ensure it has the required attributes
@@ -275,6 +297,7 @@ class AgentMetadata(BaseModel):
                     async def invoke(
                         self, state: Any, config: Optional[Dict[str, Any]] = None
                     ) -> Any:
+                        del config  # Mark as used
                         return state
 
                 return DummyAgent
@@ -370,6 +393,8 @@ class AgentMetadata(BaseModel):
         Returns:
             True if agent can handle this task type
         """
+        # domain parameter is available for future use but not currently used
+        del domain
         # Map task types to capabilities
         task_capability_map = {
             "transform": ["translation", "summarization", "output_formatting"],
@@ -449,6 +474,112 @@ class AgentMetadata(BaseModel):
         }
 
     @classmethod
+    def create_for_registry(
+        cls,
+        name: str,
+        agent_class: "Type[BaseAgent]",
+        requires_llm: bool = False,
+        constructor_pattern: Optional["AgentConstructorPattern"] = None,
+        description: str = "",
+        dependencies: Optional[List[str]] = None,
+        is_critical: bool = True,
+        failure_strategy: FailurePropagationStrategy = FailurePropagationStrategy.FAIL_FAST,
+        fallback_agents: Optional[List[str]] = None,
+        health_checks: Optional[List[str]] = None,
+        cognitive_speed: Literal["fast", "slow", "adaptive"] = "adaptive",
+        cognitive_depth: Literal["shallow", "deep", "variable"] = "variable",
+        processing_pattern: Literal["atomic", "composite", "chain"] = "atomic",
+        primary_capability: str = "",
+        secondary_capabilities: Optional[List[str]] = None,
+        pipeline_role: Literal[
+            "entry", "intermediate", "terminal", "standalone"
+        ] = "standalone",
+        bounded_context: str = "reflection",
+    ) -> "AgentMetadata":
+        """
+        Create AgentMetadata for registry registration.
+
+        This factory method properly handles None values for list fields,
+        letting Pydantic handle default_factory creation instead of manually
+        constructing empty lists.
+
+        Parameters
+        ----------
+        name : str
+            Unique name for the agent
+        agent_class : Type[BaseAgent]
+            The agent class to register
+        requires_llm : bool, optional
+            Whether this agent requires an LLM interface, defaults to False
+        constructor_pattern : AgentConstructorPattern, optional
+            Constructor pattern for agent instantiation
+        description : str, optional
+            Human-readable description of the agent, defaults to ""
+        dependencies : List[str], optional
+            List of agent names this agent depends on
+        is_critical : bool, optional
+            Whether agent failure should stop the pipeline, defaults to True
+        failure_strategy : FailurePropagationStrategy, optional
+            How to handle failures from this agent
+        fallback_agents : List[str], optional
+            Alternative agents to try if this one fails
+        health_checks : List[str], optional
+            Health check functions to run before executing
+        cognitive_speed : str, optional
+            Agent cognitive speed, defaults to "adaptive"
+        cognitive_depth : str, optional
+            Agent cognitive depth, defaults to "variable"
+        processing_pattern : str, optional
+            Processing pattern, defaults to "atomic"
+        primary_capability : str, optional
+            Primary capability, defaults to ""
+        secondary_capabilities : List[str], optional
+            Additional capabilities this agent provides
+        pipeline_role : str, optional
+            Role in pipeline, defaults to "standalone"
+        bounded_context : str, optional
+            Bounded context, defaults to "reflection"
+
+        Returns
+        -------
+        AgentMetadata
+            Agent metadata instance with proper default handling
+        """
+        # Build kwargs dict, only including non-None values for list fields
+        # This lets Pydantic handle default_factory creation
+        kwargs = {
+            "name": name,
+            "agent_class": agent_class,
+            "requires_llm": requires_llm,
+            "description": description,
+            "is_critical": is_critical,
+            "failure_strategy": failure_strategy,
+            "cognitive_speed": cognitive_speed,
+            "cognitive_depth": cognitive_depth,
+            "processing_pattern": processing_pattern,
+            "primary_capability": primary_capability,
+            "pipeline_role": pipeline_role,
+            "bounded_context": bounded_context,
+        }
+
+        # Handle constructor_pattern (if provided)
+        if constructor_pattern is not None:
+            kwargs["constructor_pattern"] = constructor_pattern
+
+        # Only add list fields if they are not None
+        # This allows Pydantic default_factory to handle empty lists properly
+        if dependencies is not None:
+            kwargs["dependencies"] = dependencies
+        if fallback_agents is not None:
+            kwargs["fallback_agents"] = fallback_agents
+        if health_checks is not None:
+            kwargs["health_checks"] = health_checks
+        if secondary_capabilities is not None:
+            kwargs["secondary_capabilities"] = secondary_capabilities
+
+        return cls(**kwargs)
+
+    @classmethod
     def create_default(
         cls,
         name: str = "default_agent",
@@ -475,7 +606,6 @@ class AgentMetadata(BaseModel):
         if agent_class is None:
             # Import BaseAgent at runtime to avoid circular import
             import importlib
-            from abc import ABC, abstractmethod
             from typing import TYPE_CHECKING, Optional, Dict
 
             try:
@@ -495,6 +625,7 @@ class AgentMetadata(BaseModel):
                         self, state: Any, config: Optional[Dict[str, Any]] = None
                     ) -> Any:
                         """Dummy invoke method with proper BaseAgent signature."""
+                        del config  # Mark as used
                         return state
 
                     @property
@@ -507,7 +638,35 @@ class AgentMetadata(BaseModel):
                             name="dummy_agent",
                             agent_class=DummyAgent,
                             description="Dummy agent metadata",
+                            cognitive_speed="adaptive",
+                            cognitive_depth="variable",
+                            processing_pattern="atomic",
+                            execution_pattern="processor",
+                            primary_capability="dummy_processing",
+                            secondary_capabilities=[],
+                            pipeline_role="standalone",
+                            bounded_context="reflection",
+                            requires_llm=False,
+                            constructor_pattern=AgentConstructorPattern.FLEXIBLE,
+                            dependencies=[],
+                            is_critical=False,
                             failure_strategy=FailurePropagationStrategy.FAIL_FAST,
+                            fallback_agents=[],
+                            health_checks=[],
+                            version="1.0.0",
+                            capabilities=["dummy_processing"],
+                            resource_requirements={},
+                            compatibility={},
+                            # Additional required parameters
+                            agent_id="dummy_agent",
+                            module_path="cognivault.agents.dummy.DummyAgent",
+                            discovery_strategy=None,
+                            file_path=None,
+                            checksum=None,
+                            load_count=0,
+                            last_loaded=None,
+                            is_loaded=False,
+                            load_errors=[],
                         )
 
                 agent_class = DummyAgent
@@ -530,6 +689,7 @@ class AgentMetadata(BaseModel):
             pipeline_role="standalone",
             bounded_context="reflection",
             requires_llm=False,
+            constructor_pattern=AgentConstructorPattern.FLEXIBLE,
             dependencies=[],
             is_critical=True,
             failure_strategy=FailurePropagationStrategy.FAIL_FAST,
@@ -539,13 +699,24 @@ class AgentMetadata(BaseModel):
             capabilities=["general_processing"],
             resource_requirements={},
             compatibility={},
+            agent_id=None,
+            module_path=None,
+            discovered_at=time.time(),
+            discovery_strategy=None,
+            file_path=None,
+            checksum=None,
+            load_count=0,
+            last_loaded=None,
+            is_loaded=False,
+            load_errors=[],
         )
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AgentMetadata":
         """Create AgentMetadata from dictionary representation."""
         # Handle agent_class reconstruction (simplified for now)
-        agent_class_path = data.get("agent_class", "")
+        # agent_class_path available for future use
+        data.get("agent_class", "")
         # In production, this would use importlib to reconstruct the class
         # For now, we'll use a placeholder
         # Import BaseAgent at runtime to avoid circular import
@@ -566,6 +737,7 @@ class AgentMetadata(BaseModel):
                     self, state: Any, config: Optional[Dict[str, Any]] = None
                 ) -> Any:
                     """Dummy invoke method with proper BaseAgent signature."""
+                    del config  # Mark as used
                     return state
 
             agent_class = DummyAgent
@@ -579,19 +751,76 @@ class AgentMetadata(BaseModel):
         if data.get("failure_strategy"):
             failure_strategy = FailurePropagationStrategy(data["failure_strategy"])
 
+        # Ensure type safety for literal values with proper casting
+        cognitive_speed_raw = data.get("cognitive_speed", "adaptive")
+        cognitive_depth_raw = data.get("cognitive_depth", "variable")
+        processing_pattern_raw = data.get("processing_pattern", "atomic")
+        execution_pattern_raw = data.get("execution_pattern", "processor")
+        pipeline_role_raw = data.get("pipeline_role", "standalone")
+        bounded_context_raw = data.get("bounded_context", "reflection")
+
+        # Validate and cast to proper literal types
+        cognitive_speed_val: Literal["fast", "slow", "adaptive"] = (
+            cast(Literal["fast", "slow", "adaptive"], cognitive_speed_raw)
+            if cognitive_speed_raw in ["fast", "slow", "adaptive"]
+            else "adaptive"
+        )
+
+        cognitive_depth_val: Literal["shallow", "deep", "variable"] = (
+            cast(Literal["shallow", "deep", "variable"], cognitive_depth_raw)
+            if cognitive_depth_raw in ["shallow", "deep", "variable"]
+            else "variable"
+        )
+
+        processing_pattern_val: Literal["atomic", "composite", "chain"] = (
+            cast(Literal["atomic", "composite", "chain"], processing_pattern_raw)
+            if processing_pattern_raw in ["atomic", "composite", "chain"]
+            else "atomic"
+        )
+
+        execution_pattern_val: Literal[
+            "processor", "decision", "aggregator", "validator", "terminator"
+        ] = (
+            cast(
+                Literal[
+                    "processor", "decision", "aggregator", "validator", "terminator"
+                ],
+                execution_pattern_raw,
+            )
+            if execution_pattern_raw
+            in ["processor", "decision", "aggregator", "validator", "terminator"]
+            else "processor"
+        )
+
+        pipeline_role_val: Literal[
+            "entry", "intermediate", "terminal", "standalone"
+        ] = (
+            cast(
+                Literal["entry", "intermediate", "terminal", "standalone"],
+                pipeline_role_raw,
+            )
+            if pipeline_role_raw in ["entry", "intermediate", "terminal", "standalone"]
+            else "standalone"
+        )
+
+        bounded_context_val: str = "reflection"
+        if bounded_context_raw in ["reflection", "transformation", "retrieval"]:
+            bounded_context_val = bounded_context_raw
+
         return cls(
             name=data["name"],
             agent_class=agent_class,
             description=data.get("description", ""),
-            cognitive_speed=data.get("cognitive_speed", "adaptive"),
-            cognitive_depth=data.get("cognitive_depth", "variable"),
-            processing_pattern=data.get("processing_pattern", "atomic"),
-            execution_pattern=data.get("execution_pattern", "processor"),
+            cognitive_speed=cognitive_speed_val,
+            cognitive_depth=cognitive_depth_val,
+            processing_pattern=processing_pattern_val,
+            execution_pattern=execution_pattern_val,
             primary_capability=data.get("primary_capability", ""),
             secondary_capabilities=data.get("secondary_capabilities", []),
-            pipeline_role=data.get("pipeline_role", "standalone"),
-            bounded_context=data.get("bounded_context", "reflection"),
+            pipeline_role=pipeline_role_val,
+            bounded_context=bounded_context_val,
             requires_llm=data.get("requires_llm", False),
+            constructor_pattern=AgentConstructorPattern.FLEXIBLE,
             dependencies=data.get("dependencies", []),
             is_critical=data.get("is_critical", True),
             failure_strategy=failure_strategy,
@@ -618,6 +847,17 @@ class AgentMetadata(BaseModel):
         validate_assignment=True,
         arbitrary_types_allowed=True,  # Required for Type[Any] field
     )
+
+
+# Try to import BaseAgent and rebuild model to resolve forward references
+try:
+    from cognivault.agents.base_agent import BaseAgent
+
+    AgentMetadata.model_rebuild()
+except (ImportError, Exception):
+    # If import fails or model rebuild fails, continue silently
+    # Tests will need to handle this appropriately
+    pass
 
 
 class TaskClassification(BaseModel):
@@ -682,12 +922,29 @@ class TaskClassification(BaseModel):
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "TaskClassification":
         """Create TaskClassification from dictionary - backward compatibility."""
+        # Ensure type safety for literal values with proper casting
+        complexity_raw = data.get("complexity", "moderate")
+        urgency_raw = data.get("urgency", "normal")
+
+        # Validate and cast to proper literal types
+        complexity_val: Literal["simple", "moderate", "complex"] = (
+            cast(Literal["simple", "moderate", "complex"], complexity_raw)
+            if complexity_raw in ["simple", "moderate", "complex"]
+            else "moderate"
+        )
+
+        urgency_val: Literal["low", "normal", "high"] = (
+            cast(Literal["low", "normal", "high"], urgency_raw)
+            if urgency_raw in ["low", "normal", "high"]
+            else "normal"
+        )
+
         return cls(
             task_type=data["task_type"],
             domain=data.get("domain"),
             intent=data.get("intent"),
-            complexity=data.get("complexity", "moderate"),
-            urgency=data.get("urgency", "normal"),
+            complexity=complexity_val,
+            urgency=urgency_val,
         )
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)

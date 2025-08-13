@@ -15,6 +15,9 @@ from cognivault.correlation import get_correlation_id
 from cognivault.agents.metadata import AgentMetadata
 from cognivault.routing.routing_decision import RoutingDecision
 
+# NOTE: Removed import from test factories to fix circular import
+# Production code should not depend on test factories
+
 if TYPE_CHECKING:
     from .sinks import EventSink
 
@@ -143,6 +146,24 @@ def get_global_event_emitter() -> EventEmitter:
     return _global_event_emitter
 
 
+def reset_global_event_emitter() -> None:
+    """Reset the global event emitter instance for testing."""
+    global _global_event_emitter
+    if _global_event_emitter is not None:
+        # Synchronously clean up sinks without async
+        for sink in _global_event_emitter.sinks:
+            try:
+                # Try to close synchronously if sink supports it
+                if hasattr(sink, "clear_events"):
+                    sink.clear_events()
+            except Exception:
+                # Ignore cleanup errors during reset
+                pass
+        _global_event_emitter.sinks.clear()
+        _global_event_emitter.enabled = False
+    _global_event_emitter = None
+
+
 # Convenience functions for event emission
 async def emit_workflow_started(
     workflow_id: str,
@@ -155,14 +176,27 @@ async def emit_workflow_started(
     """Emit workflow started event."""
     emitter = get_global_event_emitter()
 
+    # Create override dict without conflicting keys that factory already sets
+    overrides: Dict[str, Any] = {
+        "event_type": EventType.WORKFLOW_STARTED,
+        "event_category": EventCategory.ORCHESTRATION,
+        "timestamp": datetime.now(timezone.utc),
+        "correlation_id": correlation_id or get_correlation_id(),
+        "metadata": metadata or {},
+    }
+
+    # Only add execution_config if it's different from factory default
+    if execution_config:
+        overrides["execution_config"] = execution_config
+
     event = WorkflowStartedEvent(
-        event_type=EventType.WORKFLOW_STARTED,
-        event_category=EventCategory.ORCHESTRATION,  # Workflow events are orchestration-level
         workflow_id=workflow_id,
-        timestamp=datetime.now(timezone.utc),
-        correlation_id=correlation_id or get_correlation_id(),
         query=query,
         agents_requested=agents or [],
+        event_type=EventType.WORKFLOW_STARTED,
+        event_category=EventCategory.ORCHESTRATION,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
         execution_config=execution_config or {},
         metadata=metadata or {},
     )
@@ -189,21 +223,31 @@ async def emit_workflow_completed(
     if error_message and not error_type:
         error_type = "WorkflowError"
 
-    event = WorkflowCompletedEvent(
-        event_type=EventType.WORKFLOW_COMPLETED,
-        event_category=EventCategory.ORCHESTRATION,  # Workflow events are orchestration-level
-        workflow_id=workflow_id,
-        timestamp=datetime.now(timezone.utc),
-        correlation_id=correlation_id or get_correlation_id(),
-        status=status,
-        execution_time_seconds=execution_time_seconds,
-        agent_outputs=agent_outputs or {},
-        successful_agents=successful_agents or [],
-        failed_agents=failed_agents or [],
-        error_message=error_message,
-        error_type=error_type,
-        metadata=metadata or {},
-    )
+    # Build event arguments, only including non-None values for optional fields
+    event_kwargs: Dict[str, Any] = {
+        "workflow_id": workflow_id,
+        "status": status,
+        "execution_time_seconds": execution_time_seconds,
+        "event_type": EventType.WORKFLOW_COMPLETED,
+        "event_category": EventCategory.ORCHESTRATION,
+        "timestamp": datetime.now(timezone.utc),
+        "correlation_id": correlation_id or get_correlation_id(),
+        "metadata": metadata or {},
+    }
+
+    # Only add optional parameters if provided (let default factories handle None values)
+    if agent_outputs is not None:
+        event_kwargs["agent_outputs"] = agent_outputs
+    if successful_agents is not None:
+        event_kwargs["successful_agents"] = successful_agents
+    if failed_agents is not None:
+        event_kwargs["failed_agents"] = failed_agents
+    if error_message is not None:
+        event_kwargs["error_message"] = error_message
+    if error_type is not None:
+        event_kwargs["error_type"] = error_type
+
+    event = WorkflowCompletedEvent(**event_kwargs)
 
     await emitter.emit(event)
 
@@ -220,15 +264,30 @@ async def emit_agent_execution_started(
     """Emit agent execution started event."""
     emitter = get_global_event_emitter()
 
+    # Create override dict without conflicting keys that factory already sets
+    overrides: Dict[str, Any] = {
+        "event_type": EventType.AGENT_EXECUTION_STARTED,
+        "event_category": event_category,
+        "timestamp": datetime.now(timezone.utc),
+        "correlation_id": correlation_id or get_correlation_id(),
+        "metadata": metadata or {},
+    }
+
+    # Only add optional parameters if provided
+    if input_context:
+        overrides["input_context"] = input_context
+    if agent_metadata:
+        overrides["agent_metadata"] = agent_metadata
+
     event = AgentExecutionStartedEvent(
+        workflow_id=workflow_id,
+        agent_name=agent_name,
         event_type=EventType.AGENT_EXECUTION_STARTED,
         event_category=event_category,
-        workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
-        agent_metadata=agent_metadata,
-        agent_name=agent_name,
         input_context=input_context,
+        agent_metadata=agent_metadata,
         metadata=metadata or {},
     )
 
@@ -255,16 +314,37 @@ async def emit_agent_execution_completed(
     if error_message and not error_type:
         error_type = "AgentExecutionError"
 
+    # Create override dict without conflicting keys that factory already sets
+    overrides: Dict[str, Any] = {
+        "event_type": EventType.AGENT_EXECUTION_COMPLETED,
+        "event_category": event_category,
+        "timestamp": datetime.now(timezone.utc),
+        "correlation_id": correlation_id or get_correlation_id(),
+        "metadata": metadata or {},
+    }
+
+    # Only add optional parameters if provided
+    if output_context:
+        overrides["output_context"] = output_context
+    if agent_metadata:
+        overrides["agent_metadata"] = agent_metadata
+    if execution_time_ms:
+        overrides["execution_time_ms"] = execution_time_ms
+    if error_message:
+        overrides["error_message"] = error_message
+    if error_type:
+        overrides["error_type"] = error_type
+
     event = AgentExecutionCompletedEvent(
-        event_type=EventType.AGENT_EXECUTION_COMPLETED,
-        event_category=event_category,
         workflow_id=workflow_id,
-        timestamp=datetime.now(timezone.utc),
-        correlation_id=correlation_id or get_correlation_id(),
-        agent_metadata=agent_metadata,
         agent_name=agent_name,
         success=success,
+        event_type=EventType.AGENT_EXECUTION_COMPLETED,
+        event_category=event_category,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
         output_context=output_context,
+        agent_metadata=agent_metadata,
         execution_time_ms=execution_time_ms,
         error_message=error_message,
         error_type=error_type,
@@ -286,15 +366,28 @@ async def emit_routing_decision(
     """Emit routing decision event."""
     emitter = get_global_event_emitter()
 
+    # Create override dict without conflicting keys that factory already sets
+    overrides: Dict[str, Any] = {
+        "event_type": EventType.ROUTING_DECISION_MADE,
+        "event_category": EventCategory.ORCHESTRATION,
+        "timestamp": datetime.now(timezone.utc),
+        "correlation_id": correlation_id or get_correlation_id(),
+        "metadata": metadata or {},
+    }
+
+    # Only add optional parameters if provided
+    if reasoning:
+        overrides["reasoning"] = reasoning
+
     event = RoutingDecisionEvent(
-        event_type=EventType.ROUTING_DECISION_MADE,
-        event_category=EventCategory.ORCHESTRATION,  # Routing decisions are orchestration-level
         workflow_id=workflow_id,
-        timestamp=datetime.now(timezone.utc),
-        correlation_id=correlation_id or get_correlation_id(),
         selected_agents=selected_agents,
         routing_strategy=routing_strategy,
         confidence_score=confidence_score,
+        event_type=EventType.ROUTING_DECISION_MADE,
+        event_category=EventCategory.ORCHESTRATION,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
         reasoning=reasoning or {},
         metadata=metadata or {},
     )
@@ -328,14 +421,14 @@ async def emit_routing_decision_from_object(
 
     # Create enhanced event with full routing decision data
     event = RoutingDecisionEvent(
-        event_type=EventType.ROUTING_DECISION_MADE,
-        event_category=EventCategory.ORCHESTRATION,  # Routing decisions are orchestration-level
         workflow_id=workflow_id,
-        timestamp=datetime.now(timezone.utc),
-        correlation_id=correlation_id or get_correlation_id(),
         selected_agents=routing_decision.selected_agents,
         routing_strategy=routing_decision.routing_strategy,
         confidence_score=routing_decision.confidence_score,
+        event_type=EventType.ROUTING_DECISION_MADE,
+        event_category=EventCategory.ORCHESTRATION,
+        timestamp=datetime.now(timezone.utc),
+        correlation_id=correlation_id or get_correlation_id(),
         reasoning=routing_decision.reasoning.to_dict(),
         metadata={
             **(metadata or {}),
@@ -394,7 +487,7 @@ async def emit_health_check_performed(
 
     event = WorkflowEvent(
         event_type=EventType.HEALTH_CHECK_PERFORMED,
-        event_category=EventCategory.ORCHESTRATION,  # Health checks are system/orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -447,7 +540,7 @@ async def emit_api_request_received(
 
     event = WorkflowEvent(
         event_type=EventType.API_REQUEST_RECEIVED,
-        event_category=EventCategory.ORCHESTRATION,  # API events are orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -500,7 +593,7 @@ async def emit_api_response_sent(
 
     event = WorkflowEvent(
         event_type=EventType.API_RESPONSE_SENT,
-        event_category=EventCategory.ORCHESTRATION,  # API events are orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -560,7 +653,7 @@ async def emit_service_boundary_crossed(
 
     event = WorkflowEvent(
         event_type=EventType.SERVICE_BOUNDARY_CROSSED,
-        event_category=EventCategory.ORCHESTRATION,  # Service boundary events are orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -618,7 +711,7 @@ async def emit_decision_made(
 
     event = WorkflowEvent(
         event_type=EventType.DECISION_MADE,
-        event_category=EventCategory.ORCHESTRATION,  # Decision events are orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -676,7 +769,7 @@ async def emit_aggregation_completed(
 
     event = WorkflowEvent(
         event_type=EventType.AGGREGATION_COMPLETED,
-        event_category=EventCategory.ORCHESTRATION,  # Aggregation events are orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -735,7 +828,7 @@ async def emit_validation_completed(
 
     event = WorkflowEvent(
         event_type=EventType.VALIDATION_COMPLETED,
-        event_category=EventCategory.ORCHESTRATION,  # Validation events are orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),
@@ -791,7 +884,7 @@ async def emit_termination_triggered(
 
     event = WorkflowEvent(
         event_type=EventType.TERMINATION_TRIGGERED,
-        event_category=EventCategory.ORCHESTRATION,  # Termination events are orchestration level
+        event_category=EventCategory.ORCHESTRATION,
         workflow_id=workflow_id,
         timestamp=datetime.now(timezone.utc),
         correlation_id=correlation_id or get_correlation_id(),

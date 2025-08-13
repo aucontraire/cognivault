@@ -5,7 +5,7 @@ Tests the web layer query endpoints using existing API models and factory patter
 """
 
 import pytest
-from typing import Any
+from typing import Any, TypedDict, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from fastapi.testclient import TestClient
 
@@ -17,6 +17,35 @@ from cognivault.api.models import (
     WorkflowHistoryItem,
     StatusResponse,
 )
+
+
+# JSON Response Type Definitions for API Testing
+class StatusResponseJSON(TypedDict):
+    """Type-safe JSON structure for StatusResponse API responses."""
+
+    workflow_id: str
+    status: str
+    progress_percentage: float
+    current_agent: str | None
+    estimated_completion_seconds: float | None
+
+
+class WorkflowResponseJSON(TypedDict):
+    """Type-safe JSON structure for WorkflowResponse API responses."""
+
+    workflow_id: str
+    status: str
+    agent_outputs: dict[str, str]
+    execution_time_seconds: float
+    correlation_id: str | None
+    error_message: str | None
+
+
+class StatusTestCase(TypedDict):
+    """Type-safe structure for status test case data."""
+
+    correlation_id: str
+    status: StatusResponse
 
 
 class TestQueryRoutes:
@@ -58,13 +87,13 @@ class TestQueryRoutes:
         assert response.status_code == 200
         data = response.json()
 
-        # Verify response structure matches WorkflowResponse
-        assert data["workflow_id"] == "550e8400-e29b-41d4-a716-446655440000"
-        assert data["status"] == "completed"
-        assert data["correlation_id"] == "test-correlation-123"
-        assert data["execution_time_seconds"] == 15.5
-        assert "agent_outputs" in data
-        assert len(data["agent_outputs"]) == 4
+        # Verify response structure matches WorkflowResponse with Pydantic validation
+        workflow_response = WorkflowResponse(**data)
+        assert workflow_response.workflow_id == "550e8400-e29b-41d4-a716-446655440000"
+        assert workflow_response.status == "completed"
+        assert workflow_response.correlation_id == "test-correlation-123"
+        assert workflow_response.execution_time_seconds == 15.5
+        assert len(workflow_response.agent_outputs) == 4
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
     async def test_execute_query_orchestration_failure(
@@ -194,7 +223,7 @@ class TestQueryRoutes:
         response = self.client.get(f"/api/query/status/{correlation_id}")
 
         assert response.status_code == 200
-        data = response.json()
+        data: StatusResponseJSON = response.json()
 
         # Verify response structure matches StatusResponse
         assert data["workflow_id"] == "550e8400-e29b-41d4-a716-446655440001"
@@ -408,8 +437,8 @@ class TestQueryRoutes:
         mock_api = AsyncMock()
         mock_get_api.return_value = mock_api
 
-        # Test different status scenarios
-        test_cases = [
+        # Test different status scenarios with proper typing
+        test_cases: list[StatusTestCase] = [
             {
                 "correlation_id": "running-workflow",
                 "status": StatusResponse(
@@ -440,7 +469,7 @@ class TestQueryRoutes:
             )
 
             assert response.status_code == 200
-            data = response.json()
+            data: StatusResponseJSON = response.json()
             assert data["status"] == test_case["status"].status
             assert data["workflow_id"] == test_case["status"].workflow_id
             assert (

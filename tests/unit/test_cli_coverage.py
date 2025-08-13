@@ -9,7 +9,7 @@ from typing import Any
 import os
 import tempfile
 import json
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from rich.console import Console
 
 from cognivault.cli.main_commands import (
@@ -24,10 +24,8 @@ from cognivault.cli.main_commands import (
     _run_rollback_mode,
 )
 from cognivault.context import AgentContext
-from tests.factories.agent_context_factories import (
-    AgentContextFactory,
-    AgentContextPatterns,
-)
+from tests.factories.agent_context_factories import AgentContextFactory
+from tests.factories.api_model_factories import APIModelFactory
 
 
 class TestCLIUtilityFunctions:
@@ -73,7 +71,7 @@ class TestCLIUtilityFunctions:
         mock_langgraph_graph.END = "END"
 
         mock_langgraph_checkpoint: Mock = Mock()
-        mock_langgraph_checkpoint.MemorySaver: Mock = Mock()
+        mock_langgraph_checkpoint.MemorySaver = Mock()
 
         # Mock the modules in sys.modules before import
         modules = {
@@ -135,7 +133,7 @@ class TestCLIUtilityFunctions:
         mock_langgraph_graph.END = "END"
 
         mock_langgraph_checkpoint: Mock = Mock()
-        mock_langgraph_checkpoint.MemorySaver: Mock = Mock()
+        mock_langgraph_checkpoint.MemorySaver = Mock()
 
         # Mock the modules in sys.modules
         modules = {
@@ -172,9 +170,7 @@ class TestCLIRunModes:
             mock_init_api.return_value = mock_api
 
             # Mock workflow response
-            from cognivault.api.models import WorkflowResponse
-
-            mock_response = WorkflowResponse(
+            mock_response = APIModelFactory.create_valid_workflow_response(
                 workflow_id="550e8400-e29b-41d4-a716-446655440000",
                 status="completed",
                 agent_outputs={
@@ -252,9 +248,7 @@ class TestCLIRunModes:
             mock_init_api.return_value = mock_api
 
             # Mock failed workflow response
-            from cognivault.api.models import WorkflowResponse
-
-            mock_response = WorkflowResponse(
+            mock_response = APIModelFactory.create_valid_workflow_response(
                 workflow_id="550e8400-e29b-41d4-a716-446655440001",
                 status="failed",
                 agent_outputs={},
@@ -549,7 +543,7 @@ class TestCLIRollbackMode:
         mock_orchestrator.rollback_to_checkpoint.return_value = restored_context
 
         # Mock checkpoint history
-        mock_orchestrator.get_checkpoint_history: Mock = Mock()
+        mock_orchestrator.get_checkpoint_history = Mock()
         mock_orchestrator.get_checkpoint_history.return_value = [
             {
                 "agent_step": "critic_completed",
@@ -587,7 +581,7 @@ class TestCLIRollbackMode:
     async def test_run_rollback_mode_no_thread_id(self) -> None:
         """Test rollback mode without thread ID."""
         console = Console()
-        thread_id = None
+        thread_id = "no-thread-id"
 
         mock_orchestrator: Mock = Mock()
         mock_orchestrator.rollback_to_checkpoint = AsyncMock()

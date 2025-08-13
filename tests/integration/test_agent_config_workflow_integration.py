@@ -183,10 +183,9 @@ class TestAgentConfigWorkflowIntegration:
         composer._validate_workflow(workflow_definition)
 
         # Test that workflow can be composed (would create StateGraph in real usage)
-        # We'll mock the dependencies to avoid full LLM setup
-        with patch("cognivault.orchestration.state_schemas.CogniVaultState"):
-            graph = composer.compose_workflow(workflow_definition)
-            assert graph is not None
+        # CogniVaultState is a TypedDict and doesn't need mocking
+        graph = composer.compose_workflow(workflow_definition)
+        assert graph is not None
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig.load")

@@ -85,6 +85,10 @@ class TestAPIEventIntegration:
         assert event.correlation_id == "corr-456"
         assert event.data.get("status") == "completed"
         assert event.data.get("execution_time_seconds") == 5.2
+        # Type check: ensure we have a WorkflowEvent with agent_outputs
+        assert hasattr(event, "agent_outputs"), (
+            f"Event type {type(event)} does not have agent_outputs"
+        )
         assert event.agent_outputs == {
             "refiner": "refined output",
             "critic": "critical analysis",

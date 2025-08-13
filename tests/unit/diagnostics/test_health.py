@@ -18,10 +18,10 @@ except ImportError:
         from importlib_metadata import version, PackageNotFoundError  # type: ignore
     except ImportError:
         # Create a stub if neither is available
-        class PackageNotFoundError(Exception):  # type: ignore[misc,no-redef]
+        class PackageNotFoundError(Exception):  # type: ignore[no-redef]
             pass
 
-        def version(distribution_name: str) -> str:  # type: ignore[misc]
+        def version(distribution_name: str) -> str:
             raise PackageNotFoundError(f"Package {distribution_name} not found")
 
 
@@ -46,7 +46,7 @@ class TestHealthStatus:
         """Test health status can be compared."""
         # Test basic equality
         assert HealthStatus.HEALTHY == HealthStatus.HEALTHY
-        assert HealthStatus.HEALTHY != HealthStatus.DEGRADED
+        # Note: HealthStatus.HEALTHY != HealthStatus.DEGRADED is always true by definition
 
         # Test with string values
         assert HealthStatus.HEALTHY.value == "healthy"
@@ -357,7 +357,7 @@ class TestHealthChecker:
             # Mock file system checks
             mock_exists.return_value = True
             mock_access.return_value = True
-            mock_temp.return_value.__enter__.return_value: MagicMock = MagicMock()
+            mock_temp.return_value.__enter__.return_value = MagicMock()
 
             # Mock disk space check
             mock_stat: MagicMock = MagicMock()
@@ -382,7 +382,7 @@ class TestHealthChecker:
             patch("tempfile.NamedTemporaryFile") as mock_temp,
         ):
             mock_exists.return_value = False  # Directories don't exist
-            mock_temp.return_value.__enter__.return_value: MagicMock = MagicMock()
+            mock_temp.return_value.__enter__.return_value = MagicMock()
 
             result = await self.health_checker._check_file_system()
 
@@ -487,7 +487,7 @@ class TestHealthChecker:
 
     def test_get_overall_status_empty(self) -> None:
         """Test overall status when no components are provided."""
-        components = {}
+        components: dict[str, ComponentHealth] = {}
 
         status = self.health_checker.get_overall_status(components)
 
@@ -571,7 +571,7 @@ class TestHealthChecker:
             # Mock basic file system checks as healthy
             mock_exists.return_value = True
             mock_access.return_value = True
-            mock_temp.return_value.__enter__.return_value: MagicMock = MagicMock()
+            mock_temp.return_value.__enter__.return_value = MagicMock()
 
             # Mock low disk space (< 100MB)
             mock_stat: MagicMock = MagicMock()

@@ -10,20 +10,15 @@ import pytest
 import asyncio
 import time
 from typing import Any, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from cognivault.context import AgentContext
-from tests.factories.agent_context_factories import (
-    AgentContextFactory,
-    AgentContextPatterns,
-)
+from tests.factories.agent_context_factories import AgentContextPatterns
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.dependencies.graph_engine import (
     DependencyGraphEngine,
-    DependencyNode,
     DependencyType,
     ExecutionPriority,
-    ResourceConstraint,
 )
 from cognivault.dependencies.execution_planner import (
     ExecutionPlanner,
@@ -42,11 +37,15 @@ from cognivault.dependencies.dynamic_composition import (
 )
 from cognivault.dependencies.advanced_orchestrator import (
     AdvancedOrchestrator,
-    OrchestratorConfig,
     ExecutionPhase,
-    ExecutionResults,
-    ResourceAllocationResult,
-    PipelineStage,
+)
+from tests.factories.advanced_orchestrator_factories import (
+    AdvancedResourceConstraintFactory,
+    OrchestratorConfigFactory,
+    ExecutionResultsFactory,
+    ResourceAllocationResultFactory,
+    PipelineStageFactory,
+    DependencyNodeFactory,
 )
 
 
@@ -83,7 +82,7 @@ class MockAgent(BaseAgent):
 @pytest.fixture
 def orchestrator_config() -> Any:
     """Create orchestrator configuration for testing."""
-    return OrchestratorConfig(
+    return OrchestratorConfigFactory.generate_valid_data(
         max_concurrent_agents=3,
         enable_failure_recovery=True,
         enable_resource_scheduling=True,
@@ -235,16 +234,18 @@ def simple_graph_engine() -> Any:
     }
 
     for agent_id, agent in agents.items():
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id=agent_id,
             agent=agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
             resource_constraints=[
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="cpu", max_usage=30.0, units="percentage"
                 ),
-                ResourceConstraint(resource_type="memory", max_usage=512.0, units="MB"),
+                AdvancedResourceConstraintFactory.basic(
+                    resource_type="memory", max_usage=512.0, units="MB"
+                ),
             ],
         )
         engine.add_node(node)
@@ -273,7 +274,7 @@ class TestOrchestratorConfig:
 
     def test_config_creation(self) -> None:
         """Test creating orchestrator configuration."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             max_concurrent_agents=5,
             enable_failure_recovery=True,
             enable_resource_scheduling=True,
@@ -296,7 +297,7 @@ class TestOrchestratorConfig:
 
     def test_config_defaults(self) -> None:
         """Test default configuration values."""
-        config = OrchestratorConfig()
+        config = OrchestratorConfigFactory.basic()
 
         assert config.max_concurrent_agents == 4
         assert config.enable_failure_recovery is True
@@ -314,7 +315,7 @@ class TestExecutionResults:
 
     def test_results_creation(self) -> None:
         """Test creating execution results."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=True,
             total_agents_executed=3,
             successful_agents=3,
@@ -333,7 +334,7 @@ class TestExecutionResults:
 
     def test_results_get_success_rate(self) -> None:
         """Test success rate calculation."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=False,
             total_agents_executed=5,
             successful_agents=3,
@@ -348,7 +349,7 @@ class TestExecutionResults:
 
     def test_results_get_success_rate_no_agents(self) -> None:
         """Test success rate with no agents executed."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=False,
             total_agents_executed=0,
             successful_agents=0,
@@ -363,7 +364,7 @@ class TestExecutionResults:
 
     def test_results_to_dict(self) -> None:
         """Test converting results to dictionary."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=True,
             total_agents_executed=2,
             successful_agents=2,
@@ -392,7 +393,7 @@ class TestResourceAllocationResult:
 
     def test_allocation_result_creation(self) -> None:
         """Test creating resource allocation result."""
-        result = ResourceAllocationResult(
+        result = ResourceAllocationResultFactory.basic(
             agent_id="test_agent",
             resource_type=ResourceType.CPU,
             requested_amount=50.0,
@@ -414,7 +415,7 @@ class TestPipelineStage:
 
     def test_pipeline_stage_creation(self) -> None:
         """Test creating pipeline stage."""
-        stage = PipelineStage(
+        stage = PipelineStageFactory.basic(
             stage_id="test_stage",
             phase=ExecutionPhase.EXECUTION,
             agents_executed=["agent1", "agent2"],
@@ -449,7 +450,7 @@ class TestAdvancedOrchestrator:
         self, simple_graph_engine: Any
     ) -> None:
         """Test orchestrator with dynamic composition enabled."""
-        config = OrchestratorConfig(enable_dynamic_composition=True)
+        config = OrchestratorConfigFactory.basic(enable_dynamic_composition=True)
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
 
         assert orchestrator.dynamic_composer is not None
@@ -491,7 +492,7 @@ class TestAdvancedOrchestrator:
         }
 
         for agent_id, agent in agents.items():
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=ExecutionPriority.NORMAL,
@@ -521,7 +522,7 @@ class TestAdvancedOrchestrator:
 
         # Create agent that takes longer than pipeline timeout
         slow_agent = MockAgent("slow_agent", delay=1.0)  # 1 second delay
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="slow_agent",
             agent=slow_agent,
             priority=ExecutionPriority.NORMAL,
@@ -576,12 +577,12 @@ class TestAdvancedOrchestrator:
 
         # Create agent with high resource requirements
         high_resource_agent = MockAgent("high_resource_agent")
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="high_resource_agent",
             agent=high_resource_agent,
             priority=ExecutionPriority.NORMAL,
             resource_constraints=[
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="memory", max_usage=20000.0, units="MB"
                 ),  # Very high memory
             ],
@@ -676,7 +677,7 @@ class TestAdvancedOrchestrator:
         slow_agent = MockAgent("slow_agent", delay=2.0)  # 2 second delay
 
         # Mock the node to have a short timeout
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="slow_agent",
             agent=slow_agent,
             priority=ExecutionPriority.NORMAL,
@@ -724,14 +725,14 @@ class TestAdvancedOrchestrator:
         ]
 
         pipeline_stages = [
-            PipelineStage(
+            PipelineStageFactory.basic(
                 stage_id="prep",
                 phase=ExecutionPhase.PREPARATION,
                 agents_executed=[],
                 stage_duration_ms=50.0,
                 success=True,
             ),
-            PipelineStage(
+            PipelineStageFactory.basic(
                 stage_id="exec",
                 phase=ExecutionPhase.EXECUTION,
                 agents_executed=["agent1", "agent2", "agent3"],
@@ -818,16 +819,16 @@ class TestIntegration:
                 if "loader" in agent_id
                 else ExecutionPriority.NORMAL
             )
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=priority,
                 timeout_ms=10000,
                 resource_constraints=[
-                    ResourceConstraint(
+                    AdvancedResourceConstraintFactory.basic(
                         resource_type="cpu", max_usage=25.0, units="percentage"
                     ),
-                    ResourceConstraint(
+                    AdvancedResourceConstraintFactory.basic(
                         resource_type="memory", max_usage=300.0, units="MB"
                     ),
                 ],
@@ -843,7 +844,7 @@ class TestIntegration:
         engine.add_dependency("aggregator", "reporter", DependencyType.HARD)
 
         # Create orchestrator with all features enabled
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             max_concurrent_agents=3,
             enable_failure_recovery=True,
             enable_resource_scheduling=True,
@@ -901,7 +902,7 @@ class TestIntegration:
         }
 
         for agent_id, agent in agents.items():
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=ExecutionPriority.NORMAL,
@@ -916,7 +917,7 @@ class TestIntegration:
         engine.add_dependency("backup_agent", "final_agent", DependencyType.HARD)
 
         # Configure for failure recovery
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -952,7 +953,7 @@ class TestIntegration:
                 agent_id, delay=0.1
             )  # Small delay for realism
 
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=parallel_agents[agent_id],
                 priority=ExecutionPriority.NORMAL,
@@ -962,7 +963,7 @@ class TestIntegration:
 
         # Add final aggregator
         aggregator = MockAgent("aggregator", delay=0.05)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="aggregator",
             agent=aggregator,
             priority=ExecutionPriority.HIGH,
@@ -987,7 +988,7 @@ class TestIntegration:
         performance_results = {}
 
         for strategy in strategies:
-            config = OrchestratorConfig(
+            config = OrchestratorConfigFactory.basic(
                 default_execution_strategy=strategy,
                 max_concurrent_agents=3,
             )
@@ -1036,23 +1037,27 @@ class TestIntegration:
         # Define different resource profiles
         resource_profiles = {
             "memory_intensive": [
-                ResourceConstraint(resource_type="memory", max_usage=2000.0, units="MB")
+                AdvancedResourceConstraintFactory.basic(
+                    resource_type="memory", max_usage=2000.0, units="MB"
+                )
             ],
             "cpu_intensive": [
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="cpu", max_usage=90.0, units="percentage"
                 )
             ],
             "balanced": [
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="cpu", max_usage=50.0, units="percentage"
                 ),
-                ResourceConstraint(resource_type="memory", max_usage=500.0, units="MB"),
+                AdvancedResourceConstraintFactory.basic(
+                    resource_type="memory", max_usage=500.0, units="MB"
+                ),
             ],
         }
 
         for agent_id, agent in agents.items():
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=ExecutionPriority.NORMAL,
@@ -1064,7 +1069,7 @@ class TestIntegration:
         # Make them independent for parallel execution
         # (no dependencies to test resource scheduling)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_resource_scheduling=True,
             max_concurrent_agents=2,  # Limited concurrency
         )
@@ -1094,7 +1099,7 @@ class TestIntegration:
         engine = DependencyGraphEngine()
 
         error_agent = MockAgent("error_agent", should_fail=True)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="error_agent",
             agent=error_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1102,7 +1107,7 @@ class TestIntegration:
         )
         engine.add_node(node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.ISOLATION,
         )
@@ -1137,7 +1142,7 @@ class TestOrchestratorFailureHandling:
     @pytest.fixture
     def orchestrator_with_failure_manager(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with configured failure manager."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -1150,7 +1155,7 @@ class TestOrchestratorFailureHandling:
 
         # Create agent that will fail and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1158,7 +1163,7 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.CIRCUIT_BREAKER,  # Use circuit breaker for fast failure
         )
@@ -1187,7 +1192,7 @@ class TestOrchestratorFailureHandling:
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1195,7 +1200,7 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(failing_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -1229,7 +1234,7 @@ class TestOrchestratorFailureHandling:
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1237,7 +1242,7 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -1272,7 +1277,7 @@ class TestOrchestratorFailureHandling:
 
         # Create failing primary agent and add to graph engine
         failing_agent = MockAgent("primary_agent", should_fail=True)
-        primary_node = DependencyNode(
+        primary_node = DependencyNodeFactory.basic(
             agent_id="primary_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1282,7 +1287,7 @@ class TestOrchestratorFailureHandling:
 
         # Also add a fallback agent to the graph engine
         fallback_agent = MockAgent("fallback_agent")
-        fallback_node = DependencyNode(
+        fallback_node = DependencyNodeFactory.basic(
             agent_id="fallback_agent",
             agent=fallback_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1290,7 +1295,7 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(fallback_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -1323,7 +1328,7 @@ class TestOrchestratorFailureHandling:
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1331,7 +1336,7 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(failing_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -1363,7 +1368,7 @@ class TestOrchestratorFailureHandling:
 
         # Create critical failing agent and add to graph engine
         critical_agent = MockAgent("critical_agent", should_fail=True)
-        critical_node = DependencyNode(
+        critical_node = DependencyNodeFactory.basic(
             agent_id="critical_agent",
             agent=critical_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1371,7 +1376,7 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(critical_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.CIRCUIT_BREAKER,  # Use circuit breaker for critical agents
         )
@@ -1404,7 +1409,7 @@ class TestOrchestratorFailureHandling:
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True, execution_time=0.1)
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1412,7 +1417,7 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(failing_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -1443,7 +1448,7 @@ class TestOrchestratorDependencyManagement:
     @pytest.fixture
     def orchestrator_with_dependencies(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with dependency management enabled."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,  # Simplify for dependency tests
         )
@@ -1457,13 +1462,13 @@ class TestOrchestratorDependencyManagement:
         agent_a = MockAgent("agent_a")
         agent_b = MockAgent("agent_b")
 
-        node_a = DependencyNode(
+        node_a = DependencyNodeFactory.basic(
             agent_id="agent_a",
             agent=agent_a,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        node_b = DependencyNode(
+        node_b = DependencyNodeFactory.basic(
             agent_id="agent_b",
             agent=agent_b,
             priority=ExecutionPriority.NORMAL,
@@ -1475,7 +1480,7 @@ class TestOrchestratorDependencyManagement:
         # Add dependency: agent_a must run before agent_b
         simple_graph_engine.add_dependency("agent_a", "agent_b", DependencyType.HARD)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,
         )
@@ -1509,13 +1514,13 @@ class TestOrchestratorDependencyManagement:
         agent_a = MockAgent("agent_a", should_fail=True)
         agent_b = MockAgent("agent_b")
 
-        node_a = DependencyNode(
+        node_a = DependencyNodeFactory.basic(
             agent_id="agent_a",
             agent=agent_a,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        node_b = DependencyNode(
+        node_b = DependencyNodeFactory.basic(
             agent_id="agent_b",
             agent=agent_b,
             priority=ExecutionPriority.NORMAL,
@@ -1527,7 +1532,7 @@ class TestOrchestratorDependencyManagement:
         # Add dependency
         simple_graph_engine.add_dependency("agent_a", "agent_b", DependencyType.HARD)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,
         )
@@ -1566,19 +1571,19 @@ class TestOrchestratorDependencyManagement:
         independent_agent = MockAgent("independent_agent")
 
         # Add all agents to graph engine
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_dependency",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        dependent_node = DependencyNode(
+        dependent_node = DependencyNodeFactory.basic(
             agent_id="dependent_agent",
             agent=dependent_agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        independent_node = DependencyNode(
+        independent_node = DependencyNodeFactory.basic(
             agent_id="independent_agent",
             agent=independent_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1594,7 +1599,7 @@ class TestOrchestratorDependencyManagement:
             "failing_dependency", "dependent_agent", DependencyType.HARD
         )
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,
         )
@@ -1628,7 +1633,7 @@ class TestOrchestratorHealthChecks:
     @pytest.fixture
     def orchestrator_with_health_checks(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with health check validation."""
-        config = OrchestratorConfig(enable_failure_recovery=True)
+        config = OrchestratorConfigFactory.basic(enable_failure_recovery=True)
         return AdvancedOrchestrator(simple_graph_engine, config)
 
     @pytest.mark.asyncio
@@ -1637,7 +1642,7 @@ class TestOrchestratorHealthChecks:
 
         # Create agent that will fail health check and add to graph engine
         unhealthy_agent = MockAgent("unhealthy_agent")
-        unhealthy_node = DependencyNode(
+        unhealthy_node = DependencyNodeFactory.basic(
             agent_id="unhealthy_agent",
             agent=unhealthy_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1645,7 +1650,7 @@ class TestOrchestratorHealthChecks:
         )
         simple_graph_engine.add_node(unhealthy_node)
 
-        config = OrchestratorConfig(enable_failure_recovery=True)
+        config = OrchestratorConfigFactory.basic(enable_failure_recovery=True)
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
         context = AgentContextPatterns.simple_query("test")
 
@@ -1670,13 +1675,13 @@ class TestOrchestratorHealthChecks:
         healthy_agent = MockAgent("healthy_agent")
         unhealthy_agent = MockAgent("unhealthy_agent")
 
-        healthy_node = DependencyNode(
+        healthy_node = DependencyNodeFactory.basic(
             agent_id="healthy_agent",
             agent=healthy_agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        unhealthy_node = DependencyNode(
+        unhealthy_node = DependencyNodeFactory.basic(
             agent_id="unhealthy_agent",
             agent=unhealthy_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1685,7 +1690,7 @@ class TestOrchestratorHealthChecks:
         simple_graph_engine.add_node(healthy_node)
         simple_graph_engine.add_node(unhealthy_node)
 
-        config = OrchestratorConfig(enable_failure_recovery=True)
+        config = OrchestratorConfigFactory.basic(enable_failure_recovery=True)
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
         context = AgentContextPatterns.simple_query("test")
 
@@ -1742,7 +1747,7 @@ class TestOrchestratorObservability:
                 if agent_name not in [
                     node.agent_id for node in orchestrator.graph_engine.nodes.values()
                 ]:
-                    node = DependencyNode(
+                    node = DependencyNodeFactory.basic(
                         agent_id=agent_name,
                         agent=agent,
                         priority=ExecutionPriority.NORMAL,
@@ -1771,7 +1776,7 @@ class TestOrchestratorObservability:
             if agent_name not in [
                 node.agent_id for node in orchestrator.graph_engine.nodes.values()
             ]:
-                node = DependencyNode(
+                node = DependencyNodeFactory.basic(
                     agent_id=agent_name,
                     agent=agent,
                     priority=ExecutionPriority.NORMAL,
@@ -1825,7 +1830,7 @@ class TestOrchestratorObservability:
                 if agent_name not in [
                     node.agent_id for node in orchestrator.graph_engine.nodes.values()
                 ]:
-                    node = DependencyNode(
+                    node = DependencyNodeFactory.basic(
                         agent_id=agent_name,
                         agent=agent,
                         priority=ExecutionPriority.NORMAL,
@@ -1849,7 +1854,7 @@ class TestAdvancedOrchestratorCriticalPaths:
     @pytest.fixture
     def orchestrator_with_dynamic_composition(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with dynamic composition enabled."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             max_concurrent_agents=2,
             enable_failure_recovery=True,
             enable_resource_scheduling=True,

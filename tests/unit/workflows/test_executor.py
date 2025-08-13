@@ -257,7 +257,11 @@ class TestWorkflowExecutor:
         """Test converting empty LangGraph state to AgentContext."""
         executor = WorkflowExecutor()
 
-        state = {"successful_agents": [], "failed_agents": [], "errors": []}
+        state: dict[str, Any] = {
+            "successful_agents": [],
+            "failed_agents": [],
+            "errors": [],
+        }
 
         context = executor._convert_state_to_context(state, "test query")
 

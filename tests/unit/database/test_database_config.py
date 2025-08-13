@@ -7,9 +7,7 @@ with validation and error handling.
 
 import os
 import pytest
-from typing import Any
 from unittest.mock import patch, MagicMock
-from urllib.parse import urlparse
 
 from cognivault.database.config import DatabaseConfig, get_database_config
 
@@ -218,6 +216,7 @@ class TestDatabaseConfig:
 
         ssl_context = config._build_ssl_context()
 
+        assert ssl_context is not None
         assert ssl_context["ca"] == "/path/to/ca.crt"
         assert ssl_context["cert"] == "/path/to/client.crt"
         assert ssl_context["key"] == "/path/to/client.key"

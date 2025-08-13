@@ -1,14 +1,18 @@
 """Tests for LangGraphOrchestrator."""
 
 import pytest
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from typing import Any, Dict
+from unittest.mock import AsyncMock, Mock, patch
 
 from cognivault.context import AgentContext
 from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.orchestration.node_wrappers import NodeExecutionError
 from cognivault.orchestration.state_schemas import (
     create_initial_state,
+    RefinerOutput as LangGraphRefinerOutput,
+    CriticOutput as LangGraphCriticOutput,
+    HistorianOutput as LangGraphHistorianOutput,
+    SynthesisOutput as LangGraphSynthesisOutput,
 )
 
 
@@ -84,47 +88,47 @@ class TestLangGraphOrchestratorRun:
         final_state = create_initial_state("What is AI?", "test-exec-id")
 
         # Add successful agent outputs
-        final_state["refiner"] = {
-            "refined_question": "What is artificial intelligence?",
-            "topics": ["AI", "technology"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["refiner"] = LangGraphRefinerOutput(
+            refined_question="What is artificial intelligence?",
+            topics=["AI", "technology"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
 
-        final_state["critic"] = {
-            "critique": "Good question expansion",
-            "suggestions": ["Add context"],
-            "severity": "low",
-            "strengths": ["Clear"],
-            "weaknesses": ["Could be more specific"],
-            "confidence": 0.8,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["critic"] = LangGraphCriticOutput(
+            critique="Good question expansion",
+            suggestions=["Add context"],
+            severity="low",
+            strengths=["Clear"],
+            weaknesses=["Could be more specific"],
+            confidence=0.8,
+            timestamp="2023-01-01T00:00:00",
+        )
 
-        final_state["historian"] = {
-            "historical_summary": "AI has evolved from early computer science",
-            "retrieved_notes": ["/notes/ai_history.md"],
-            "search_results_count": 10,
-            "filtered_results_count": 5,
-            "search_strategy": "hybrid",
-            "topics_found": ["artificial_intelligence", "history"],
-            "confidence": 0.8,
-            "llm_analysis_used": True,
-            "metadata": {},
-            "timestamp": "2023-01-01T00:00:00Z",
-        }
+        final_state["historian"] = LangGraphHistorianOutput(
+            historical_summary="AI has evolved from early computer science",
+            retrieved_notes=["/notes/ai_history.md"],
+            search_results_count=10,
+            filtered_results_count=5,
+            search_strategy="hybrid",
+            topics_found=["artificial_intelligence", "history"],
+            confidence=0.8,
+            llm_analysis_used=True,
+            metadata={},
+            timestamp="2023-01-01T00:00:00Z",
+        )
 
-        final_state["synthesis"] = {
-            "final_analysis": "AI is a field of computer science",
-            "key_insights": ["AI is growing rapidly"],
-            "sources_used": ["refiner", "critic", "historian"],
-            "themes_identified": ["technology"],
-            "conflicts_resolved": 0,
-            "confidence": 0.85,
-            "metadata": {},
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["synthesis"] = LangGraphSynthesisOutput(
+            final_analysis="AI is a field of computer science",
+            key_insights=["AI is growing rapidly"],
+            sources_used=["refiner", "critic", "historian"],
+            themes_identified=["technology"],
+            conflicts_resolved=0,
+            confidence=0.85,
+            metadata={},
+            timestamp="2023-01-01T00:00:00",
+        )
 
         final_state["successful_agents"] = [
             "refiner",
@@ -191,8 +195,7 @@ class TestLangGraphOrchestratorRun:
         final_state["successful_agents"] = ["refiner"]
         mock_compiled_graph.ainvoke.return_value = final_state
 
-        mock_checkpointer: Mock = Mock()
-        orchestrator._checkpointer = mock_checkpointer
+        # Checkpoints are handled through memory_manager, not a separate _checkpointer attribute
 
         with patch.object(
             orchestrator, "_get_compiled_graph", return_value=mock_compiled_graph
@@ -216,13 +219,13 @@ class TestLangGraphOrchestratorRun:
         final_state = create_initial_state("Test query", "test-exec-id")
 
         # Add successful refiner output
-        final_state["refiner"] = {
-            "refined_question": "Test refined query",
-            "topics": ["test"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["refiner"] = LangGraphRefinerOutput(
+            refined_question="Test refined query",
+            topics=["test"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
 
         # Add failed agents
         final_state["successful_agents"] = ["refiner"]
@@ -275,7 +278,7 @@ class TestLangGraphOrchestratorRun:
             "cognivault.orchestration.orchestrator.create_initial_state"
         ) as mock_create:
             # Create invalid state
-            invalid_state = {}
+            invalid_state: Dict[str, Any] = {}
             mock_create.return_value = invalid_state
 
             with patch(
@@ -421,13 +424,13 @@ class TestConvertStateToContext:
         orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
-        state["refiner"] = {
-            "refined_question": "Refined test query",
-            "topics": ["test", "query"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        state["refiner"] = LangGraphRefinerOutput(
+            refined_question="Refined test query",
+            topics=["test", "query"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
 
         context = await orchestrator._convert_state_to_context(state)
 
@@ -442,15 +445,15 @@ class TestConvertStateToContext:
         orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
-        state["critic"] = {
-            "critique": "Good analysis",
-            "suggestions": ["Add more details"],
-            "severity": "medium",
-            "strengths": ["Clear structure"],
-            "weaknesses": ["Too brief"],
-            "confidence": 0.8,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        state["critic"] = LangGraphCriticOutput(
+            critique="Good analysis",
+            suggestions=["Add more details"],
+            severity="medium",
+            strengths=["Clear structure"],
+            weaknesses=["Too brief"],
+            confidence=0.8,
+            timestamp="2023-01-01T00:00:00",
+        )
 
         context = await orchestrator._convert_state_to_context(state)
 
@@ -465,16 +468,16 @@ class TestConvertStateToContext:
         orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
-        state["synthesis"] = {
-            "final_analysis": "Final analysis text",
-            "key_insights": ["Insight 1", "Insight 2"],
-            "sources_used": ["refiner", "critic"],
-            "themes_identified": ["theme1", "theme2"],
-            "conflicts_resolved": 1,
-            "confidence": 0.85,
-            "metadata": {"test": "value"},
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        state["synthesis"] = LangGraphSynthesisOutput(
+            final_analysis="Final analysis text",
+            key_insights=["Insight 1", "Insight 2"],
+            sources_used=["refiner", "critic"],
+            themes_identified=["theme1", "theme2"],
+            conflicts_resolved=1,
+            confidence=0.85,
+            metadata={"test": "value"},
+            timestamp="2023-01-01T00:00:00",
+        )
 
         context = await orchestrator._convert_state_to_context(state)
 
@@ -647,44 +650,44 @@ class TestIntegration:
 
         # Create realistic final state
         final_state = create_initial_state("What is AI?", "test-exec-id")
-        final_state["refiner"] = {
-            "refined_question": "What is artificial intelligence?",
-            "topics": ["AI", "technology"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
-        final_state["critic"] = {
-            "critique": "Good question expansion",
-            "suggestions": ["Add context about machine learning"],
-            "severity": "low",
-            "strengths": ["Clear terminology"],
-            "weaknesses": ["Could be more specific"],
-            "confidence": 0.8,
-            "timestamp": "2023-01-01T00:00:00",
-        }
-        final_state["historian"] = {
-            "historical_summary": "AI has evolved from early computer science",
-            "retrieved_notes": ["/notes/ai_history.md"],
-            "search_results_count": 10,
-            "filtered_results_count": 5,
-            "search_strategy": "hybrid",
-            "topics_found": ["artificial_intelligence", "history"],
-            "confidence": 0.8,
-            "llm_analysis_used": True,
-            "metadata": {},
-            "timestamp": "2023-01-01T00:00:00Z",
-        }
-        final_state["synthesis"] = {
-            "final_analysis": "AI is a comprehensive field",
-            "key_insights": ["AI encompasses many subfields"],
-            "sources_used": ["refiner", "critic", "historian"],
-            "themes_identified": ["technology", "intelligence"],
-            "conflicts_resolved": 0,
-            "confidence": 0.85,
-            "metadata": {"complexity": "moderate"},
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["refiner"] = LangGraphRefinerOutput(
+            refined_question="What is artificial intelligence?",
+            topics=["AI", "technology"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
+        final_state["critic"] = LangGraphCriticOutput(
+            critique="Good question expansion",
+            suggestions=["Add context about machine learning"],
+            severity="low",
+            strengths=["Clear terminology"],
+            weaknesses=["Could be more specific"],
+            confidence=0.8,
+            timestamp="2023-01-01T00:00:00",
+        )
+        final_state["historian"] = LangGraphHistorianOutput(
+            historical_summary="AI has evolved from early computer science",
+            retrieved_notes=["/notes/ai_history.md"],
+            search_results_count=10,
+            filtered_results_count=5,
+            search_strategy="hybrid",
+            topics_found=["artificial_intelligence", "history"],
+            confidence=0.8,
+            llm_analysis_used=True,
+            metadata={},
+            timestamp="2023-01-01T00:00:00Z",
+        )
+        final_state["synthesis"] = LangGraphSynthesisOutput(
+            final_analysis="AI is a comprehensive field",
+            key_insights=["AI encompasses many subfields"],
+            sources_used=["refiner", "critic", "historian"],
+            themes_identified=["technology", "intelligence"],
+            conflicts_resolved=0,
+            confidence=0.85,
+            metadata={"complexity": "moderate"},
+            timestamp="2023-01-01T00:00:00",
+        )
         final_state["successful_agents"] = [
             "refiner",
             "critic",

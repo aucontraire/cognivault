@@ -15,7 +15,7 @@ from cognivault.agents.historian.search import SearchFactory, SearchResult
 
 # Configuration system imports
 from cognivault.config.agent_configs import HistorianConfig
-from cognivault.workflows.prompt_composer import PromptComposer
+from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
 # Database repository imports
 from cognivault.database.session_factory import DatabaseSessionFactory
@@ -59,9 +59,10 @@ class HistorianAgent(BaseAgent):
         super().__init__("historian")
 
         # Configuration system - backward compatible
+        # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else HistorianConfig()
         self._prompt_composer = PromptComposer()
-        self._composed_prompt = None
+        self._composed_prompt: Optional[ComposedPrompt]
 
         # Use sentinel value to distinguish between None (explicit) and default
         if llm == "default":
@@ -162,7 +163,6 @@ class HistorianAgent(BaseAgent):
             self._db_session_factory = DatabaseSessionFactory()
 
             # Add timeout for database initialization
-            import asyncio
 
             await asyncio.wait_for(
                 self._db_session_factory.initialize(),
@@ -262,6 +262,9 @@ class HistorianAgent(BaseAgent):
     ) -> List[SearchResult]:
         """Search for relevant historical content using hybrid file + database search."""
         all_results: List[SearchResult] = []
+
+        # Initialize search_limit with default value for exception handler
+        search_limit = 10
 
         try:
             # Use configured search limit
@@ -406,12 +409,14 @@ class HistorianAgent(BaseAgent):
                     }
 
                     # Create SearchResult compatible with existing code
+                    # Ensure content is not None before indexing or measuring length
+                    content_text = doc.content or ""
                     search_result = SearchResult(
                         title=doc.title,
                         excerpt=(
-                            doc.content[:200] + "..."
-                            if len(doc.content) > 200
-                            else doc.content
+                            content_text[:200] + "..."
+                            if len(content_text) > 200
+                            else content_text
                         ),
                         filepath=doc.source_path or f"db_doc_{doc.id}",
                         filename=f"document_{doc.id}",

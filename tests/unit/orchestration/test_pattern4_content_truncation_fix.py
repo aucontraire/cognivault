@@ -6,15 +6,16 @@ while maintaining reasonable event size limits for WebSocket performance.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from typing import Dict, Any, List
 
-from cognivault.context import AgentContext
+from langgraph.runtime import Runtime
+
 from cognivault.orchestration.node_wrappers import refiner_node, historian_node
 from cognivault.orchestration.state_schemas import CogniVaultState, CogniVaultContext
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.agents.historian.agent import HistorianAgent
-from cognivault.llm.llm_interface import LLMInterface, LLMResponse
+from cognivault.llm.llm_interface import LLMResponse
 from tests.factories.mock_llm_factories import MockLLMFactory, MockLLMResponseFactory
 
 
@@ -22,7 +23,8 @@ class MockRuntime:
     """Mock LangGraph Runtime for testing."""
 
     def __init__(self, context_data: Dict[str, Any]) -> None:
-        self.context: Mock = Mock()
+        # Create a properly typed CogniVaultContext mock
+        self.context = Mock(spec=CogniVaultContext)
         self.context.thread_id = context_data.get("thread_id", "test-thread-123")
         self.context.execution_id = context_data.get(
             "execution_id", "test-execution-456"
@@ -53,14 +55,22 @@ def create_truncation_mock_llm(response_text: str) -> Mock:
 
     def counting_generate(*args: Any, **kwargs: Any) -> LLMResponse:
         mock_llm.call_count += 1
-        return original_generate(*args, **kwargs)
+        result = original_generate(*args, **kwargs)
+        # Ensure we return an LLMResponse object, not Any
+        if not isinstance(result, LLMResponse):
+            return MockLLMResponseFactory.generate_valid_data(text=response_text)
+        return result
 
     mock_llm.generate = counting_generate
 
     # Add async version
     async def agenerate(prompt: str, **kwargs: Any) -> LLMResponse:
         """Async version of generate."""
-        return mock_llm.generate(prompt, **kwargs)
+        result = mock_llm.generate(prompt, **kwargs)
+        # Ensure we return an LLMResponse object, not Any
+        if not isinstance(result, LLMResponse):
+            return MockLLMResponseFactory.generate_valid_data(text=response_text)
+        return result
 
     mock_llm.agenerate = agenerate
     return mock_llm
@@ -114,14 +124,15 @@ async def test_pattern4_short_content_no_truncation() -> None:
         "failed_agents": [],
     }
 
-    runtime = MockRuntime(
-        {
-            "thread_id": "pattern4-short-thread",
-            "execution_id": "pattern4-short-test",
-            "query": "What is machine learning?",
-            "correlation_id": "pattern4-short-correlation",
-        }
-    )
+    # Create a properly typed Runtime mock
+    runtime = Mock(spec=Runtime[CogniVaultContext])
+    mock_context = Mock(spec=CogniVaultContext)
+    mock_context.thread_id = "pattern4-short-thread"
+    mock_context.execution_id = "pattern4-short-test"
+    mock_context.query = "What is machine learning?"
+    mock_context.correlation_id = "pattern4-short-correlation"
+    mock_context.enable_checkpoints = False
+    runtime.context = mock_context
 
     mock_llm = create_truncation_mock_llm(short_content)
     event_collector = EventCollector()
@@ -253,14 +264,15 @@ async def test_pattern4_long_content_smart_truncation() -> None:
         "failed_agents": [],
     }
 
-    runtime = MockRuntime(
-        {
-            "thread_id": "pattern4-long-thread",
-            "execution_id": "pattern4-long-test",
-            "query": "What is artificial intelligence?",
-            "correlation_id": "pattern4-long-correlation",
-        }
-    )
+    # Create a properly typed Runtime mock
+    runtime = Mock(spec=Runtime[CogniVaultContext])
+    mock_context = Mock(spec=CogniVaultContext)
+    mock_context.thread_id = "pattern4-long-thread"
+    mock_context.execution_id = "pattern4-long-test"
+    mock_context.query = "What is artificial intelligence?"
+    mock_context.correlation_id = "pattern4-long-correlation"
+    mock_context.enable_checkpoints = False
+    runtime.context = mock_context
 
     mock_llm = create_truncation_mock_llm(long_content)
     event_collector = EventCollector()
@@ -394,14 +406,15 @@ async def test_pattern4_medium_content_preserved() -> None:
         "failed_agents": [],
     }
 
-    runtime = MockRuntime(
-        {
-            "thread_id": "pattern4-medium-thread",
-            "execution_id": "pattern4-medium-test",
-            "query": "What are the fundamental principles of AI?",
-            "correlation_id": "pattern4-medium-correlation",
-        }
-    )
+    # Create a properly typed Runtime mock
+    runtime = Mock(spec=Runtime[CogniVaultContext])
+    mock_context = Mock(spec=CogniVaultContext)
+    mock_context.thread_id = "pattern4-medium-thread"
+    mock_context.execution_id = "pattern4-medium-test"
+    mock_context.query = "What are the fundamental principles of AI?"
+    mock_context.correlation_id = "pattern4-medium-correlation"
+    mock_context.enable_checkpoints = False
+    runtime.context = mock_context
 
     mock_llm = create_truncation_mock_llm(medium_content)
     event_collector = EventCollector()

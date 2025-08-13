@@ -73,16 +73,16 @@ class TestConfigurationIntegrationValidation:
         assert config.output_format == "structured"
 
         # Test CriticConfig creation
-        yaml_config = {
+        critic_yaml_config = {
             "analysis_depth": "deep",
             "confidence_reporting": True,
             "bias_detection": True,
         }
 
-        config = CriticConfig(**yaml_config)
-        assert config.analysis_depth == "deep"
-        assert config.confidence_reporting is True
-        assert config.bias_detection is True
+        critic_config = CriticConfig(**critic_yaml_config)
+        assert critic_config.analysis_depth == "deep"
+        assert critic_config.confidence_reporting is True
+        assert critic_config.bias_detection is True
 
     def test_agent_constructor_with_config(self) -> None:
         """Test that agents accept our Pydantic configurations."""

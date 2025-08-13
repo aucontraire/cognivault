@@ -7,7 +7,7 @@ and semantic validation integration of the enhanced conditional pattern system.
 
 import pytest
 from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 from cognivault.langgraph_backend.graph_patterns.conditional import (
     EnhancedConditionalPattern,
@@ -107,6 +107,7 @@ class TestPerformanceTracker:
         avg_time = self.tracker.get_average_time("refiner")
         success_rate = self.tracker.get_success_rate("refiner")
 
+        assert avg_time is not None
         assert abs(avg_time - 1766.666666666667) < 0.001  # Average of 1500, 2000, 1800
         assert success_rate == 2 / 3  # 2 successes out of 3 attempts
 

@@ -399,7 +399,7 @@ class WebSocketEventSink(EventSink):
         # Check for explicit status first
         explicit_status = getattr(event, "status", None) or event.data.get("status")
         if explicit_status:
-            return explicit_status
+            return str(explicit_status)
 
         # Derive status based on event type
         event_type = event.event_type.value

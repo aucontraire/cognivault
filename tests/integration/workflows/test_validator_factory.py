@@ -20,7 +20,7 @@ from cognivault.workflows.definition import NodeConfiguration
 from cognivault.agents.metadata import AgentMetadata
 
 
-def test_validator_factory_configurations() -> bool:
+def test_validator_factory_configurations() -> None:
     """Test ValidatorNode factory with different configuration scenarios."""
 
     print("🧪 Testing ValidatorNode Factory Method Configurations")
@@ -266,13 +266,15 @@ def test_validator_factory_configurations() -> bool:
 
     if success_count == total_count:
         print("🎉 All ValidatorNode factory tests PASSED!")
-        return True
     else:
         print("⚠️  Some ValidatorNode factory tests FAILED!")
-        return False
+
+    assert success_count == total_count, (
+        f"ValidatorNode factory tests failed: {success_count}/{total_count} passed"
+    )
 
 
-def test_validator_configuration_validation() -> bool:
+def test_validator_configuration_validation() -> None:
     """Test configuration parameter validation for ValidatorNode."""
 
     print("\n🔍 Testing ValidatorNode Configuration Validation")
@@ -335,7 +337,7 @@ def test_validator_configuration_validation() -> bool:
         except Exception as e:
             print(f"   ⚠️  {test_name} rejected: {e}")
 
-    return True
+    # All configuration validation tests completed successfully
 
 
 if __name__ == "__main__":
@@ -343,26 +345,20 @@ if __name__ == "__main__":
 
     try:
         # Test basic factory configurations
-        config_success = test_validator_factory_configurations()
+        test_validator_factory_configurations()
 
         # Test configuration validation
-        validation_success = test_validator_configuration_validation()
+        test_validator_configuration_validation()
 
-        # Overall result
+        # Overall result - if we reach here, all tests passed (assertions didn't fail)
         print("\n" + "=" * 60)
         print("🏁 FINAL TEST RESULTS")
         print("=" * 60)
-
-        if config_success and validation_success:
-            print("🎉 ALL VALIDATOR FACTORY TESTS PASSED!")
-            print("✅ ValidatorNode factory method is working correctly")
-            print("✅ Configuration validation is robust")
-            print("✅ Boundary conditions are handled appropriately")
-            sys.exit(0)
-        else:
-            print("❌ SOME VALIDATOR FACTORY TESTS FAILED!")
-            print("⚠️  Review the test output above for details")
-            sys.exit(1)
+        print("🎉 ALL VALIDATOR FACTORY TESTS PASSED!")
+        print("✅ ValidatorNode factory method is working correctly")
+        print("✅ Configuration validation is robust")
+        print("✅ Boundary conditions are handled appropriately")
+        sys.exit(0)
 
     except Exception as e:
         print(f"\n💥 Test execution failed with error: {e}")

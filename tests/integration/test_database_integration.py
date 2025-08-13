@@ -4,24 +4,13 @@ Integration tests for database repository pattern with full workflow.
 
 import pytest
 import uuid
-import os
-from typing import Any, List
+from typing import Any
 
 from cognivault.database import (
-    get_database_session,
-    init_database,
     RepositoryFactory,
     health_check,
 )
-
-
-# Test database configuration - use correct port 5432
-TEST_DATABASE_URL = (
-    "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
-)
-
-
-# Integration database setup is now handled by conftest.py fixtures
+from tests.utils.test_database_config import get_test_database_url
 
 
 @pytest.mark.asyncio
@@ -109,6 +98,7 @@ async def test_complete_workflow_integration(integration_db_session: Any) -> Non
 
     # Test topic hierarchy loading
     child_with_hierarchy = await repos.topics.get_with_hierarchy(child_topic.id)
+    assert child_with_hierarchy is not None
     assert child_with_hierarchy.parent_topic_id == parent_topic.id
 
     # Test question retrieval by topic
@@ -131,8 +121,10 @@ async def test_complete_workflow_integration(integration_db_session: Any) -> Non
     parent_wiki_with_relations = await repos.wiki.get_with_relationships(parent_wiki.id)
     child_wiki_with_relations = await repos.wiki.get_with_relationships(child_wiki.id)
 
+    assert parent_wiki_with_relations is not None
     assert parent_wiki_with_relations.topic.id == parent_topic.id
     assert parent_wiki_with_relations.source_question.id == parent_question.id
+    assert child_wiki_with_relations is not None
     assert child_wiki_with_relations.topic.id == child_topic.id
     assert child_wiki_with_relations.source_question.id == child_question.id
 
@@ -159,6 +151,7 @@ async def test_complete_workflow_integration(integration_db_session: Any) -> Non
 
     # Test version retrieval
     latest_parent_wiki = await repos.wiki.get_latest_for_topic(parent_topic.id)
+    assert latest_parent_wiki is not None
     assert latest_parent_wiki.version == 2
     assert latest_parent_wiki.id == updated_parent_wiki.id
 

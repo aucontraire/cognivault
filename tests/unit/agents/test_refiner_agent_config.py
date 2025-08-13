@@ -223,12 +223,13 @@ class TestRefinerAgentConfigurationEdgeCases:
         agent = RefinerAgent(self.mock_llm, config)
 
         # Mock the compose method to fail during update
-        agent._prompt_composer.compose_refiner_prompt = Mock(
-            side_effect=Exception("Composition failed")
-        )
-
-        # Trigger prompt update which should fail and set composed_prompt to None
-        agent._update_composed_prompt()
+        with patch.object(
+            agent._prompt_composer,
+            "compose_refiner_prompt",
+            side_effect=Exception("Composition failed"),
+        ):
+            # Trigger prompt update which should fail and set composed_prompt to None
+            agent._update_composed_prompt()
 
         # Should have fallen back
         assert agent._composed_prompt is None

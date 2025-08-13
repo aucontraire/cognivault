@@ -3,8 +3,8 @@
 import pytest
 import asyncio
 import time
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
+from typing import Any, Dict, Generator, cast
+from unittest.mock import Mock, patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
@@ -21,6 +21,7 @@ from cognivault.orchestration.node_wrappers import (
     validate_node_input,
     create_agent_with_llm,
     convert_state_to_context,
+    CircuitBreakerFunction,
 )
 from cognivault.orchestration.state_schemas import (
     create_initial_state,
@@ -33,25 +34,28 @@ from cognivault.orchestration.state_schemas import (
 
 
 @pytest.fixture(autouse=True)
-def reset_circuit_breaker() -> None:
+def reset_circuit_breaker() -> Generator[None, None, None]:
     """Reset circuit breaker state before each test."""
     # Reset circuit breaker state for all node functions
+    # Use type casting to inform mypy about the circuit breaker attributes
     for node_func in [refiner_node, critic_node, historian_node, synthesis_node]:
-        if hasattr(node_func, "_failure_count"):
-            node_func._failure_count = 0
-        if hasattr(node_func, "_last_failure_time"):
-            node_func._last_failure_time = None
-        if hasattr(node_func, "_circuit_open"):
-            node_func._circuit_open = False
+        circuit_func = cast(CircuitBreakerFunction, node_func)
+        if hasattr(circuit_func, "_failure_count"):
+            circuit_func._failure_count = 0
+        if hasattr(circuit_func, "_last_failure_time"):
+            circuit_func._last_failure_time = None
+        if hasattr(circuit_func, "_circuit_open"):
+            circuit_func._circuit_open = False
     yield
     # Reset again after test
     for node_func in [refiner_node, critic_node, historian_node, synthesis_node]:
-        if hasattr(node_func, "_failure_count"):
-            node_func._failure_count = 0
-        if hasattr(node_func, "_last_failure_time"):
-            node_func._last_failure_time = None
-        if hasattr(node_func, "_circuit_open"):
-            node_func._circuit_open = False
+        circuit_func = cast(CircuitBreakerFunction, node_func)
+        if hasattr(circuit_func, "_failure_count"):
+            circuit_func._failure_count = 0
+        if hasattr(circuit_func, "_last_failure_time"):
+            circuit_func._last_failure_time = None
+        if hasattr(circuit_func, "_circuit_open"):
+            circuit_func._circuit_open = False
 
 
 class MockAgent(BaseAgent):
@@ -117,12 +121,15 @@ class TestCircuitBreaker:
         async def test_func() -> None:
             pass
 
-        assert hasattr(test_func, "_failure_count")
-        assert hasattr(test_func, "_last_failure_time")
-        assert hasattr(test_func, "_circuit_open")
-        assert test_func._failure_count == 0
-        assert test_func._last_failure_time is None
-        assert test_func._circuit_open is False
+        # Cast to CircuitBreakerFunction to access the attributes
+        circuit_func = cast(CircuitBreakerFunction, test_func)
+
+        assert hasattr(circuit_func, "_failure_count")
+        assert hasattr(circuit_func, "_last_failure_time")
+        assert hasattr(circuit_func, "_circuit_open")
+        assert circuit_func._failure_count == 0
+        assert circuit_func._last_failure_time is None
+        assert circuit_func._circuit_open is False
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_success(self) -> None:
@@ -132,10 +139,13 @@ class TestCircuitBreaker:
         async def test_func() -> str:
             return "success"
 
+        # Cast to CircuitBreakerFunction to access the attributes
+        circuit_func = cast(CircuitBreakerFunction, test_func)
+
         result = await test_func()
         assert result == "success"
-        assert test_func._failure_count == 0
-        assert test_func._circuit_open is False
+        assert circuit_func._failure_count == 0
+        assert circuit_func._circuit_open is False
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_failure_counting(self) -> None:
@@ -148,17 +158,20 @@ class TestCircuitBreaker:
             call_count += 1
             raise RuntimeError("Test error")
 
+        # Cast to CircuitBreakerFunction to access the attributes
+        circuit_func = cast(CircuitBreakerFunction, test_func)
+
         # First failure
         with pytest.raises(RuntimeError):
             await test_func()
-        assert test_func._failure_count == 1
-        assert test_func._circuit_open is False
+        assert circuit_func._failure_count == 1
+        assert circuit_func._circuit_open is False
 
         # Second failure - should open circuit
         with pytest.raises(RuntimeError):
             await test_func()
-        assert test_func._failure_count == 2
-        assert test_func._circuit_open is True
+        assert circuit_func._failure_count == 2
+        assert circuit_func._circuit_open is True
 
         # Third attempt - should be blocked by circuit breaker
         with pytest.raises(NodeExecutionError, match="Circuit breaker open"):
@@ -173,10 +186,13 @@ class TestCircuitBreaker:
         async def test_func() -> str:
             return "success"
 
+        # Cast to CircuitBreakerFunction to access the attributes
+        circuit_func = cast(CircuitBreakerFunction, test_func)
+
         # Trigger circuit breaker
-        test_func._failure_count = 1
-        test_func._circuit_open = True
-        test_func._last_failure_time = time.time()
+        circuit_func._failure_count = 1
+        circuit_func._circuit_open = True
+        circuit_func._last_failure_time = time.time()
 
         # Should be blocked initially
         with pytest.raises(NodeExecutionError, match="Circuit breaker open"):
@@ -188,8 +204,8 @@ class TestCircuitBreaker:
         # Should work after timeout
         result = await test_func()
         assert result == "success"
-        assert test_func._failure_count == 0
-        assert test_func._circuit_open is False
+        assert circuit_func._failure_count == 0
+        assert circuit_func._circuit_open is False
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_success_resets_count(self) -> None:
@@ -204,16 +220,19 @@ class TestCircuitBreaker:
                 raise RuntimeError("First failure")
             return "success"
 
+        # Cast to CircuitBreakerFunction to access the attributes
+        circuit_func = cast(CircuitBreakerFunction, test_func)
+
         # First failure
         with pytest.raises(RuntimeError):
             await test_func()
-        assert test_func._failure_count == 1
+        assert circuit_func._failure_count == 1
 
         # Success should reset
         result = await test_func()
         assert result == "success"
-        assert test_func._failure_count == 0
-        assert test_func._circuit_open is False
+        assert circuit_func._failure_count == 0
+        assert circuit_func._circuit_open is False
 
 
 class TestNodeMetrics:
@@ -437,13 +456,14 @@ class TestConvertStateToContext:
         state = create_initial_state("Test query", "exec-empty")
 
         # Add empty outputs
-        state["refiner"] = {
+        empty_refiner_output: RefinerOutput = {
             "refined_question": "",
             "topics": [],
             "confidence": 0.5,
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00",
         }
+        state["refiner"] = empty_refiner_output
 
         with patch("cognivault.orchestration.node_wrappers.AgentContextStateBridge"):
             with patch("cognivault.orchestration.node_wrappers.logger") as mock_logger:
@@ -1064,8 +1084,8 @@ class TestIntegration:
             side_effect=create_mock_agent,
         ):
             # Execute refiner (should succeed)
-            state = await refiner_node(state, runtime)
-            assert "refiner" in state["successful_agents"]
+            updated_state = await refiner_node(state, runtime)
+            assert "refiner" in updated_state["successful_agents"]
 
             # Execute critic (should fail)
             with pytest.raises(NodeExecutionError):

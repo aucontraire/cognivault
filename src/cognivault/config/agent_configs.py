@@ -13,9 +13,23 @@ Architecture:
 """
 
 import os
-from enum import Enum
-from typing import Dict, List, Literal, Optional, Any, Union, Type, cast
-from pydantic import BaseModel, Field, ConfigDict, validator
+from typing import (
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Any,
+    Union,
+    Type,
+    cast,
+    overload,
+)
+from pydantic import BaseModel, Field, ConfigDict
+
+
+def _default_scoring_criteria() -> List[str]:
+    """Default scoring criteria for critic analysis."""
+    return ["accuracy", "completeness", "objectivity"]
 
 
 class PromptConfig(BaseModel):
@@ -103,14 +117,10 @@ class RefinerConfig(BaseModel):
     )
 
     # Nested configurations
-    prompt_config: PromptConfig = Field(default_factory=lambda: PromptConfig())
-    behavioral_config: BehavioralConfig = Field(
-        default_factory=lambda: BehavioralConfig()
-    )
-    output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: AgentExecutionConfig = Field(
-        default_factory=lambda: AgentExecutionConfig()
-    )
+    prompt_config: PromptConfig = Field(default_factory=PromptConfig)
+    behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
+    output_config: OutputConfig = Field(default_factory=OutputConfig)
+    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "RefinerConfig":
@@ -159,19 +169,15 @@ class CriticConfig(BaseModel):
         True, description="Whether to actively detect and report biases"
     )
     scoring_criteria: List[str] = Field(
-        default_factory=lambda: ["accuracy", "completeness", "objectivity"],
+        default_factory=_default_scoring_criteria,
         description="Criteria for evaluating content quality",
     )
 
     # Nested configurations
-    prompt_config: PromptConfig = Field(default_factory=lambda: PromptConfig())
-    behavioral_config: BehavioralConfig = Field(
-        default_factory=lambda: BehavioralConfig()
-    )
-    output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: AgentExecutionConfig = Field(
-        default_factory=lambda: AgentExecutionConfig()
-    )
+    prompt_config: PromptConfig = Field(default_factory=PromptConfig)
+    behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
+    output_config: OutputConfig = Field(default_factory=OutputConfig)
+    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "CriticConfig":
@@ -249,14 +255,10 @@ class HistorianConfig(BaseModel):
     )
 
     # Nested configurations
-    prompt_config: PromptConfig = Field(default_factory=lambda: PromptConfig())
-    behavioral_config: BehavioralConfig = Field(
-        default_factory=lambda: BehavioralConfig()
-    )
-    output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: AgentExecutionConfig = Field(
-        default_factory=lambda: AgentExecutionConfig()
-    )
+    prompt_config: PromptConfig = Field(default_factory=PromptConfig)
+    behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
+    output_config: OutputConfig = Field(default_factory=OutputConfig)
+    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "HistorianConfig":
@@ -329,14 +331,10 @@ class SynthesisConfig(BaseModel):
     )
 
     # Nested configurations
-    prompt_config: PromptConfig = Field(default_factory=lambda: PromptConfig())
-    behavioral_config: BehavioralConfig = Field(
-        default_factory=lambda: BehavioralConfig()
-    )
-    output_config: OutputConfig = Field(default_factory=lambda: OutputConfig())
-    execution_config: AgentExecutionConfig = Field(
-        default_factory=lambda: AgentExecutionConfig()
-    )
+    prompt_config: PromptConfig = Field(default_factory=PromptConfig)
+    behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
+    output_config: OutputConfig = Field(default_factory=OutputConfig)
+    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "SynthesisConfig":
@@ -374,6 +372,31 @@ class SynthesisConfig(BaseModel):
 AgentConfigType = Union[RefinerConfig, CriticConfig, HistorianConfig, SynthesisConfig]
 
 
+# Overloads for better type safety
+@overload
+def get_agent_config_class(agent_type: Literal["refiner"]) -> Type[RefinerConfig]: ...
+
+
+@overload
+def get_agent_config_class(agent_type: Literal["critic"]) -> Type[CriticConfig]: ...
+
+
+@overload
+def get_agent_config_class(
+    agent_type: Literal["historian"],
+) -> Type[HistorianConfig]: ...
+
+
+@overload
+def get_agent_config_class(
+    agent_type: Literal["synthesis"],
+) -> Type[SynthesisConfig]: ...
+
+
+@overload
+def get_agent_config_class(agent_type: str) -> Type[AgentConfigType]: ...
+
+
 def get_agent_config_class(agent_type: str) -> Type[AgentConfigType]:
     """Get the appropriate configuration class for an agent type."""
     config_mapping = {
@@ -387,6 +410,37 @@ def get_agent_config_class(agent_type: str) -> Type[AgentConfigType]:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
     return cast(Type[AgentConfigType], config_mapping[agent_type])
+
+
+# Overloads for config creation with better type safety
+@overload
+def create_agent_config(
+    agent_type: Literal["refiner"], config_dict: Dict[str, Any]
+) -> RefinerConfig: ...
+
+
+@overload
+def create_agent_config(
+    agent_type: Literal["critic"], config_dict: Dict[str, Any]
+) -> CriticConfig: ...
+
+
+@overload
+def create_agent_config(
+    agent_type: Literal["historian"], config_dict: Dict[str, Any]
+) -> HistorianConfig: ...
+
+
+@overload
+def create_agent_config(
+    agent_type: Literal["synthesis"], config_dict: Dict[str, Any]
+) -> SynthesisConfig: ...
+
+
+@overload
+def create_agent_config(
+    agent_type: str, config_dict: Dict[str, Any]
+) -> AgentConfigType: ...
 
 
 def create_agent_config(

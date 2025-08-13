@@ -7,7 +7,7 @@ with their provider-specific error handling.
 """
 
 import pytest
-from typing import Any
+from typing import Any, Dict
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -482,7 +482,7 @@ class TestLLMErrorInheritance:
     def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of LLM errors."""
 
-        def handle_llm_error(error: LLMError) -> dict:
+        def handle_llm_error(error: LLMError) -> Dict[str, Any]:
             return {
                 "provider": error.context["llm_provider"],
                 "retryable": error.is_retryable(),
@@ -561,13 +561,13 @@ class TestLLMErrorIntegration:
         assert exc_info.value.quota_type == "credits"
 
         # Test catching as base LLM error
-        with pytest.raises(LLMError) as exc_info:
+        with pytest.raises(LLMError) as llm_exc_info:
             raise LLMTimeoutError("anthropic", 30.0, "streaming")
 
-        assert exc_info.value.context["llm_provider"] == "anthropic"
+        assert llm_exc_info.value.context["llm_provider"] == "anthropic"
 
         # Test catching as CogniVaultError
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as base_exc_info:
             raise LLMModelNotFoundError("openai", "invalid-model")
 
-        assert "invalid-model" in str(exc_info.value)
+        assert "invalid-model" in str(base_exc_info.value)

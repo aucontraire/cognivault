@@ -8,7 +8,7 @@ and correlation context propagation work end-to-end.
 
 import asyncio
 import pytest
-from typing import Any
+from typing import Any, Generator
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 from cognivault.context import AgentContext
@@ -23,6 +23,48 @@ from cognivault.events import (
 )
 from cognivault.events.sinks import InMemoryEventSink
 from cognivault.correlation import trace
+
+
+async def wait_for_events(
+    event_sink: Any, expected_count: int, timeout_seconds: float = 2.0
+) -> None:
+    """Wait for expected number of events with polling instead of fixed delay."""
+    import time
+
+    start_time = time.time()
+
+    while time.time() - start_time < timeout_seconds:
+        events = event_sink.get_events()
+        if len(events) >= expected_count:
+            return
+        await asyncio.sleep(0.05)  # Poll every 50ms
+
+    # If we get here, we timed out - provide detailed debug info
+    actual_count = len(event_sink.get_events())
+    events = event_sink.get_events()
+    event_types = [event.event_type.value for event in events] if events else []
+
+    debug_info = (
+        f"Timeout waiting for events. Expected at least {expected_count}, got {actual_count} after {timeout_seconds}s. "
+        f"Event types found: {event_types}"
+    )
+    raise AssertionError(debug_info)
+
+
+def debug_event_sink_state(event_sink: Any, test_name: str = "unknown") -> None:
+    """Debug helper to print event sink state for troubleshooting."""
+    events = event_sink.get_events()
+    print(f"\n=== DEBUG: Event Sink State for {test_name} ===")
+    print(f"Total events: {len(events)}")
+
+    for i, event in enumerate(events):
+        print(
+            f"  {i + 1}. {event.event_type.value} | {getattr(event, 'agent_name', 'N/A')} | {event.correlation_id or 'N/A'}"
+        )
+
+    stats = event_sink.get_statistics()
+    print(f"Statistics - Total: {stats.total_events}, By type: {stats.events_by_type}")
+    print("=== END DEBUG ===\n")
 
 
 class MockAgent(BaseAgent):
@@ -40,6 +82,25 @@ class MockAgent(BaseAgent):
         await asyncio.sleep(0.01)
         context.add_agent_output(self.name, f"Output from {self.name}")
         return context
+
+
+@pytest.fixture(autouse=True)
+def enable_events(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Ensure events are enabled for all integration tests."""
+    monkeypatch.setenv("COGNIVAULT_EVENTS_ENABLED", "true")
+    monkeypatch.setenv("COGNIVAULT_EVENTS_IN_MEMORY", "true")
+
+    # Reset and re-enable global event emitter for each test
+    from cognivault.events import reset_global_event_emitter, get_global_event_emitter
+
+    reset_global_event_emitter()
+    emitter = get_global_event_emitter()
+    emitter.enable()
+
+    yield  # Run the test
+
+    # Reset again after the test to avoid interference with subsequent tests
+    reset_global_event_emitter()
 
 
 @pytest.fixture
@@ -106,13 +167,27 @@ def event_sink() -> Any:
     # Add to global emitter
     emitter = get_global_event_emitter()
     emitter.enable()  # Ensure events are enabled
+
+    # Clear any existing events before adding our sink
+    for existing_sink in emitter.sinks:
+        if isinstance(existing_sink, InMemoryEventSink):
+            existing_sink.clear_events()
+
     emitter.add_sink(sink)
 
-    yield sink
+    try:
+        yield sink
+    finally:
+        # Cleanup - ensure removal even if test fails
+        try:
+            emitter.remove_sink(sink)
+        except Exception:
+            pass  # Ignore cleanup errors
 
-    # Cleanup
-    emitter.remove_sink(sink)
-    sink.clear_events()
+        try:
+            sink.clear_events()
+        except Exception:
+            pass  # Ignore cleanup errors
 
 
 @pytest.mark.asyncio
@@ -136,8 +211,8 @@ async def test_agent_event_emission_with_correlation(
         assert "test_agent" in result.agent_outputs
         assert result.agent_outputs["test_agent"] == "Output from test_agent"
 
-    # Wait for async event emission
-    await asyncio.sleep(0.1)
+    # Wait for async event emission with polling
+    await wait_for_events(event_sink, expected_count=2)
 
     # Verify events were emitted
     events = event_sink.get_events()
@@ -185,8 +260,8 @@ async def test_agent_failure_event_emission(
         with pytest.raises(Exception):
             await agent.run_with_retry(context)
 
-    # Wait for async event emission
-    await asyncio.sleep(0.1)
+    # Wait for async event emission with polling
+    await wait_for_events(event_sink, expected_count=1)
 
     # Verify failure events
     completed_events = event_sink.get_events(event_type="agent.execution.completed")
@@ -211,7 +286,7 @@ async def test_multi_axis_agent_metadata_in_events(
         agent = mock_registry.create_agent("test_refiner")
         await agent.run_with_retry(context)
 
-    await asyncio.sleep(0.1)
+    await wait_for_events(event_sink, expected_count=2)
 
     # Get started event
     started_events = event_sink.get_events(event_type="agent.execution.started")
@@ -245,7 +320,7 @@ async def test_event_filtering_and_statistics(
             agent = mock_registry.create_agent(agent_name)
             await agent.run_with_retry(context)
 
-    await asyncio.sleep(0.1)
+    await wait_for_events(event_sink, expected_count=4)
 
     # Test filtering by agent name
     refiner_events = event_sink.get_events(agent_name="test_refiner")
@@ -280,7 +355,7 @@ async def test_event_serialization(mock_registry: Any, event_sink: Any) -> None:
         agent = mock_registry.create_agent("test_refiner")
         await agent.run_with_retry(context)
 
-    await asyncio.sleep(0.1)
+    await wait_for_events(event_sink, expected_count=1)
 
     # Get an event
     events = event_sink.get_events()

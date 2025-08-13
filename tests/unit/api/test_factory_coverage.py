@@ -16,7 +16,7 @@ from cognivault.api.factory import (
     reset_api_cache,
     get_api_mode,
     set_api_mode,
-    temporary_api_mode,
+    TemporaryAPIMode,
     is_mock_mode,
     get_cached_api_info,
     _cached_orchestration_api,
@@ -133,13 +133,13 @@ class TestAPIFactoryErrorHandling:
         assert info is None
 
     def test_temporary_api_mode_context_manager(self) -> None:
-        """Test temporary API mode context manager."""
+        """Test TemporaryAPIMode context manager."""
         # Set initial mode
         set_api_mode("real")
         original_mode = get_api_mode()
 
         # Use temporary mode
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             assert get_api_mode() == "mock"
             # Cache should be reset
             assert _cached_orchestration_api is None
@@ -148,12 +148,12 @@ class TestAPIFactoryErrorHandling:
         assert get_api_mode() == original_mode
 
     def test_temporary_api_mode_exception_handling(self) -> None:
-        """Test temporary API mode with exception."""
+        """Test TemporaryAPIMode with exception."""
         set_api_mode("real")
         original_mode = get_api_mode()
 
         try:
-            with temporary_api_mode("mock"):
+            with TemporaryAPIMode("mock"):
                 assert get_api_mode() == "mock"
                 raise Exception("Test exception")
         except Exception:
@@ -163,13 +163,13 @@ class TestAPIFactoryErrorHandling:
         assert get_api_mode() == original_mode
 
     def test_temporary_api_mode_nested(self) -> None:
-        """Test nested temporary API mode context managers."""
+        """Test nested TemporaryAPIMode context managers."""
         set_api_mode("real")
 
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             assert get_api_mode() == "mock"
 
-            with temporary_api_mode("real"):
+            with TemporaryAPIMode("real"):
                 assert get_api_mode() == "real"
 
             # Should restore to outer context

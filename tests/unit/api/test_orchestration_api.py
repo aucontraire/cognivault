@@ -265,6 +265,7 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
         response = await api.execute_workflow(request)
 
         assert response.status == "failed"
+        assert response.error_message is not None
         assert "StateTransitionError" in response.error_message
         assert "agent_execution_failed" in response.error_message
 

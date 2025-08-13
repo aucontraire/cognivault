@@ -6,7 +6,7 @@ topic taxonomy, and all related utility functions for metadata management.
 """
 
 import pytest
-from typing import Any
+from typing import List
 import uuid
 from datetime import datetime
 
@@ -708,7 +708,7 @@ class TestTopicTaxonomy:
 
     def test_suggest_domain_empty_topics(self) -> None:
         """Test domain suggestion with empty topics list."""
-        topics = []
+        topics: List[str] = []
         suggested = TopicTaxonomy.suggest_domain(topics)
         assert suggested is None
 

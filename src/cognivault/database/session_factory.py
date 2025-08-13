@@ -10,11 +10,12 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import (
     Any,
+    Dict,
     TypeVar,
 )
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from cognivault.observability import get_logger
 
@@ -35,7 +36,7 @@ class DatabaseSessionFactory:
     """
 
     def __init__(self) -> None:
-        self._session_factory = None
+        self._session_factory: async_sessionmaker[AsyncSession] | None = None
         self._is_initialized = False
 
     async def initialize(self) -> None:
@@ -54,6 +55,8 @@ class DatabaseSessionFactory:
             self._session_factory = get_session_factory()
 
             # Test the connection
+            if self._session_factory is None:
+                raise RuntimeError("Session factory creation failed")
             async with self._session_factory() as session:
                 await session.execute(text("SELECT 1"))
 
@@ -98,6 +101,11 @@ class DatabaseSessionFactory:
         if not self._is_initialized:
             raise RuntimeError(
                 "Session factory not initialized. Call initialize() first."
+            )
+
+        if self._session_factory is None:
+            raise RuntimeError(
+                "Session factory is None despite being initialized. This indicates a critical error."
             )
 
         session = self._session_factory()
@@ -170,7 +178,7 @@ class DatabaseSessionFactory:
         """Check if the session factory is initialized."""
         return self._is_initialized
 
-    async def health_check(self) -> dict:
+    async def health_check(self) -> Dict[str, Any]:
         """
         Perform a health check on the session factory.
 

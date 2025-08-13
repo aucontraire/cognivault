@@ -8,6 +8,7 @@ health checks, metrics, and various output formats.
 """
 
 import json
+import re
 import tempfile
 from datetime import datetime
 from unittest.mock import patch, AsyncMock
@@ -25,6 +26,11 @@ class TestDiagnosticsCLI:
     def setup_method(self) -> None:
         """Set up test environment."""
         self.runner = CliRunner()
+
+    def strip_ansi_codes(self, text: str) -> str:
+        """Strip ANSI escape codes from text."""
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        return ansi_escape.sub("", text)
 
     def test_health_command_basic(self) -> None:
         """Test basic health command."""
@@ -65,8 +71,9 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "CogniVault Health Check" in result.stdout
-            assert "Status: HEALTHY" in result.stdout
-            assert "Healthy" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Status: HEALTHY" in clean_output
+            assert "Healthy" in clean_output
 
     def test_health_command_with_unhealthy_components(self) -> None:
         """Test health command with unhealthy components."""
@@ -122,7 +129,8 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["health"], catch_exceptions=False)
 
             assert result.exit_code == 2  # Should exit with error code for unhealthy
-            assert "Status: UNHEALTHY" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Status: UNHEALTHY" in clean_output
 
     def test_health_command_json_format(self) -> None:
         """Test health command with JSON output format."""
@@ -315,7 +323,8 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "Performance Metrics" in result.stdout
-            assert "Time Window: Last 60 minutes" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Time Window: Last 60 minutes" in clean_output
 
     def test_agents_command(self) -> None:
         """Test agents command."""
@@ -511,7 +520,8 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "Complete System Diagnostics" in result.stdout
-            assert "Overall Status: ✅ HEALTHY" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Overall Status: ✅ HEALTHY" in clean_output
             assert "Component Health" in result.stdout
             assert "Performance Metrics" in result.stdout
             assert "System Information" in result.stdout
@@ -565,7 +575,8 @@ class TestDiagnosticsCLI:
                 )
 
                 assert result.exit_code == 0
-                assert f"Diagnostics saved to: \n{temp_path}" in result.stdout
+                clean_output = self.strip_ansi_codes(result.stdout)
+                assert f"Diagnostics saved to: \n{temp_path}" in clean_output
 
                 # Check that file was written
                 with open(temp_path, "r") as f:
@@ -600,9 +611,10 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["metrics", "--format", "prometheus"])
 
             assert result.exit_code == 0
-            assert "# HELP cognivault_agents_total" in result.stdout
-            assert "# TYPE cognivault_agents_total counter" in result.stdout
-            assert "cognivault_agents_total 2" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "# HELP cognivault_agents_total" in clean_output
+            assert "# TYPE cognivault_agents_total counter" in clean_output
+            assert "cognivault_agents_total 2" in clean_output
 
     def test_influxdb_format(self) -> None:
         """Test InfluxDB output format."""
@@ -625,9 +637,10 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["metrics", "--format", "influxdb"])
 
             assert result.exit_code == 0
-            assert "cognivault_performance" in result.stdout
-            assert "total_agents=2" in result.stdout
-            assert "successful_agents=2" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "cognivault_performance" in clean_output
+            assert "total_agents=2" in clean_output
+            assert "successful_agents=2" in clean_output
 
     def test_csv_format(self) -> None:
         """Test CSV output format."""
@@ -650,9 +663,10 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["metrics", "--format", "csv"])
 
             assert result.exit_code == 0
-            assert "start_time,end_time,total_agents" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "start_time,end_time,total_agents" in clean_output
             # Check the actual data row: total_agents=2, successful_agents=2, failed_agents=0, total_llm_calls=5
-            assert "2,2,0,0.0000,5" in result.stdout
+            assert "2,2,0,0.0000,5" in clean_output
 
     def test_error_handling(self) -> None:
         """Test CLI error handling."""
@@ -726,7 +740,8 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "CogniVault Health Check" in result.stdout
-            assert "Status: HEALTHY" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Status: HEALTHY" in clean_output
             assert "Component Summary" in result.stdout
 
     def test_health_command_quiet_mode(self) -> None:
@@ -914,8 +929,9 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["config", "--validate"])
 
             assert result.exit_code == 0
-            assert "Configuration has 1 errors" in result.stdout
-            assert "Missing API key" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Configuration has 1 errors" in clean_output
+            assert "Missing API key" in clean_output
 
     def test_full_command_with_window_filter(self) -> None:
         """Test full diagnostics command with time window."""

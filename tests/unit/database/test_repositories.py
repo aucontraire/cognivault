@@ -12,11 +12,8 @@ from cognivault.database import RepositoryFactory
 from cognivault.database.models import Topic, Question, WikiEntry
 
 
-# Test database configuration - use local PostgreSQL for unit tests
-# Using correct CogniVault database credentials
-TEST_DATABASE_URL = (
-    "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
-)
+# Test database configuration now handled by centralized config
+from tests.utils.test_database_config import get_test_database_url
 
 
 # Repository factory fixture is now provided by conftest.py

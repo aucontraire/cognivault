@@ -10,12 +10,12 @@ from typing import Optional
 
 
 def smart_truncate_content(
-    content: str,
+    content: Optional[str],
     max_length: int = 1000,
     truncation_indicator: str = "...",
     preserve_sentences: bool = True,
     preserve_words: bool = True,
-) -> str:
+) -> Optional[str]:
     """
     Intelligently truncate content while preserving readability.
 
@@ -25,8 +25,8 @@ def smart_truncate_content(
 
     Parameters
     ----------
-    content : str
-        The content to potentially truncate
+    content : str | None
+        The content to potentially truncate, or None
     max_length : int, default 1000
         Maximum length of truncated content (not including truncation indicator)
     truncation_indicator : str, default "..."
@@ -38,8 +38,8 @@ def smart_truncate_content(
 
     Returns
     -------
-    str
-        Truncated content with optional indicator
+    str | None
+        Truncated content with optional indicator, or None if input was None
 
     Examples
     --------
@@ -156,6 +156,7 @@ def truncate_for_websocket_event(content: str, content_type: str = "default") ->
         return content
 
     limit = get_content_truncation_limit(content_type)
-    return smart_truncate_content(
+    result = smart_truncate_content(
         content, max_length=limit, preserve_sentences=True, preserve_words=True
     )
+    return result or ""  # Ensure we always return a string

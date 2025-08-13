@@ -29,12 +29,21 @@ class DiagnosticFormatter:
         """Format health check data."""
         raise NotImplementedError
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics data."""
         raise NotImplementedError
 
     def format_agent_metrics(self, agent_metrics: Dict[str, Dict[str, Any]]) -> str:
         """Format agent-specific metrics data."""
+        raise NotImplementedError
+
+    # Aliases for backward compatibility with tests
+    def format_health_results(self, health_results: Dict[str, ComponentHealth]) -> str:
+        """Alias for format_health_data for backward compatibility."""
+        raise NotImplementedError
+
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
+        """Alias for format_metrics_data for backward compatibility."""
         raise NotImplementedError
 
 
@@ -79,7 +88,7 @@ class JSONFormatter(DiagnosticFormatter):
 
         return json.dumps(data, indent=self.indent, default=str)
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as JSON."""
         if metrics is None:
             return json.dumps({}, indent=self.indent)
@@ -100,7 +109,7 @@ class JSONFormatter(DiagnosticFormatter):
         data = {name: health.to_dict() for name, health in health_results.items()}
         return json.dumps(data, indent=self.indent, default=str)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 
@@ -191,7 +200,7 @@ class CSVFormatter(DiagnosticFormatter):
 
         return output.getvalue().strip()
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as CSV."""
         if metrics is None:
             return ""
@@ -299,7 +308,7 @@ class CSVFormatter(DiagnosticFormatter):
         """Alias for format_health_data."""
         return self.format_health_data(health_results)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 
@@ -418,7 +427,7 @@ class PrometheusFormatter(DiagnosticFormatter):
 
         return "\n".join(lines)
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as Prometheus format."""
         if metrics is None:
             return ""
@@ -527,7 +536,7 @@ class PrometheusFormatter(DiagnosticFormatter):
         """Alias for format_health_data."""
         return self.format_health_data(health_results)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 
@@ -603,7 +612,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
 
         return "\n".join(lines)
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as InfluxDB line protocol."""
         if metrics is None:
             return ""
@@ -695,7 +704,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
         """Alias for format_health_data."""
         return self.format_health_data(health_results)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 

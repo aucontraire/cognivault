@@ -8,6 +8,8 @@ import os
 import logging
 from sqlalchemy import text
 
+from tests.utils.test_database_config import get_test_env_vars
+
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -16,12 +18,10 @@ logger = logging.getLogger(__name__)
 @pytest.mark.asyncio
 async def test_session_creation() -> bool:
     """Test session creation directly."""
-    # Set environment
-    os.environ["DATABASE_URL"] = (
-        "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
-    )
-    os.environ["TESTING"] = "true"
-    os.environ["DB_SSL_REQUIRE"] = "false"
+    # Set environment using centralized test configuration
+    test_env_vars = get_test_env_vars("local")
+    for key, value in test_env_vars.items():
+        os.environ[key] = value
 
     from cognivault.database.connection import get_database_session, init_database
 
@@ -32,17 +32,17 @@ async def test_session_creation() -> bool:
 
         # Test simple session
         async with get_database_session() as session:
-            result = await session.execute(text("SELECT 1 as test"))
-            value = result.scalar()
-            logger.info(f"✅ Simple session test: {value}")
+            session_result1 = await session.execute(text("SELECT 1 as test"))
+            scalar_session1_value = session_result1.scalar()
+            logger.info(f"✅ Simple session test: {scalar_session1_value}")
 
         # Test nested transaction (savepoint)
         async with get_database_session() as session:
             savepoint = await session.begin_nested()
             try:
-                result = await session.execute(text("SELECT 2 as test"))
-                value = result.scalar()
-                logger.info(f"✅ Savepoint session test: {value}")
+                session_result2 = await session.execute(text("SELECT 2 as test"))
+                scalar_session2_value = session_result2.scalar()
+                logger.info(f"✅ Savepoint session test: {scalar_session2_value}")
             finally:
                 await savepoint.rollback()
 

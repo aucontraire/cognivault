@@ -5,6 +5,7 @@ These APIs form the stable interface that external consumers depend on.
 Breaking changes require migration path and version bump.
 """
 
+import warnings
 from typing import List, Dict, Any
 from .base import BaseAPI
 from .decorators import ensure_initialized
@@ -119,7 +120,19 @@ class LLMGatewayAPI(BaseAPI):
     """
     LLM Gateway API - Future service extraction boundary.
 
-    Designed for eventual extraction as independent microservice.
+    ⚠️  **IMPORTANT: THIS API IS NOT YET IMPLEMENTED** ⚠️
+
+    This class defines the contract for future LLM gateway functionality
+    but currently has NO working implementations. All methods will raise
+    NotImplementedError if called.
+
+    **Current Status**: PLACEHOLDER ONLY
+    **Future Implementation**: Planned for Phase 4 - External Service Extraction
+    **Alternative**: Use existing LLM classes in cognivault.llm module
+
+    This API is designed for eventual extraction as independent microservice
+    and represents the stable interface contract that will be implemented
+    when the LLM gateway service is built.
     """
 
     @property
@@ -135,33 +148,70 @@ class LLMGatewayAPI(BaseAPI):
         """
         Generate LLM completion.
 
+        ⚠️  **NOT IMPLEMENTED** - This method is a placeholder for future development.
+
         Args:
             request: Completion parameters
 
         Returns:
             CompletionResponse with generated text
+
+        Raises:
+            NotImplementedError: Always raised - no implementation exists yet
         """
-        raise NotImplementedError("Subclasses must implement execute_workflow")
+        warnings.warn(
+            "LLMGatewayAPI.complete() is not implemented. This is a placeholder for future LLM gateway service. "
+            "Use cognivault.llm.OpenAIChatLLM or similar classes for current LLM functionality.",
+            UserWarning,
+            stacklevel=2,
+        )
+        raise NotImplementedError(
+            "LLMGatewayAPI.complete() is not yet implemented - this is a future placeholder"
+        )
 
     @ensure_initialized
     async def get_providers(self) -> List[LLMProviderInfo]:
         """
         Get available LLM providers and models.
 
+        ⚠️  **NOT IMPLEMENTED** - This method is a placeholder for future development.
+
         Returns:
             List of available LLM providers
+
+        Raises:
+            NotImplementedError: Always raised - no implementation exists yet
         """
-        raise NotImplementedError("Subclasses must implement execute_workflow")
+        warnings.warn(
+            "LLMGatewayAPI.get_providers() is not implemented. This is a placeholder for future LLM gateway service.",
+            UserWarning,
+            stacklevel=2,
+        )
+        raise NotImplementedError(
+            "LLMGatewayAPI.get_providers() is not yet implemented - this is a future placeholder"
+        )
 
     @ensure_initialized
     async def estimate_cost(self, request: CompletionRequest) -> Dict[str, float]:
         """
         Estimate completion cost across providers.
 
+        ⚠️  **NOT IMPLEMENTED** - This method is a placeholder for future development.
+
         Args:
             request: Completion parameters
 
         Returns:
             Cost estimates by provider
+
+        Raises:
+            NotImplementedError: Always raised - no implementation exists yet
         """
-        raise NotImplementedError("Subclasses must implement estimate_cost")
+        warnings.warn(
+            "LLMGatewayAPI.estimate_cost() is not implemented. This is a placeholder for future LLM gateway service.",
+            UserWarning,
+            stacklevel=2,
+        )
+        raise NotImplementedError(
+            "LLMGatewayAPI.estimate_cost() is not yet implemented - this is a future placeholder"
+        )

@@ -22,6 +22,7 @@ class TestSmartTruncateContent:
         content = "This is a short message."
         result = smart_truncate_content(content, max_length=100)
         assert result == content
+        assert result is not None
         assert len(result) == len(content)
 
     def test_empty_content_handled(self) -> None:
@@ -34,6 +35,7 @@ class TestSmartTruncateContent:
         content = "This is a very long message that should be truncated because it exceeds the maximum length limit."
         result = smart_truncate_content(content, max_length=50)
 
+        assert result is not None
         assert len(result) <= 50 + 3  # max_length + "..."
         assert result.endswith("...")
         assert result.startswith("This is a very long message")
@@ -43,6 +45,7 @@ class TestSmartTruncateContent:
         content = "This is a sentence with several words that should be truncated."
         result = smart_truncate_content(content, max_length=30, preserve_words=True)
 
+        assert result is not None
         # Should not cut in the middle of a word
         assert not result.replace("...", "").endswith(" ")  # No hanging space
         words_in_result = result.replace("...", "").strip().split()
@@ -55,6 +58,7 @@ class TestSmartTruncateContent:
         )
         result = smart_truncate_content(content, max_length=40, preserve_sentences=True)
 
+        assert result is not None
         # Should end at a sentence boundary when possible
         clean_result = result.replace("...", "").strip()
         # The algorithm may not find a sentence boundary within the 30% threshold,
@@ -68,6 +72,7 @@ class TestSmartTruncateContent:
             content, max_length=20, truncation_indicator="[more]"
         )
 
+        assert result is not None
         assert result.endswith("[more]")
         assert len(result) <= 20 + len("[more]")
 
@@ -82,6 +87,7 @@ class TestSmartTruncateContent:
 
         result = smart_truncate_content(long_content, max_length=1000)
 
+        assert result is not None
         assert len(result) <= 1003  # 1000 + "..."
         assert result.endswith("...")
         assert result.startswith("Artificial Intelligence (AI) refers")

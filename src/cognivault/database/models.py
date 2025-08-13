@@ -7,11 +7,10 @@ and semantic relationship tracking.
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID as UUID_TYPE
 
 from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
-from typing import List
 from sqlalchemy import (
     ARRAY,
     UUID,
@@ -119,12 +118,14 @@ class Question(Base):
     execution_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True
     )  # For efficient filtering
-    nodes_executed: Mapped[Optional[list]] = mapped_column(
+    nodes_executed: Mapped[Optional[List[str]]] = mapped_column(
         ARRAY(String), nullable=True
     )  # DAG execution path
 
     # Rich metadata storage (workflow results, agent outputs, performance)
-    execution_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    execution_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

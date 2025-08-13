@@ -5,8 +5,7 @@ Tests type safety, extensibility, and integration capabilities
 of the LLM model and provider enums.
 """
 
-import pytest
-from typing import Any
+from typing import cast
 from enum import Enum
 
 from cognivault.llm.provider_enum import LLMProvider, LLMModel
@@ -17,8 +16,8 @@ class TestLLMProvider:
 
     def test_provider_enum_values(self) -> None:
         """Test that LLM provider enum has expected values."""
-        assert LLMProvider.OPENAI == "openai"
-        assert LLMProvider.STUB == "stub"
+        assert LLMProvider.OPENAI.value == "openai"
+        assert LLMProvider.STUB.value == "stub"
 
     def test_provider_enum_inheritance(self) -> None:
         """Test that LLMProvider inherits from str and Enum."""
@@ -30,7 +29,7 @@ class TestLLMProvider:
         assert isinstance(provider, str)
         assert isinstance(provider, LLMProvider)
         assert provider == "openai"
-        assert provider.value == "openai"
+        assert LLMProvider.OPENAI.value == "openai"
 
     def test_provider_enum_iteration(self) -> None:
         """Test iteration over provider enum values."""
@@ -45,24 +44,24 @@ class TestLLMModel:
 
     def test_openai_model_values(self) -> None:
         """Test OpenAI model enum values."""
-        assert LLMModel.GPT_4 == "gpt-4"
-        assert LLMModel.GPT_4_TURBO == "gpt-4-turbo"
-        assert LLMModel.GPT_4O == "gpt-4o"
-        assert LLMModel.GPT_4O_MINI == "gpt-4o-mini"
-        assert LLMModel.GPT_3_5_TURBO == "gpt-3.5-turbo"
+        assert LLMModel.GPT_4.value == "gpt-4"
+        assert LLMModel.GPT_4_TURBO.value == "gpt-4-turbo"
+        assert LLMModel.GPT_4O.value == "gpt-4o"
+        assert LLMModel.GPT_4O_MINI.value == "gpt-4o-mini"
+        assert LLMModel.GPT_3_5_TURBO.value == "gpt-3.5-turbo"
 
     def test_future_model_values(self) -> None:
         """Test future/extensibility model enum values."""
-        assert LLMModel.CLAUDE_OPUS == "claude-3-opus"
-        assert LLMModel.CLAUDE_SONNET == "claude-3-sonnet"
-        assert LLMModel.CLAUDE_HAIKU == "claude-3-haiku"
-        assert LLMModel.MISTRAL_7B == "mistral-7b"
-        assert LLMModel.LLAMA_3 == "llama-3"
+        assert LLMModel.CLAUDE_OPUS.value == "claude-3-opus"
+        assert LLMModel.CLAUDE_SONNET.value == "claude-3-sonnet"
+        assert LLMModel.CLAUDE_HAIKU.value == "claude-3-haiku"
+        assert LLMModel.MISTRAL_7B.value == "mistral-7b"
+        assert LLMModel.LLAMA_3.value == "llama-3"
 
     def test_special_model_values(self) -> None:
         """Test special model enum values for testing and custom use."""
-        assert LLMModel.STUB == "stub"
-        assert LLMModel.LOCAL_CUSTOM == "local-custom"
+        assert LLMModel.STUB.value == "stub"
+        assert LLMModel.LOCAL_CUSTOM.value == "local-custom"
 
     def test_model_enum_inheritance(self) -> None:
         """Test that LLMModel inherits from str and Enum."""
@@ -74,7 +73,7 @@ class TestLLMModel:
         assert isinstance(model, str)
         assert isinstance(model, LLMModel)
         assert model == "gpt-4"
-        assert model.value == "gpt-4"
+        assert LLMModel.GPT_4.value == "gpt-4"
 
     def test_model_enum_completeness(self) -> None:
         """Test that all expected models are present."""
@@ -236,7 +235,10 @@ class TestEnumIntegration:
         # MIXTRAL_8X7B = "mixtral-8x7b"
 
         # Verify current structure supports this pattern
-        assert all(isinstance(p.value, str) for p in providers)
-        assert all(isinstance(m.value, str) for m in models)
+        assert all(
+            isinstance(cast(LLMProvider, provider).value, str)  # type: ignore[redundant-cast]
+            for provider in providers
+        )
+        assert all(isinstance(cast(LLMModel, model).value, str) for model in models)  # type: ignore[redundant-cast]
         assert len(providers) >= 2  # Room for growth
         assert len(models) >= 10  # Room for growth

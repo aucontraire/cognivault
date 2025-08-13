@@ -7,7 +7,7 @@ errors for DAG-based execution flow.
 """
 
 import pytest
-from typing import Any
+from typing import Any, Dict, List
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -110,7 +110,7 @@ class TestPipelineExecutionError:
     def test_pipeline_execution_error_complete_failure(self) -> None:
         """Test pipeline execution error with complete failure."""
         failed_agents = ["agent1", "agent2", "agent3"]
-        successful_agents = []
+        successful_agents: List[str] = []
 
         error = PipelineExecutionError(
             failed_agents=failed_agents,
@@ -431,7 +431,7 @@ class TestOrchestrationErrorInheritance:
     def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of orchestration errors."""
 
-        def handle_orchestration_error(error: OrchestrationError) -> dict:
+        def handle_orchestration_error(error: OrchestrationError) -> Dict[str, Any]:
             return {
                 "stage": error.pipeline_stage,
                 "retryable": error.is_retryable(),
@@ -533,16 +533,16 @@ class TestOrchestrationErrorIntegration:
         assert exc_info.value.from_state == "from"
 
         # Test catching as base orchestration error
-        with pytest.raises(OrchestrationError) as exc_info:
+        with pytest.raises(OrchestrationError) as orch_exc_info:
             raise PipelineExecutionError(["failed"], ["success"], "test", "reason")
 
-        assert exc_info.value.pipeline_stage == "test"
+        assert orch_exc_info.value.pipeline_stage == "test"
 
         # Test catching as CogniVaultError
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as base_exc_info:
             raise DependencyResolutionError("circular", ["agent1"])
 
-        assert exc_info.value.error_code == "dependency_resolution_failed"
+        assert base_exc_info.value.error_code == "dependency_resolution_failed"
 
     def test_orchestration_error_retry_semantics(self) -> None:
         """Test retry semantics for orchestration operations."""

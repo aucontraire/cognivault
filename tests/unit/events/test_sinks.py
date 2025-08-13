@@ -15,8 +15,7 @@ import tempfile
 import asyncio
 from pathlib import Path
 from datetime import datetime, timezone
-from unittest.mock import patch, mock_open, MagicMock
-from io import StringIO
+from unittest.mock import patch
 
 from cognivault.events.sinks import (
     EventSink,
@@ -25,25 +24,21 @@ from cognivault.events.sinks import (
     InMemoryEventSink,
     create_file_sink,
 )
-from cognivault.events.types import (
-    WorkflowEvent,
-    EventType,
-    WorkflowStartedEvent,
-    WorkflowCompletedEvent,
-    AgentExecutionStartedEvent,
-    AgentExecutionCompletedEvent,
-    EventFilters,
-    EventStatistics,
+from cognivault.events.types import EventType
+from tests.factories.event_factory import (
+    WorkflowStartedEventFactory,
+    WorkflowCompletedEventFactory,
+    AgentExecutionEventFactory,
+    EventFiltersFactory,
+    EventStatisticsFactory,
 )
 
 
 @pytest.fixture
 def sample_workflow_started_event() -> Any:
     """Create a sample workflow started event for testing."""
-    return WorkflowStartedEvent(
-        event_type=EventType.WORKFLOW_STARTED,
+    return WorkflowStartedEventFactory.basic_workflow_started(
         workflow_id="test-workflow-123",
-        timestamp=datetime.now(timezone.utc),
         correlation_id="test-correlation-456",
         query="Test query for workflow",
         agents_requested=["refiner", "critic"],
@@ -55,10 +50,8 @@ def sample_workflow_started_event() -> Any:
 @pytest.fixture
 def sample_workflow_completed_event() -> Any:
     """Create a sample workflow completed event for testing."""
-    return WorkflowCompletedEvent(
-        event_type=EventType.WORKFLOW_COMPLETED,
+    return WorkflowCompletedEventFactory.successful_workflow_completed(
         workflow_id="test-workflow-123",
-        timestamp=datetime.now(timezone.utc),
         correlation_id="test-correlation-456",
         status="completed",
         execution_time_seconds=5.2,
@@ -73,10 +66,8 @@ def sample_workflow_completed_event() -> Any:
 @pytest.fixture
 def sample_agent_execution_completed_event() -> Any:
     """Create a sample agent execution completed event for testing."""
-    event = AgentExecutionCompletedEvent(
-        event_type=EventType.AGENT_EXECUTION_COMPLETED,
+    event = AgentExecutionEventFactory.agent_execution_completed(
         workflow_id="test-workflow-123",
-        timestamp=datetime.now(timezone.utc),
         correlation_id="test-correlation-456",
         agent_metadata=None,  # Simplified for testing
         agent_name="refiner",
@@ -92,10 +83,8 @@ def sample_agent_execution_completed_event() -> Any:
 @pytest.fixture
 def sample_failed_agent_event() -> Any:
     """Create a sample failed agent execution event for testing."""
-    event = AgentExecutionCompletedEvent(
-        event_type=EventType.AGENT_EXECUTION_COMPLETED,
+    event = AgentExecutionEventFactory.agent_execution_completed(
         workflow_id="test-workflow-456",
-        timestamp=datetime.now(timezone.utc),
         correlation_id="test-correlation-789",
         agent_metadata=None,
         agent_name="critic",
@@ -115,7 +104,7 @@ class TestEventSinkAbstractBase:
     def test_cannot_instantiate_abstract_base(self) -> None:
         """Test that EventSink cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            EventSink()
+            EventSink()  # type: ignore[abstract]
 
     def test_abstract_methods_required(self) -> None:
         """Test that subclasses must implement abstract methods."""
@@ -124,7 +113,7 @@ class TestEventSinkAbstractBase:
             pass
 
         with pytest.raises(TypeError):
-            IncompleteEventSink()
+            IncompleteEventSink()  # type: ignore[abstract]
 
 
 class TestConsoleEventSink:
@@ -340,7 +329,9 @@ class TestFileEventSink:
             file_path = Path(temp_dir) / "events.jsonl"
 
             # Create filter that only allows workflow events
-            filters = EventFilters(event_type=EventType.WORKFLOW_STARTED)
+            filters = EventFiltersFactory.basic_event_filters(
+                event_type=EventType.WORKFLOW_STARTED
+            )
             sink = FileEventSink(file_path=str(file_path), filters=filters)
 
             await sink.emit(sample_workflow_started_event)  # Should be written
@@ -360,7 +351,8 @@ class TestFileEventSink:
         with tempfile.TemporaryDirectory() as temp_dir:
             file_path = Path(temp_dir) / "events.jsonl"
 
-            # Create a very small size limit to trigger rotation
+            # Create a very small size limit to trigger rotation after just 2 events
+            # Each event is ~0.0006MB, so 0.001MB should trigger rotation after 2 events
             sink = FileEventSink(
                 file_path=str(file_path), max_file_size_mb=0.001, rotate_files=True
             )
@@ -489,10 +481,8 @@ class TestInMemoryEventSink:
 
         # Add 3 events
         for i in range(3):
-            event = WorkflowStartedEvent(
-                event_type=EventType.WORKFLOW_STARTED,
+            event = WorkflowStartedEventFactory.basic_workflow_started(
                 workflow_id=f"workflow-{i}",
-                timestamp=datetime.now(timezone.utc),
                 correlation_id=f"corr-{i}",
                 query=f"Query {i}",
                 agents_requested=["refiner"],
@@ -511,7 +501,9 @@ class TestInMemoryEventSink:
         self, sample_workflow_started_event: Any, sample_workflow_completed_event: Any
     ) -> None:
         """Test InMemoryEventSink with filters."""
-        filters = EventFilters(event_type=EventType.WORKFLOW_STARTED)
+        filters = EventFiltersFactory.basic_event_filters(
+            event_type=EventType.WORKFLOW_STARTED
+        )
         sink = InMemoryEventSink(filters=filters)
 
         await sink.emit(sample_workflow_started_event)  # Should be stored
@@ -555,10 +547,8 @@ class TestInMemoryEventSink:
 
         # Add multiple events
         for i in range(5):
-            event = WorkflowStartedEvent(
-                event_type=EventType.WORKFLOW_STARTED,
+            event = WorkflowStartedEventFactory.basic_workflow_started(
                 workflow_id=f"workflow-{i}",
-                timestamp=datetime.now(timezone.utc),
                 correlation_id=f"corr-{i}",
                 query=f"Query {i}",
                 agents_requested=["refiner"],
@@ -632,8 +622,7 @@ class TestEventFilters:
     def sample_events(self) -> Any:
         """Create a variety of events for filter testing."""
         return [
-            WorkflowStartedEvent(
-                event_type=EventType.WORKFLOW_STARTED,
+            WorkflowStartedEventFactory.basic_workflow_started(
                 workflow_id="workflow-1",
                 timestamp=datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
                 correlation_id="corr-1",
@@ -642,8 +631,7 @@ class TestEventFilters:
                 execution_config={},
                 metadata={},
             ),
-            WorkflowCompletedEvent(
-                event_type=EventType.WORKFLOW_COMPLETED,
+            WorkflowCompletedEventFactory.successful_workflow_completed(
                 workflow_id="workflow-1",
                 timestamp=datetime(2024, 1, 1, 10, 5, 0, tzinfo=timezone.utc),
                 correlation_id="corr-1",
@@ -655,8 +643,7 @@ class TestEventFilters:
                 error_message=None,
                 metadata={},
             ),
-            AgentExecutionCompletedEvent(
-                event_type=EventType.AGENT_EXECUTION_COMPLETED,
+            AgentExecutionEventFactory.agent_execution_completed(
                 workflow_id="workflow-2",
                 timestamp=datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
                 correlation_id="corr-2",
@@ -670,7 +657,9 @@ class TestEventFilters:
 
     def test_event_filters_event_type(self, sample_events: Any) -> None:
         """Test filtering by event type."""
-        filters = EventFilters(event_type=EventType.WORKFLOW_STARTED)
+        filters = EventFiltersFactory.basic_event_filters(
+            event_type=EventType.WORKFLOW_STARTED
+        )
 
         matching = [event for event in sample_events if filters.matches(event)]
         assert len(matching) == 1
@@ -678,7 +667,7 @@ class TestEventFilters:
 
     def test_event_filters_workflow_id(self, sample_events: Any) -> None:
         """Test filtering by workflow ID."""
-        filters = EventFilters(workflow_id="workflow-1")
+        filters = EventFiltersFactory.basic_event_filters(workflow_id="workflow-1")
 
         matching = [event for event in sample_events if filters.matches(event)]
         assert len(matching) == 2
@@ -686,7 +675,7 @@ class TestEventFilters:
 
     def test_event_filters_correlation_id(self, sample_events: Any) -> None:
         """Test filtering by correlation ID."""
-        filters = EventFilters(correlation_id="corr-2")
+        filters = EventFiltersFactory.basic_event_filters(correlation_id="corr-2")
 
         matching = [event for event in sample_events if filters.matches(event)]
         assert len(matching) == 1
@@ -695,8 +684,7 @@ class TestEventFilters:
     def test_event_filters_has_errors(self, sample_events: Any) -> None:
         """Test filtering by error presence."""
         # Add an event with an error for testing
-        error_event = AgentExecutionCompletedEvent(
-            event_type=EventType.AGENT_EXECUTION_COMPLETED,
+        error_event = AgentExecutionEventFactory.agent_execution_completed(
             workflow_id="workflow-error",
             timestamp=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             correlation_id="corr-error",
@@ -711,13 +699,13 @@ class TestEventFilters:
         events_with_error = sample_events + [error_event]
 
         # Filter for events with errors
-        filters = EventFilters(has_errors=True)
+        filters = EventFiltersFactory.basic_event_filters(has_errors=True)
         matching = [event for event in events_with_error if filters.matches(event)]
         assert len(matching) == 1
         assert matching[0].error_message == "Test error message"
 
         # Filter for events without errors
-        filters = EventFilters(has_errors=False)
+        filters = EventFiltersFactory.basic_event_filters(has_errors=False)
         matching = [event for event in events_with_error if filters.matches(event)]
         assert len(matching) == 3  # The original 3 events without errors
         assert all(not event.error_message for event in matching)
@@ -727,7 +715,9 @@ class TestEventFilters:
         start_time = datetime(2024, 1, 1, 10, 3, 0, tzinfo=timezone.utc)
         end_time = datetime(2024, 1, 1, 10, 7, 0, tzinfo=timezone.utc)
 
-        filters = EventFilters(start_time=start_time, end_time=end_time)
+        filters = EventFiltersFactory.time_range_filters(
+            start_time=start_time, end_time=end_time
+        )
 
         matching = [event for event in sample_events if filters.matches(event)]
         assert len(matching) == 1
@@ -735,7 +725,9 @@ class TestEventFilters:
 
     def test_event_filters_combined(self, sample_events: Any) -> None:
         """Test combining multiple filters."""
-        filters = EventFilters(workflow_id="workflow-1", has_errors=False)
+        filters = EventFiltersFactory.basic_event_filters(
+            workflow_id="workflow-1", has_errors=False
+        )
 
         matching = [event for event in sample_events if filters.matches(event)]
         assert len(matching) == 2
@@ -748,7 +740,7 @@ class TestEventStatistics:
 
     def test_event_statistics_initialization(self) -> None:
         """Test EventStatistics initialization."""
-        stats = EventStatistics()
+        stats = EventStatisticsFactory.empty_statistics()
         assert stats.total_events == 0
         assert len(stats.events_by_type) == 0
         assert len(stats.events_by_agent) == 0
@@ -759,7 +751,7 @@ class TestEventStatistics:
         self, sample_workflow_started_event: Any
     ) -> None:
         """Test updating statistics with workflow events."""
-        stats = EventStatistics()
+        stats = EventStatisticsFactory.empty_statistics()
         stats.update_with_event(sample_workflow_started_event)
 
         assert stats.total_events == 1
@@ -769,7 +761,7 @@ class TestEventStatistics:
         self, sample_agent_execution_completed_event: Any
     ) -> None:
         """Test updating statistics with agent events."""
-        stats = EventStatistics()
+        stats = EventStatisticsFactory.empty_statistics()
         stats.update_with_event(sample_agent_execution_completed_event)
 
         assert stats.total_events == 1
@@ -782,7 +774,7 @@ class TestEventStatistics:
         sample_agent_execution_completed_event: Any,
     ) -> None:
         """Test statistics with multiple events."""
-        stats = EventStatistics()
+        stats = EventStatisticsFactory.empty_statistics()
 
         stats.update_with_event(sample_workflow_started_event)
         stats.update_with_event(sample_agent_execution_completed_event)
@@ -794,13 +786,11 @@ class TestEventStatistics:
 
     def test_event_statistics_execution_time_average(self) -> None:
         """Test execution time averaging."""
-        stats = EventStatistics()
+        stats = EventStatisticsFactory.empty_statistics()
 
         # Create events with different execution times
-        event1 = AgentExecutionCompletedEvent(
-            event_type=EventType.AGENT_EXECUTION_COMPLETED,
+        event1 = AgentExecutionEventFactory.agent_execution_completed(
             workflow_id="test",
-            timestamp=datetime.now(timezone.utc),
             correlation_id="test",
             agent_metadata=None,
             agent_name="test",
@@ -810,10 +800,8 @@ class TestEventStatistics:
         )
         event1.execution_time_ms = 100.0
 
-        event2 = AgentExecutionCompletedEvent(
-            event_type=EventType.AGENT_EXECUTION_COMPLETED,
+        event2 = AgentExecutionEventFactory.agent_execution_completed(
             workflow_id="test",
-            timestamp=datetime.now(timezone.utc),
             correlation_id="test",
             agent_metadata=None,
             agent_name="test",

@@ -7,7 +7,7 @@ retry and circuit breaker systems.
 """
 
 import pytest
-from typing import Any
+from typing import Any, Dict
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -293,7 +293,7 @@ class TestAgentErrorInheritance:
     def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of agent errors."""
 
-        def handle_agent_error(error: AgentExecutionError) -> dict:
+        def handle_agent_error(error: AgentExecutionError) -> Dict[str, Any]:
             return {
                 "agent": error.agent_name,
                 "retryable": error.is_retryable(),
@@ -387,16 +387,16 @@ class TestAgentErrorIntegration:
         assert exc_info.value.timeout_seconds == 30.0
 
         # Test catching as base type
-        with pytest.raises(AgentExecutionError) as exc_info:
+        with pytest.raises(AgentExecutionError) as agent_exc_info:
             raise AgentConfigurationError("ConfigAgent", "Missing param")
 
-        assert exc_info.value.agent_name == "ConfigAgent"
+        assert agent_exc_info.value.agent_name == "ConfigAgent"
 
         # Test catching as CogniVaultError
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as base_exc_info:
             raise AgentDependencyMissingError("DepAgent", ["Dep1"])
 
-        assert exc_info.value.agent_id == "DepAgent"
+        assert base_exc_info.value.agent_id == "DepAgent"
 
 
 class TestAgentResourceError:

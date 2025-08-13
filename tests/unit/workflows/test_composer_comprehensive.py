@@ -10,10 +10,8 @@ import pytest
 import json
 import tempfile
 import os
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime
-from typing import Any, Dict, Optional
-from dataclasses import dataclass
 
 from cognivault.workflows.composer import (
     DagComposer,
@@ -30,10 +28,7 @@ from cognivault.workflows.definition import (
     EdgeDefinition,
 )
 from cognivault.context import AgentContext
-from tests.factories.agent_context_factories import (
-    AgentContextFactory,
-    AgentContextPatterns,
-)
+from tests.factories.agent_context_factories import AgentContextPatterns
 
 
 class TestImportErrorHandling:
@@ -536,9 +531,25 @@ class TestNodeFactoryAdvancedNodes:
             node_type="validator",
             category="ADVANCED",
             execution_pattern="validator",
+            config={
+                "validation_criteria": [
+                    {
+                        "name": "completeness",
+                        "threshold": 0.8,
+                        "weight": 1.0,
+                        "required": True,
+                    },
+                    {
+                        "name": "accuracy",
+                        "threshold": 0.8,
+                        "weight": 0.9,
+                        "required": True,
+                    },
+                ],
+                "quality_threshold": 0.8,
+                "strict_mode": True,
+            },
             metadata={
-                "validation_criteria": ["completeness", "accuracy"],
-                "threshold": 0.8,
                 "fail_action": "retry",
             },
         )
@@ -590,7 +601,7 @@ class TestNodeFactoryAdvancedNodes:
         with patch.object(
             self.factory, "_create_decision_node"
         ) as mock_create_decision:
-            mock_create_decision.return_value: Mock = Mock()
+            mock_create_decision.return_value = Mock()
 
             self.factory._create_advanced_node(decision_config)
 
@@ -679,7 +690,7 @@ class TestEdgeBuilder:
         with patch.object(
             self.edge_builder, "_build_sequential_edge"
         ) as mock_sequential:
-            mock_sequential.return_value: Mock = Mock()
+            mock_sequential.return_value = Mock()
 
             self.edge_builder.build_edge(sequential_edge)
 

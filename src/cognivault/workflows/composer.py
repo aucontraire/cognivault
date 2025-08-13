@@ -85,7 +85,7 @@ class WorkflowCompositionError(Exception):
         self.workflow_id = workflow_id
 
 
-def get_agent_class(agent_type: str) -> Type[Any]:
+def get_agent_class(agent_type: Optional[str]) -> Type[Any]:
     """Get agent class by type name."""
     # Import all agent classes for real execution
     from cognivault.agents.refiner.agent import RefinerAgent
@@ -99,6 +99,9 @@ def get_agent_class(agent_type: str) -> Type[Any]:
         "historian": HistorianAgent,
         "synthesis": SynthesisAgent,
     }
+    # Handle None case by defaulting to RefinerAgent
+    if agent_type is None:
+        return RefinerAgent
     return agent_map.get(agent_type, RefinerAgent)
 
 
@@ -469,18 +472,13 @@ class NodeFactory:
             # Extract validation configuration
             config_data = node_config.config or {}
 
-            # Build validation criteria from config
+            # Build validation criteria from config - require explicit criteria
             criteria_config = config_data.get("validation_criteria", [])
             if not criteria_config:
-                # Default criteria if none provided
-                criteria_config = [
-                    {
-                        "name": "quality_check",
-                        "required": True,
-                        "weight": 1.0,
-                        "error_message": "Quality check failed",
-                    }
-                ]
+                # Require explicit validation criteria for ValidatorNode
+                raise WorkflowCompositionError(
+                    f"ValidatorNode '{node_config.node_id}' requires explicit 'validation_criteria' in config"
+                )
 
             criteria = []
             for criterion_config in criteria_config:

@@ -6,7 +6,7 @@ markdown export errors, and other file system related errors.
 """
 
 import pytest
-from typing import Any
+from typing import Any, Dict
 from pathlib import Path
 from cognivault.exceptions import (
     CogniVaultError,
@@ -297,7 +297,7 @@ class TestIOErrorInheritance:
     def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of I/O errors."""
 
-        def handle_io_error(error: CogniVaultError) -> dict:
+        def handle_io_error(error: CogniVaultError) -> Dict[str, Any]:
             return {
                 "operation": getattr(error, "operation", None),
                 "retryable": error.is_retryable(),
@@ -396,16 +396,16 @@ class TestIOErrorIntegration:
         assert exc_info.value.file_path == "/test.md"
 
         # Test catching as base type
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as export_exc_info:
             raise MarkdownExportError("export", "/export.md", "export issue")
 
-        assert hasattr(exc_info.value, "export_stage")
+        assert hasattr(export_exc_info.value, "export_stage")
 
         # Test catching as CogniVaultError
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as file_exc_info:
             raise FileOperationError("delete", "/delete.txt", "permission denied")
 
-        assert exc_info.value.error_code == "file_operation_failed"
+        assert file_exc_info.value.error_code == "file_operation_failed"
 
     def test_io_error_retry_semantics(self) -> None:
         """Test retry semantics for I/O operations."""

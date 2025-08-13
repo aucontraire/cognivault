@@ -80,14 +80,19 @@ class DiagnosticsCLI:
             else:  # unhealthy or unknown
                 raise typer.Exit(2)
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task("Running health checks...", total=None)
+        # Only show progress spinner for console output to avoid interfering with JSON/other formats
+        if output_format == "console":
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task("Running health checks...", total=None)
+                health_data = asyncio.run(self.diagnostics.quick_health_check())
+                progress.remove_task(task)
+        else:
+            # For non-console output, run health check without progress spinner
             health_data = asyncio.run(self.diagnostics.quick_health_check())
-            progress.remove_task(task)
 
         # Handle non-console output formats
         if output_format != "console":
@@ -107,7 +112,8 @@ class DiagnosticsCLI:
                     else:
                         output = json.dumps(health_data, indent=2)
 
-                self.console.print(output)
+                # Use plain print for JSON/structured output to avoid Rich formatting
+                print(output)
 
                 # Set exit code based on health
                 status = health_data["status"]
@@ -160,18 +166,21 @@ class DiagnosticsCLI:
         ),
     ) -> None:
         """Show detailed system status."""
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task("Gathering system status...", total=None)
-            diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
-            progress.remove_task(task)
-
+        # Only show progress spinner for console output to avoid interfering with JSON
         if json_output:
-            self.console.print(json.dumps(diagnostics.to_dict(), indent=2))
+            diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
+            # Use plain print for JSON output to avoid Rich formatting
+            print(json.dumps(diagnostics.to_dict(), indent=2))
             return
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task("Gathering system status...", total=None)
+                diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
+                progress.remove_task(task)
 
         # Rich output
         self.console.print("\n[bold]CogniVault System Status[/bold]")
@@ -247,7 +256,8 @@ class DiagnosticsCLI:
                 else:
                     output = json.dumps(metrics_data, indent=2)
 
-                self.console.print(output)
+                # Use plain print for JSON/structured output to avoid Rich formatting
+                print(output)
                 return
 
             except ValueError as e:
@@ -317,12 +327,14 @@ class DiagnosticsCLI:
             if agent:
                 agent_info = agent_data["agents"].get(agent)
                 if agent_info:
-                    self.console.print(json.dumps(agent_info, indent=2))
+                    # Use plain print for JSON output to avoid Rich formatting
+                    print(json.dumps(agent_info, indent=2))
                 else:
                     self.stderr_console.print(f"[red]Agent '{agent}' not found[/red]")
                     sys.exit(1)
             else:
-                self.console.print(json.dumps(agent_data, indent=2))
+                # Use plain print for JSON output to avoid Rich formatting
+                print(json.dumps(agent_data, indent=2))
             return
 
         # Rich output
@@ -353,7 +365,8 @@ class DiagnosticsCLI:
         config_data = self.diagnostics.get_configuration_report()
 
         if json_output:
-            self.console.print(json.dumps(config_data, indent=2))
+            # Use plain print for JSON output to avoid Rich formatting
+            print(json.dumps(config_data, indent=2))
             return
 
         # Rich output
@@ -422,14 +435,19 @@ class DiagnosticsCLI:
         ),
     ) -> None:
         """Run complete system diagnostics."""
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task("Running full diagnostics...", total=None)
+        # Only show progress spinner for console output to avoid interfering with JSON/other formats
+        if output_format == "console":
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task("Running full diagnostics...", total=None)
+                diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
+                progress.remove_task(task)
+        else:
+            # For non-console output, run diagnostics without progress spinner
             diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
-            progress.remove_task(task)
 
         # Format output data
         if output_format == "console":
@@ -456,7 +474,8 @@ class DiagnosticsCLI:
                         f.write(output)
                     self.console.print(f"Diagnostics saved to: {output_file}")
                 else:
-                    self.console.print(output)
+                    # Use plain print for JSON/structured output to avoid Rich formatting
+                    print(output)
 
                 return
 

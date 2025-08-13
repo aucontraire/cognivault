@@ -214,12 +214,12 @@ class TestInteractiveDAGExplorer:
         mock_execution = Mock()
         mock_asyncio.return_value = mock_execution
 
-        # Create a simple sync function that returns the mock (not async)
-        def sync_execute_and_trace(*args: Mock, **kwargs: Mock) -> Mock:
+        # Create an async function that returns the mock
+        async def async_execute_and_trace(*args: Mock, **kwargs: Mock) -> Mock:
             return mock_execution
 
         with patch.object(
-            explorer, "_execute_and_trace", side_effect=sync_execute_and_trace
+            explorer, "_execute_and_trace", side_effect=async_execute_and_trace
         ):
             with patch.object(explorer, "_display_execution_trace"):
                 explorer.trace_execution(

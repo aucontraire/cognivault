@@ -10,11 +10,8 @@ This test suite validates the Pydantic migration of ConfigMapper including:
 """
 
 import pytest
-import logging
 from typing import Any, Dict
-from unittest.mock import patch, MagicMock
-
-from pydantic import ValidationError
+from unittest.mock import patch
 
 from cognivault.config.config_mapper import ConfigMapper
 from cognivault.config.agent_configs import (
@@ -138,7 +135,9 @@ class TestConfigMapperPydanticIntegration:
 
         for agent_type, config in test_configs.items():
             # Act
-            result = ConfigMapper.model_validate_config(config, agent_type)
+            assert isinstance(config, dict)
+            typed_config: Dict[str, Any] = config
+            result = ConfigMapper.model_validate_config(typed_config, agent_type)
 
             # Assert
             assert result is not None, f"Failed to create config for {agent_type}"
@@ -495,7 +494,7 @@ class TestConfigMapperHelperMethods:
     def test_set_nested_value(self) -> None:
         """Test _set_nested_value helper method."""
         # Test direct field setting
-        config = {}
+        config: Dict[str, Any] = {}
         ConfigMapper._set_nested_value(config, "direct_field", "direct_value")
         assert config["direct_field"] == "direct_value"
 
@@ -648,6 +647,8 @@ class TestConfigMapperEdgeCases:
 
         # Assert
         assert result is not None
-        assert "🚀" in result.prompt_config.custom_system_prompt
-        assert "spëcial" in result.prompt_config.template_variables["unicode_key"]
+        prompt_config = result.prompt_config
+        assert prompt_config.custom_system_prompt is not None
+        assert "🚀" in prompt_config.custom_system_prompt
+        assert "spëcial" in prompt_config.template_variables["unicode_key"]
         assert "中文" in result.behavioral_config.custom_constraints[1]

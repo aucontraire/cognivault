@@ -713,7 +713,18 @@ class AdvancedOrchestrator:
                 # Wait before retry
                 if attempt_number <= max_attempts:
                     retry_config = self.failure_manager.retry_configs.get(
-                        agent_id, RetryConfiguration()
+                        agent_id,
+                        RetryConfiguration(
+                            strategy=RetryStrategy.EXPONENTIAL_BACKOFF,
+                            max_attempts=3,
+                            base_delay_ms=1000.0,
+                            max_delay_ms=30000.0,
+                            backoff_multiplier=2.0,
+                            jitter=True,
+                            reset_on_success=True,
+                            success_rate_threshold=0.7,
+                            failure_window_size=10,
+                        ),
                     )
                     delay_ms = retry_config.calculate_delay(attempt_number)
                     await asyncio.sleep(delay_ms / 1000)
@@ -811,7 +822,11 @@ class AdvancedOrchestrator:
         if hasattr(agent, "resource_requirements"):
             for req_type, req_amount in agent.resource_requirements.items():
                 constraint = ResourceConstraint(
-                    resource_type=req_type, max_usage=req_amount, units="units"
+                    resource_type=req_type,
+                    max_usage=req_amount,
+                    units="units",
+                    shared=False,
+                    renewable=True,
                 )
                 resource_constraints.append(constraint)
 
@@ -830,9 +845,15 @@ class AdvancedOrchestrator:
         """Configure failure handling for an agent."""
         # Configure retry behavior
         retry_config = RetryConfiguration(
-            max_attempts=3,
-            base_delay_ms=1000,
             strategy=RetryStrategy.EXPONENTIAL_BACKOFF,
+            max_attempts=3,
+            base_delay_ms=1000.0,
+            max_delay_ms=30000.0,
+            backoff_multiplier=2.0,
+            jitter=True,
+            reset_on_success=True,
+            success_rate_threshold=0.7,
+            failure_window_size=10,
         )
         self.failure_manager.configure_retry(agent_name, retry_config)
 

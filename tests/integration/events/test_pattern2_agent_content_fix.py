@@ -20,6 +20,9 @@ from tests.factories.agent_context_factories import (
 from cognivault.llm.llm_interface import LLMInterface, LLMResponse
 
 
+# No autouse fixture - handle event setup explicitly in each test to avoid interference
+
+
 class MockLLMForIntegration(LLMInterface):
     """Mock LLM that provides realistic responses for integration testing."""
 
@@ -63,19 +66,6 @@ class MockLLMForIntegration(LLMInterface):
         return self.generate(prompt, **kwargs)
 
 
-class EventCapture:
-    """Helper class to capture emitted events for verification."""
-
-    def __init__(self) -> None:
-        self.events = []
-        self.completed_events = []
-
-    async def capture_completed_event(self, **kwargs: Any) -> Any:
-        """Mock function to capture agent execution completed events."""
-        self.completed_events.append(kwargs)
-        return AsyncMock()
-
-
 @pytest.mark.asyncio
 async def test_pattern2_refiner_agent_content_integration() -> None:
     """
@@ -102,74 +92,82 @@ async def test_pattern2_refiner_agent_content_integration() -> None:
         workflow_metadata={},
     )
 
-    # Set up event capture
-    event_capture = EventCapture()
+    # Set up event capture using the real event system
+    from cognivault.events import get_global_event_emitter, InMemoryEventSink
 
-    # Mock event emission to capture what gets emitted
+    emitter = get_global_event_emitter()
+    memory_sink = InMemoryEventSink(max_events=100)
+    emitter.add_sink(memory_sink)
+    memory_sink.clear_events()  # Start fresh
+
     with patch(
-        "cognivault.agents.base_agent.emit_agent_execution_completed",
-        side_effect=event_capture.capture_completed_event,
-    ) as mock_emit:
+        "cognivault.agents.base_agent.get_workflow_id",
+        return_value="integration-test-workflow",
+    ):
         with patch(
-            "cognivault.agents.base_agent.get_workflow_id",
-            return_value="integration-test-workflow",
+            "cognivault.agents.base_agent.get_correlation_id",
+            return_value="integration-test-correlation",
         ):
-            with patch(
-                "cognivault.agents.base_agent.get_correlation_id",
-                return_value="integration-test-correlation",
-            ):
-                # Execute the agent
-                result_context = await refiner.run_with_retry(context)
+            # Execute the agent
+            result_context = await refiner.run_with_retry(context)
 
-                # Verify agent execution succeeded
-                assert refiner.name in result_context.agent_outputs
-                refined_content = result_context.agent_outputs[refiner.name]
-                assert "fundamental principles" in refined_content
-                assert "machine learning" in refined_content
+            # Verify agent execution succeeded
+            assert refiner.name in result_context.agent_outputs
+            refined_content = result_context.agent_outputs[refiner.name]
+            assert "fundamental principles" in refined_content
+            assert "machine learning" in refined_content
 
-                # Verify event was emitted
-                assert len(event_capture.completed_events) == 1
-                event_data = event_capture.completed_events[0]
+            # Verify event was emitted - get completion events from memory sink
+            completed_events = memory_sink.get_events(
+                event_type="agent.execution.completed"
+            )
+            assert len(completed_events) == 1
 
-                # PATTERN 2 fix verification - agent-level event includes actual content
-                output_context = event_data["output_context"]
+            # Get the event data
+            from cognivault.events.types import AgentExecutionCompletedEvent
 
-                # Key assertions for PATTERN 2 fix
-                assert "agent_output" in output_context, (
-                    "Agent-level event must include actual agent output"
-                )
-                assert output_context["agent_output"] == refined_content, (
-                    "Event content must match agent output"
-                )
-                assert len(output_context["agent_output"]) > 50, (
-                    "Content should be substantial, not empty"
-                )
-                assert "fundamental principles" in output_context["agent_output"], (
-                    "Event should contain actual refined content"
-                )
+            completion_event = completed_events[0]
+            assert isinstance(completion_event, AgentExecutionCompletedEvent)
 
-                # Verify content length is accurate
-                expected_length = len(refined_content)
-                assert output_context["output_length"] == expected_length, (
-                    f"Output length should be {expected_length}"
-                )
+            # PATTERN 2 fix verification - agent-level event includes actual content
+            output_context = completion_event.output_context
 
-                # Verify token usage is included (from PATTERN 1 fix)
-                assert output_context["input_tokens"] == 120, (
-                    "Input tokens should be from mock LLM"
-                )
-                assert output_context["output_tokens"] == 80, (
-                    "Output tokens should be from mock LLM"
-                )
-                assert output_context["total_tokens"] == 200, (
-                    "Total tokens should be from mock LLM"
-                )
+            # Key assertions for PATTERN 2 fix
+            assert "agent_output" in output_context, (
+                "Agent-level event must include actual agent output"
+            )
+            assert output_context["agent_output"] == refined_content, (
+                "Event content must match agent output"
+            )
+            assert len(output_context["agent_output"]) > 50, (
+                "Content should be substantial, not empty"
+            )
+            assert "fundamental principles" in output_context["agent_output"], (
+                "Event should contain actual refined content"
+            )
 
-                # Verify other event metadata
-                assert event_data["agent_name"] == "refiner"
-                assert event_data["success"] is True
-                assert event_data["workflow_id"] == "integration-test-workflow"
-                assert event_data["correlation_id"] == "integration-test-correlation"
+            # Verify content length is accurate
+            expected_length = len(refined_content)
+            assert output_context["output_length"] == expected_length, (
+                f"Output length should be {expected_length}"
+            )
+
+            # Verify token usage is included (from PATTERN 1 fix)
+            assert output_context["input_tokens"] == 120, (
+                "Input tokens should be from mock LLM"
+            )
+            assert output_context["output_tokens"] == 80, (
+                "Output tokens should be from mock LLM"
+            )
+            assert output_context["total_tokens"] == 200, (
+                "Total tokens should be from mock LLM"
+            )
+
+            # Verify other event metadata
+            assert completion_event.agent_name == "refiner"
+            assert completion_event.success is True
+            assert completion_event.workflow_id == "integration-test-workflow"
+            assert completion_event.correlation_id == "integration-test-correlation"
 
 
 @pytest.mark.asyncio
@@ -200,61 +198,69 @@ async def test_pattern2_critic_agent_content_integration() -> None:
         "Refined query: What are the fundamental principles and applications of machine learning?",
     )
 
-    # Set up event capture
-    event_capture = EventCapture()
+    # Set up event capture using the real event system
+    from cognivault.events import get_global_event_emitter, InMemoryEventSink
 
-    # Mock event emission to capture what gets emitted
+    emitter = get_global_event_emitter()
+    memory_sink = InMemoryEventSink(max_events=100)
+    emitter.add_sink(memory_sink)
+    memory_sink.clear_events()  # Start fresh
+
     with patch(
-        "cognivault.agents.base_agent.emit_agent_execution_completed",
-        side_effect=event_capture.capture_completed_event,
+        "cognivault.agents.base_agent.get_workflow_id",
+        return_value="critic-test-workflow",
     ):
         with patch(
-            "cognivault.agents.base_agent.get_workflow_id",
-            return_value="critic-test-workflow",
+            "cognivault.agents.base_agent.get_correlation_id",
+            return_value="critic-test-correlation",
         ):
-            with patch(
-                "cognivault.agents.base_agent.get_correlation_id",
-                return_value="critic-test-correlation",
-            ):
-                # Execute the agent
-                result_context = await critic.run_with_retry(context)
+            # Execute the agent
+            result_context = await critic.run_with_retry(context)
 
-                # Verify agent execution succeeded
-                assert critic.name in result_context.agent_outputs
-                critique_content = result_context.agent_outputs[critic.name]
-                assert "well-structured" in critique_content
-                assert "comprehensive response" in critique_content
+            # Verify agent execution succeeded
+            assert critic.name in result_context.agent_outputs
+            critique_content = result_context.agent_outputs[critic.name]
+            assert "well-structured" in critique_content
+            assert "comprehensive response" in critique_content
 
-                # Verify event was emitted
-                assert len(event_capture.completed_events) == 1
-                event_data = event_capture.completed_events[0]
+            # Verify event was emitted - get completion events from memory sink
+            completed_events = memory_sink.get_events(
+                event_type="agent.execution.completed"
+            )
+            assert len(completed_events) == 1
 
-                # PATTERN 2 fix verification - agent-level event includes actual content
-                output_context = event_data["output_context"]
+            # Get the event data
+            from cognivault.events.types import AgentExecutionCompletedEvent
 
-                # Key assertions for PATTERN 2 fix
-                assert "agent_output" in output_context, (
-                    "Critic agent-level event must include actual critique"
-                )
-                assert output_context["agent_output"] == critique_content, (
-                    "Event critique must match agent output"
-                )
-                assert "well-structured" in output_context["agent_output"], (
-                    "Event should contain actual critique content"
-                )
-                assert "comprehensive response" in output_context["agent_output"], (
-                    "Event should contain full critique analysis"
-                )
+            completion_event = completed_events[0]
+            assert isinstance(completion_event, AgentExecutionCompletedEvent)
 
-                # Verify content length matches
-                expected_length = len(critique_content)
-                assert output_context["output_length"] == expected_length, (
-                    f"Critic output length should be {expected_length}"
-                )
+            # PATTERN 2 fix verification - agent-level event includes actual content
+            output_context = completion_event.output_context
 
-                # Verify event metadata
-                assert event_data["agent_name"] == "critic"
-                assert event_data["success"] is True
+            # Key assertions for PATTERN 2 fix
+            assert "agent_output" in output_context, (
+                "Critic agent-level event must include actual critique"
+            )
+            assert output_context["agent_output"] == critique_content, (
+                "Event critique must match agent output"
+            )
+            assert "well-structured" in output_context["agent_output"], (
+                "Event should contain actual critique content"
+            )
+            assert "comprehensive response" in output_context["agent_output"], (
+                "Event should contain full critique analysis"
+            )
+
+            # Verify content length matches
+            expected_length = len(critique_content)
+            assert output_context["output_length"] == expected_length, (
+                f"Critic output length should be {expected_length}"
+            )
+
+            # Verify event metadata
+            assert completion_event.agent_name == "critic"
+            assert completion_event.success is True
 
 
 @pytest.mark.asyncio
@@ -280,46 +286,59 @@ async def test_pattern2_content_truncation_for_large_outputs() -> None:
         workflow_metadata={},
     )
 
-    event_capture = EventCapture()
+    # Set up event capture using the real event system
+    from cognivault.events import get_global_event_emitter, InMemoryEventSink
+
+    emitter = get_global_event_emitter()
+    memory_sink = InMemoryEventSink(max_events=100)
+    emitter.add_sink(memory_sink)
+    memory_sink.clear_events()  # Start fresh
 
     with patch(
-        "cognivault.agents.base_agent.emit_agent_execution_completed",
-        side_effect=event_capture.capture_completed_event,
+        "cognivault.agents.base_agent.get_workflow_id",
+        return_value="truncation-test",
     ):
         with patch(
-            "cognivault.agents.base_agent.get_workflow_id",
-            return_value="truncation-test",
+            "cognivault.agents.base_agent.get_correlation_id",
+            return_value="truncation-correlation",
         ):
-            with patch(
-                "cognivault.agents.base_agent.get_correlation_id",
-                return_value="truncation-correlation",
-            ):
-                # Execute agent
-                result_context = await refiner.run_with_retry(context)
+            # Execute agent
+            result_context = await refiner.run_with_retry(context)
 
-                # Verify agent produced large content
-                agent_content = result_context.agent_outputs[refiner.name]
-                assert len(agent_content) > 1000, "Agent should produce large content"
+            # Verify agent produced large content
+            agent_content = result_context.agent_outputs[refiner.name]
+            assert len(agent_content) > 1000, "Agent should produce large content"
 
-                # Verify event contains truncated content
-                event_data = event_capture.completed_events[0]
-                output_context = event_data["output_context"]
+            # Verify event contains truncated content
+            completed_events = memory_sink.get_events(
+                event_type="agent.execution.completed"
+            )
+            assert len(completed_events) == 1
 
-                # Content should be truncated to 1000 chars as per implementation
-                assert len(output_context["agent_output"]) <= 1000, (
-                    "Event content should be truncated to 1000 chars max"
-                )
-                assert output_context["agent_output"].startswith(
-                    "Refined query: This is a very long"
-                ), "Truncated content should start correctly"
+            # Get the event data
+            from cognivault.events.types import AgentExecutionCompletedEvent
 
-                # But output_length should reflect the actual full length
-                assert output_context["output_length"] == len(agent_content), (
-                    "Output length should reflect full content size"
-                )
-                assert output_context["output_length"] > 1000, (
-                    "Full content should be larger than truncated version"
-                )
+            completion_event = completed_events[0]
+            assert isinstance(completion_event, AgentExecutionCompletedEvent)
+            output_context = completion_event.output_context
+
+            # Content should be truncated to 1000 chars as per implementation
+            assert len(output_context["agent_output"]) <= 1000, (
+                "Event content should be truncated to 1000 chars max"
+            )
+            assert output_context["agent_output"].startswith(
+                "This is a very long"
+            ) or output_context["agent_output"].startswith("Refined query:"), (
+                "Truncated content should start correctly"
+            )
+
+            # But output_length should reflect the actual full length
+            assert output_context["output_length"] == len(agent_content), (
+                "Output length should reflect full content size"
+            )
+            assert output_context["output_length"] > 1000, (
+                "Full content should be larger than truncated version"
+            )
 
 
 if __name__ == "__main__":

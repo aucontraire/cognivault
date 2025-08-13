@@ -367,7 +367,7 @@ class TestFanoutFaninStatePasssing:
         assert refiner_to_historian, "Historian should receive Refiner output"
         assert all_to_synthesis, "Synthesis should receive all agent outputs"
 
-        return test_results
+        # Note: test_results available for inspection but not returned
 
     @pytest.mark.asyncio
     async def test_real_workflow_state_inspection(self) -> None:

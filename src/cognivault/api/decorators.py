@@ -9,7 +9,9 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any, Optional, TypeVar, Awaitable
+
+T = TypeVar("T")
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from cognivault.observability import get_logger
@@ -17,7 +19,9 @@ from cognivault.observability import get_logger
 logger = get_logger(__name__)
 
 
-def ensure_initialized(func: Callable[..., Any]) -> Callable[..., Any]:
+def ensure_initialized(
+    func: Callable[..., Awaitable[T]],
+) -> Callable[..., Awaitable[T]]:
     """
     Decorator to ensure API is initialized before method execution.
 
@@ -25,7 +29,7 @@ def ensure_initialized(func: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     @wraps(func)
-    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
         if not getattr(self, "_initialized", False):
             raise RuntimeError(
                 f"{self.__class__.__name__} must be initialized before calling {func.__name__}. "
@@ -113,7 +117,7 @@ _rate_limiters: Dict[str, TokenBucket] = {}
 
 def rate_limited(
     calls_per_second: int = 10, burst_size: Optional[int] = None
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """
     Rate limiting decorator for API methods using token bucket algorithm.
 
@@ -123,9 +127,9 @@ def rate_limited(
     """
     burst_size = burst_size or calls_per_second * 2
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(func)
-        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             # Create unique key for this API method
             limiter_key = f"{self.__class__.__name__}.{func.__name__}"
 
@@ -270,7 +274,7 @@ _circuit_breakers: Dict[str, APICircuitBreaker] = {}
 
 def circuit_breaker(
     failure_threshold: int = 5, recovery_timeout: int = 60
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """
     Circuit breaker pattern decorator for API resilience.
 
@@ -279,9 +283,9 @@ def circuit_breaker(
         recovery_timeout: Seconds before attempting recovery
     """
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(func)
-        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             # Create unique key for this API method
             breaker_key = f"{self.__class__.__name__}.{func.__name__}"
 

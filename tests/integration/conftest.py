@@ -6,7 +6,6 @@ AsyncIO event loop conflicts, applying the same successful patterns used in unit
 """
 
 import pytest
-import asyncio
 import os
 from typing import AsyncGenerator
 import logging
@@ -14,16 +13,11 @@ import logging
 from cognivault.database import get_database_session, init_database, RepositoryFactory
 from cognivault.database.connection import close_database
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.database_test_manager import get_db_manager
-
-# Use correct database credentials for integration tests
-INTEGRATION_DATABASE_URL = (
-    "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
-)
+from tests.utils.test_database_config import get_test_env_vars
 
 
 @pytest.fixture(scope="function", autouse=True)
-async def setup_integration_database() -> None:
+async def setup_integration_database() -> AsyncGenerator[None, None]:
     """Setup integration test database configuration and initialize database (function-scoped).
 
     Function-scoped to prevent AsyncIO event loop conflicts, applying the same successful
@@ -32,16 +26,10 @@ async def setup_integration_database() -> None:
     """
     # Store original environment values
     original_values = {}
-    integration_env_vars = {
-        "DATABASE_URL": INTEGRATION_DATABASE_URL,
-        "TESTING": "true",
-        "DB_POOL_SIZE": "5",
-        "DB_MAX_OVERFLOW": "10",
-        "DB_POOL_TIMEOUT": "10",
-        "DB_CONNECTION_TIMEOUT": "30",
-        "DB_COMMAND_TIMEOUT": "60",
-        "DB_SSL_REQUIRE": "false",
-    }
+    # Get centralized integration test environment configuration
+    integration_env_vars = get_test_env_vars(
+        environment=None
+    )  # Auto-detect environment
 
     # Store original values and set integration test values
     for key, value in integration_env_vars.items():

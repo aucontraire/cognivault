@@ -128,7 +128,11 @@ class NodeExecutionContext(BaseModel):
         ):
             start = self.resource_usage["start_time"]
             end = self.resource_usage["end_time"]
-            return (end - start).total_seconds() * 1000
+
+            # Type safety: ensure we have datetime objects before calculating
+            if isinstance(start, datetime) and isinstance(end, datetime):
+                return (end - start).total_seconds() * 1000.0
+
         return None
 
     def has_input_from(self, node_name: str) -> bool:

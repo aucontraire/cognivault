@@ -5,7 +5,7 @@ Provides realistic workflow execution simulation with configurable
 responses, delays, and failure scenarios.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 import uuid
 import asyncio
 from datetime import datetime, timezone
@@ -135,6 +135,43 @@ class MockOrchestrationAPI(BaseMockAPI, OrchestrationAPI):
             del self._active_workflows[workflow_id]
             return True
         return False
+
+    def get_workflow_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get recent workflow execution history (mock implementation)."""
+        # Return mock workflow history based on active workflows
+        history = []
+        for workflow_id, workflow_data in list(self._active_workflows.items())[:limit]:
+            history.append(
+                {
+                    "workflow_id": workflow_id,
+                    "status": workflow_data["status"],
+                    "query": (
+                        workflow_data["request"].query[:100] + "..."
+                        if len(workflow_data["request"].query) > 100
+                        else workflow_data["request"].query
+                    ),
+                    "start_time": workflow_data["start_time"].isoformat(),
+                    "agents": workflow_data["request"].agents or self._default_agents,
+                }
+            )
+        return history
+
+    async def get_status_by_correlation_id(self, correlation_id: str) -> StatusResponse:
+        """Get workflow status by correlation ID (mock implementation)."""
+        # Find workflow by correlation_id
+        for workflow_id, workflow_data in self._active_workflows.items():
+            if workflow_data["request"].correlation_id == correlation_id:
+                return StatusResponse(
+                    workflow_id=workflow_id,
+                    status=workflow_data["status"],
+                    progress_percentage=(
+                        100.0 if workflow_data["status"] == "completed" else 50.0
+                    ),
+                    current_agent=None,
+                    estimated_completion_seconds=None,
+                )
+
+        raise KeyError(f"No workflow found for correlation_id: {correlation_id}")
 
     # Test configuration methods
     def set_agent_outputs(self, outputs: Dict[str, str]) -> None:

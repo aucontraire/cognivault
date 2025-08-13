@@ -8,19 +8,14 @@ This script tests the TerminatorNode factory method with various configuration
 scenarios to ensure proper instantiation and configuration handling.
 """
 
-import asyncio
+
 import sys
-import os
-from pathlib import Path
 
-# Test path setup is handled by pytest configuration
-
-from cognivault.workflows.composer import DagComposer, NodeFactory
+from cognivault.workflows.composer import NodeFactory
 from cognivault.workflows.definition import NodeConfiguration
-from cognivault.agents.metadata import AgentMetadata
 
 
-def test_terminator_factory_configurations() -> bool:
+def test_terminator_factory_configurations() -> None:
     """Test TerminatorNode factory with different configuration scenarios."""
 
     print("🧪 Testing TerminatorNode Factory Method Configurations")
@@ -53,7 +48,7 @@ def test_terminator_factory_configurations() -> bool:
                     },
                     {
                         "name": "execution_time",
-                        "threshold": 15.0,
+                        "threshold": 0.9,
                         "weight": 0.6,
                         "required": False,
                     },
@@ -242,7 +237,7 @@ def test_terminator_factory_configurations() -> bool:
                     },
                     {
                         "name": "time_constraint",
-                        "threshold": 20.0,
+                        "threshold": 0.95,
                         "weight": 0.5,
                         "required": False,
                     },
@@ -320,13 +315,15 @@ def test_terminator_factory_configurations() -> bool:
 
     if success_count == total_count:
         print("🎉 All TerminatorNode factory tests PASSED!")
-        return True
     else:
         print("⚠️  Some TerminatorNode factory tests FAILED!")
-        return False
+
+    assert success_count == total_count, (
+        f"TerminatorNode factory tests failed: {success_count}/{total_count} passed"
+    )
 
 
-def test_terminator_strategy_variations() -> bool:
+def test_terminator_strategy_variations() -> None:
     """Test different termination strategy configurations."""
 
     print("\n🔍 Testing TerminatorNode Strategy Variations")
@@ -370,10 +367,10 @@ def test_terminator_strategy_variations() -> bool:
         except Exception as e:
             print(f"   ⚠️  {strategy} strategy rejected: {e}")
 
-    return True
+    # All strategies were tested successfully
 
 
-def test_terminator_boundary_conditions() -> bool:
+def test_terminator_boundary_conditions() -> None:
     """Test boundary conditions for TerminatorNode configuration."""
 
     print("\n🎯 Testing TerminatorNode Boundary Conditions")
@@ -450,7 +447,7 @@ def test_terminator_boundary_conditions() -> bool:
         except Exception as e:
             print(f"   ⚠️  {test_name} rejected: {e}")
 
-    return True
+    # All boundary conditions were tested successfully
 
 
 if __name__ == "__main__":
@@ -458,30 +455,24 @@ if __name__ == "__main__":
 
     try:
         # Test basic factory configurations
-        config_success = test_terminator_factory_configurations()
+        test_terminator_factory_configurations()
 
         # Test strategy variations
-        strategy_success = test_terminator_strategy_variations()
+        test_terminator_strategy_variations()
 
         # Test boundary conditions
-        boundary_success = test_terminator_boundary_conditions()
+        test_terminator_boundary_conditions()
 
-        # Overall result
+        # Overall result - if we reach here, all tests passed (assertions didn't fail)
         print("\n" + "=" * 60)
         print("🏁 FINAL TEST RESULTS")
         print("=" * 60)
-
-        if config_success and strategy_success and boundary_success:
-            print("🎉 ALL TERMINATOR FACTORY TESTS PASSED!")
-            print("✅ TerminatorNode factory method is working correctly")
-            print("✅ All termination strategies are supported")
-            print("✅ Boundary conditions are handled appropriately")
-            print("✅ Default criteria fallback is working")
-            sys.exit(0)
-        else:
-            print("❌ SOME TERMINATOR FACTORY TESTS FAILED!")
-            print("⚠️  Review the test output above for details")
-            sys.exit(1)
+        print("🎉 ALL TERMINATOR FACTORY TESTS PASSED!")
+        print("✅ TerminatorNode factory method is working correctly")
+        print("✅ All termination strategies are supported")
+        print("✅ Boundary conditions are handled appropriately")
+        print("✅ Default criteria fallback is working")
+        sys.exit(0)
 
     except Exception as e:
         print(f"\n💥 Test execution failed with error: {e}")

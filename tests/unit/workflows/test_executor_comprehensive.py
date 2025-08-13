@@ -6,26 +6,19 @@ to reach the critical components that our configuration system relies on.
 """
 
 import pytest
-import asyncio
-import uuid
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-from dataclasses import dataclass
+from unittest.mock import AsyncMock, Mock, patch
+from datetime import datetime
+from typing import Any
 
 from cognivault.workflows.executor import (
     WorkflowExecutor,
     DeclarativeOrchestrator,
     WorkflowResult,
     CompositionResult,
-    ExecutionContext,
     WorkflowExecutionError,
 )
 from cognivault.context import AgentContext
-from tests.factories.agent_context_factories import (
-    AgentContextFactory,
-    AgentContextPatterns,
-)
+from tests.factories.agent_context_factories import AgentContextPatterns
 
 
 class TestWorkflowExecutorAdvancedCoverage:
@@ -329,7 +322,6 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             WorkflowDefinition,
             NodeConfiguration,
             FlowDefinition,
-            EdgeDefinition,
         )
 
         self.workflow_def = WorkflowDefinition(
@@ -398,7 +390,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             success=True,
         )
 
-        orchestrator.dag_composer: Mock = Mock()
+        orchestrator.dag_composer = Mock()
         orchestrator.dag_composer.compose_dag = AsyncMock(
             return_value=mock_composition_result
         )
@@ -434,7 +426,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             validation_errors=["Validation error"]
         )
 
-        orchestrator.dag_composer: Mock = Mock()
+        orchestrator.dag_composer = Mock()
         orchestrator.dag_composer.compose_dag = AsyncMock(
             return_value=mock_composition_result
         )
@@ -462,7 +454,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             validation_errors=[],
         )
 
-        orchestrator.dag_composer: Mock = Mock()
+        orchestrator.dag_composer = Mock()
         orchestrator.dag_composer.compose_dag = AsyncMock(
             return_value=mock_composition_result
         )
@@ -616,7 +608,10 @@ class TestErrorHandlingAndEdgeCases:
 
                     # Should handle failure gracefully
                     assert result.success is False
-                    assert "Execution failed" in result.error_message
+                    assert (
+                        result.error_message is not None
+                        and "Execution failed" in result.error_message
+                    )
 
                     # Should emit both start and failure events
                     assert mock_emitter.emit.call_count >= 2
@@ -644,4 +639,7 @@ class TestErrorHandlingAndEdgeCases:
 
                 # Should still handle failure gracefully
                 assert result.success is False
-                assert "Execution failed" in result.error_message
+                assert (
+                    result.error_message is not None
+                    and "Execution failed" in result.error_message
+                )

@@ -254,6 +254,9 @@ async def run(
 
     # Handle rollback mode
     if rollback_last_checkpoint:
+        if thread_id is None:
+            console.print("[red]Error: thread_id is required for rollback mode[/red]")
+            raise typer.Exit(1)
         await _run_rollback_mode(orchestrator, console, thread_id)
         return
 

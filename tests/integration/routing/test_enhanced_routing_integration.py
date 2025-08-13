@@ -6,14 +6,12 @@ system including query complexity analysis, resource optimization, and event emi
 """
 
 import pytest
-from typing import Any
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 from pydantic import ValidationError
 
 from cognivault.routing.resource_optimizer import (
     ResourceOptimizer,
-    ResourceConstraints,
     OptimizationStrategy,
 )
 from cognivault.routing.routing_decision import (
@@ -32,6 +30,9 @@ from cognivault.events import (
     InMemoryEventSink,
     get_global_event_emitter,
 )
+
+# Factory imports for eliminating parameter unfilled warnings
+from tests.factories import RoutingDecisionFactory, ResourceConstraintsFactory
 
 
 class TestResourceOptimizer:
@@ -113,11 +114,12 @@ class TestResourceOptimizer:
 
     def test_resource_constraints_application(self) -> None:
         """Test resource constraints are properly applied."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             max_agents=2,
+            forbidden_agents={"historian"},
+            # Performance constraints
             min_success_rate=0.8,
             max_failure_rate=0.2,  # Compatible with min_success_rate=0.8
-            forbidden_agents={"historian"},
         )
 
         decision = self.optimizer.select_optimal_agents(
@@ -504,7 +506,7 @@ class TestComplexConstraintScenarios:
 
     def test_required_agents_only_selection(self) -> None:
         """Test selection when only required agents are specified."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"refiner", "synthesis"},
         )
 
@@ -525,7 +527,7 @@ class TestComplexConstraintScenarios:
 
     def test_forbidden_agents_exclusion(self) -> None:
         """Test exclusion of forbidden agents."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             forbidden_agents={"historian", "analyzer"},
         )
 
@@ -544,7 +546,7 @@ class TestComplexConstraintScenarios:
 
     def test_required_and_forbidden_agents_interaction(self) -> None:
         """Test interaction between required and forbidden agents."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"refiner", "synthesis"},
             forbidden_agents={"historian", "analyzer"},
         )
@@ -574,7 +576,7 @@ class TestComplexConstraintScenarios:
         """Test that conflicting required and forbidden agents raise ValidationError."""
         # With Pydantic validation, conflicting constraints should be caught at creation time
         with pytest.raises(ValidationError) as exc_info:
-            ResourceConstraints(
+            ResourceConstraintsFactory.agent_selection_constraints(
                 required_agents={"refiner", "historian"},
                 forbidden_agents={
                     "historian",
@@ -589,7 +591,7 @@ class TestComplexConstraintScenarios:
 
     def test_required_agents_with_min_max_constraints(self) -> None:
         """Test required agents with min/max agent constraints."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"refiner", "synthesis", "critic"},  # 3 required
             min_agents=2,
             max_agents=4,
@@ -616,7 +618,7 @@ class TestComplexConstraintScenarios:
         """Test that required agents exceeding max_agents raises ValidationError."""
         # With Pydantic validation, impossible constraints should be caught at creation time
         with pytest.raises(ValidationError) as exc_info:
-            ResourceConstraints(
+            ResourceConstraintsFactory.agent_selection_constraints(
                 required_agents={
                     "refiner",
                     "synthesis",
@@ -634,7 +636,7 @@ class TestComplexConstraintScenarios:
 
     def test_forbidden_agents_with_min_constraint(self) -> None:
         """Test forbidden agents reducing available agents below min_agents."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             forbidden_agents={
                 "refiner",
                 "synthesis",
@@ -675,7 +677,7 @@ class TestComplexConstraintScenarios:
 
     def test_required_agents_with_success_rate_constraint(self) -> None:
         """Test required agents with minimum success rate constraint."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"historian"},  # historian has 0.75 success rate
             min_success_rate=0.8,  # But we require 0.8 minimum
             max_failure_rate=0.2,  # Compatible with min_success_rate=0.8
@@ -703,14 +705,15 @@ class TestComplexConstraintScenarios:
 
     def test_complex_multi_constraint_scenario(self) -> None:
         """Test complex scenario with multiple interacting constraints."""
-        constraints = ResourceConstraints(
-            required_agents={"refiner", "synthesis"},
-            forbidden_agents={"analyzer"},
-            min_agents=3,
+        constraints = ResourceConstraintsFactory.performance_constraints(
+            max_execution_time_ms=5000,
             max_agents=5,
             min_success_rate=0.8,
             max_failure_rate=0.2,  # Compatible with min_success_rate=0.8
-            max_execution_time_ms=5000,
+            # Agent selection constraints
+            required_agents={"refiner", "synthesis"},
+            forbidden_agents={"analyzer"},
+            min_agents=3,
         )
 
         decision = self.optimizer.select_optimal_agents(
@@ -745,7 +748,7 @@ class TestComplexConstraintScenarios:
 
     def test_required_agents_case_insensitive(self) -> None:
         """Test that required agents matching is case insensitive."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"REFINER", "Synthesis"},  # Mixed case
         )
 
@@ -763,7 +766,7 @@ class TestComplexConstraintScenarios:
 
     def test_forbidden_agents_case_insensitive(self) -> None:
         """Test that forbidden agents matching is case insensitive."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             forbidden_agents={"HISTORIAN", "Analyzer"},  # Mixed case
         )
 
@@ -781,7 +784,7 @@ class TestComplexConstraintScenarios:
 
     def test_required_agents_priority_over_optimization(self) -> None:
         """Test that required agents take priority over optimization strategy."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"historian"},  # Lowest performance score (0.6)
         )
 
@@ -802,7 +805,7 @@ class TestComplexConstraintScenarios:
 
     def test_forbidden_agents_override_context_requirements(self) -> None:
         """Test that forbidden agents override context requirements."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             forbidden_agents={"historian"},  # Forbid historian
         )
 
@@ -827,7 +830,7 @@ class TestComplexConstraintScenarios:
 
     def test_empty_required_agents_set(self) -> None:
         """Test behavior with empty required agents set."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents=set(),  # Empty set
             forbidden_agents={"analyzer"},
         )
@@ -846,7 +849,7 @@ class TestComplexConstraintScenarios:
 
     def test_empty_forbidden_agents_set(self) -> None:
         """Test behavior with empty forbidden agents set."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"refiner"},
             forbidden_agents=set(),  # Empty set
         )
@@ -865,7 +868,7 @@ class TestComplexConstraintScenarios:
 
     def test_nonexistent_required_agents_handling(self) -> None:
         """Test handling of nonexistent required agents."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"nonexistent_agent", "refiner"},
         )
 
@@ -886,7 +889,7 @@ class TestComplexConstraintScenarios:
 
     def test_nonexistent_forbidden_agents_handling(self) -> None:
         """Test handling of nonexistent forbidden agents."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             forbidden_agents={"nonexistent_agent", "historian"},
         )
 
@@ -906,7 +909,7 @@ class TestComplexConstraintScenarios:
 
     def test_constraint_reasoning_completeness(self) -> None:
         """Test that constraint reasoning provides complete information."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"refiner", "synthesis"},
             forbidden_agents={"historian"},
             min_agents=3,
@@ -938,7 +941,7 @@ class TestComplexConstraintScenarios:
         """Test performance impact of constraint processing."""
         import time
 
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"refiner", "synthesis"},
             forbidden_agents={"historian", "analyzer"},
             min_agents=2,
@@ -1070,7 +1073,7 @@ class TestResourceOptimizerErrorHandling:
         """Test handling of extreme constraint scenarios."""
         # With enhanced Pydantic validation, impossible constraints are caught at creation time
         with pytest.raises(ValidationError) as exc_info:
-            ResourceConstraints(
+            ResourceConstraintsFactory.basic_constraints(
                 min_agents=5,
                 max_agents=2,  # min_agents > max_agents should be caught
                 min_success_rate=0.8,
@@ -1082,7 +1085,7 @@ class TestResourceOptimizerErrorHandling:
 
     def test_forbidden_all_agents_scenario(self) -> None:
         """Test scenario where all agents are forbidden."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             forbidden_agents=set(self.available_agents),
         )
 
@@ -1101,7 +1104,7 @@ class TestResourceOptimizerErrorHandling:
 
     def test_required_agents_not_available(self) -> None:
         """Test scenario where required agents are not available."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"nonexistent_agent", "another_missing_agent"},
         )
 
@@ -1224,7 +1227,6 @@ class TestResourceOptimizerErrorHandling:
     def test_concurrent_optimization_requests(self) -> None:
         """Test handling of concurrent optimization requests."""
         import threading
-        import time
 
         results = []
         errors = []
@@ -1523,7 +1525,7 @@ class TestPerformancePredictionAccuracy:
 
     def test_prediction_accuracy_with_constraints(self) -> None:
         """Test prediction accuracy when constraints affect agent selection."""
-        constraints = ResourceConstraints(
+        constraints = ResourceConstraintsFactory.agent_selection_constraints(
             required_agents={"historian"},  # Force selection of slower agent
             forbidden_agents={"refiner"},  # Prevent selection of faster agent
         )
@@ -1992,7 +1994,6 @@ class TestCacheInvalidationAndPersistence:
         """Test cache invalidation integrated with routing decisions."""
         from cognivault.langgraph_backend.build_graph import GraphConfig
         from cognivault.routing.resource_optimizer import ResourceOptimizer
-        from cognivault.routing.routing_decision import RoutingDecision
 
         # Create graph factory with our test cache
         graph_config = GraphConfig(
@@ -2249,12 +2250,6 @@ class TestRoutingDecisionSerializationEdgeCases:
     def setup_method(self) -> None:
         """Setup for each test."""
         from cognivault.routing.resource_optimizer import ResourceOptimizer
-        from cognivault.routing.routing_decision import (
-            RoutingDecision,
-            RoutingReasoning,
-            RoutingConfidenceLevel,
-        )
-        from datetime import datetime, timezone
 
         self.optimizer = ResourceOptimizer()
         self.performance_data = {
@@ -2306,11 +2301,10 @@ class TestRoutingDecisionSerializationEdgeCases:
     def test_serialization_with_none_values(self) -> None:
         """Test serialization with None values in optional fields."""
         # Create decision with None values
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.minimal_routing_decision(
             selected_agents=["refiner"],
             routing_strategy="minimal",
             confidence_score=0.5,
-            confidence_level=RoutingConfidenceLevel.MEDIUM,
             query_hash=None,  # None value
             entry_point=None,  # None value
             estimated_total_time_ms=None,  # None value
@@ -2329,11 +2323,10 @@ class TestRoutingDecisionSerializationEdgeCases:
 
     def test_serialization_with_empty_collections(self) -> None:
         """Test serialization with empty collections."""
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.minimal_routing_decision(
             selected_agents=[],  # Empty list
             routing_strategy="test",
             confidence_score=0.0,
-            confidence_level=RoutingConfidenceLevel.VERY_LOW,
             available_agents=[],  # Empty list
             execution_order=[],  # Empty list
             parallel_groups=[],  # Empty list
@@ -2422,11 +2415,10 @@ class TestRoutingDecisionSerializationEdgeCases:
 
     def test_serialization_with_unicode_and_special_characters(self) -> None:
         """Test serialization with Unicode and special characters."""
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.basic_routing_decision(
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=RoutingConfidenceLevel.MEDIUM,
         )
 
         # Add Unicode and special characters
@@ -2526,20 +2518,22 @@ class TestRoutingDecisionSerializationEdgeCases:
         decision_dict["confidence_score"] = "not_a_number"  # Should be float
 
         # Should handle type errors gracefully or raise appropriate exceptions
-        with pytest.raises((TypeError, ValueError, AttributeError)):
+        with pytest.raises(Exception) as exc_info:
             RoutingDecision.from_dict(decision_dict)
+
+        # Verify we got an appropriate exception type
+        assert isinstance(exc_info.value, (TypeError, ValueError, AttributeError))
 
     def test_serialization_with_extreme_values(self) -> None:
         """Test serialization with extreme values that pass validation."""
         # Enhanced Pydantic validation prevents truly extreme values, so test with large but valid values
         with pytest.raises(ValidationError):
             # This should fail validation due to string length and infinity constraints
-            RoutingDecision(
+            RoutingDecisionFactory.basic_routing_decision(
                 selected_agents=["agent"] * 100,  # Very long list (valid)
                 routing_strategy="x"
                 * 1000,  # Very long string (exceeds max_length=200)
                 confidence_score=1.0,  # Maximum confidence
-                confidence_level=RoutingConfidenceLevel.VERY_HIGH,
                 estimated_total_time_ms=float(
                     "inf"
                 ),  # Infinity (exceeds max constraint)
@@ -2547,11 +2541,10 @@ class TestRoutingDecisionSerializationEdgeCases:
             )
 
         # Test with large but valid values
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.basic_routing_decision(
             selected_agents=["agent"] * 100,  # Very long list (valid)
             routing_strategy="x" * 190,  # Long string within limits
             confidence_score=1.0,  # Maximum confidence
-            confidence_level=RoutingConfidenceLevel.VERY_HIGH,
             estimated_total_time_ms=599999.0,  # Just under limit
             estimated_success_probability=0.0,  # Minimum probability
         )
@@ -2577,11 +2570,10 @@ class TestRoutingDecisionSerializationEdgeCases:
 
     def test_serialization_with_circular_references(self) -> None:
         """Test serialization behavior with potential circular references."""
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.basic_routing_decision(
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=RoutingConfidenceLevel.MEDIUM,
         )
 
         # Create self-referential structure (not actually circular in this case)
@@ -2631,11 +2623,10 @@ class TestRoutingDecisionSerializationEdgeCases:
         """Test serialization with custom objects that should be converted."""
         from datetime import datetime, timezone
 
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.basic_routing_decision(
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=RoutingConfidenceLevel.MEDIUM,
             timestamp=datetime.now(timezone.utc),
         )
 
@@ -2660,11 +2651,10 @@ class TestRoutingDecisionSerializationEdgeCases:
         import time
 
         # Create decision with large data
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.basic_routing_decision(
             selected_agents=["agent"] * 1000,
             routing_strategy="performance_test",
             confidence_score=0.8,
-            confidence_level=RoutingConfidenceLevel.HIGH,
         )
 
         # Add large reasoning data
@@ -2723,11 +2713,10 @@ class TestRoutingDecisionSerializationEdgeCases:
     def test_serialization_error_handling(self) -> None:
         """Test error handling during serialization edge cases."""
         # Test with corrupted reasoning
-        decision = RoutingDecision(
+        decision = RoutingDecisionFactory.basic_routing_decision(
             selected_agents=["refiner"],
             routing_strategy="test",
             confidence_score=0.5,
-            confidence_level=RoutingConfidenceLevel.MEDIUM,
         )
 
         # Enhanced Pydantic validation prevents setting reasoning to None

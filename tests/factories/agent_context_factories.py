@@ -102,7 +102,7 @@ class AgentContextFactory:
             ).hexdigest()[:8]
 
         # Create base context with all defaults populated
-        context_data = {
+        context_data: Dict[str, Any] = {
             "query": query,
             "retrieved_notes": retrieved_notes,
             "agent_outputs": agent_outputs,
@@ -180,7 +180,7 @@ class AgentContextFactory:
 
         # Initialize execution state for all agents
         agent_execution_status = {agent: "pending" for agent in agents}
-        agent_dependencies = {}  # No dependencies by default
+        agent_dependencies: Dict[str, List[str]] = {}  # No dependencies by default
 
         return AgentContextFactory.basic(
             query=query,
@@ -255,7 +255,7 @@ class AgentContextFactory:
 
     @staticmethod
     def with_token_usage(
-        query: str = "Query with token tracking", **agent_tokens: Dict[str, int]
+        query: str = "Query with token tracking", **agent_tokens: Any
     ) -> AgentContext:
         """Create AgentContext with pre-populated token usage.
 
@@ -268,7 +268,7 @@ class AgentContextFactory:
         Returns:
             AgentContext with token usage data
         """
-        agent_token_usage = {}
+        agent_token_usage: Dict[str, Dict[str, int]] = {}
         total_tokens = 0
 
         for agent_name, tokens in agent_tokens.items():

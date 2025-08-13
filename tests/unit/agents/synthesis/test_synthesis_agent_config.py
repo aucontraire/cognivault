@@ -11,7 +11,7 @@ Tests the configuration system integration including:
 """
 
 import pytest
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import asyncio
 
@@ -271,14 +271,18 @@ class TestSynthesisAgentConfig:
         mock_composer: Mock = Mock()
         mock_prompt_composer_class.return_value = mock_composer
 
-        # Mock composed prompt with analysis and synthesis templates
+        # Mock composed prompt with proper get_template method
         mock_composed_prompt: Mock = Mock()
-        mock_composed_prompt.analysis_prompt = (
-            "Custom analysis: {query} - {outputs_text}"
-        )
-        mock_composed_prompt.synthesis_prompt = (
-            "Custom synthesis: {query} - {themes_text}"
-        )
+
+        # Set up get_template method to return the appropriate template strings
+        def get_template_side_effect(template_name: str) -> Optional[str]:
+            templates = {
+                "analysis_prompt": "Custom analysis: {query} - {outputs_text}",
+                "synthesis_prompt": "Custom synthesis: {query} - {themes_text}",
+            }
+            return templates.get(template_name)
+
+        mock_composed_prompt.get_template.side_effect = get_template_side_effect
         mock_composer.compose_synthesis_prompt.return_value = mock_composed_prompt
         mock_composer.validate_composition.return_value = True
 

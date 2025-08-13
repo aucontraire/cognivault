@@ -253,7 +253,9 @@ class GraphFactory:
 
             self.logger.debug(f"Added edge: {edge['from']} → {edge['to']}")
 
-    def _compile_graph(self, graph: StateGraph, config: GraphConfig) -> Any:
+    def _compile_graph(
+        self, graph: StateGraph[CogniVaultState], config: GraphConfig
+    ) -> Any:
         """
         Compile the StateGraph with optional memory checkpointing.
 

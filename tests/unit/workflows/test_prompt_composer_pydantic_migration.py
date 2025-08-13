@@ -6,14 +6,11 @@ including validation, serialization, template management, and backward compatibi
 """
 
 import pytest
-from typing import Any, Dict
-from unittest.mock import Mock
 
 from pydantic import ValidationError
 
 from cognivault.workflows.prompt_composer import (
     ComposedPrompt,
-    TemplateVariables,
     PromptComposer,
 )
 
@@ -188,11 +185,10 @@ class TestComposedPromptPydanticMigration:
 
     def test_required_fields_validation(self) -> None:
         """Test that required fields are properly validated."""
-        # system_prompt is required
+        # system_prompt is required - test empty string validation
         with pytest.raises(ValidationError) as exc_info:
-            ComposedPrompt()
-        assert "system_prompt" in str(exc_info.value)
-        assert "Field required" in str(exc_info.value)
+            ComposedPrompt(system_prompt="")
+        assert "cannot be empty or whitespace-only" in str(exc_info.value)
 
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""

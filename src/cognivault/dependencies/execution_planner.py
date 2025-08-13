@@ -657,6 +657,8 @@ class ExecutionPlanner:
             strategy == ExecutionStrategy.PARALLEL_BATCHED
             and "max_batch_size" in kwargs
         ):
+            # Type narrowing: we know this is ParallelBatchedPlanBuilder
+            assert isinstance(builder, ParallelBatchedPlanBuilder)
             builder.max_batch_size = kwargs["max_batch_size"]
 
         logger.info(f"Creating execution plan with strategy: {strategy.value}")

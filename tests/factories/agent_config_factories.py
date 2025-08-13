@@ -38,6 +38,171 @@ from cognivault.config.agent_configs import (
 )
 
 
+# Base Configuration Factories
+class PromptConfigFactory:
+    """Factory for PromptConfig liberation from manual construction."""
+
+    @staticmethod
+    def generate_valid_data(**overrides: Any) -> PromptConfig:
+        """Standard PromptConfig for most test scenarios."""
+        defaults = {}
+        defaults.update(overrides)
+        return PromptConfig(**defaults)
+
+    @staticmethod
+    def generate_minimal_data(**overrides: Any) -> PromptConfig:
+        """Minimal PromptConfig with defaults."""
+        return PromptConfig(**overrides)
+
+    @staticmethod
+    def with_custom_templates(
+        custom_templates: Dict[str, str], **overrides: Any
+    ) -> PromptConfig:
+        """PromptConfig with custom templates."""
+        defaults = {
+            "custom_templates": custom_templates,
+        }
+        defaults.update(overrides)
+        return PromptConfig(**defaults)
+
+    @staticmethod
+    def with_system_prompt(custom_system_prompt: str, **overrides: Any) -> PromptConfig:
+        """PromptConfig with custom system prompt."""
+        defaults = {
+            "custom_system_prompt": custom_system_prompt,
+        }
+        defaults.update(overrides)
+        return PromptConfig(**defaults)
+
+    @staticmethod
+    def with_template_variables(
+        template_variables: Dict[str, str], **overrides: Any
+    ) -> PromptConfig:
+        """PromptConfig with template variables."""
+        defaults = {
+            "template_variables": template_variables,
+        }
+        defaults.update(overrides)
+        return PromptConfig(**defaults)
+
+
+class BehavioralConfigFactory:
+    """Factory for BehavioralConfig liberation from manual construction."""
+
+    @staticmethod
+    def generate_valid_data(**overrides: Any) -> BehavioralConfig:
+        """Standard BehavioralConfig for most test scenarios."""
+        defaults = {}
+        defaults.update(overrides)
+        return BehavioralConfig(**defaults)
+
+    @staticmethod
+    def generate_minimal_data(**overrides: Any) -> BehavioralConfig:
+        """Minimal BehavioralConfig with defaults."""
+        return BehavioralConfig(**overrides)
+
+    @staticmethod
+    def with_custom_constraints(
+        custom_constraints: List[str], **overrides: Any
+    ) -> BehavioralConfig:
+        """BehavioralConfig with custom constraints."""
+        defaults = {
+            "custom_constraints": custom_constraints,
+        }
+        defaults.update(overrides)
+        return BehavioralConfig(**defaults)
+
+    @staticmethod
+    def with_fallback_mode(fallback_mode: str, **overrides: Any) -> BehavioralConfig:
+        """BehavioralConfig with specific fallback mode."""
+        defaults = {
+            "fallback_mode": fallback_mode,
+        }
+        defaults.update(overrides)
+        return BehavioralConfig(**defaults)
+
+
+class OutputConfigFactory:
+    """Factory for OutputConfig liberation from manual construction."""
+
+    @staticmethod
+    def generate_valid_data(**overrides: Any) -> OutputConfig:
+        """Standard OutputConfig for most test scenarios."""
+        defaults = {}
+        defaults.update(overrides)
+        return OutputConfig(**defaults)
+
+    @staticmethod
+    def generate_minimal_data(**overrides: Any) -> OutputConfig:
+        """Minimal OutputConfig with defaults."""
+        return OutputConfig(**overrides)
+
+    @staticmethod
+    def with_confidence_threshold(
+        confidence_threshold: float, **overrides: Any
+    ) -> OutputConfig:
+        """OutputConfig with specific confidence threshold."""
+        defaults = {
+            "confidence_threshold": confidence_threshold,
+        }
+        defaults.update(overrides)
+        return OutputConfig(**defaults)
+
+    @staticmethod
+    def with_format_preference(
+        format_preference: str, **overrides: Any
+    ) -> OutputConfig:
+        """OutputConfig with specific format preference."""
+        defaults = {
+            "format_preference": format_preference,
+        }
+        defaults.update(overrides)
+        return OutputConfig(**defaults)
+
+
+class AgentExecutionConfigFactory:
+    """Factory for AgentExecutionConfig liberation from manual construction."""
+
+    @staticmethod
+    def generate_valid_data(**overrides: Any) -> AgentExecutionConfig:
+        """Standard AgentExecutionConfig for most test scenarios."""
+        defaults = {}
+        defaults.update(overrides)
+        return AgentExecutionConfig(**defaults)
+
+    @staticmethod
+    def generate_minimal_data(**overrides: Any) -> AgentExecutionConfig:
+        """Minimal AgentExecutionConfig with defaults."""
+        return AgentExecutionConfig(**overrides)
+
+    @staticmethod
+    def with_timeout(timeout_seconds: int, **overrides: Any) -> AgentExecutionConfig:
+        """AgentExecutionConfig with specific timeout."""
+        defaults = {
+            "timeout_seconds": timeout_seconds,
+        }
+        defaults.update(overrides)
+        return AgentExecutionConfig(**defaults)
+
+    @staticmethod
+    def with_retries(max_retries: int, **overrides: Any) -> AgentExecutionConfig:
+        """AgentExecutionConfig with specific retry count."""
+        defaults = {
+            "max_retries": max_retries,
+        }
+        defaults.update(overrides)
+        return AgentExecutionConfig(**defaults)
+
+    @staticmethod
+    def with_caching_disabled(**overrides: Any) -> AgentExecutionConfig:
+        """AgentExecutionConfig with caching disabled."""
+        defaults = {
+            "enable_caching": False,
+        }
+        defaults.update(overrides)
+        return AgentExecutionConfig(**defaults)
+
+
 class AgentConfigFactory(Protocol):
     """Protocol defining what a configuration factory should implement."""
 

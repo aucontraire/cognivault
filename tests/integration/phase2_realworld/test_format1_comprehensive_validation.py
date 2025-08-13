@@ -135,10 +135,11 @@ flow:
             from cognivault.config.config_mapper import ConfigMapper
 
             refiner_node = next(n for n in workflow.nodes if n.node_type == "refiner")
-            config = ConfigMapper.validate_and_create_config(
+            refiner_config = ConfigMapper.validate_and_create_config(
                 refiner_node.config, "refiner"
             )
-            agent = RefinerAgent(llm=mock_llm, config=config)
+            assert refiner_config is not None, "Failed to create refiner config"
+            agent = RefinerAgent(llm=mock_llm, config=refiner_config)
 
             # Verify the agent has the config
             assert agent.config.refinement_level == "comprehensive"
@@ -151,15 +152,16 @@ flow:
 
             # Test CriticAgent instantiation using ConfigMapper
             critic_node = next(n for n in workflow.nodes if n.node_type == "critic")
-            config = ConfigMapper.validate_and_create_config(
+            critic_config = ConfigMapper.validate_and_create_config(
                 critic_node.config, "critic"
             )
-            agent = CriticAgent(llm=mock_llm, config=config)
+            assert critic_config is not None, "Failed to create critic config"
+            critic_agent = CriticAgent(llm=mock_llm, config=critic_config)
 
-            assert agent.config.analysis_depth == "deep"
-            assert agent.config.confidence_reporting is True
-            assert agent.config.bias_detection is True
-            assert "accuracy" in agent.config.scoring_criteria
+            assert critic_agent.config.analysis_depth == "deep"
+            assert critic_agent.config.confidence_reporting is True
+            assert critic_agent.config.bias_detection is True
+            assert "accuracy" in critic_agent.config.scoring_criteria
 
             print("✅ Agent instantiation with Pydantic configs works!")
 

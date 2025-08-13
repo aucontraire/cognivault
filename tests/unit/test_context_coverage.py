@@ -5,11 +5,9 @@ Focuses on edge cases and error scenarios.
 """
 
 import pytest
-from typing import Any
 from datetime import datetime
 from unittest.mock import patch
 
-from cognivault.context import AgentContext
 from cognivault.exceptions import StateTransitionError
 from tests.factories.agent_context_factories import (
     AgentContextFactory,
@@ -108,12 +106,12 @@ class TestAgentContextEdgeCases:
         context = AgentContextPatterns.simple_query("Test")
 
         # Test checking dependencies for agent with no dependencies
-        result = context.check_agent_dependencies("orphan_agent")
-        assert result == {}
+        result_check_dep = context.check_agent_dependencies("orphan_agent")
+        assert result_check_dep == {}
 
         # Test can_execute for agent with no dependencies
-        result = context.can_agent_execute("orphan_agent")
-        assert result is True
+        result_can_execute = context.can_agent_execute("orphan_agent")
+        assert result_can_execute is True
 
         # Test with circular dependencies (not prevented by current implementation)
         context.set_agent_dependencies("agent1", ["agent2"])

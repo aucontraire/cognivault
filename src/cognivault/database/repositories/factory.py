@@ -5,6 +5,7 @@ Provides centralized repository management with session lifecycle
 and transaction consistency across all repository operations.
 """
 
+from typing import Dict, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cognivault.observability import get_logger
@@ -17,6 +18,16 @@ from .topic_repository import TopicRepository
 from .wiki_repository import WikiRepository
 
 logger = get_logger(__name__)
+
+# Repository type union for type-safe caching
+RepositoryType = Union[
+    TopicRepository,
+    QuestionRepository,
+    WikiRepository,
+    APIKeyRepository,
+    HistorianDocumentRepository,
+    HistorianSearchAnalyticsRepository,
+]
 
 
 class RepositoryFactory:
@@ -35,7 +46,7 @@ class RepositoryFactory:
             session: Async SQLAlchemy session for database operations
         """
         self.session = session
-        self._repositories: dict = {}
+        self._repositories: Dict[str, RepositoryType] = {}
         logger.debug("Repository factory initialized with new session")
 
     @property
@@ -43,28 +54,36 @@ class RepositoryFactory:
         """Get topic repository instance (cached)."""
         if "topics" not in self._repositories:
             self._repositories["topics"] = TopicRepository(self.session)
-        return self._repositories["topics"]
+        repo = self._repositories["topics"]
+        assert isinstance(repo, TopicRepository)
+        return repo
 
     @property
     def questions(self) -> QuestionRepository:
         """Get question repository instance (cached)."""
         if "questions" not in self._repositories:
             self._repositories["questions"] = QuestionRepository(self.session)
-        return self._repositories["questions"]
+        repo = self._repositories["questions"]
+        assert isinstance(repo, QuestionRepository)
+        return repo
 
     @property
     def wiki(self) -> WikiRepository:
         """Get wiki repository instance (cached)."""
         if "wiki" not in self._repositories:
             self._repositories["wiki"] = WikiRepository(self.session)
-        return self._repositories["wiki"]
+        repo = self._repositories["wiki"]
+        assert isinstance(repo, WikiRepository)
+        return repo
 
     @property
     def api_keys(self) -> APIKeyRepository:
         """Get API key repository instance (cached)."""
         if "api_keys" not in self._repositories:
             self._repositories["api_keys"] = APIKeyRepository(self.session)
-        return self._repositories["api_keys"]
+        repo = self._repositories["api_keys"]
+        assert isinstance(repo, APIKeyRepository)
+        return repo
 
     @property
     def historian_documents(self) -> HistorianDocumentRepository:
@@ -73,7 +92,9 @@ class RepositoryFactory:
             self._repositories["historian_documents"] = HistorianDocumentRepository(
                 self.session
             )
-        return self._repositories["historian_documents"]
+        repo = self._repositories["historian_documents"]
+        assert isinstance(repo, HistorianDocumentRepository)
+        return repo
 
     @property
     def historian_search_analytics(self) -> HistorianSearchAnalyticsRepository:
@@ -82,7 +103,9 @@ class RepositoryFactory:
             self._repositories["historian_search_analytics"] = (
                 HistorianSearchAnalyticsRepository(self.session)
             )
-        return self._repositories["historian_search_analytics"]
+        repo = self._repositories["historian_search_analytics"]
+        assert isinstance(repo, HistorianSearchAnalyticsRepository)
+        return repo
 
     async def commit(self) -> None:
         """Commit the current transaction."""

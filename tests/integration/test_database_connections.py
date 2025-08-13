@@ -8,6 +8,8 @@ import os
 import logging
 from sqlalchemy import text
 
+from tests.utils.test_database_config import get_test_database_url, get_test_env_vars
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,13 +19,10 @@ async def test_local_connection() -> bool:
     """Test connection to local PostgreSQL."""
     from cognivault.database.connection import get_database_engine, init_database
 
-    # Use local PostgreSQL with correct working credentials
-    os.environ["DATABASE_URL"] = (
-        "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
-    )
-    os.environ["TESTING"] = "true"
-    os.environ["DB_SSL_REQUIRE"] = "false"
-    os.environ["DB_POOL_SIZE"] = "5"
+    # Use centralized test database configuration
+    test_env_vars = get_test_env_vars("local")
+    for key, value in test_env_vars.items():
+        os.environ[key] = value
 
     try:
         logger.info("Testing local PostgreSQL connection...")
@@ -39,22 +38,26 @@ async def test_local_connection() -> bool:
         # Test basic query
         async with engine.begin() as conn:
             result = await conn.execute(text("SELECT 1 as test"))
-            value = result.scalar()
-            if value == 1:
+            scalar_value = result.scalar()
+            assert scalar_value is not None
+            if scalar_value == 1:
                 logger.info("✅ Basic query test passed")
             else:
-                logger.error(f"❌ Basic query returned {value}, expected 1")
+                logger.error(f"❌ Basic query returned {scalar_value}, expected 1")
 
         # Test session creation
         from cognivault.database.connection import get_database_session
 
         async with get_database_session() as session:
-            result = await session.execute(text("SELECT 2 as test"))
-            value = result.scalar()
-            if value == 2:
+            result_session = await session.execute(text("SELECT 2 as test"))
+            scalar_session_value = result_session.scalar()
+            assert scalar_session_value is not None
+            if scalar_session_value == 2:
                 logger.info("✅ Session test passed")
             else:
-                logger.error(f"❌ Session query returned {value}, expected 2")
+                logger.error(
+                    f"❌ Session query returned {scalar_session_value}, expected 2"
+                )
 
         logger.info("🎉 All connection tests passed!")
         return True
@@ -76,9 +79,7 @@ async def test_container_connection() -> bool:
     await close_database()
 
     # Use Docker container PostgreSQL
-    os.environ["DATABASE_URL"] = (
-        "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5435/cognivault"
-    )
+    os.environ["DATABASE_URL"] = get_test_database_url("docker")
     os.environ["TESTING"] = "true"
     os.environ["DB_SSL_REQUIRE"] = "false"
     os.environ["DB_POOL_SIZE"] = "5"

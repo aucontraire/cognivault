@@ -9,9 +9,9 @@ import hashlib
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import desc, func, select, text, update
+from sqlalchemy import desc, func, select, text, update, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.engine import CursorResult
 
 from cognivault.database.models import HistorianDocument
 from cognivault.observability import get_logger
@@ -122,7 +122,6 @@ class HistorianDocumentRepository(BaseRepository[HistorianDocument]):
 
             if existing_doc:
                 # Update last_accessed_at timestamp
-                from uuid import UUID
 
                 doc_id = UUID(str(existing_doc.id))
                 await self.update_last_accessed(doc_id)
@@ -249,12 +248,13 @@ class HistorianDocumentRepository(BaseRepository[HistorianDocument]):
             # Build JSONB query conditions
             for key, value in metadata_query.items():
                 if isinstance(value, str):
-                    # String values use ->> operator
-                    stmt = stmt.where(
-                        HistorianDocument.document_metadata[key].astext == value
+                    # String values use ->> operator with explicit type casting
+                    jsonb_field = cast(
+                        HistorianDocument.document_metadata[key].astext, String
                     )
+                    stmt = stmt.where(jsonb_field == value)
                 else:
-                    # Other types use -> operator
+                    # Other types use -> operator with explicit comparison
                     stmt = stmt.where(HistorianDocument.document_metadata[key] == value)
 
             stmt = stmt.order_by(desc(HistorianDocument.created_at))
@@ -371,8 +371,8 @@ class HistorianDocumentRepository(BaseRepository[HistorianDocument]):
                 .values(last_accessed_at=func.now())
             )
 
-            result = await self.session.execute(stmt)
-            success = result.rowcount > 0
+            result: CursorResult[Any] = await self.session.execute(stmt)
+            success: bool = result.rowcount > 0
 
             if success:
                 await self.session.commit()
@@ -426,8 +426,6 @@ class HistorianDocumentRepository(BaseRepository[HistorianDocument]):
             # Delete old documents
             deleted_count = 0
             for doc in old_documents:
-                from uuid import UUID
-
                 await self.delete(UUID(str(doc.id)))
                 deleted_count += 1
 

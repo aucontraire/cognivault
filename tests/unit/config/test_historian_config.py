@@ -6,18 +6,15 @@ and their integration with the historian agent.
 """
 
 import pytest
-from typing import Any
 from unittest.mock import AsyncMock, patch
+from typing import Dict, Any
 import os
 
 from cognivault.config.agent_configs import HistorianConfig
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.agents.historian.search import SearchResult
-from cognivault.context import AgentContext
-from tests.factories.agent_context_factories import (
-    AgentContextFactory,
-    AgentContextPatterns,
-)
+from tests.factories.agent_context_factories import AgentContextPatterns
+from tests.factories.agent_config_factories import HistorianConfigFactory
 
 
 class TestHistorianConfig:
@@ -25,7 +22,7 @@ class TestHistorianConfig:
 
     def test_default_values(self) -> None:
         """Test that default configuration values are correct."""
-        config = HistorianConfig()
+        config = HistorianConfigFactory.generate_minimal_data()
 
         # Test default values
         assert config.hybrid_search_enabled is False
@@ -37,33 +34,40 @@ class TestHistorianConfig:
     def test_validation_constraints(self) -> None:
         """Test configuration parameter validation."""
         # Valid configuration
-        config = HistorianConfig(
-            hybrid_search_file_ratio=0.7,
-            database_relevance_boost=0.2,
-            search_timeout_seconds=10,
-            deduplication_threshold=0.9,
-        )
+        config = HistorianConfigFactory.for_validation_test()
         assert config.hybrid_search_file_ratio == 0.7
         assert config.database_relevance_boost == 0.2
 
         # Test bounds validation
         with pytest.raises(ValueError):
-            HistorianConfig(hybrid_search_file_ratio=1.5)  # > 1.0
+            HistorianConfigFactory.generate_minimal_data(
+                hybrid_search_file_ratio=1.5
+            )  # > 1.0
 
         with pytest.raises(ValueError):
-            HistorianConfig(hybrid_search_file_ratio=-0.1)  # < 0.0
+            HistorianConfigFactory.generate_minimal_data(
+                hybrid_search_file_ratio=-0.1
+            )  # < 0.0
 
         with pytest.raises(ValueError):
-            HistorianConfig(database_relevance_boost=0.6)  # > 0.5
+            HistorianConfigFactory.generate_minimal_data(
+                database_relevance_boost=0.6
+            )  # > 0.5
 
         with pytest.raises(ValueError):
-            HistorianConfig(database_relevance_boost=-0.6)  # < -0.5
+            HistorianConfigFactory.generate_minimal_data(
+                database_relevance_boost=-0.6
+            )  # < -0.5
 
         with pytest.raises(ValueError):
-            HistorianConfig(search_timeout_seconds=0)  # < 1
+            HistorianConfigFactory.generate_minimal_data(
+                search_timeout_seconds=0
+            )  # < 1
 
         with pytest.raises(ValueError):
-            HistorianConfig(search_timeout_seconds=35)  # > 30
+            HistorianConfigFactory.generate_minimal_data(
+                search_timeout_seconds=35
+            )  # > 30
 
     def test_environment_variable_loading(self) -> None:
         """Test loading configuration from environment variables."""
@@ -105,8 +109,7 @@ class TestHistorianConfig:
 
     def test_prompt_config_export(self) -> None:
         """Test conversion to prompt configuration format."""
-        config = HistorianConfig(
-            hybrid_search_enabled=True,
+        config = HistorianConfigFactory.aggressive_database(
             hybrid_search_file_ratio=0.3,
             database_relevance_boost=0.2,
             search_timeout_seconds=12,
@@ -129,8 +132,7 @@ class TestHistorianAgentConfiguration:
     async def test_hybrid_search_configuration_integration(self) -> None:
         """Test that configuration parameters are used in hybrid search."""
         # Create custom configuration
-        config = HistorianConfig(
-            hybrid_search_enabled=True,
+        config = HistorianConfigFactory.for_validation_test(
             hybrid_search_file_ratio=0.7,  # 70% file, 30% database
             database_relevance_boost=0.2,
             search_timeout_seconds=10,
@@ -166,25 +168,33 @@ class TestHistorianAgentConfiguration:
             )
         ]
 
-        agent._search_file_content = AsyncMock(return_value=file_results)
-        agent._search_database_content = AsyncMock(return_value=db_results)
+        with (
+            patch.object(
+                agent, "_search_file_content", new_callable=AsyncMock
+            ) as mock_file_search,
+            patch.object(
+                agent, "_search_database_content", new_callable=AsyncMock
+            ) as mock_db_search,
+        ):
+            mock_file_search.return_value = file_results
+            mock_db_search.return_value = db_results
 
-        # Execute search
-        context = AgentContextPatterns.simple_query("test query")
-        results = await agent._search_historical_content("test query", context)
+            # Execute search
+            context = AgentContextPatterns.simple_query("test query")
+            results = await agent._search_historical_content("test query", context)
 
-        # Verify 70/30 split (out of 10 total)
-        agent._search_file_content.assert_called_once_with("test query", 7)  # 70% of 10
-        agent._search_database_content.assert_called_once_with(
-            "test query", 3
-        )  # 30% of 10
+            # Verify 70/30 split (out of 10 total)
+            mock_file_search.assert_called_once_with("test query", 7)  # 70% of 10
+            mock_db_search.assert_called_once_with("test query", 3)  # 30% of 10
 
-        # Results should include both
-        assert len(results) == 2
+            # Results should include both
+            assert len(results) == 2
 
     def test_relevance_boost_calculation(self) -> None:
         """Test that database relevance boost is applied correctly."""
-        config = HistorianConfig(database_relevance_boost=0.3)
+        config = HistorianConfigFactory.aggressive_database(
+            database_relevance_boost=0.3
+        )
         agent = HistorianAgent(llm=None, config=config)
 
         # Create mock database document
@@ -194,7 +204,7 @@ class TestHistorianAgentConfiguration:
             content = "Test content"
             created_at = None
             source_path = None
-            document_metadata = {}
+            document_metadata: Dict[str, Any] = {}
             word_count = 10
 
         # Test the relevance calculation (this would be inside the search method)
@@ -204,11 +214,15 @@ class TestHistorianAgentConfiguration:
     def test_deduplication_threshold_integration(self) -> None:
         """Test that deduplication threshold affects similarity matching."""
         # Test with high threshold (0.95) - should allow more results
-        config_strict = HistorianConfig(deduplication_threshold=0.95)
+        config_strict = HistorianConfigFactory.aggressive_database(
+            deduplication_threshold=0.95
+        )
         agent_strict = HistorianAgent(llm=None, config=config_strict)
 
         # Test with low threshold (0.3) - should remove more duplicates
-        config_loose = HistorianConfig(deduplication_threshold=0.3)
+        config_loose = HistorianConfigFactory.generate_minimal_data(
+            deduplication_threshold=0.3
+        )
         agent_loose = HistorianAgent(llm=None, config=config_loose)
 
         # Create similar results
@@ -246,7 +260,7 @@ class TestHistorianAgentConfiguration:
 
     def test_text_similarity_calculation(self) -> None:
         """Test text similarity calculation method."""
-        config = HistorianConfig()
+        config = HistorianConfigFactory.generate_minimal_data()
         agent = HistorianAgent(llm=None, config=config)
 
         # Test exact match

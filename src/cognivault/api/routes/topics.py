@@ -9,7 +9,7 @@ import uuid
 import time
 import re
 from collections import defaultdict
-from typing import Dict, List, Set, Optional
+from typing import Any, Dict, List, Set, Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from cognivault.api.models import TopicSummary, TopicsResponse, TopicWikiResponse
@@ -156,7 +156,7 @@ class TopicDiscoveryService:
         return f"Topic covering {keywords_str} with {query_count} related queries"
 
     def discover_topics_from_history(
-        self, workflow_history: List[Dict], search_query: Optional[str] = None
+        self, workflow_history: List[Dict[str, Any]], search_query: Optional[str] = None
     ) -> List[TopicSummary]:
         """Discover topics by analyzing workflow history."""
         if not workflow_history:
@@ -391,7 +391,7 @@ async def get_topics(
         None,
         description="Search query to filter topics by name, description, or keywords",
         max_length=200,
-        example="machine learning",
+        examples=["machine learning"],
     ),
     limit: int = Query(
         default=10, ge=1, le=100, description="Maximum number of topics to return"

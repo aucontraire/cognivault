@@ -10,12 +10,10 @@ Tests the configuration system integration including:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-import asyncio
+from unittest.mock import Mock, patch
 
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.config.agent_configs import CriticConfig
-from cognivault.context import AgentContext
 from cognivault.llm.llm_interface import LLMInterface
 from tests.factories.agent_context_factories import AgentContextFactory
 from tests.factories import CriticConfigFactory
@@ -63,7 +61,7 @@ class TestCriticAgentConfig:
 
     @patch("cognivault.agents.critic.agent.PromptComposer")
     def test_prompt_composer_integration(
-        self, mock_prompt_composer_class: object
+        self, mock_prompt_composer_class: Mock
     ) -> None:
         """Test that CriticAgent integrates with PromptComposer correctly."""
         mock_llm = Mock(spec=LLMInterface)
@@ -88,7 +86,7 @@ class TestCriticAgentConfig:
 
     @patch("cognivault.agents.critic.agent.PromptComposer")
     def test_prompt_composition_fallback(
-        self, mock_prompt_composer_class: object
+        self, mock_prompt_composer_class: Mock
     ) -> None:
         """Test fallback to default prompt when composition fails."""
         mock_llm = Mock(spec=LLMInterface)
@@ -109,7 +107,7 @@ class TestCriticAgentConfig:
         assert system_prompt == CRITIC_SYSTEM_PROMPT
 
     @patch("cognivault.agents.critic.agent.PromptComposer")
-    def test_update_config_method(self, mock_prompt_composer_class: object) -> None:
+    def test_update_config_method(self, mock_prompt_composer_class: Mock) -> None:
         """Test the update_config method updates configuration and recomposes prompts."""
         mock_llm = Mock(spec=LLMInterface)
         mock_composer: Mock = Mock()
@@ -135,7 +133,7 @@ class TestCriticAgentConfig:
     @pytest.mark.asyncio
     @patch("cognivault.agents.critic.agent.PromptComposer")
     async def test_run_method_uses_configurable_prompt(
-        self, mock_prompt_composer_class: object
+        self, mock_prompt_composer_class: Mock
     ) -> None:
         """Test that run method uses configurable system prompt."""
         mock_llm = Mock(spec=LLMInterface)

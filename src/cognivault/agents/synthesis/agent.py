@@ -12,7 +12,7 @@ from cognivault.llm.llm_interface import LLMInterface
 
 # Configuration system imports
 from cognivault.config.agent_configs import SynthesisConfig
-from cognivault.workflows.prompt_composer import PromptComposer
+from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,10 @@ class SynthesisAgent(BaseAgent):
         super().__init__("synthesis")
 
         # Configuration system - backward compatible
+        # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else SynthesisConfig()
         self._prompt_composer = PromptComposer()
-        self._composed_prompt = None
+        self._composed_prompt: Optional[ComposedPrompt]
 
         # Use sentinel value to distinguish between None (explicit) and default
         if llm == "default":
@@ -428,15 +429,18 @@ class SynthesisAgent(BaseAgent):
         )
 
         # Try to use composed prompt from PromptComposer first
-        if self._composed_prompt and hasattr(self._composed_prompt, "analysis_prompt"):
-            try:
-                return self._composed_prompt.analysis_prompt.format(
-                    query=query, outputs_text=outputs_text
-                )
-            except Exception as e:
-                logger.debug(
-                    f"[{self.name}] Failed to use composed analysis prompt: {e}"
-                )
+        if self._composed_prompt:
+            analysis_template = self._composed_prompt.get_template("analysis_prompt")
+            if analysis_template:
+                try:
+                    formatted_prompt: str = analysis_template.format(
+                        query=query, outputs_text=outputs_text
+                    )
+                    return formatted_prompt
+                except Exception as e:
+                    logger.debug(
+                        f"[{self.name}] Failed to use composed analysis prompt: {e}"
+                    )
 
         # Try to load prompt template from prompts.py
         try:
@@ -562,19 +566,22 @@ Provide your analysis in the exact format above."""
         topics_text = ", ".join(analysis.get("key_topics", []))
 
         # Try to use composed prompt from PromptComposer first
-        if self._composed_prompt and hasattr(self._composed_prompt, "synthesis_prompt"):
-            try:
-                return self._composed_prompt.synthesis_prompt.format(
-                    query=query,
-                    themes_text=themes_text,
-                    topics_text=topics_text,
-                    conflicts_text=conflicts_text,
-                    outputs_text=outputs_text,
-                )
-            except Exception as e:
-                logger.debug(
-                    f"[{self.name}] Failed to use composed synthesis prompt: {e}"
-                )
+        if self._composed_prompt:
+            synthesis_template = self._composed_prompt.get_template("synthesis_prompt")
+            if synthesis_template:
+                try:
+                    formatted_prompt: str = synthesis_template.format(
+                        query=query,
+                        themes_text=themes_text,
+                        topics_text=topics_text,
+                        conflicts_text=conflicts_text,
+                        outputs_text=outputs_text,
+                    )
+                    return formatted_prompt
+                except Exception as e:
+                    logger.debug(
+                        f"[{self.name}] Failed to use composed synthesis prompt: {e}"
+                    )
 
         # Try to load prompt template from prompts.py
         try:

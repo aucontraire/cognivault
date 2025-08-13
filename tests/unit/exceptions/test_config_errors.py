@@ -7,7 +7,7 @@ configuration validation failures.
 """
 
 import pytest
-from typing import Any
+from typing import Any, Dict
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -248,7 +248,7 @@ class TestConfigurationErrorInheritance:
     def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of configuration errors."""
 
-        def handle_config_error(error: ConfigurationError) -> dict:
+        def handle_config_error(error: ConfigurationError) -> Dict[str, Any]:
             return {
                 "config_section": error.config_section,
                 "retryable": error.is_retryable(),
@@ -342,16 +342,16 @@ class TestConfigurationErrorIntegration:
         assert exc_info.value.validation_errors == ["test_field"]
 
         # Test catching as base type
-        with pytest.raises(ConfigurationError) as exc_info:
+        with pytest.raises(ConfigurationError) as config_exc_info:
             raise ConfigValidationError("validation", ["field"])
 
-        assert hasattr(exc_info.value, "validation_errors")
+        assert hasattr(config_exc_info.value, "validation_errors")
 
         # Test catching as CogniVaultError
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as base_exc_info:
             raise ConfigurationError("config issue")
 
-        assert exc_info.value.error_code == "config_error"
+        assert base_exc_info.value.error_code == "config_error"
 
     def test_config_error_retry_semantics(self) -> None:
         """Test retry semantics for configuration errors."""
@@ -387,7 +387,9 @@ class TestConfigurationErrorIntegration:
         ]
 
         for scenario in scenarios:
-            error = ConfigurationError(**scenario)
+            error = ConfigurationError(
+                message=scenario["message"], config_section=scenario["config_section"]
+            )
 
             # Verify all scenarios create valid errors
             assert isinstance(error, ConfigurationError)

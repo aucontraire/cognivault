@@ -147,7 +147,7 @@ class TestNodeExecutionConfig:
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError) as exc_info:
-            NodeExecutionConfig(invalid_field="value")
+            NodeExecutionConfig.model_validate({"invalid_field": "value"})
         assert "Extra inputs are not permitted" in str(exc_info.value)
 
     def test_custom_config_dict(self) -> None:
@@ -320,7 +320,7 @@ class TestDAGExecutionConfig:
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError) as exc_info:
-            DAGExecutionConfig(unknown_field="value")
+            DAGExecutionConfig.model_validate({"unknown_field": "value"})
         assert "Extra inputs are not permitted" in str(exc_info.value)
 
 
@@ -477,7 +477,7 @@ class TestLangGraphIntegrationConfig:
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields are forbidden."""
         with pytest.raises(ValidationError) as exc_info:
-            LangGraphIntegrationConfig(invalid_field="value")
+            LangGraphIntegrationConfig.model_validate({"invalid_field": "value"})
         assert "Extra inputs are not permitted" in str(exc_info.value)
 
 

@@ -394,5 +394,4 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             raise KeyError(f"No workflow found for correlation_id: {correlation_id}")
 
         # Use existing get_status method with workflow_id
-        status_response = await self.get_status(workflow_id)
-        return status_response
+        return await self.get_status(workflow_id)

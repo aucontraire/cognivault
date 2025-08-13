@@ -106,7 +106,7 @@ class FileEventSink(EventSink):
     def __init__(
         self,
         file_path: str,
-        max_file_size_mb: int = 100,
+        max_file_size_mb: float = 100,
         rotate_files: bool = True,
         filters: Optional[EventFilters] = None,
     ) -> None:
@@ -264,7 +264,7 @@ class InMemoryEventSink(EventSink):
 # Factory function for creating file sinks
 def create_file_sink(
     file_path: str,
-    max_file_size_mb: int = 100,
+    max_file_size_mb: float = 100,
     rotate_files: bool = True,
     event_types: Optional[List[str]] = None,
     agent_names: Optional[List[str]] = None,

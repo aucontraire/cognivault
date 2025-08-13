@@ -19,7 +19,19 @@ Design Principles:
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List, Callable, Coroutine, TypeVar, Union, cast
+from typing import (
+    Dict,
+    Any,
+    Optional,
+    List,
+    Callable,
+    Coroutine,
+    TypeVar,
+    Union,
+    cast,
+    Protocol,
+    Generator,
+)
 from functools import wraps
 
 from langgraph.runtime import Runtime
@@ -85,6 +97,22 @@ class NodeExecutionError(Exception):
 
 
 F = TypeVar("F", bound=Callable[..., Coroutine[Any, Any, Any]])
+
+
+class CircuitBreakerFunction(Protocol):
+    """Protocol for functions decorated with @circuit_breaker.
+
+    This protocol defines the attributes that are dynamically added
+    by the circuit_breaker decorator, making them visible to type checkers.
+    """
+
+    _failure_count: int
+    _circuit_open: bool
+    _last_failure_time: Optional[float]
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[Any, Any, Any]:
+        """Function call signature for circuit breaker decorated functions."""
+        ...
 
 
 def circuit_breaker(
@@ -1218,4 +1246,5 @@ __all__ = [
     "validate_node_input",
     "create_agent_with_llm",
     "convert_state_to_context",
+    "CircuitBreakerFunction",
 ]

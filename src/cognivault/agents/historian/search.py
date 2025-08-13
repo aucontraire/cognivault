@@ -106,7 +106,10 @@ class SearchResult(BaseModel):
     @property
     def topics(self) -> List[str]:
         """Get topics from metadata."""
-        return self.metadata.get("topics", [])
+        topics = self.metadata.get("topics", [])
+        if isinstance(topics, list):
+            return [str(item) for item in topics]
+        return []
 
     @property
     def domain(self) -> Optional[str]:

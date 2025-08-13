@@ -4,7 +4,7 @@ This validates Option C - supporting both flat chart format and nested Pydantic 
 """
 
 import pytest
-from typing import Any
+from typing import Any, Dict, cast
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock
@@ -377,12 +377,13 @@ flow:
         }
 
         for agent_type, config_data in test_configs.items():
-            # Test ConfigMapper directly
-            config = ConfigMapper.create_agent_config(config_data, agent_type)
+            # Test ConfigMapper directly (cast to Dict for type safety)
+            config_dict = cast(Dict[str, Any], config_data)
+            config = ConfigMapper.create_agent_config(config_dict, agent_type)
             assert isinstance(config, expected_types[agent_type])
 
             # Test via create_agent_config function
-            config2 = create_agent_config(agent_type, config_data)
+            config2 = create_agent_config(agent_type, config_dict)
             assert isinstance(config2, expected_types[agent_type])
 
         print("✅ All 4 agent types work with ConfigMapper!")
