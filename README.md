@@ -1229,7 +1229,7 @@ CogniVault supports multiple execution modes with comprehensive performance comp
 
 #### Execution Modes
 
-**LangGraph Mode (default)**: Uses production `LangGraphOrchestrator` with real LangGraph 0.5.1 StateGraph integration
+**LangGraph Mode (default)**: Uses production `LangGraphOrchestrator` with real LangGraph 0.6.4 StateGraph integration
 ```bash
 # Default execution - no flag needed
 make run QUESTION="Your question"
@@ -1379,7 +1379,7 @@ The implementation provides:
 
 #### Memory Manager Features
 
-- **LangGraph MemorySaver Integration**: Native checkpointing with LangGraph 0.5.1
+- **LangGraph MemorySaver Integration**: Native checkpointing with LangGraph 0.6.4
 - **Thread-Scoped Memory**: Conversation isolation with unique thread IDs
 - **Checkpoint Lifecycle Management**: Creation, cleanup, and TTL-based expiration
 - **Rollback Mechanisms**: Failed execution recovery with state restoration

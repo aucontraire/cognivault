@@ -66,10 +66,10 @@ def _validate_langgraph_runtime() -> None:
         version = getattr(langgraph, "__version__", None)
 
         # Check version compatibility
-        if version and not version.startswith("0.5"):
+        if version and not version.startswith("0.6"):
             raise RuntimeError(
                 f"LangGraph version {version} may not be compatible. "
-                f"Expected version 0.5.x. Consider: pip install langgraph=={version or '0.5.3'}"
+                f"Expected version 0.6.x. Consider: pip install langgraph=={version or '0.6.4'}"
             )
 
         # Test essential imports
@@ -243,7 +243,7 @@ async def run(
 
     except ImportError as e:
         console.print(f"[red]❌ LangGraph is not installed or incompatible: {e}[/red]")
-        console.print("[yellow]💡 Try: pip install langgraph==0.5.3[/yellow]")
+        console.print("[yellow]💡 Try: pip install langgraph==0.6.4[/yellow]")
         raise typer.Exit(1)
     except Exception as e:
         console.print(f"[red]❌ LangGraph runtime error: {e}[/red]")

@@ -4,7 +4,7 @@
 
 **Foundational Research Document - v2.0.0**
 
-CogniVault is a production-ready, multi-agent workflow orchestration platform that transforms cognitive science research into practical knowledge construction tools. Built on LangGraph 0.5.3 with sophisticated routing and configurable prompt composition, it represents a convergence of distributed cognition theory, artificial intelligence research, and enterprise workflow automation.
+CogniVault is a production-ready, multi-agent workflow orchestration platform that transforms cognitive science research into practical knowledge construction tools. Built on LangGraph 0.6.4 with sophisticated routing and configurable prompt composition, it represents a convergence of distributed cognition theory, artificial intelligence research, and enterprise workflow automation.
 
 **Current Status**: From research prototype to production system - CogniVault validates cognitive architecture principles through real-world implementation, demonstrating how multi-perspective analysis can be systematically orchestrated for enhanced human reasoning.
 

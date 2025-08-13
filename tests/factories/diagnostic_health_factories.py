@@ -78,12 +78,15 @@ class ComponentHealthFactory:
         if details is None:
             details = {"provider": "openai", "errors": ["timeout"]}
 
+        # Extract specific parameters from overrides to avoid duplicates
+        check_time = overrides.pop("check_time", datetime.now(timezone.utc))
+
         return ComponentHealth(
             name=name,
             status=HealthStatus.DEGRADED,
             message=message,
             details=details,
-            check_time=datetime.now(timezone.utc),
+            check_time=check_time,
             response_time_ms=response_time_ms,
             **overrides,
         )
@@ -99,12 +102,15 @@ class ComponentHealthFactory:
         if details is None:
             details = {"error": "Connection failed"}
 
+        # Extract specific parameters from overrides to avoid duplicates
+        check_time = overrides.pop("check_time", datetime.now(timezone.utc))
+
         return ComponentHealth(
             name=name,
             status=HealthStatus.UNHEALTHY,
             message=message,
             details=details,
-            check_time=datetime.now(timezone.utc),
+            check_time=check_time,
             **overrides,
         )
 

@@ -256,12 +256,12 @@ class TestLangGraphInstallation:
         import langgraph
 
         # Act
-        version = getattr(langgraph, "__version__", "0.5.1")
+        version = getattr(langgraph, "__version__", "0.6.4")
 
         # Assert
         assert version is not None
         assert isinstance(version, str)
-        assert version.startswith("0.5")  # Should be 0.5.x for our pinned version
+        assert version.startswith("0.6")  # Should be 0.6.x for our pinned version
 
     def test_langgraph_python_compatibility(self) -> None:
         """Test that LangGraph works with current Python version."""

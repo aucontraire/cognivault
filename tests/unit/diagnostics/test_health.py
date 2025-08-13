@@ -6,7 +6,6 @@ health status enumeration, and the HealthChecker class.
 """
 
 import pytest
-from typing import Any
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -30,6 +29,7 @@ from cognivault.diagnostics.health import (
     ComponentHealth,
     HealthChecker,
 )
+from tests.factories.diagnostic_health_factories import ComponentHealthFactory
 
 
 class TestHealthStatus:
@@ -60,9 +60,8 @@ class TestComponentHealth:
         check_time = datetime.now()
         details = {"test": "value", "count": 42}
 
-        health = ComponentHealth(
+        health = ComponentHealthFactory.healthy_component_with_details(
             name="test_component",
-            status=HealthStatus.HEALTHY,
             message="Component is healthy",
             details=details,
             check_time=check_time,
@@ -81,9 +80,8 @@ class TestComponentHealth:
         check_time = datetime.now()
         details = {"test": "value"}
 
-        health = ComponentHealth(
+        health = ComponentHealthFactory.degraded_component(
             name="test_component",
-            status=HealthStatus.DEGRADED,
             message="Component has issues",
             details=details,
             check_time=check_time,
@@ -101,9 +99,8 @@ class TestComponentHealth:
 
     def test_component_health_without_response_time(self) -> None:
         """Test ComponentHealth without response time."""
-        health = ComponentHealth(
+        health = ComponentHealthFactory.basic_healthy_component(
             name="test_component",
-            status=HealthStatus.HEALTHY,
             message="Test message",
             details={},
             check_time=datetime.now(),
@@ -131,39 +128,25 @@ class TestHealthChecker:
             patch.object(self.health_checker, "_check_dependencies") as mock_deps,
         ):
             # Mock all health checks to return healthy
-            mock_registry.return_value = ComponentHealth(
-                name="agent_registry",
-                status=HealthStatus.HEALTHY,
-                message="Registry is healthy",
-                details={},
+            mock_registry.return_value = ComponentHealthFactory.agent_registry_health(
                 check_time=datetime.now(),
             )
-            mock_llm.return_value = ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.HEALTHY,
-                message="LLM is healthy",
-                details={},
+            mock_llm.return_value = ComponentHealthFactory.llm_connectivity_health(
                 check_time=datetime.now(),
             )
-            mock_config.return_value = ComponentHealth(
+            mock_config.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="configuration",
-                status=HealthStatus.HEALTHY,
                 message="Config is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_fs.return_value = ComponentHealth(
+            mock_fs.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="file_system",
-                status=HealthStatus.HEALTHY,
                 message="File system is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_deps.return_value = ComponentHealth(
+            mock_deps.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="dependencies",
-                status=HealthStatus.HEALTHY,
                 message="Dependencies are healthy",
-                details={},
                 check_time=datetime.now(),
             )
 
@@ -194,32 +177,22 @@ class TestHealthChecker:
             mock_registry.side_effect = RuntimeError("Registry check failed")
 
             # Others return healthy
-            mock_llm.return_value = ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.HEALTHY,
-                message="LLM is healthy",
-                details={},
+            mock_llm.return_value = ComponentHealthFactory.llm_connectivity_health(
                 check_time=datetime.now(),
             )
-            mock_config.return_value = ComponentHealth(
+            mock_config.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="configuration",
-                status=HealthStatus.HEALTHY,
                 message="Config is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_fs.return_value = ComponentHealth(
+            mock_fs.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="file_system",
-                status=HealthStatus.HEALTHY,
                 message="File system is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_deps.return_value = ComponentHealth(
+            mock_deps.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="dependencies",
-                status=HealthStatus.HEALTHY,
                 message="Dependencies are healthy",
-                details={},
                 check_time=datetime.now(),
             )
 
@@ -419,18 +392,14 @@ class TestHealthChecker:
     def test_get_overall_status_all_healthy(self) -> None:
         """Test overall status when all components are healthy."""
         components = {
-            "comp1": ComponentHealth(
+            "comp1": ComponentHealthFactory.basic_healthy_component(
                 name="comp1",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "comp2": ComponentHealth(
+            "comp2": ComponentHealthFactory.basic_healthy_component(
                 name="comp2",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -442,18 +411,14 @@ class TestHealthChecker:
     def test_get_overall_status_some_degraded(self) -> None:
         """Test overall status when some components are degraded."""
         components = {
-            "comp1": ComponentHealth(
+            "comp1": ComponentHealthFactory.basic_healthy_component(
                 name="comp1",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "comp2": ComponentHealth(
+            "comp2": ComponentHealthFactory.degraded_component(
                 name="comp2",
-                status=HealthStatus.DEGRADED,
                 message="Issues",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -465,18 +430,14 @@ class TestHealthChecker:
     def test_get_overall_status_some_unhealthy(self) -> None:
         """Test overall status when some components are unhealthy."""
         components = {
-            "comp1": ComponentHealth(
+            "comp1": ComponentHealthFactory.basic_healthy_component(
                 name="comp1",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "comp2": ComponentHealth(
+            "comp2": ComponentHealthFactory.unhealthy_component(
                 name="comp2",
-                status=HealthStatus.UNHEALTHY,
                 message="Failed",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -627,25 +588,19 @@ class TestHealthChecker:
         """Test overall status priority (unhealthy > degraded > healthy)."""
         # Test all combinations to ensure unhealthy takes precedence
         components = {
-            "healthy": ComponentHealth(
+            "healthy": ComponentHealthFactory.basic_healthy_component(
                 name="healthy",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "degraded": ComponentHealth(
+            "degraded": ComponentHealthFactory.degraded_component(
                 name="degraded",
-                status=HealthStatus.DEGRADED,
                 message="Issues",
-                details={},
                 check_time=datetime.now(),
             ),
-            "unhealthy": ComponentHealth(
+            "unhealthy": ComponentHealthFactory.unhealthy_component(
                 name="unhealthy",
-                status=HealthStatus.UNHEALTHY,
                 message="Failed",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -655,18 +610,14 @@ class TestHealthChecker:
 
         # Test degraded + healthy
         components_degraded = {
-            "healthy": ComponentHealth(
+            "healthy": ComponentHealthFactory.basic_healthy_component(
                 name="healthy",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "degraded": ComponentHealth(
+            "degraded": ComponentHealthFactory.degraded_component(
                 name="degraded",
-                status=HealthStatus.DEGRADED,
                 message="Issues",
-                details={},
                 check_time=datetime.now(),
             ),
         }

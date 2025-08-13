@@ -58,7 +58,7 @@ class TestCLIUtilityFunctions:
         """Test successful LangGraph runtime validation."""
         # Create mock modules
         mock_langgraph: Mock = Mock()
-        mock_langgraph.__version__ = "0.5.1"
+        mock_langgraph.__version__ = "0.6.4"
 
         mock_state_graph: Mock = Mock()
         mock_graph_instance: Mock = Mock()
@@ -121,7 +121,7 @@ class TestCLIUtilityFunctions:
         """Test LangGraph validation with compilation error."""
         # Create mock modules
         mock_langgraph: Mock = Mock()
-        mock_langgraph.__version__ = "0.5.1"
+        mock_langgraph.__version__ = "0.6.4"
 
         mock_state_graph: Mock = Mock()
         mock_graph_instance: Mock = Mock()

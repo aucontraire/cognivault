@@ -40,8 +40,15 @@ alembic = "*"
 redis = "*"
 
 # LangGraph Integration
-langgraph = "0.6.0"
-langchain-core = ">=0.3.0,<0.4.0"
+langgraph = "0.6.4"
+langgraph-checkpoint = "2.1.1"
+langgraph-prebuilt = "0.6.4"
+langgraph-checkpoint-postgres = "^2.0.23"
+langgraph-sdk = "^0.2.0"
+langchain-core = ">=0.3.69,<0.4.0"
+
+# Observability and Tracing
+langsmith = "^0.4.14"
 
 # Retrieval
 faiss-cpu = "*"
@@ -166,6 +173,7 @@ module = [
     "faiss.*",
     "chromadb.*",
     "langgraph.*",
+    "langsmith.*",
     "openai_responses.*",
     "graphviz.*",
 ]

@@ -460,7 +460,7 @@ async def refiner_node(
     CogniVaultState
         Updated state with RefinerOutput
     """
-    # ✅ Type-safe context access (LangGraph 0.6.0 Runtime API)
+    # ✅ Type-safe context access (LangGraph 0.6.x Runtime API)
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -654,14 +654,14 @@ async def critic_node(
     state : CogniVaultState
         Current LangGraph state (must contain refiner output)
     runtime : Runtime[CogniVaultContext]
-        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
+        LangGraph 0.6.x runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with CriticOutput
     """
-    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -700,7 +700,7 @@ async def critic_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -755,7 +755,7 @@ async def critic_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -789,7 +789,7 @@ async def critic_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -815,14 +815,14 @@ async def historian_node(
     state : CogniVaultState
         Current LangGraph state (must contain refiner output)
     runtime : Runtime[CogniVaultContext]
-        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
+        LangGraph 0.6.x runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with HistorianOutput
     """
-    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -861,7 +861,7 @@ async def historian_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -936,7 +936,7 @@ async def historian_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -970,7 +970,7 @@ async def historian_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -996,14 +996,14 @@ async def synthesis_node(
     state : CogniVaultState
         Current LangGraph state (must contain refiner, critic, and historian outputs)
     runtime : Runtime[CogniVaultContext]
-        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
+        LangGraph 0.6.x runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with SynthesisOutput
     """
-    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -1046,7 +1046,7 @@ async def synthesis_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -1114,7 +1114,7 @@ async def synthesis_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -1148,7 +1148,7 @@ async def synthesis_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },

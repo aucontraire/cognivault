@@ -397,6 +397,7 @@ class TestRegistryErrorScenarios:
 
         class ProblemAgent(BaseAgent):
             def __init__(self) -> None:
+                super().__init__(name="problem_agent")
                 raise RuntimeError("Constructor failed with specific message")
 
             async def run(self, context: AgentContext) -> AgentContext:

@@ -2,13 +2,13 @@
 
 **Internal Documentation - v2.0.0**
 
-This document provides comprehensive documentation for CogniVault's production-ready graph pattern system, used for LangGraph 0.5.3 orchestration and agent execution flows with advanced routing capabilities.
+This document provides comprehensive documentation for CogniVault's production-ready graph pattern system, used for LangGraph 0.6.4 orchestration and agent execution flows with advanced routing capabilities.
 
 ## Overview
 
 The Pattern Registry manages execution patterns for CogniVault's production multi-agent system. Each pattern defines how agents are connected and the execution flow between them, enabling different orchestration strategies based on use case requirements.
 
-**Current Status**: All patterns are operational with LangGraph 0.5.3 StateGraph integration, supporting real-time DAG execution with parallel processing, enhanced routing capabilities, and comprehensive observability.
+**Current Status**: All patterns are operational with LangGraph 0.6.4 StateGraph integration, supporting real-time DAG execution with parallel processing, enhanced routing capabilities, and comprehensive observability.
 
 ## Architecture
 
@@ -183,7 +183,7 @@ def get_parallel_groups(self, agents: List[str]) -> List[List[str]]:
 
 ## Usage in LangGraph Integration
 
-### Production Graph Building (LangGraph 0.5.3)
+### Production Graph Building (LangGraph 0.6.4)
 
 ```python
 from cognivault.langgraph_backend.graph_patterns import PatternRegistry
@@ -378,7 +378,7 @@ def test_custom_pattern():
 2. **Dynamic Agent Selection**: Runtime optimization based on context and constraints  
 3. **Performance Tracking**: Built-in execution time and success rate monitoring
 4. **Graph Factory Integration**: Pattern compilation caching for performance
-5. **LangGraph 0.5.3 Integration**: Full StateGraph compatibility with advanced features
+5. **LangGraph 0.6.4 Integration**: Full StateGraph compatibility with advanced features
 
 ### Developer Tooling Integration (Available)
 
@@ -427,7 +427,7 @@ This pattern registry integrates comprehensively with CogniVault's production ar
 - **Observability**: Pattern performance monitoring via `cognivault.observability` and diagnostic commands
 
 ### Production Readiness
-- **Status**: All patterns operational with LangGraph 0.5.3 StateGraph integration
+- **Status**: All patterns operational with LangGraph 0.6.4 StateGraph integration
 - **Performance**: Enhanced routing with context analysis, performance tracking, and resource optimization
 - **Observability**: Comprehensive event emission and correlation tracking for pattern execution
 - **Tooling**: CLI validation, benchmarking, and certification commands available

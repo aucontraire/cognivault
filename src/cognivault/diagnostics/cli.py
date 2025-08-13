@@ -767,7 +767,7 @@ class DiagnosticsCLI:
         try:
             import langgraph
 
-            langgraph_health["version"] = getattr(langgraph, "__version__", "0.5.1")
+            langgraph_health["version"] = getattr(langgraph, "__version__", "0.6.4")
             langgraph_health["status"] = "installed"
 
             # Test StateGraph functionality
@@ -878,9 +878,9 @@ class DiagnosticsCLI:
             try:
                 import langgraph
 
-                suggested_version = getattr(langgraph, "__version__", "0.5.3")
+                suggested_version = getattr(langgraph, "__version__", "0.6.4")
             except ImportError:
-                suggested_version = "0.5.3"
+                suggested_version = "0.6.4"
 
             self.console.print(
                 f"[red]❌ LangGraph is not installed. Run: pip install langgraph=={suggested_version}[/red]"

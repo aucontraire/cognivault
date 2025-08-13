@@ -187,8 +187,11 @@ class GraphFactory:
         StateGraph
             Configured StateGraph (not yet compiled)
         """
-        # Create StateGraph with CogniVaultState and CogniVaultContext schemas for LangGraph 0.6.0
-        graph = StateGraph(
+        # Create StateGraph with CogniVaultState and CogniVaultContext schemas for LangGraph 0.6.x
+        # Type checker warnings are expected here due to LangGraph's complex generic typing
+        # Both CogniVaultState (TypedDict) and CogniVaultContext (dataclass) are compatible
+        # with LangGraph 0.6.x StateGraph constructor at runtime
+        graph = StateGraph[CogniVaultState](
             state_schema=CogniVaultState, context_schema=CogniVaultContext
         )
 
