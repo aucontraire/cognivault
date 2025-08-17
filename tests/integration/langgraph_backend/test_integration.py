@@ -1,7 +1,7 @@
 """Integration tests for langgraph_backend module."""
 
 import pytest
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import Mock, patch
 import time
 
@@ -40,15 +40,21 @@ class TestLangGraphBackendIntegration:
         cache_config = CacheConfig(max_size=5, ttl_seconds=300, enable_stats=True)
         return GraphFactory(cache_config)
 
-    @patch("cognivault.langgraph_backend.build_graph.StateGraph")
-    def test_end_to_end_graph_creation_with_cache(
-        self,
-        mock_state_graph: Mock,
-        graph_factory_with_cache: GraphFactory,
-        full_config: GraphConfig,
-    ) -> None:
-        """Test complete end-to-end graph creation with caching."""
-        # Mock StateGraph - handle both StateGraph() and StateGraph[Type]() calls
+    @staticmethod
+    def setup_state_graph_mocks(mock_state_graph: Mock) -> Tuple[Mock, Mock, Mock]:
+        """Helper method to set up StateGraph mock objects consistently.
+        
+        This eliminates the repetitive mock setup pattern that appears throughout the tests.
+        
+        Args:
+            mock_state_graph: The patched StateGraph mock from @patch decorator
+            
+        Returns:
+            Tuple containing:
+            - mock_graph_instance: The StateGraph instance mock
+            - mock_compiled: The compiled graph mock
+            - mock_state_graph_generic: The generic StateGraph[Type] mock
+        """
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
@@ -58,6 +64,21 @@ class TestLangGraphBackendIntegration:
         mock_state_graph_generic.return_value = mock_graph_instance
         mock_state_graph.__getitem__.return_value = mock_state_graph_generic
         mock_state_graph.return_value = mock_graph_instance
+
+        return mock_graph_instance, mock_compiled, mock_state_graph_generic
+
+    @patch("cognivault.langgraph_backend.build_graph.StateGraph")
+    def test_end_to_end_graph_creation_with_cache(
+        self,
+        mock_state_graph: Mock,
+        graph_factory_with_cache: GraphFactory,
+        full_config: GraphConfig,
+    ) -> None:
+        """Test complete end-to-end graph creation with caching."""
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+            self.setup_state_graph_mocks(mock_state_graph)
+        )
 
         # First creation - should hit pattern registry and StateGraph
         result1 = graph_factory_with_cache.create_graph(full_config)
@@ -102,8 +123,12 @@ class TestLangGraphBackendIntegration:
         self, mock_state_graph: Mock, graph_factory_with_cache: GraphFactory
     ) -> None:
         """Test that different patterns create different cached graphs."""
-        # Mock StateGraph
-        mock_graph_instance: Mock = Mock()
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, _, mock_state_graph_generic = (
+            self.setup_state_graph_mocks(mock_state_graph)
+        )
+        
+        # Custom compiled mocks for different patterns
         mock_compiled_standard: Mock = Mock()
         mock_compiled_parallel: Mock = Mock()
 
@@ -116,12 +141,6 @@ class TestLangGraphBackendIntegration:
                 return mock_compiled_parallel
 
         mock_graph_instance.compile.side_effect = compile_side_effect
-
-        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-        mock_state_graph_generic: Mock = Mock()
-        mock_state_graph_generic.return_value = mock_graph_instance
-        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-        mock_state_graph.return_value = mock_graph_instance
 
         agents = ["refiner", "critic", "historian", "synthesis"]
 
@@ -168,15 +187,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Create graphs for each configuration
             results = []
@@ -210,15 +224,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # First creation
             result1 = factory.create_graph(config)
@@ -268,15 +277,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Create all configs (should trigger LRU eviction)
             results = []
@@ -336,19 +340,13 @@ class TestLangGraphBackendIntegration:
             cache_enabled=True,
         )
 
-        # Mock StateGraph
-        mock_graph_instance: Mock = Mock()
-        mock_compiled: Mock = Mock()
-        mock_graph_instance.compile.return_value = mock_compiled
-
-        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-        mock_state_graph_generic: Mock = Mock()
-        mock_state_graph_generic.return_value = mock_graph_instance
-        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-        mock_state_graph.return_value = mock_graph_instance
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+            self.setup_state_graph_mocks(mock_state_graph)
+        )
 
         # Create graph with checkpointing
-        result = graph_factory_with_cache.create_graph(config)
+        graph_factory_with_cache.create_graph(config)
 
         # Verify checkpointer was passed to compile
         compile_call = mock_graph_instance.compile.call_args
@@ -402,16 +400,10 @@ class TestLangGraphBackendIntegration:
             cache_enabled=False,
         )
 
-        # Mock StateGraph
-        mock_graph_instance: Mock = Mock()
-        mock_compiled: Mock = Mock()
-        mock_graph_instance.compile.return_value = mock_compiled
-
-        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-        mock_state_graph_generic: Mock = Mock()
-        mock_state_graph_generic.return_value = mock_graph_instance
-        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-        mock_state_graph.return_value = mock_graph_instance
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+            self.setup_state_graph_mocks(mock_state_graph)
+        )
 
         # Create graph
         graph_factory_with_cache.create_graph(config)
@@ -439,15 +431,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Initial stats
             initial_stats = graph_factory_with_cache.get_cache_stats()
@@ -482,15 +469,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Create and cache graph
             graph_factory_with_cache.create_graph(config)
@@ -532,15 +514,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Multiple creations should all hit StateGraph (no caching)
             factory.create_graph(config)
@@ -591,15 +568,10 @@ class TestRealWorldScenarios:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                TestLangGraphBackendIntegration.setup_state_graph_mocks(mock_state_graph)
+            )
 
             for scenario in scenarios:
                 memory_manager: Optional[Mock] = (
@@ -637,15 +609,10 @@ class TestRealWorldScenarios:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance: Mock = Mock()
-            mock_compiled: Mock = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-
-            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
-            mock_state_graph_generic: Mock = Mock()
-            mock_state_graph_generic.return_value = mock_graph_instance
-            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                TestLangGraphBackendIntegration.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Simulate repeated operations (like in testing or batch processing)
             results = []
