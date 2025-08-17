@@ -57,7 +57,7 @@ class TestGraphFactoryValidationIntegration:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
-        
+
         # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
         mock_state_graph_generic: Mock = Mock()
         mock_state_graph_generic.return_value = mock_graph_instance
@@ -104,7 +104,7 @@ class TestGraphFactoryValidationIntegration:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
-        
+
         # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
         mock_state_graph_generic: Mock = Mock()
         mock_state_graph_generic.return_value = mock_graph_instance
@@ -142,7 +142,7 @@ class TestGraphFactoryValidationIntegration:
             mock_graph_instance: Mock = Mock()
             mock_compiled: Mock = Mock()
             mock_graph_instance.compile.return_value = mock_compiled
-            
+
             # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
             mock_state_graph_generic: Mock = Mock()
             mock_state_graph_generic.return_value = mock_graph_instance
@@ -171,7 +171,7 @@ class TestGraphFactoryValidationIntegration:
             mock_graph_instance: Mock = Mock()
             mock_compiled: Mock = Mock()
             mock_graph_instance.compile.return_value = mock_compiled
-            
+
             # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
             mock_state_graph_generic: Mock = Mock()
             mock_state_graph_generic.return_value = mock_graph_instance
@@ -321,7 +321,7 @@ class TestValidationCaching:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
-        
+
         # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
         mock_state_graph_generic: Mock = Mock()
         mock_state_graph_generic.return_value = mock_graph_instance
@@ -354,7 +354,7 @@ class TestValidationCaching:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
-        
+
         # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
         mock_state_graph_generic: Mock = Mock()
         mock_state_graph_generic.return_value = mock_graph_instance
