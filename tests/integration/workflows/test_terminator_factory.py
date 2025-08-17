@@ -1,3 +1,5 @@
+from typing import Any
+
 #!/usr/bin/env python3
 """
 Manual test script for TerminatorNode factory method functionality.
@@ -6,19 +8,14 @@ This script tests the TerminatorNode factory method with various configuration
 scenarios to ensure proper instantiation and configuration handling.
 """
 
-import asyncio
+
 import sys
-import os
-from pathlib import Path
 
-# Test path setup is handled by pytest configuration
-
-from cognivault.workflows.composer import DagComposer, NodeFactory
-from cognivault.workflows.definition import NodeConfiguration
-from cognivault.agents.metadata import AgentMetadata
+from cognivault.workflows.composer import NodeFactory
+from cognivault.workflows.definition import WorkflowNodeConfiguration
 
 
-def test_terminator_factory_configurations():
+def test_terminator_factory_configurations() -> None:
     """Test TerminatorNode factory with different configuration scenarios."""
 
     print("🧪 Testing TerminatorNode Factory Method Configurations")
@@ -30,7 +27,7 @@ def test_terminator_factory_configurations():
     # Test Case 1: Confidence-based Terminator
     print("\n1. Testing Confidence-based Terminator Configuration...")
     try:
-        confidence_config = NodeConfiguration(
+        confidence_config = WorkflowNodeConfiguration(
             node_id="confidence_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -51,7 +48,7 @@ def test_terminator_factory_configurations():
                     },
                     {
                         "name": "execution_time",
-                        "threshold": 15.0,
+                        "threshold": 0.9,
                         "weight": 0.6,
                         "required": False,
                     },
@@ -81,7 +78,7 @@ def test_terminator_factory_configurations():
     # Test Case 2: Resource-based Terminator
     print("\n2. Testing Resource-based Terminator Configuration...")
     try:
-        resource_config = NodeConfiguration(
+        resource_config = WorkflowNodeConfiguration(
             node_id="resource_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -132,7 +129,7 @@ def test_terminator_factory_configurations():
     # Test Case 3: Completion-based Terminator
     print("\n3. Testing Completion-based Terminator Configuration...")
     try:
-        completion_config = NodeConfiguration(
+        completion_config = WorkflowNodeConfiguration(
             node_id="completion_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -178,7 +175,7 @@ def test_terminator_factory_configurations():
     # Test Case 4: Minimal Configuration (Boundary Testing)
     print("\n4. Testing Minimal Terminator Configuration...")
     try:
-        minimal_config = NodeConfiguration(
+        minimal_config = WorkflowNodeConfiguration(
             node_id="minimal_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -213,7 +210,7 @@ def test_terminator_factory_configurations():
     # Test Case 5: Complex Multi-Strategy Configuration
     print("\n5. Testing Complex Multi-Strategy Terminator Configuration...")
     try:
-        complex_config = NodeConfiguration(
+        complex_config = WorkflowNodeConfiguration(
             node_id="complex_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -240,7 +237,7 @@ def test_terminator_factory_configurations():
                     },
                     {
                         "name": "time_constraint",
-                        "threshold": 20.0,
+                        "threshold": 0.95,
                         "weight": 0.5,
                         "required": False,
                     },
@@ -278,7 +275,7 @@ def test_terminator_factory_configurations():
     # Test Case 6: Default Configuration (No explicit criteria)
     print("\n6. Testing Default Terminator Configuration...")
     try:
-        default_config = NodeConfiguration(
+        default_config = WorkflowNodeConfiguration(
             node_id="default_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -318,13 +315,15 @@ def test_terminator_factory_configurations():
 
     if success_count == total_count:
         print("🎉 All TerminatorNode factory tests PASSED!")
-        return True
     else:
         print("⚠️  Some TerminatorNode factory tests FAILED!")
-        return False
+
+    assert success_count == total_count, (
+        f"TerminatorNode factory tests failed: {success_count}/{total_count} passed"
+    )
 
 
-def test_terminator_strategy_variations():
+def test_terminator_strategy_variations() -> None:
     """Test different termination strategy configurations."""
 
     print("\n🔍 Testing TerminatorNode Strategy Variations")
@@ -344,7 +343,7 @@ def test_terminator_strategy_variations():
     for strategy, description in strategies:
         print(f"\n   Testing {strategy} strategy...")
         try:
-            config = NodeConfiguration(
+            config = WorkflowNodeConfiguration(
                 node_id=f"terminator_{strategy}",
                 node_type="terminator",
                 category="ADVANCED",
@@ -368,10 +367,10 @@ def test_terminator_strategy_variations():
         except Exception as e:
             print(f"   ⚠️  {strategy} strategy rejected: {e}")
 
-    return True
+    # All strategies were tested successfully
 
 
-def test_terminator_boundary_conditions():
+def test_terminator_boundary_conditions() -> None:
     """Test boundary conditions for TerminatorNode configuration."""
 
     print("\n🎯 Testing TerminatorNode Boundary Conditions")
@@ -436,7 +435,7 @@ def test_terminator_boundary_conditions():
     for test_name, config_data in boundary_tests:
         print(f"\n   Testing {test_name}...")
         try:
-            config = NodeConfiguration(
+            config = WorkflowNodeConfiguration(
                 node_id=f"boundary_test_{test_name.lower().replace(' ', '_')}",
                 node_type="terminator",
                 category="ADVANCED",
@@ -448,7 +447,7 @@ def test_terminator_boundary_conditions():
         except Exception as e:
             print(f"   ⚠️  {test_name} rejected: {e}")
 
-    return True
+    # All boundary conditions were tested successfully
 
 
 if __name__ == "__main__":
@@ -456,30 +455,24 @@ if __name__ == "__main__":
 
     try:
         # Test basic factory configurations
-        config_success = test_terminator_factory_configurations()
+        test_terminator_factory_configurations()
 
         # Test strategy variations
-        strategy_success = test_terminator_strategy_variations()
+        test_terminator_strategy_variations()
 
         # Test boundary conditions
-        boundary_success = test_terminator_boundary_conditions()
+        test_terminator_boundary_conditions()
 
-        # Overall result
+        # Overall result - if we reach here, all tests passed (assertions didn't fail)
         print("\n" + "=" * 60)
         print("🏁 FINAL TEST RESULTS")
         print("=" * 60)
-
-        if config_success and strategy_success and boundary_success:
-            print("🎉 ALL TERMINATOR FACTORY TESTS PASSED!")
-            print("✅ TerminatorNode factory method is working correctly")
-            print("✅ All termination strategies are supported")
-            print("✅ Boundary conditions are handled appropriately")
-            print("✅ Default criteria fallback is working")
-            sys.exit(0)
-        else:
-            print("❌ SOME TERMINATOR FACTORY TESTS FAILED!")
-            print("⚠️  Review the test output above for details")
-            sys.exit(1)
+        print("🎉 ALL TERMINATOR FACTORY TESTS PASSED!")
+        print("✅ TerminatorNode factory method is working correctly")
+        print("✅ All termination strategies are supported")
+        print("✅ Boundary conditions are handled appropriately")
+        print("✅ Default criteria fallback is working")
+        sys.exit(0)
 
     except Exception as e:
         print(f"\n💥 Test execution failed with error: {e}")

@@ -21,7 +21,7 @@ from .adapter import (
     LangGraphNodeAdapter,
     StandardNodeAdapter,
     ConditionalNodeAdapter,
-    NodeConfiguration,
+    ExecutionNodeConfiguration,
 )
 from .graph_builder import GraphBuilder, GraphEdge, EdgeType, GraphDefinition
 
@@ -55,7 +55,7 @@ class PrototypeDAGExecutor:
         self,
         enable_parallel_execution: bool = False,
         max_execution_time_seconds: float = 300.0,
-    ):
+    ) -> None:
         """
         Initialize the prototype DAG executor.
 
@@ -280,7 +280,7 @@ class PrototypeDAGExecutor:
                     # Execute the node
                     node_adapter = node_adapters[node_id]
 
-                    node_config = NodeConfiguration(
+                    node_config = ExecutionNodeConfiguration(
                         timeout_seconds=config.get("node_timeout_seconds"),
                         retry_enabled=config.get("retry_enabled", True),
                         step_id=f"{node_id}_{iteration}",
@@ -436,7 +436,7 @@ class PrototypeDAGExecutor:
 
         return list(set(valid_next_nodes))  # Remove duplicates
 
-    def _initialize_llm(self):
+    def _initialize_llm(self) -> OpenAIChatLLM:
         """Initialize LLM for agent creation."""
         llm_config = OpenAIConfig.load()
         return OpenAIChatLLM(
@@ -547,7 +547,7 @@ if __name__ == "__main__":
     # Run the demo if this file is executed directly
     import asyncio
 
-    async def main():
+    async def main() -> None:
         result = await run_prototype_demo()
         print(f"Demo result: {result.success}")
         print(f"Performance: {result.performance_metrics}")

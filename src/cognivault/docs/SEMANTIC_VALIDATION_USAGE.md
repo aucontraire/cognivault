@@ -4,7 +4,7 @@
 
 ## Overview
 
-CogniVault's semantic validation layer provides production-ready domain-specific validation for agent workflows, ensuring that agent combinations and patterns create semantically meaningful executions. The validation system is fully integrated with LangGraph 0.5.3, enhanced routing capabilities, and the configurable prompt composition architecture.
+CogniVault's semantic validation layer provides production-ready domain-specific validation for agent workflows, ensuring that agent combinations and patterns create semantically meaningful executions. The validation system is fully integrated with LangGraph 0.6.4, enhanced routing capabilities, and the configurable prompt composition architecture.
 
 **Current Status**: Semantic validation is operational with comprehensive pattern validation, agent compatibility checking, and integration with the enhanced routing system for intelligent workflow validation.
 
@@ -25,7 +25,7 @@ strict_validator = CogniVaultValidator(strict_mode=True)
 default_validator = create_default_validator(strict_mode=False)
 ```
 
-### 2. Using with Production GraphFactory (LangGraph 0.5.3)
+### 2. Using with Production GraphFactory (LangGraph 0.6.4)
 
 ```python
 from cognivault.langgraph_backend import GraphFactory, GraphConfig, CacheConfig
@@ -138,9 +138,9 @@ config = GraphConfig(
 ### Creating Custom Validators
 
 ```python
-from cognivault.langgraph_backend import SemanticValidator, ValidationResult, ValidationSeverity
+from cognivault.langgraph_backend import WorkflowSemanticValidator, ValidationResult, ValidationSeverity
 
-class CustomValidator(SemanticValidator):
+class CustomValidator(WorkflowSemanticValidator):
     def validate_workflow(self, agents, pattern, **kwargs):
         result = ValidationResult(is_valid=True, issues=[])
         

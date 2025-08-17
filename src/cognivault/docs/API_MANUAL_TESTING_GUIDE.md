@@ -264,7 +264,7 @@ CogniVault provides **dual-level event granularity** with events from both orche
 ```javascript
 // Connect to WebSocket for live progress
 const correlationId = "test-manual-websocket-001";
-const ws = new WebSocket(`ws://localhost:8000/ws/query/${correlationId}`);
+const ws = new WebSocket(`ws://localhost:8001/ws/query/${correlationId}`);
 
 ws.onopen = function(event) {
     console.log("WebSocket connected for correlation:", correlationId);
@@ -281,7 +281,7 @@ ws.onclose = function(event) {
 };
 
 // Now execute a workflow with this correlation ID
-fetch("http://localhost:8000/api/query", {
+fetch("http://localhost:8001/api/query", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
@@ -299,10 +299,54 @@ Use tools like [WebSocket King](https://websocketking.com) or [wscat](https://gi
 npm install -g wscat
 
 # Connect to WebSocket
-wscat -c ws://localhost:8000/ws/query/test-manual-websocket-002
+wscat -c ws://localhost:8001/ws/query/test-manual-websocket-002
 
 # You'll see real-time progress updates as workflows execute
 ```
+
+#### Method 3: Visual WebSocket Testing Interface 🖥️ **DEVELOPER TOOL**
+
+For enhanced WebSocket testing with a professional Bootstrap interface:
+
+**Location**: `tools/test_websocket_events.html`
+
+**Features**:
+- Real-time event stream monitoring with professional Bootstrap 5.3 UI
+- Workflow execution via web form or generated curl commands
+- Correlation ID management and event filtering
+- Copy all events to clipboard functionality
+- Markdown export result display and progress tracking
+
+**Setup & Usage**:
+1. **Start the API server** (use port 8001 for compatibility):
+   ```bash
+   poetry run uvicorn cognivault.api.main:app --reload --host 0.0.0.0 --port 8001
+   ```
+
+2. **Open the visual interface**:
+   ```bash
+   # Open in your default browser
+   open tools/test_websocket_events.html
+   ```
+
+3. **Use the interface**:
+   - Enter a correlation ID (or use the default)
+   - Click "Connect WebSocket" to establish connection
+   - Enter your query and optionally enable markdown export
+   - Click "Start Workflow" to execute via web form
+   - Or click "Generate curl" to get command-line equivalent
+   - Monitor real-time events in the professional interface
+   - Use "Copy All" to export complete event history
+
+**Benefits**:
+- Visual event monitoring vs command-line tools
+- Easy correlation ID management and session tracking
+- Built-in curl command generation for terminal users
+- Professional Bootstrap 5.3 interface with responsive design
+- Export capabilities for debugging and documentation
+- Real-time progress indicators and status badges
+
+**Note**: The interface is configured for port 8001. If using a different port, update the server startup command accordingly.
 
 #### Expected WebSocket Message Flow:
 ```json

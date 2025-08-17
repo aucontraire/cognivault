@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Tests for diagnostic CLI commands.
 
@@ -6,6 +8,7 @@ health checks, metrics, and various output formats.
 """
 
 import json
+import re
 import tempfile
 from datetime import datetime
 from unittest.mock import patch, AsyncMock
@@ -20,11 +23,16 @@ from cognivault.diagnostics.diagnostics import SystemDiagnostics
 class TestDiagnosticsCLI:
     """Test diagnostics CLI commands."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.runner = CliRunner()
 
-    def test_health_command_basic(self):
+    def strip_ansi_codes(self, text: str) -> str:
+        """Strip ANSI escape codes from text."""
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        return ansi_escape.sub("", text)
+
+    def test_health_command_basic(self) -> None:
         """Test basic health command."""
 
         # Mock the diagnostics instance and resource scheduler to prevent async task creation
@@ -63,10 +71,11 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "CogniVault Health Check" in result.stdout
-            assert "Status: HEALTHY" in result.stdout
-            assert "Healthy" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Status: HEALTHY" in clean_output
+            assert "Healthy" in clean_output
 
-    def test_health_command_with_unhealthy_components(self):
+    def test_health_command_with_unhealthy_components(self) -> None:
         """Test health command with unhealthy components."""
         mock_health_results = {
             "agent_registry": ComponentHealth(
@@ -120,9 +129,10 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["health"], catch_exceptions=False)
 
             assert result.exit_code == 2  # Should exit with error code for unhealthy
-            assert "Status: UNHEALTHY" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Status: UNHEALTHY" in clean_output
 
-    def test_health_command_json_format(self):
+    def test_health_command_json_format(self) -> None:
         """Test health command with JSON output format."""
         # Mock the diagnostics instance and resource scheduler to prevent async task creation
         with (
@@ -168,7 +178,7 @@ class TestDiagnosticsCLI:
             assert parsed["components"]["total"] == 1
             assert parsed["components"]["healthy"] == 1
 
-    def test_status_command(self):
+    def test_status_command(self) -> None:
         """Test status command (alias for health)."""
         mock_health_results = {
             "test_component": ComponentHealth(
@@ -226,7 +236,7 @@ class TestDiagnosticsCLI:
             assert result.exit_code == 0
             assert "CogniVault System Status" in result.stdout
 
-    def test_metrics_command_basic(self):
+    def test_metrics_command_basic(self) -> None:
         """Test basic metrics command."""
         mock_performance_metrics = PerformanceMetrics(
             collection_start=datetime.now(),
@@ -253,7 +263,7 @@ class TestDiagnosticsCLI:
             assert "Successful" in result.stdout
             assert "Failed" in result.stdout
 
-    def test_metrics_command_json_format(self):
+    def test_metrics_command_json_format(self) -> None:
         """Test metrics command with JSON output format."""
         mock_performance_metrics = PerformanceMetrics(
             collection_start=datetime.now(),
@@ -283,7 +293,7 @@ class TestDiagnosticsCLI:
             assert parsed["resources"]["llm_api_calls"] == 5
             assert parsed["resources"]["total_tokens"] == 500
 
-    def test_metrics_command_with_window_filter(self):
+    def test_metrics_command_with_window_filter(self) -> None:
         """Test metrics command with time window filter."""
         mock_performance_summary = {
             "execution": {
@@ -313,9 +323,10 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "Performance Metrics" in result.stdout
-            assert "Time Window: Last 60 minutes" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Time Window: Last 60 minutes" in clean_output
 
-    def test_agents_command(self):
+    def test_agents_command(self) -> None:
         """Test agents command."""
         with (
             patch(
@@ -382,7 +393,7 @@ class TestDiagnosticsCLI:
             assert "refiner" in result.stdout
             assert "critic" in result.stdout
 
-    def test_config_command(self):
+    def test_config_command(self) -> None:
         """Test config command."""
         mock_config_report = {
             "timestamp": datetime.now().isoformat(),
@@ -426,7 +437,7 @@ class TestDiagnosticsCLI:
             assert "Max Retries: 3" in result.stdout
             assert "Provider: openai" in result.stdout
 
-    def test_config_command_json_format(self):
+    def test_config_command_json_format(self) -> None:
         """Test config command with JSON output format."""
         mock_config_report = {
             "timestamp": datetime.now().isoformat(),
@@ -453,7 +464,7 @@ class TestDiagnosticsCLI:
             assert parsed["configuration"]["execution"]["timeout_seconds"] == 30
             assert parsed["configuration"]["models"]["default_provider"] == "openai"
 
-    def test_full_command(self):
+    def test_full_command(self) -> None:
         """Test full diagnostics command."""
         timestamp = datetime.now()
 
@@ -509,12 +520,13 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "Complete System Diagnostics" in result.stdout
-            assert "Overall Status: ✅ HEALTHY" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Overall Status: ✅ HEALTHY" in clean_output
             assert "Component Health" in result.stdout
             assert "Performance Metrics" in result.stdout
             assert "System Information" in result.stdout
 
-    def test_full_command_with_output_file(self):
+    def test_full_command_with_output_file(self) -> None:
         """Test full diagnostics command with output file."""
         timestamp = datetime.now()
 
@@ -563,7 +575,8 @@ class TestDiagnosticsCLI:
                 )
 
                 assert result.exit_code == 0
-                assert f"Diagnostics saved to: \n{temp_path}" in result.stdout
+                clean_output = self.strip_ansi_codes(result.stdout)
+                assert f"Diagnostics saved to: \n{temp_path}" in clean_output
 
                 # Check that file was written
                 with open(temp_path, "r") as f:
@@ -577,7 +590,7 @@ class TestDiagnosticsCLI:
 
                 os.unlink(temp_path)
 
-    def test_prometheus_format(self):
+    def test_prometheus_format(self) -> None:
         """Test Prometheus output format."""
         mock_performance_metrics = PerformanceMetrics(
             collection_start=datetime.now(),
@@ -598,11 +611,12 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["metrics", "--format", "prometheus"])
 
             assert result.exit_code == 0
-            assert "# HELP cognivault_agents_total" in result.stdout
-            assert "# TYPE cognivault_agents_total counter" in result.stdout
-            assert "cognivault_agents_total 2" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "# HELP cognivault_agents_total" in clean_output
+            assert "# TYPE cognivault_agents_total counter" in clean_output
+            assert "cognivault_agents_total 2" in clean_output
 
-    def test_influxdb_format(self):
+    def test_influxdb_format(self) -> None:
         """Test InfluxDB output format."""
         mock_performance_metrics = PerformanceMetrics(
             collection_start=datetime.now(),
@@ -623,11 +637,12 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["metrics", "--format", "influxdb"])
 
             assert result.exit_code == 0
-            assert "cognivault_performance" in result.stdout
-            assert "total_agents=2" in result.stdout
-            assert "successful_agents=2" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "cognivault_performance" in clean_output
+            assert "total_agents=2" in clean_output
+            assert "successful_agents=2" in clean_output
 
-    def test_csv_format(self):
+    def test_csv_format(self) -> None:
         """Test CSV output format."""
         mock_performance_metrics = PerformanceMetrics(
             collection_start=datetime.now(),
@@ -648,11 +663,12 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["metrics", "--format", "csv"])
 
             assert result.exit_code == 0
-            assert "start_time,end_time,total_agents" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "start_time,end_time,total_agents" in clean_output
             # Check the actual data row: total_agents=2, successful_agents=2, failed_agents=0, total_llm_calls=5
-            assert "2,2,0,0.0000,5" in result.stdout
+            assert "2,2,0,0.0000,5" in clean_output
 
-    def test_error_handling(self):
+    def test_error_handling(self) -> None:
         """Test CLI error handling."""
         # Mock the diagnostics instance and resource scheduler to prevent async task creation
         with (
@@ -680,14 +696,14 @@ class TestDiagnosticsCLI:
             # Spinner shows before the exception occurs
             assert "Running health checks" in result.stdout
 
-    def test_invalid_format(self):
+    def test_invalid_format(self) -> None:
         """Test handling of invalid output format."""
         result = self.runner.invoke(app, ["health", "--format", "invalid"])
 
         # Should fail with invalid choice
         assert result.exit_code != 0
 
-    def test_health_output_format(self):
+    def test_health_output_format(self) -> None:
         """Test health command output format."""
         # Mock the diagnostics instance and resource scheduler to prevent async task creation
         with (
@@ -724,10 +740,11 @@ class TestDiagnosticsCLI:
 
             assert result.exit_code == 0
             assert "CogniVault Health Check" in result.stdout
-            assert "Status: HEALTHY" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Status: HEALTHY" in clean_output
             assert "Component Summary" in result.stdout
 
-    def test_health_command_quiet_mode(self):
+    def test_health_command_quiet_mode(self) -> None:
         """Test health command in quiet mode."""
         with (
             patch(
@@ -758,7 +775,7 @@ class TestDiagnosticsCLI:
             # Should exit cleanly with minimal output
             assert result.exit_code == 0
 
-    def test_metrics_command_agents_only(self):
+    def test_metrics_command_agents_only(self) -> None:
         """Test metrics command with agents-only flag."""
         mock_performance_summary = {
             "execution": {
@@ -805,7 +822,7 @@ class TestDiagnosticsCLI:
             assert "refiner" in result.stdout
             assert "critic" in result.stdout
 
-    def test_agents_command_specific_agent(self):
+    def test_agents_command_specific_agent(self) -> None:
         """Test agents command for specific agent."""
         with (
             patch(
@@ -853,7 +870,7 @@ class TestDiagnosticsCLI:
             assert "refiner Agent Details" in result.stdout
             assert "Refines and improves user queries" in result.stdout
 
-    def test_agents_command_json_output(self):
+    def test_agents_command_json_output(self) -> None:
         """Test agents command with JSON output."""
         with (
             patch(
@@ -890,7 +907,7 @@ class TestDiagnosticsCLI:
             assert '"agents"' in result.stdout
             assert '"refiner"' in result.stdout
 
-    def test_config_command_validate_only(self):
+    def test_config_command_validate_only(self) -> None:
         """Test config command with validate only flag."""
         mock_config_report = {
             "timestamp": datetime.now().isoformat(),
@@ -912,10 +929,11 @@ class TestDiagnosticsCLI:
             result = self.runner.invoke(app, ["config", "--validate"])
 
             assert result.exit_code == 0
-            assert "Configuration has 1 errors" in result.stdout
-            assert "Missing API key" in result.stdout
+            clean_output = self.strip_ansi_codes(result.stdout)
+            assert "Configuration has 1 errors" in clean_output
+            assert "Missing API key" in clean_output
 
-    def test_full_command_with_window_filter(self):
+    def test_full_command_with_window_filter(self) -> None:
         """Test full diagnostics command with time window."""
         timestamp = datetime.now()
 

@@ -11,7 +11,7 @@ This document provides a comprehensive survey of projects, tools, and ecosystems
 **Current Status**: CogniVault has achieved production readiness with sophisticated features that differentiate it within the multi-agent ecosystem:
 
 ### Key Differentiators
-- **Production-Ready LangGraph Integration**: Full LangGraph 0.5.3 StateGraph orchestration with advanced DAG execution
+- **Production-Ready LangGraph Integration**: Full LangGraph 0.6.4 StateGraph orchestration with advanced DAG execution
 - **Configurable Prompt Composition**: YAML-driven agent behavior customization without code changes
 - **Enhanced Routing System**: Multi-axis classification with intelligent context-aware agent selection
 - **Enterprise Observability**: Comprehensive event-driven architecture with correlation tracking
@@ -30,7 +30,7 @@ This document provides a comprehensive survey of projects, tools, and ecosystems
 | Project | Summary | CogniVault Relationship | Strategic Analysis |
 |---------|---------|-------------------------|-------------------|
 | **AutoGPT** | Pioneering autonomous agent loop that chains LLM reasoning steps | Early inspiration for agent orchestration | CogniVault provides more structured, production-ready orchestration |
-| **LangGraph** | State machine-based agent orchestration built on LangChain | **Direct Integration** - Full LangGraph 0.5.3 StateGraph implementation | CogniVault enhances LangGraph with routing intelligence and enterprise features |
+| **LangGraph** | State machine-based agent orchestration built on LangChain | **Direct Integration** - Full LangGraph 0.6.4 StateGraph implementation | CogniVault enhances LangGraph with routing intelligence and enterprise features |
 | **CAMEL** | Role-playing multi-agent cooperation environment | Inspired contextual agent roles and multi-perspective analysis | CogniVault's 4-agent pipeline provides more structured analysis workflow |
 | **CrewAI** | Agent collaboration with workflows and memory support | Similar task-specific agent approach | CogniVault differentiates with configurable prompt composition and enhanced routing |
 | **Swarm (OpenAI)** | Lightweight multi-agent orchestration | Educational/research framework | CogniVault provides production-ready enterprise features vs. educational focus |

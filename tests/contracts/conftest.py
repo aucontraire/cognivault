@@ -15,7 +15,9 @@ API_IMPLEMENTATIONS: List[Type[OrchestrationAPI]] = [
 
 
 @pytest.fixture(params=API_IMPLEMENTATIONS)
-async def orchestration_api(request) -> AsyncGenerator[OrchestrationAPI, None]:
+async def orchestration_api(
+    request: pytest.FixtureRequest,
+) -> AsyncGenerator[OrchestrationAPI, None]:
     """
     Parametrized fixture that runs contract tests against all implementations.
 

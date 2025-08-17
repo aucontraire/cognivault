@@ -257,7 +257,7 @@ class MetricsCollector:
     - LLM API usage
     """
 
-    def __init__(self, max_entries: int = 10000):
+    def __init__(self, max_entries: int = 10000) -> None:
         """
         Initialize metrics collector.
 
@@ -369,7 +369,9 @@ class MetricsCollector:
             )
             self._metrics[key].append(entry)
 
-    def timing_context(self, name: str, labels: Optional[Dict[str, str]] = None):
+    def timing_context(
+        self, name: str, labels: Optional[Dict[str, str]] = None
+    ) -> "TimingContext":
         """
         Context manager for timing operations.
 
@@ -848,17 +850,17 @@ class TimingContext:
         collector: MetricsCollector,
         name: str,
         labels: Optional[Dict[str, str]] = None,
-    ):
+    ) -> None:
         self.collector = collector
         self.name = name
         self.labels = labels
-        self.start_time = None
+        self.start_time: Optional[float] = None
 
-    def __enter__(self):
+    def __enter__(self) -> "TimingContext":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self.start_time is not None:
             duration_ms = (time.time() - self.start_time) * 1000
             self.collector.record_timing(self.name, duration_ms, self.labels)

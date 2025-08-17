@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CogniVault WebSocket Test - Agent Events</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .event { 
+            margin: 8px 0; 
+            padding: 12px; 
+            border-left: 4px solid #007cba;
+            background: #f8f9fa;
+            border-radius: 0 6px 6px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .workflow-started { border-left-color: #198754; background: #d1e7dd; }
+        .agent-execution-started { border-left-color: #fd7e14; background: #fff3cd; }
+        .agent-execution-completed { border-left-color: #0d6efd; background: #cff4fc; }
+        .workflow-completed { border-left-color: #198754; background: #d1e7dd; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .connection { border-left-color: #6f42c1; background: #e2e3f0; }
+        
+        #messages {
+            height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .status-badge {
+            font-size: 0.9em;
+            padding: 6px 12px;
+        }
+        
+        .curl-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .markdown-export-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .form-control, .form-check-input {
+            border-radius: 6px;
+        }
+        
+        .btn {
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .card-header {
+            border-radius: 8px 8px 0 0 !important;
+        }
+        
+        .event-counter {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="text-center">
+                    <h1 class="display-5 fw-bold text-primary mb-2">
+                        <i class="bi bi-broadcast"></i> CogniVault WebSocket Test
+                    </h1>
+                    <p class="lead text-muted">Real-time Agent Events & Workflow Monitoring</p>
+                    <div class="mt-2">
+                        <a href="http://localhost:8001/docs" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-book"></i> API Documentation
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-gear"></i> Control Panel
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- WebSocket Connection -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="correlationId" class="form-label fw-semibold">
+                                    <i class="bi bi-tag"></i> Correlation ID
+                                </label>
+                                <input type="text" class="form-control" id="correlationId" value="test-agent-events-789" />
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end gap-2">
+                                <button class="btn btn-success" onclick="connect()">
+                                    <i class="bi bi-plug"></i> Connect
+                                </button>
+                                <button class="btn btn-warning" onclick="disconnect()">
+                                    <i class="bi bi-plug-fill"></i> Disconnect
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearMessages()">
+                                    <i class="bi bi-trash"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Query Configuration -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label for="customQuery" class="form-label fw-semibold">
+                                    <i class="bi bi-question-circle"></i> Query
+                                </label>
+                                <input type="text" class="form-control" id="customQuery" 
+                                       value="What are the key concepts in artificial intelligence?" 
+                                       placeholder="Enter your query here..." />
+                            </div>
+                        </div>
+
+                        <!-- Export Options -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="exportMd" checked>
+                                    <label class="form-check-label" for="exportMd">
+                                        <i class="bi bi-file-earmark-text"></i> Export to Markdown
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row">
+                            <div class="col-12 d-flex gap-2">
+                                <button class="btn btn-primary" onclick="startWorkflow()">
+                                    <i class="bi bi-play-circle"></i> Start Workflow
+                                </button>
+                                <button class="btn btn-info" onclick="generateCurlCommand()">
+                                    <i class="bi bi-terminal"></i> Generate curl
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- curl Command Section -->
+        <div class="row mb-4" style="display: none;" id="curlCommandDiv">
+            <div class="col-12">
+                <div class="curl-section">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-terminal"></i> Generated curl Command
+                    </h6>
+                    <textarea id="curlCommand" class="form-control" rows="4" 
+                              style="font-family: 'Courier New', monospace; font-size: 13px;" readonly></textarea>
+                    <button class="btn btn-outline-primary mt-2" onclick="copyCurlCommand()">
+                        <i class="bi bi-clipboard"></i> Copy to Clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status and Events -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-activity"></i> Live Event Stream
+                        </h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="small">
+                                <i class="bi bi-reception-4"></i> Status: 
+                                <span id="status" class="badge bg-danger status-badge">Disconnected</span>
+                            </span>
+                            <span class="small">
+                                <i class="bi bi-list-ol"></i> Events: 
+                                <span id="eventCounter" class="event-counter">0</span>
+                            </span>
+                            <button class="btn btn-outline-light btn-sm" onclick="copyAllEvents()" title="Copy all events to clipboard">
+                                <i class="bi bi-clipboard"></i> Copy All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="messages"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Markdown Export Results -->
+        <div class="row mt-4" style="display: none;" id="markdownExportDiv">
+            <div class="col-12">
+                <div class="markdown-export-section">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-file-earmark-check"></i> Markdown Export Results
+                    </h6>
+                    <div id="markdownExportDetails" 
+                         style="font-family: 'Courier New', monospace; font-size: 13px; white-space: pre-wrap;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let messagesDiv = document.getElementById('messages');
+        let statusDiv = document.getElementById('status');
+        let eventCount = 0;
+
+        function connect() {
+            const correlationId = document.getElementById('correlationId').value;
+            if (!correlationId) {
+                alert('Please enter a correlation ID');
+                return;
+            }
+
+            disconnect(); // Close existing connection
+
+            const wsUrl = `ws://localhost:8001/ws/query/${correlationId}`;
+            console.log('Connecting to:', wsUrl);
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = function(event) {
+                console.log('WebSocket connected');
+                statusDiv.textContent = 'Connected to ' + correlationId;
+                statusDiv.className = 'badge bg-success status-badge';
+                addMessage('🟢 Connected to WebSocket for correlation ID: ' + correlationId, 'connection');
+            };
+            
+            socket.onmessage = function(event) {
+                eventCount++;
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+                
+                const timestamp = new Date().toLocaleTimeString();
+                const eventType = data.type || 'unknown';
+                const agentName = data.agent_name || 'system';
+                const progress = data.progress || 0;
+                const message = data.message || 'No message';
+                
+                let eventClass = eventType.toLowerCase().replace(/[._]/g, '-');
+                
+                const formattedMessage = `[${timestamp}] Event #${eventCount}
+Type: ${eventType}
+Agent: ${agentName}
+Progress: ${progress}%
+Message: ${message}
+Raw Data: ${JSON.stringify(data, null, 2)}`;
+                
+                addMessage(formattedMessage, eventClass);
+            };
+            
+            socket.onclose = function(event) {
+                console.log('WebSocket disconnected:', event.code, event.reason);
+                statusDiv.textContent = 'Disconnected (' + event.code + ')';
+                statusDiv.className = 'badge bg-danger status-badge';
+                addMessage('🔴 WebSocket disconnected: ' + event.code + ' - ' + event.reason, 'connection');
+            };
+            
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                statusDiv.textContent = 'Error';
+                statusDiv.className = 'badge bg-danger status-badge';
+                addMessage('❌ WebSocket error: ' + error, 'error');
+            };
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+        }
+
+        function addMessage(message, className = '') {
+            const div = document.createElement('div');
+            div.className = 'event ' + className;
+            div.textContent = message;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Update event counter
+            document.getElementById('eventCounter').textContent = eventCount;
+        }
+
+        function clearMessages() {
+            messagesDiv.innerHTML = '';
+            eventCount = 0;
+            document.getElementById('eventCounter').textContent = '0';
+            addMessage('🗑️ Event history cleared.', 'connection');
+        }
+
+        function startWorkflow() {
+            const correlationId = document.getElementById('correlationId').value;
+            const customQuery = document.getElementById('customQuery').value;
+            
+            if (!correlationId) {
+                alert('Please enter a correlation ID');
+                return;
+            }
+            
+            if (!customQuery) {
+                alert('Please enter a query');
+                return;
+            }
+
+            addMessage('🚀 Starting workflow with correlation ID: ' + correlationId, 'connection');
+            addMessage('📝 Query: ' + customQuery, 'connection');
+            
+            const exportMd = document.getElementById('exportMd').checked;
+            const requestBody = {
+                query: customQuery,
+                correlation_id: correlationId
+            };
+            
+            if (exportMd) {
+                requestBody.export_md = true;
+            }
+            
+            fetch('http://localhost:8001/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Workflow started:', data);
+                addMessage('✅ Workflow API call completed. Check events above for real-time progress.', 'connection');
+                
+                // Display markdown export results if available
+                if (data.markdown_export) {
+                    displayMarkdownExportResults(data.markdown_export);
+                }
+            })
+            .catch(error => {
+                console.error('Workflow start error:', error);
+                addMessage('❌ Workflow start error: ' + error, 'error');
+            });
+        }
+
+        function generateCurlCommand() {
+            const correlationId = document.getElementById('correlationId').value;
+            const customQuery = document.getElementById('customQuery').value;
+            
+            if (!correlationId) {
+                alert('Please enter a correlation ID');
+                return;
+            }
+            
+            if (!customQuery) {
+                alert('Please enter a query');
+                return;
+            }
+
+            const exportMd = document.getElementById('exportMd').checked;
+            let curlData = `{
+    "query": "${customQuery.replace(/"/g, '\\"')}",
+    "correlation_id": "${correlationId}"`;
+            
+            if (exportMd) {
+                curlData += `,
+    "export_md": true`;
+            }
+            
+            curlData += `
+  }`;
+            
+            const curlCommand = `curl -X POST http://localhost:8001/api/query \\
+  -H "Content-Type: application/json" \\
+  -d '${curlData}'`;
+
+            document.getElementById('curlCommand').value = curlCommand;
+            document.getElementById('curlCommandDiv').style.display = 'block';
+            addMessage('📋 curl command generated. Copy and run in terminal.', 'connection');
+        }
+
+        function copyCurlCommand() {
+            const curlCommand = document.getElementById('curlCommand');
+            curlCommand.select();
+            curlCommand.setSelectionRange(0, 99999); // For mobile devices
+            navigator.clipboard.writeText(curlCommand.value).then(function() {
+                addMessage('✅ curl command copied to clipboard!', 'connection');
+            }, function() {
+                addMessage('❌ Failed to copy to clipboard. Please copy manually.', 'error');
+            });
+        }
+
+        function copyAllEvents() {
+            const messagesDiv = document.getElementById('messages');
+            const events = messagesDiv.querySelectorAll('.event');
+            
+            if (events.length === 0) {
+                addMessage('⚠️ No events to copy.', 'connection');
+                return;
+            }
+            
+            // Extract text content from all events
+            let allEventsText = '';
+            events.forEach((event, index) => {
+                allEventsText += `Event ${index + 1}:\n${event.textContent.trim()}\n\n`;
+            });
+            
+            // Add header with metadata
+            const correlationId = document.getElementById('correlationId').value;
+            const timestamp = new Date().toISOString();
+            const header = `CogniVault WebSocket Events Export\nCorrelation ID: ${correlationId}\nExported: ${timestamp}\nTotal Events: ${events.length}\n\n${'='.repeat(80)}\n\n`;
+            
+            const fullText = header + allEventsText;
+            
+            navigator.clipboard.writeText(fullText).then(function() {
+                addMessage(`✅ ${events.length} events copied to clipboard!`, 'connection');
+            }, function() {
+                // Fallback: show text in a modal-like alert for manual copy
+                const textarea = document.createElement('textarea');
+                textarea.value = fullText;
+                textarea.style.position = 'fixed';
+                textarea.style.top = '0';
+                textarea.style.left = '0';
+                textarea.style.width = '100%';
+                textarea.style.height = '100%';
+                textarea.style.zIndex = '9999';
+                textarea.style.backgroundColor = '#fff';
+                textarea.style.border = '2px solid #007cba';
+                document.body.appendChild(textarea);
+                textarea.select();
+                addMessage('📋 Events displayed for manual copy. Press Ctrl+C then click anywhere to close.', 'connection');
+                
+                // Remove on click
+                document.addEventListener('click', function removeTextarea() {
+                    if (document.body.contains(textarea)) {
+                        document.body.removeChild(textarea);
+                    }
+                    document.removeEventListener('click', removeTextarea);
+                }, { once: true });
+            });
+        }
+
+        function displayMarkdownExportResults(markdownExport) {
+            const exportDiv = document.getElementById('markdownExportDiv');
+            const detailsDiv = document.getElementById('markdownExportDetails');
+            
+            if (markdownExport.error) {
+                detailsDiv.textContent = `❌ Export Error: ${markdownExport.message || markdownExport.error}\nTimestamp: ${markdownExport.export_timestamp}`;
+                detailsDiv.style.borderLeft = '4px solid #dc3545';
+                detailsDiv.style.background = '#f8d7da';
+            } else {
+                let details = `✅ Markdown Export Successful\n`;
+                details += `📁 File: ${markdownExport.filename}\n`;
+                details += `📂 Path: ${markdownExport.file_path}\n`;
+                details += `🕒 Exported: ${markdownExport.export_timestamp}\n`;
+                
+                if (markdownExport.suggested_topics && markdownExport.suggested_topics.length > 0) {
+                    details += `🏷️  Topics: ${markdownExport.suggested_topics.join(', ')}\n`;
+                }
+                
+                if (markdownExport.suggested_domain) {
+                    details += `🎯 Domain: ${markdownExport.suggested_domain}\n`;
+                }
+                
+                detailsDiv.textContent = details;
+                detailsDiv.style.borderLeft = '4px solid #198754';
+                detailsDiv.style.background = '#d1e7dd';
+            }
+            
+            exportDiv.style.display = 'block';
+            addMessage('📄 Markdown export results displayed below.', 'connection');
+        }
+
+        // Auto-connect on page load for convenience
+        window.onload = function() {
+            // Don't auto-connect, let user choose
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,8 +1,9 @@
 from unittest.mock import patch
 from cognivault.utils.versioning import get_git_version
+from typing import Any
 
 
-def test_get_git_version_success():
+def test_get_git_version_success() -> None:
     """Test successful git version retrieval."""
     with patch(
         "cognivault.utils.versioning.subprocess.check_output"
@@ -18,7 +19,7 @@ def test_get_git_version_success():
         )
 
 
-def test_get_git_version_exception_returns_default():
+def test_get_git_version_exception_returns_default() -> None:
     """Test that exceptions return the default value."""
     with patch(
         "cognivault.utils.versioning.subprocess.check_output"
@@ -30,7 +31,7 @@ def test_get_git_version_exception_returns_default():
         assert result == "unknown"
 
 
-def test_get_git_version_custom_default():
+def test_get_git_version_custom_default() -> None:
     """Test that custom default value is returned on exception."""
     with patch(
         "cognivault.utils.versioning.subprocess.check_output"
@@ -42,7 +43,7 @@ def test_get_git_version_custom_default():
         assert result == "custom-default"
 
 
-def test_get_git_version_strips_whitespace():
+def test_get_git_version_strips_whitespace() -> None:
     """Test that whitespace is properly stripped from git output."""
     with patch(
         "cognivault.utils.versioning.subprocess.check_output"

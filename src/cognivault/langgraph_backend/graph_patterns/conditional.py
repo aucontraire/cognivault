@@ -16,7 +16,7 @@ from enum import Enum
 
 from .base import GraphPattern
 from ..semantic_validation import (
-    SemanticValidator,
+    WorkflowSemanticValidator,
     SemanticValidationResult,
     ValidationSeverity,
 )
@@ -86,7 +86,7 @@ class ContextAnalysis:
 class ContextAnalyzer:
     """Analyzes query context to determine complexity and routing needs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the context analyzer with domain knowledge."""
         self.technical_patterns = [
             r"\b(?:algorithm|implementation|architecture|framework|methodology)\b",
@@ -433,8 +433,8 @@ class EnhancedConditionalPattern(GraphPattern):
     def __init__(
         self,
         config: Optional[RoutingConfig] = None,
-        semantic_validator: Optional[SemanticValidator] = None,
-    ):
+        semantic_validator: Optional[WorkflowSemanticValidator] = None,
+    ) -> None:
         """
         Initialize enhanced conditional pattern.
 
@@ -442,7 +442,7 @@ class EnhancedConditionalPattern(GraphPattern):
         ----------
         config : Optional[RoutingConfig]
             Routing configuration, defaults to standard config
-        semantic_validator : Optional[SemanticValidator]
+        semantic_validator : Optional[WorkflowSemanticValidator]
             Semantic validator for domain-specific rules
         """
         self.config = config or RoutingConfig()
@@ -991,7 +991,7 @@ class EnhancedConditionalPattern(GraphPattern):
         return stats
 
 
-class ConditionalPatternValidator(SemanticValidator):
+class ConditionalPatternValidator(WorkflowSemanticValidator):
     """
     Specialized semantic validator for conditional patterns.
 
@@ -999,7 +999,7 @@ class ConditionalPatternValidator(SemanticValidator):
     and provides contextual validation based on routing strategies.
     """
 
-    def __init__(self, strict_mode: bool = False):
+    def __init__(self, strict_mode: bool = False) -> None:
         """
         Initialize conditional pattern validator.
 

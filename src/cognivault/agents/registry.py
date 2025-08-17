@@ -6,7 +6,8 @@ their dependencies, and creation logic. It enables dynamic agent loading
 while maintaining type safety and proper dependency injection.
 """
 
-from typing import Dict, Type, Optional, List, Literal
+from typing import Dict, Type, Optional, List, Literal, Any, cast
+
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.exceptions import (
@@ -14,6 +15,14 @@ from cognivault.exceptions import (
     FailurePropagationStrategy,
 )
 from cognivault.agents.metadata import AgentMetadata
+from cognivault.agents.protocols import (
+    AgentConstructorPattern,
+    LLMRequiredAgentProtocol,
+    LLMOptionalAgentProtocol,
+    StandardAgentProtocol,
+    FlexibleAgentProtocol,
+    AgentWithLLMProtocol,
+)
 
 
 class AgentRegistry:
@@ -34,6 +43,7 @@ class AgentRegistry:
         name: str,
         agent_class: Type[BaseAgent],
         requires_llm: bool = False,
+        constructor_pattern: Optional[AgentConstructorPattern] = None,
         description: str = "",
         dependencies: Optional[List[str]] = None,
         is_critical: bool = True,
@@ -62,6 +72,8 @@ class AgentRegistry:
             The agent class to register
         requires_llm : bool, optional
             Whether this agent requires an LLM interface
+        constructor_pattern : AgentConstructorPattern, optional
+            Constructor pattern for agent instantiation. If None, pattern will be auto-detected
         description : str, optional
             Human-readable description of the agent
         dependencies : List[str], optional
@@ -92,29 +104,36 @@ class AgentRegistry:
         if name in self._agents:
             raise ValueError(f"Agent '{name}' is already registered")
 
-        metadata = AgentMetadata(
+        # Auto-detect constructor pattern if not provided
+        if constructor_pattern is None:
+            constructor_pattern = self._detect_constructor_pattern(
+                agent_class, requires_llm
+            )
+
+        metadata = AgentMetadata.create_for_registry(
             name=name,
             agent_class=agent_class,
             requires_llm=requires_llm,
+            constructor_pattern=constructor_pattern,
             description=description,
-            dependencies=dependencies or [],
+            dependencies=dependencies,
             is_critical=is_critical,
             failure_strategy=failure_strategy,
-            fallback_agents=fallback_agents or [],
-            health_checks=health_checks or [],
+            fallback_agents=fallback_agents,
+            health_checks=health_checks,
             # Multi-axis classification
             cognitive_speed=cognitive_speed,
             cognitive_depth=cognitive_depth,
             processing_pattern=processing_pattern,
             primary_capability=primary_capability,
-            secondary_capabilities=secondary_capabilities or [],
+            secondary_capabilities=secondary_capabilities,
             pipeline_role=pipeline_role,
             bounded_context=bounded_context,
         )
         self._agents[name] = metadata
 
     def create_agent(
-        self, name: str, llm: Optional[LLMInterface] = None, **kwargs
+        self, name: str, llm: Optional[LLMInterface] = None, **kwargs: Any
     ) -> BaseAgent:
         """
         Create an agent instance by name.
@@ -149,27 +168,130 @@ class AgentRegistry:
         if metadata.requires_llm and llm is None:
             raise ValueError(f"Agent '{name}' requires an LLM interface")
 
-        # Create agent with appropriate parameters
+        # Create agent with appropriate parameters using protocol-based approach
         try:
-            # For agents that support configurable names, try to pass the name
-            import inspect
+            agent_cls = metadata.agent_class
+            pattern = metadata.constructor_pattern
 
-            constructor_params = inspect.signature(
-                metadata.agent_class.__init__
-            ).parameters
+            # Use pattern-based construction to eliminate runtime introspection and type ignores
+            if pattern == AgentConstructorPattern.LLM_REQUIRED:
+                # Type-safe construction for LLM-required agents
+                # We know LLM is not None because of the check above
+                assert llm is not None
+                agent_constructor = cast(Type[LLMRequiredAgentProtocol], agent_cls)
 
-            if metadata.requires_llm:
-                if "name" in constructor_params:
-                    return metadata.agent_class(llm=llm, name=name, **kwargs)  # type: ignore
-                else:
-                    return metadata.agent_class(llm=llm, **kwargs)  # type: ignore
-            else:
-                if "name" in constructor_params:
-                    return metadata.agent_class(name=name, **kwargs)
-                else:
-                    return metadata.agent_class(**kwargs)
+                # Check if constructor also accepts 'name' parameter
+                import inspect
+
+                try:
+                    sig = inspect.signature(agent_cls.__init__)
+                    if "name" in sig.parameters:
+                        agent_instance = agent_constructor(llm=llm, name=name, **kwargs)
+                    else:
+                        agent_instance = agent_constructor(llm=llm, **kwargs)
+                except Exception:
+                    # Fallback to basic construction
+                    agent_instance = agent_constructor(llm=llm, **kwargs)
+
+            elif pattern == AgentConstructorPattern.LLM_OPTIONAL:
+                # Type-safe construction for LLM-optional agents
+                # Protocol-based approach with strategic type ignore for complex Union type
+                agent_constructor = cast(Type[LLMOptionalAgentProtocol], agent_cls)
+                agent_instance = agent_constructor(llm=llm, **kwargs)  # type: ignore[arg-type]
+
+            elif pattern == AgentConstructorPattern.STANDARD:
+                # Type-safe construction for standard agents
+                agent_constructor = cast(Type[StandardAgentProtocol], agent_cls)
+                agent_instance = agent_constructor(name=name, **kwargs)
+
+            else:  # FLEXIBLE pattern
+                # Fallback to flexible construction with minimal inspection
+                import inspect
+
+                try:
+                    constructor_params = inspect.signature(
+                        agent_cls.__init__
+                    ).parameters
+                    agent_constructor = cast(Type[FlexibleAgentProtocol], agent_cls)
+                    if "name" in constructor_params:
+                        agent_instance = agent_constructor(name=name, **kwargs)
+                    elif "llm" in constructor_params and llm is not None:
+                        agent_instance = agent_constructor(llm=llm, **kwargs)
+                    else:
+                        agent_instance = agent_constructor(**kwargs)
+                except Exception:
+                    # Last resort: try minimal construction
+                    agent_constructor = cast(Type[FlexibleAgentProtocol], agent_cls)
+                    agent_instance = agent_constructor(**kwargs)
+
+            # Ensure we return a BaseAgent instance
+            if not isinstance(agent_instance, BaseAgent):
+                raise ValueError(
+                    f"Agent '{name}' constructor did not return a BaseAgent instance"
+                )
+
+            return agent_instance
+
         except Exception as e:
             raise ValueError(f"Failed to create agent '{name}': {e}") from e
+
+    def create_agent_with_llm(
+        self, name: str, llm: Optional[LLMInterface] = None, **kwargs: Any
+    ) -> AgentWithLLMProtocol:
+        """
+        Create an agent that has an LLM attribute, with proper type hinting.
+
+        This method provides type-safe access to agents that have the 'llm' attribute
+        for testing and other scenarios where LLM access is needed.
+
+        Parameters
+        ----------
+        name : str
+            Name of the agent to create. Must be an agent with LLM capabilities.
+        llm : LLMInterface, optional
+            LLM interface for agents that require it
+        **kwargs
+            Additional keyword arguments for agent construction
+
+        Returns
+        -------
+        AgentWithLLMProtocol
+            Agent instance that is guaranteed to have an 'llm' attribute
+
+        Raises
+        ------
+        ValueError
+            If agent name is not registered or doesn't support LLM attributes
+        """
+        # Check if the agent exists and whether it's expected to have LLM attributes
+        if name not in self._agents:
+            raise ValueError(
+                f"Unknown agent: '{name}'. Available agents: {list(self.get_available_agents())}"
+            )
+
+        metadata = self._agents[name]
+
+        # For safety, we check if the agent is one of the known LLM-capable patterns
+        # This allows both core agents and custom agents with LLM requirements
+        if not (
+            metadata.requires_llm
+            or metadata.constructor_pattern
+            in [
+                AgentConstructorPattern.LLM_REQUIRED,
+                AgentConstructorPattern.LLM_OPTIONAL,
+            ]
+            or name in {"refiner", "critic", "historian", "synthesis"}
+        ):
+            raise ValueError(
+                f"Agent '{name}' is not expected to have LLM attributes. "
+                f"Use create_agent() for non-LLM agents."
+            )
+
+        # Create the agent using the standard method
+        agent = self.create_agent(name, llm, **kwargs)
+
+        # Cast to the protocol - this is safe because we verified the agent type
+        return cast(AgentWithLLMProtocol, agent)
 
     def get_available_agents(self) -> List[str]:
         """Get list of all registered agent names."""
@@ -418,6 +540,55 @@ class AgentRegistry:
         """
         return self._agents.get(agent_name)
 
+    def _detect_constructor_pattern(
+        self, agent_class: Type[BaseAgent], requires_llm: bool
+    ) -> AgentConstructorPattern:
+        """
+        Automatically detect the constructor pattern for an agent class.
+
+        Parameters
+        ----------
+        agent_class : Type[BaseAgent]
+            The agent class to analyze
+        requires_llm : bool
+            Whether the agent requires an LLM interface
+
+        Returns
+        -------
+        AgentConstructorPattern
+            The detected constructor pattern
+        """
+        import inspect
+
+        try:
+            sig = inspect.signature(agent_class.__init__)
+            params = list(sig.parameters.keys())
+
+            # Remove 'self' parameter
+            params = [p for p in params if p != "self"]
+
+            if not params:
+                return AgentConstructorPattern.FLEXIBLE
+
+            first_param = params[0]
+
+            # Check for different patterns based on first parameter
+            if first_param == "llm":
+                param = sig.parameters[first_param]
+                # Check if LLM is required (no default) or optional (has default)
+                if param.default == inspect.Parameter.empty and requires_llm:
+                    return AgentConstructorPattern.LLM_REQUIRED
+                else:
+                    return AgentConstructorPattern.LLM_OPTIONAL
+            elif first_param == "name":
+                return AgentConstructorPattern.STANDARD
+            else:
+                return AgentConstructorPattern.FLEXIBLE
+
+        except Exception:
+            # Fallback to flexible if inspection fails
+            return AgentConstructorPattern.FLEXIBLE
+
     def _register_core_agents(self) -> None:
         """Register the core agents that ship with CogniVault with conditional execution support."""
         # Import here to avoid circular imports
@@ -425,6 +596,14 @@ class AgentRegistry:
         from cognivault.agents.critic.agent import CriticAgent
         from cognivault.agents.historian.agent import HistorianAgent
         from cognivault.agents.synthesis.agent import SynthesisAgent
+
+        # Now that BaseAgent is imported, rebuild the AgentMetadata model
+        from cognivault.agents.metadata import AgentMetadata
+
+        # Import BaseAgent into the current namespace so model_rebuild can find it
+        from cognivault.agents.base_agent import BaseAgent
+
+        AgentMetadata.model_rebuild(_types_namespace={"BaseAgent": BaseAgent})
 
         # Register core agents with failure propagation strategies and multi-axis classification
         self.register(
@@ -527,6 +706,7 @@ def register_agent(
     name: str,
     agent_class: Type[BaseAgent],
     requires_llm: bool = False,
+    constructor_pattern: Optional[AgentConstructorPattern] = None,
     description: str = "",
     dependencies: Optional[List[str]] = None,
     is_critical: bool = True,
@@ -557,6 +737,8 @@ def register_agent(
         The agent class to register
     requires_llm : bool, optional
         Whether this agent requires an LLM interface
+    constructor_pattern : AgentConstructorPattern, optional
+        Constructor pattern for agent instantiation. If None, pattern will be auto-detected
     description : str, optional
         Human-readable description of the agent
     dependencies : List[str], optional
@@ -569,12 +751,27 @@ def register_agent(
         Alternative agents to try if this one fails
     health_checks : List[str], optional
         Health check functions to run before executing
+    cognitive_speed : str, optional
+        Agent cognitive speed: "fast", "slow", "adaptive"
+    cognitive_depth : str, optional
+        Agent cognitive depth: "shallow", "deep", "variable"
+    processing_pattern : str, optional
+        Processing pattern: "atomic", "composite", "chain"
+    primary_capability : str, optional
+        Primary capability (e.g., "critical_analysis", "translation")
+    secondary_capabilities : List[str], optional
+        Additional capabilities this agent provides
+    pipeline_role : str, optional
+        Role in pipeline: "entry", "intermediate", "terminal", "standalone"
+    bounded_context : str, optional
+        Bounded context: "reflection", "transformation", "retrieval"
     """
     registry = get_agent_registry()
     registry.register(
         name,
         agent_class,
         requires_llm,
+        constructor_pattern,
         description,
         dependencies,
         is_critical,
@@ -591,7 +788,9 @@ def register_agent(
     )
 
 
-def create_agent(name: str, llm: Optional[LLMInterface] = None, **kwargs) -> BaseAgent:
+def create_agent(
+    name: str, llm: Optional[LLMInterface] = None, **kwargs: Any
+) -> BaseAgent:
     """
     Create an agent using the global registry.
 
@@ -611,6 +810,30 @@ def create_agent(name: str, llm: Optional[LLMInterface] = None, **kwargs) -> Bas
     """
     registry = get_agent_registry()
     return registry.create_agent(name, llm, **kwargs)
+
+
+def create_agent_with_llm(
+    name: str, llm: Optional[LLMInterface] = None, **kwargs: Any
+) -> AgentWithLLMProtocol:
+    """
+    Create an agent with LLM attributes using the global registry.
+
+    Parameters
+    ----------
+    name : str
+        Name of the agent to create. Must be an LLM-capable agent.
+    llm : LLMInterface, optional
+        LLM interface for agents that require it
+    **kwargs
+        Additional keyword arguments for agent construction
+
+    Returns
+    -------
+    AgentWithLLMProtocol
+        Agent instance that is guaranteed to have an 'llm' attribute
+    """
+    registry = get_agent_registry()
+    return registry.create_agent_with_llm(name, llm, **kwargs)
 
 
 def get_agent_metadata(name: str) -> Optional[AgentMetadata]:

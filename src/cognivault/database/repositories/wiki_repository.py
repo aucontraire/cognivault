@@ -5,6 +5,7 @@ Wiki repository with knowledge synthesis and versioning support.
 from uuid import UUID
 
 from sqlalchemy import and_, desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from cognivault.database.models import WikiEntry
@@ -23,7 +24,7 @@ class WikiRepository(BaseRepository[WikiEntry]):
     knowledge evolution tracking, and multi-source synthesis.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, WikiEntry)
 
     async def create_wiki_entry(
@@ -227,10 +228,10 @@ class WikiRepository(BaseRepository[WikiEntry]):
                 related_topics = list(set(related_topics))  # Remove duplicates
 
             # Create new version - cast to avoid Column type issues
-            from typing import cast
+            from typing import cast, Any
 
             new_version = await self.create_wiki_entry(
-                topic_id=cast(UUID, current_entry.topic_id),
+                topic_id=current_entry.topic_id,
                 content=new_content,
                 question_id=cast(UUID | None, current_entry.question_id),
                 version=cast(int, current_entry.version) + 1,
@@ -337,7 +338,7 @@ class WikiRepository(BaseRepository[WikiEntry]):
                 for entry in entries:
                     from typing import cast
 
-                    entry_topic_id = cast(UUID, entry.topic_id)
+                    entry_topic_id = entry.topic_id
                     entry_version = cast(int, entry.version)
                     if (
                         entry_topic_id not in topic_latest

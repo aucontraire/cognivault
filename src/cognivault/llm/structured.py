@@ -7,12 +7,12 @@ Pydantic AI to ensure structured, validated responses from language models.
 
 import asyncio
 import time
-from typing import Optional, Type, TypeVar, Dict, Any, Callable, Union
+from typing import Optional, Type, TypeVar, Dict, Any, Callable, cast
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 
-from .llm_interface import LLMInterface, LLMResponse
+from .llm_interface import LLMInterface
 from cognivault.observability import get_logger, get_observability_context
 from cognivault.exceptions import LLMError, LLMValidationError
 
@@ -41,7 +41,7 @@ class PydanticAIWrapper:
     specified Pydantic models, enabling structured data extraction.
     """
 
-    def __init__(self, llm_interface: LLMInterface):
+    def __init__(self, llm_interface: LLMInterface) -> None:
         """
         Initialize the Pydantic AI wrapper.
 
@@ -51,18 +51,27 @@ class PydanticAIWrapper:
         self.llm_interface = llm_interface
         self.logger = get_logger("llm.structured")
 
+        # Check if this is a mock LLM to avoid real API calls
+        self._is_mock = getattr(llm_interface, "_is_mock", False)
+
         # Extract model info for Pydantic AI
         if hasattr(llm_interface, "model") and llm_interface.model:
-            self.model = OpenAIModel(llm_interface.model)
+            model_name = llm_interface.model
         else:
-            self.model = OpenAIModel("gpt-4")  # Default fallback
+            model_name = "gpt-4"  # Default fallback
+
+        # For mock LLMs, don't create real OpenAI model
+        if self._is_mock:
+            self.model = model_name  # Store as string for mock
+        else:
+            self.model = OpenAIModel(model_name)
 
         # Cache agents to avoid recreation
-        self._agent_cache: Dict[str, Agent] = {}
+        self._agent_cache: Dict[str, Agent[None, Any]] = {}
 
     def _get_or_create_agent(
         self, response_model: Type[T], system_prompt: Optional[str] = None
-    ) -> Agent:
+    ) -> Agent[None, T]:
         """Get or create a cached Pydantic AI agent for the given model."""
         cache_key = f"{response_model.__name__}_{hash(system_prompt or '')}"
 
@@ -75,7 +84,111 @@ class PydanticAIWrapper:
                 system_prompt=agent_system_prompt,
             )
 
-        return self._agent_cache[cache_key]
+        return cast(Agent[None, T], self._agent_cache[cache_key])
+
+    async def _generate_mock_structured_response(
+        self,
+        prompt: str,
+        response_model: Type[T],
+        system_prompt: Optional[str] = None,
+        on_log: Optional[Callable[[str], None]] = None,
+        start_time: float = 0.0,
+    ) -> StructuredLLMResponse:
+        """Generate a mock structured response for testing."""
+        import json
+        from cognivault.agents.models import (
+            CriticOutput,
+            ProcessingMode,
+            ConfidenceLevel,
+        )
+
+        if on_log:
+            on_log(f"[MockStructuredLLM] Generating mock {response_model.__name__}")
+
+        # Use the underlying mock LLM to get a text response
+        llm_response = self.llm_interface.generate(prompt, system_prompt=system_prompt)
+        text_response = (
+            llm_response.text if hasattr(llm_response, "text") else "Mock response"
+        )
+
+        processing_time_ms = (time.time() - start_time) * 1000
+
+        # Create appropriate mock structured response based on the model type
+        content: BaseModel
+        if response_model.__name__ == "CriticOutput":
+            # Create a realistic CriticOutput for testing
+            content = CriticOutput(
+                agent_name="critic",
+                processing_mode=ProcessingMode.ACTIVE,
+                confidence=ConfidenceLevel.HIGH,
+                processing_time_ms=processing_time_ms,
+                critique_summary=text_response,
+                issues_detected=1 if "issue" in text_response.lower() else 0,
+                no_issues_found="issue" not in text_response.lower(),
+                assumptions=(
+                    ["assumption 1", "assumption 2"]
+                    if "assumption" in prompt.lower()
+                    else []
+                ),
+                logical_gaps=["gap 1"] if "logic" in prompt.lower() else [],
+                biases=["temporal"] if "bias" in prompt.lower() else [],
+                bias_details=(
+                    {"temporal": "Time-based bias detected"}
+                    if "bias" in prompt.lower()
+                    else {}
+                ),
+                alternate_framings=(
+                    ["alternative framing"] if "framing" in prompt.lower() else []
+                ),
+            )
+        else:
+            # For other models, try to create a basic instance with required fields
+            try:
+                # Get the model's field information
+                fields = response_model.model_fields
+                field_values: Dict[str, Any] = {}
+
+                # Fill required fields with mock data
+                for field_name, field_info in fields.items():
+                    if field_info.is_required():
+                        # Provide appropriate mock values based on field type
+                        annotation = field_info.annotation
+                        if annotation == str:
+                            field_values[field_name] = f"mock_{field_name}"
+                        elif annotation == int:
+                            field_values[field_name] = 1
+                        elif annotation == bool:
+                            field_values[field_name] = True
+                        elif annotation == float:
+                            field_values[field_name] = 1.0
+                        else:
+                            # For complex types, use a generic mock
+                            field_values[field_name] = f"mock_{field_name}"
+
+                content = response_model(**field_values)
+            except Exception as e:
+                # If we can't create the model, raise a validation error
+                raise LLMValidationError(
+                    message=f"Cannot create mock {response_model.__name__}: {e}",
+                    model_name=str(self.model),
+                    validation_errors=[str(e)],
+                    context={"prompt_length": len(prompt)},
+                )
+
+        if on_log:
+            on_log(
+                f"[MockStructuredLLM] Generated mock {response_model.__name__} in {processing_time_ms:.2f}ms"
+            )
+
+        return StructuredLLMResponse(
+            content=cast(BaseModel, content),
+            raw_response=text_response,
+            tokens_used=getattr(llm_response, "tokens_used", 150),
+            cost_usd=0.0,  # No cost for mock calls
+            processing_time_ms=processing_time_ms,
+            model_used=str(self.model),
+            validation_success=True,
+        )
 
     async def generate_structured(
         self,
@@ -113,6 +226,12 @@ class PydanticAIWrapper:
                 f"[StructuredLLM] Generating structured response for {response_model.__name__}"
             )
             on_log(f"[StructuredLLM] Prompt: {prompt[:100]}...")
+
+        # For mock LLMs, create a mock structured response directly
+        if self._is_mock:
+            return await self._generate_mock_structured_response(
+                prompt, response_model, system_prompt, on_log, start_time
+            )
 
         # Get or create the Pydantic AI agent
         agent = self._get_or_create_agent(response_model, system_prompt)

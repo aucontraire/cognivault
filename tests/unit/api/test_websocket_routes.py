@@ -6,6 +6,7 @@ with comprehensive coverage of connection handling, validation, and error scenar
 """
 
 import pytest
+from typing import Any
 import json
 from unittest.mock import Mock, AsyncMock, patch
 from fastapi.testclient import TestClient
@@ -18,11 +19,11 @@ from cognivault.api.routes.websockets import _is_valid_correlation_id
 class TestWebSocketRoutes:
     """Test suite for WebSocket route endpoints."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client and mocks for each test."""
         self.client = TestClient(app)
 
-    def test_workflow_progress_websocket_connection(self):
+    def test_workflow_progress_websocket_connection(self) -> None:
         """Test successful WebSocket connection to workflow progress endpoint."""
         correlation_id = "550e8400-e29b-41d4-a716-446655440000"
 
@@ -36,7 +37,7 @@ class TestWebSocketRoutes:
             assert data["progress"] == 0.0
             assert "Connected to workflow progress stream" in data["message"]
 
-    def test_workflow_progress_websocket_invalid_correlation_id(self):
+    def test_workflow_progress_websocket_invalid_correlation_id(self) -> None:
         """Test WebSocket connection rejection for invalid correlation ID."""
         invalid_ids = [
             "invalid@id",  # Invalid characters
@@ -51,7 +52,7 @@ class TestWebSocketRoutes:
                     pass  # Should not reach here
 
     @patch("cognivault.api.routes.websockets.websocket_manager")
-    def test_workflow_progress_websocket_subscription(self, mock_manager):
+    def test_workflow_progress_websocket_subscription(self, mock_manager: Mock) -> None:
         """Test that WebSocket connection properly subscribes to manager."""
         mock_manager.subscribe = AsyncMock()
         mock_manager.unsubscribe = AsyncMock()
@@ -72,7 +73,9 @@ class TestWebSocketRoutes:
             assert subscribe_call_args[0][1] is not None
 
     @patch("cognivault.api.routes.websockets.websocket_manager")
-    def test_workflow_progress_websocket_cleanup_on_disconnect(self, mock_manager):
+    def test_workflow_progress_websocket_cleanup_on_disconnect(
+        self, mock_manager: Mock
+    ) -> None:
         """Test that WebSocket disconnection properly cleans up subscription."""
         mock_manager.subscribe = AsyncMock()
         mock_manager.unsubscribe = AsyncMock()
@@ -86,7 +89,7 @@ class TestWebSocketRoutes:
         # Should have unsubscribed from manager
         mock_manager.unsubscribe.assert_called_once()
 
-    def test_websocket_health_check_connection(self):
+    def test_websocket_health_check_connection(self) -> None:
         """Test successful connection to WebSocket health check endpoint."""
         with self.client.websocket_connect("/ws/health") as websocket:
             # Should receive health status
@@ -100,7 +103,7 @@ class TestWebSocketRoutes:
             assert isinstance(data["active_workflows"], int)
             assert isinstance(data["correlation_ids"], list)
 
-    def test_websocket_health_check_ping_pong(self):
+    def test_websocket_health_check_ping_pong(self) -> None:
         """Test ping/pong functionality on health check endpoint."""
         with self.client.websocket_connect("/ws/health") as websocket:
             # Receive initial health status
@@ -111,7 +114,7 @@ class TestWebSocketRoutes:
             response = websocket.receive_text()
             assert response == "pong"
 
-    def test_websocket_health_check_status_command(self):
+    def test_websocket_health_check_status_command(self) -> None:
         """Test status command on health check endpoint."""
         with self.client.websocket_connect("/ws/health") as websocket:
             # Receive initial health status
@@ -125,7 +128,7 @@ class TestWebSocketRoutes:
             assert "active_connections" in status_data
             assert "active_workflows" in status_data
 
-    def test_websocket_health_check_unknown_command(self):
+    def test_websocket_health_check_unknown_command(self) -> None:
         """Test unknown command handling on health check endpoint."""
         with self.client.websocket_connect("/ws/health") as websocket:
             # Receive initial health status
@@ -141,7 +144,9 @@ class TestWebSocketRoutes:
             assert "status" in response["supported_commands"]
 
     @patch("cognivault.api.routes.websockets.websocket_manager")
-    def test_workflow_progress_websocket_with_mock_manager_data(self, mock_manager):
+    def test_workflow_progress_websocket_with_mock_manager_data(
+        self, mock_manager: Mock
+    ) -> None:
         """Test WebSocket health endpoint shows manager connection data."""
         # Mock manager to return test data
         mock_manager.get_total_connections.return_value = 5
@@ -158,7 +163,7 @@ class TestWebSocketRoutes:
 class TestCorrelationIdValidation:
     """Test suite for correlation ID validation function."""
 
-    def test_valid_uuid_format(self):
+    def test_valid_uuid_format(self) -> None:
         """Test validation of valid UUID format correlation IDs."""
         valid_uuids = [
             "550e8400-e29b-41d4-a716-446655440000",
@@ -171,7 +176,7 @@ class TestCorrelationIdValidation:
             assert _is_valid_correlation_id(uuid) is True
             assert _is_valid_correlation_id(uuid.lower()) is True
 
-    def test_valid_alphanumeric_format(self):
+    def test_valid_alphanumeric_format(self) -> None:
         """Test validation of valid alphanumeric correlation IDs."""
         valid_ids = [
             "test-correlation-123",
@@ -186,7 +191,7 @@ class TestCorrelationIdValidation:
         for id_str in valid_ids:
             assert _is_valid_correlation_id(id_str) is True
 
-    def test_invalid_correlation_ids(self):
+    def test_invalid_correlation_ids(self) -> None:
         """Test validation rejects invalid correlation IDs."""
         invalid_ids = [
             "",  # Empty string
@@ -209,7 +214,7 @@ class TestCorrelationIdValidation:
                 continue  # Skip None test as it would cause different error
             assert _is_valid_correlation_id(invalid_id) is False
 
-    def test_edge_case_lengths(self):
+    def test_edge_case_lengths(self) -> None:
         """Test validation with edge case lengths."""
         # Test maximum valid length (100 characters)
         max_length_id = "a" * 100
@@ -219,7 +224,7 @@ class TestCorrelationIdValidation:
         too_long_id = "a" * 101
         assert _is_valid_correlation_id(too_long_id) is False
 
-    def test_case_insensitive_uuid_validation(self):
+    def test_case_insensitive_uuid_validation(self) -> None:
         """Test that UUID validation is case-insensitive."""
         mixed_case_uuid = "550E8400-e29B-41d4-A716-446655440000"
         assert _is_valid_correlation_id(mixed_case_uuid) is True
@@ -228,11 +233,11 @@ class TestCorrelationIdValidation:
 class TestWebSocketIntegrationScenarios:
     """Integration test scenarios for WebSocket functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client for integration tests."""
         self.client = TestClient(app)
 
-    def test_multiple_clients_same_correlation_id(self):
+    def test_multiple_clients_same_correlation_id(self) -> None:
         """Test multiple clients connecting to same correlation ID."""
         correlation_id = "test-multi-client-123"
 
@@ -249,7 +254,7 @@ class TestWebSocketIntegrationScenarios:
                 assert data1["correlation_id"] == correlation_id
                 assert data2["correlation_id"] == correlation_id
 
-    def test_multiple_clients_different_correlation_ids(self):
+    def test_multiple_clients_different_correlation_ids(self) -> None:
         """Test multiple clients connecting to different correlation IDs."""
         correlation_id1 = "test-client-1-123"
         correlation_id2 = "test-client-2-456"
@@ -263,7 +268,7 @@ class TestWebSocketIntegrationScenarios:
                 assert data2["correlation_id"] == correlation_id2
 
     @patch("cognivault.api.routes.websockets.websocket_manager")
-    def test_websocket_manager_exception_handling(self, mock_manager):
+    def test_websocket_manager_exception_handling(self, mock_manager: Mock) -> None:
         """Test that WebSocket routes handle manager exceptions gracefully."""
         # Make subscribe raise an exception
         mock_manager.subscribe.side_effect = Exception("Manager error")
@@ -285,7 +290,7 @@ class TestWebSocketIntegrationScenarios:
         # Should still attempt to clean up
         mock_manager.unsubscribe.assert_called()
 
-    def test_client_message_handling(self):
+    def test_client_message_handling(self) -> None:
         """Test that WebSocket endpoint handles unexpected client messages."""
         correlation_id = "test-client-message-123"
 
@@ -300,7 +305,7 @@ class TestWebSocketIntegrationScenarios:
             # Note: We can't easily test the logging in unit tests,
             # but the connection should handle it gracefully
 
-    def test_websocket_route_url_patterns(self):
+    def test_websocket_route_url_patterns(self) -> None:
         """Test that WebSocket routes match expected URL patterns."""
         # Test valid workflow progress URLs
         valid_urls = [

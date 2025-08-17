@@ -8,8 +8,8 @@ serialization, and backward compatibility.
 
 import pytest
 import time
-from typing import Dict, Any
-from unittest.mock import Mock
+from typing import Any, Dict, Union
+from unittest.mock import MagicMock, Mock
 
 from pydantic import ValidationError
 
@@ -19,11 +19,15 @@ from cognivault.workflows.executor import (
     WorkflowResult,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 def create_test_agent_context(query: str = "test query") -> AgentContext:
     """Create a test AgentContext for testing."""
-    return AgentContext(query=query)
+    return AgentContextPatterns.simple_query(query)
 
 
 # Resolve forward references by importing and rebuilding
@@ -38,16 +42,16 @@ except (ImportError, Exception):
     pass
 
 
-def create_test_workflow():
+def create_test_workflow() -> Union[object, Mock]:
     """Create a test WorkflowDefinition for testing."""
     try:
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
         )
 
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="processor", category="BASE"
         )
         flow = FlowDefinition(entry_point="test_node", edges=[])
@@ -60,7 +64,7 @@ def create_test_workflow():
         )
     except ImportError:
         # Fallback to using a mock with required attributes
-        mock_workflow = Mock()
+        mock_workflow: Mock = Mock()
         mock_workflow.name = "Test Workflow"
         mock_workflow.version = "1.0.0"
         mock_workflow.workflow_id = "test-workflow-123"
@@ -70,17 +74,17 @@ def create_test_workflow():
 class TestExecutionContext:
     """Test ExecutionContext Pydantic model."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default field values."""
         # Create a real WorkflowDefinition instance for testing
         try:
             from cognivault.workflows.definition import (
                 WorkflowDefinition,
-                NodeConfiguration,
+                WorkflowNodeConfiguration,
                 FlowDefinition,
             )
 
-            node = NodeConfiguration(
+            node = WorkflowNodeConfiguration(
                 node_id="test_node", node_type="processor", category="BASE"
             )
             flow = FlowDefinition(entry_point="test_node", edges=[])
@@ -93,9 +97,10 @@ class TestExecutionContext:
             )
         except ImportError:
             # Fallback to using model_validate with arbitrary_types_allowed
-            mock_workflow = Mock()
-            mock_workflow.name = "Test Workflow"
-            mock_workflow.version = "1.0.0"
+            mock_workflow_fallback: Mock = Mock()
+            mock_workflow_fallback.name = "Test Workflow"
+            mock_workflow_fallback.version = "1.0.0"
+            mock_workflow = mock_workflow_fallback
 
         context = ExecutionContext(
             workflow_id="test-123",
@@ -111,7 +116,7 @@ class TestExecutionContext:
         assert context.metadata == {}
         assert isinstance(context.start_time, float)
 
-    def test_field_descriptions(self):
+    def test_field_descriptions(self) -> None:
         """Test that all fields have descriptions."""
         schema = ExecutionContext.model_json_schema()
         properties = schema["properties"]
@@ -131,7 +136,7 @@ class TestExecutionContext:
             assert "description" in properties[field]
             assert len(properties[field]["description"]) > 0
 
-    def test_update_status_method(self):
+    def test_update_status_method(self) -> None:
         """Test update_status method."""
         mock_workflow = create_test_workflow()
         context = ExecutionContext(
@@ -144,7 +149,7 @@ class TestExecutionContext:
         context.update_status("running")
         assert context.status == "running"
 
-    def test_add_metadata_method(self):
+    def test_add_metadata_method(self) -> None:
         """Test add_metadata method."""
         mock_workflow = create_test_workflow()
         context = ExecutionContext(
@@ -160,7 +165,7 @@ class TestExecutionContext:
         context.add_metadata("key2", {"nested": "value"})
         assert context.metadata == {"key1": "value1", "key2": {"nested": "value"}}
 
-    def test_serialization(self):
+    def test_serialization(self) -> None:
         """Test Pydantic serialization."""
         mock_workflow = create_test_workflow()
 
@@ -181,7 +186,7 @@ class TestExecutionContext:
         assert data["status"] == "running"
         assert data["metadata"] == {"step": 1}
 
-    def test_model_validation(self):
+    def test_model_validation(self) -> None:
         """Test model validation with required fields."""
         # Valid creation
         mock_workflow = create_test_workflow()
@@ -194,13 +199,19 @@ class TestExecutionContext:
 
         # Test that required fields are enforced
         with pytest.raises(ValidationError):
-            ExecutionContext()  # Missing required fields
+            ExecutionContext.model_validate(
+                {
+                    "workflow_id": "test-id",
+                    "workflow_definition": "mock_definition",
+                    # Missing query field should cause validation error
+                }
+            )
 
 
 class TestCompositionResult:
     """Test CompositionResult Pydantic model."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default field values."""
         result = CompositionResult()
 
@@ -209,7 +220,7 @@ class TestCompositionResult:
         assert result.metadata == {}
         assert result.validation_errors == []
 
-    def test_field_descriptions(self):
+    def test_field_descriptions(self) -> None:
         """Test that all fields have descriptions."""
         schema = CompositionResult.model_json_schema()
         properties = schema["properties"]
@@ -226,7 +237,7 @@ class TestCompositionResult:
             assert "description" in properties[field]
             assert len(properties[field]["description"]) > 0
 
-    def test_with_data(self):
+    def test_with_data(self) -> None:
         """Test CompositionResult with actual data."""
         node_mapping = {"node1": "instance1", "node2": "instance2"}
         edge_mapping = {"edge1": "connection1"}
@@ -245,7 +256,7 @@ class TestCompositionResult:
         assert result.metadata == metadata
         assert result.validation_errors == validation_errors
 
-    def test_serialization(self):
+    def test_serialization(self) -> None:
         """Test Pydantic serialization."""
         result = CompositionResult(
             node_mapping={"node1": "value1"},
@@ -264,7 +275,7 @@ class TestCompositionResult:
 class TestWorkflowResult:
     """Test WorkflowResult Pydantic model."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default field values."""
         mock_context = create_test_agent_context()
         result = WorkflowResult(
@@ -283,7 +294,7 @@ class TestWorkflowResult:
         assert result.error_message is None
         assert result.event_correlation_id == ""
 
-    def test_field_descriptions(self):
+    def test_field_descriptions(self) -> None:
         """Test that all fields have descriptions."""
         schema = WorkflowResult.model_json_schema()
         properties = schema["properties"]
@@ -305,7 +316,7 @@ class TestWorkflowResult:
             assert "description" in properties[field]
             assert len(properties[field]["description"]) > 0
 
-    def test_execution_time_validation(self):
+    def test_execution_time_validation(self) -> None:
         """Test execution_time_seconds validation."""
         mock_context = create_test_agent_context()
 
@@ -337,7 +348,7 @@ class TestWorkflowResult:
             )
         assert "greater than or equal to 0" in str(exc_info.value)
 
-    def test_comprehensive_result(self):
+    def test_comprehensive_result(self) -> None:
         """Test WorkflowResult with all fields populated."""
         mock_context = create_test_agent_context()
 
@@ -368,7 +379,7 @@ class TestWorkflowResult:
         assert result.error_message is None
         assert result.event_correlation_id == "corr-789"
 
-    def test_failed_execution_result(self):
+    def test_failed_execution_result(self) -> None:
         """Test WorkflowResult for failed execution."""
         mock_context = create_test_agent_context()
 
@@ -385,7 +396,7 @@ class TestWorkflowResult:
         assert result.error_message == "Agent execution timeout"
         assert result.execution_time_seconds == 5.2
 
-    def test_serialization(self):
+    def test_serialization(self) -> None:
         """Test Pydantic serialization."""
         mock_context = create_test_agent_context()
 
@@ -409,7 +420,7 @@ class TestWorkflowResult:
         assert data["success"] is True
         assert data["event_correlation_id"] == "corr-123"
 
-    def test_required_fields(self):
+    def test_required_fields(self) -> None:
         """Test that required fields are enforced."""
         mock_context = create_test_agent_context()
 
@@ -423,16 +434,20 @@ class TestWorkflowResult:
 
         # Missing required fields
         with pytest.raises(ValidationError):
-            WorkflowResult()  # Missing all required fields
+            WorkflowResult.model_validate(
+                {"workflow_id": "test", "execution_id": "test"}
+            )  # Missing final_context
 
         with pytest.raises(ValidationError):
-            WorkflowResult(workflow_id="test")  # Missing execution_id and final_context
+            WorkflowResult.model_validate(
+                {"workflow_id": "test"}
+            )  # Missing execution_id and final_context
 
 
 class TestBackwardCompatibility:
     """Test backward compatibility with existing functionality."""
 
-    def test_method_signatures_preserved(self):
+    def test_method_signatures_preserved(self) -> None:
         """Test that existing method signatures are preserved."""
         mock_workflow = create_test_workflow()
         context = ExecutionContext(
@@ -452,7 +467,7 @@ class TestBackwardCompatibility:
         context.add_metadata("test_key", "test_value")
         assert context.metadata["test_key"] == "test_value"
 
-    def test_attribute_access_preserved(self):
+    def test_attribute_access_preserved(self) -> None:
         """Test that attribute access patterns are preserved."""
         mock_workflow = create_test_workflow()
         mock_context = create_test_agent_context()
@@ -486,7 +501,7 @@ class TestBackwardCompatibility:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_complex_nested_data(self):
+    def test_complex_nested_data(self) -> None:
         """Test with complex nested data structures."""
         mock_workflow = create_test_workflow()
 
@@ -508,7 +523,7 @@ class TestEdgeCases:
         data = context.model_dump()
         assert data["execution_config"] == complex_config
 
-    def test_large_data_structures(self):
+    def test_large_data_structures(self) -> None:
         """Test with large data structures."""
         mock_context = create_test_agent_context()
 
@@ -526,7 +541,7 @@ class TestEdgeCases:
         assert result.node_execution_order[0] == "node_0"
         assert result.node_execution_order[999] == "node_999"
 
-    def test_empty_and_none_values(self):
+    def test_empty_and_none_values(self) -> None:
         """Test handling of empty and None values."""
         mock_context = create_test_agent_context()
 

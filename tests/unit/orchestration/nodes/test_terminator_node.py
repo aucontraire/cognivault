@@ -6,15 +6,16 @@ termination based on confidence thresholds and completion criteria.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.orchestration.nodes.terminator_node import (
     TerminatorNode,
     TerminationCriteria,
     TerminationReason,
     TerminationReport,
-    NodeExecutionContext,
 )
+from cognivault.orchestration.nodes.base_advanced_node import NodeExecutionContext
 from cognivault.agents.metadata import AgentMetadata, TaskClassification
 
 
@@ -22,7 +23,7 @@ class TestTerminatorNodeInitialization:
     """Test TerminatorNode initialization and validation."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock AgentMetadata with terminator execution pattern."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "terminator"
@@ -31,7 +32,7 @@ class TestTerminatorNodeInitialization:
         return metadata
 
     @pytest.fixture
-    def basic_criteria(self):
+    def basic_criteria(self) -> Any:
         """Create basic termination criteria."""
         return [
             TerminationCriteria(
@@ -52,7 +53,9 @@ class TestTerminatorNodeInitialization:
             ),
         ]
 
-    def test_terminator_node_creation_success(self, mock_metadata, basic_criteria):
+    def test_terminator_node_creation_success(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test successful TerminatorNode creation."""
         node = TerminatorNode(
             metadata=mock_metadata,
@@ -76,7 +79,9 @@ class TestTerminatorNodeInitialization:
         assert node.allow_partial_completion is True
         assert node.strict_mode is False
 
-    def test_terminator_node_wrong_execution_pattern(self, basic_criteria):
+    def test_terminator_node_wrong_execution_pattern(
+        self, basic_criteria: Mock
+    ) -> None:
         """Test that TerminatorNode requires terminator execution pattern."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "processor"  # Wrong pattern
@@ -88,7 +93,7 @@ class TestTerminatorNodeInitialization:
                 metadata=metadata, node_name="test", termination_criteria=basic_criteria
             )
 
-    def test_terminator_node_empty_criteria(self, mock_metadata):
+    def test_terminator_node_empty_criteria(self, mock_metadata: Mock) -> None:
         """Test that TerminatorNode requires at least one criterion."""
         with pytest.raises(
             ValueError,
@@ -101,8 +106,8 @@ class TestTerminatorNodeInitialization:
             )
 
     def test_terminator_node_invalid_confidence_threshold(
-        self, mock_metadata, basic_criteria
-    ):
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that confidence_threshold must be between 0.0 and 1.0."""
         with pytest.raises(
             ValueError, match="confidence_threshold must be between 0.0 and 1.0"
@@ -115,8 +120,8 @@ class TestTerminatorNodeInitialization:
             )
 
     def test_terminator_node_invalid_quality_threshold(
-        self, mock_metadata, basic_criteria
-    ):
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that quality_threshold must be between 0.0 and 1.0."""
         with pytest.raises(
             ValueError, match="quality_threshold must be between 0.0 and 1.0"
@@ -129,8 +134,8 @@ class TestTerminatorNodeInitialization:
             )
 
     def test_terminator_node_invalid_resource_limit_threshold(
-        self, mock_metadata, basic_criteria
-    ):
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that resource_limit_threshold must be between 0.0 and 1.0."""
         with pytest.raises(
             ValueError, match="resource_limit_threshold must be between 0.0 and 1.0"
@@ -142,7 +147,9 @@ class TestTerminatorNodeInitialization:
                 resource_limit_threshold=2.0,
             )
 
-    def test_terminator_node_invalid_time_limit(self, mock_metadata, basic_criteria):
+    def test_terminator_node_invalid_time_limit(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that time_limit_ms must be positive."""
         with pytest.raises(ValueError, match="time_limit_ms must be positive"):
             TerminatorNode(
@@ -152,7 +159,9 @@ class TestTerminatorNodeInitialization:
                 time_limit_ms=-1000.0,
             )
 
-    def test_terminator_node_default_values(self, mock_metadata, basic_criteria):
+    def test_terminator_node_default_values(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test TerminatorNode with default values."""
         node = TerminatorNode(
             metadata=mock_metadata,
@@ -167,7 +176,9 @@ class TestTerminatorNodeInitialization:
         assert node.allow_partial_completion is True
         assert node.strict_mode is False
 
-    def test_terminator_node_inherits_base_methods(self, mock_metadata, basic_criteria):
+    def test_terminator_node_inherits_base_methods(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that TerminatorNode inherits BaseAdvancedNode methods."""
         node = TerminatorNode(
             metadata=mock_metadata,
@@ -189,7 +200,7 @@ class TestTerminatorNodeInitialization:
 class TestTerminationCriteria:
     """Test TerminationCriteria dataclass."""
 
-    def test_termination_criteria_creation_success(self):
+    def test_termination_criteria_creation_success(self) -> None:
         """Test successful TerminationCriteria creation."""
         criterion = TerminationCriteria(
             name="test_criterion",
@@ -206,7 +217,7 @@ class TestTerminationCriteria:
         assert criterion.required is True
         assert criterion.description == "Test criterion"
 
-    def test_termination_criteria_default_values(self):
+    def test_termination_criteria_default_values(self) -> None:
         """Test TerminationCriteria with default values."""
         criterion = TerminationCriteria(name="test", evaluator=lambda data: True)
 
@@ -215,7 +226,7 @@ class TestTerminationCriteria:
         assert criterion.required is True
         assert criterion.description == ""
 
-    def test_termination_criteria_evaluate_method(self):
+    def test_termination_criteria_evaluate_method(self) -> None:
         """Test TerminationCriteria evaluate method."""
         criterion = TerminationCriteria(
             name="has_key", evaluator=lambda data: "key" in data and data["key"] > 0.5
@@ -229,7 +240,7 @@ class TestTerminationCriteria:
 class TestTerminationReport:
     """Test TerminationReport dataclass."""
 
-    def test_termination_report_creation(self):
+    def test_termination_report_creation(self) -> None:
         """Test TerminationReport creation."""
         report = TerminationReport(
             should_terminate=True,
@@ -258,14 +269,14 @@ class TestTerminatorNodeExecute:
     """Test TerminatorNode execute method."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock AgentMetadata."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "terminator"
         return metadata
 
     @pytest.fixture
-    def mock_context(self):
+    def mock_context(self) -> Any:
         """Create mock NodeExecutionContext with execution history."""
         context = Mock(spec=NodeExecutionContext)
         context.correlation_id = "test-correlation"
@@ -296,7 +307,7 @@ class TestTerminatorNodeExecute:
         return context
 
     @pytest.fixture
-    def termination_criteria(self):
+    def termination_criteria(self) -> Any:
         """Create termination criteria for testing."""
         return [
             TerminationCriteria(
@@ -326,7 +337,7 @@ class TestTerminatorNodeExecute:
         ]
 
     @pytest.fixture
-    def terminator_node(self, mock_metadata, termination_criteria):
+    def terminator_node(self, mock_metadata: Mock, termination_criteria: Mock) -> Any:
         """Create a TerminatorNode for testing."""
         return TerminatorNode(
             metadata=mock_metadata,
@@ -342,8 +353,8 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_should_terminate_high_confidence(
-        self, terminator_node, mock_context
-    ):
+        self, terminator_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute recommends termination due to high confidence."""
         with patch(
             "cognivault.orchestration.nodes.terminator_node.emit_termination_triggered"
@@ -385,8 +396,8 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_should_not_terminate_low_confidence(
-        self, mock_metadata, termination_criteria, mock_context
-    ):
+        self, mock_metadata: Mock, termination_criteria: Mock, mock_context: Mock
+    ) -> None:
         """Test execute does not recommend termination due to low confidence."""
         # Set up context with low confidence
         mock_context.available_inputs = {
@@ -434,8 +445,8 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_resource_limit_termination(
-        self, mock_metadata, termination_criteria, mock_context
-    ):
+        self, mock_metadata: Mock, termination_criteria: Mock, mock_context: Mock
+    ) -> None:
         """Test execute recommends termination due to resource limits."""
         # Set up context with high resource usage
         mock_context.resource_usage = {"cpu_usage": 0.85, "memory_usage": 0.9}
@@ -479,8 +490,8 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_quality_threshold_termination(
-        self, mock_metadata, termination_criteria, mock_context
-    ):
+        self, mock_metadata: Mock, termination_criteria: Mock, mock_context: Mock
+    ) -> None:
         """Test execute recommends termination due to quality threshold."""
         # Set up context with high quality but lower confidence
         mock_context.available_inputs = {
@@ -521,8 +532,8 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_strict_mode_all_criteria_required(
-        self, mock_metadata, mock_context
-    ):
+        self, mock_metadata: Mock, mock_context: Mock
+    ) -> None:
         """Test execute in strict mode requires all criteria to be met."""
         # Create criteria where some will fail
         strict_criteria = [
@@ -570,8 +581,8 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_completion_criteria_sufficient(
-        self, mock_metadata, mock_context
-    ):
+        self, mock_metadata: Mock, mock_context: Mock
+    ) -> None:
         """Test execute recommends termination when sufficient completion criteria are met."""
         # Create criteria where most will pass
         completion_criteria = [
@@ -640,12 +651,12 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_criterion_evaluation_error(
-        self, mock_metadata, mock_context
-    ):
+        self, mock_metadata: Mock, mock_context: Mock
+    ) -> None:
         """Test execute handles criterion evaluation errors gracefully."""
 
         # Create a criterion that will raise an exception
-        def failing_evaluator(data):
+        def failing_evaluator(data: Any) -> None:
             raise ValueError("Evaluation failed")
 
         error_criteria = [
@@ -686,7 +697,7 @@ class TestTerminatorNodeExecute:
         assert "Evaluation failed" in criteria_results["failing_criterion"]["error"]
 
     @pytest.mark.asyncio
-    async def test_execute_no_available_inputs(self, terminator_node):
+    async def test_execute_no_available_inputs(self, terminator_node: Mock) -> None:
         """Test execute with no available inputs."""
         context = Mock(spec=NodeExecutionContext)
         context.correlation_id = "test-correlation"
@@ -710,7 +721,9 @@ class TestTerminatorNodeExecute:
         assert len(result["criteria_results"]) == 3
 
     @pytest.mark.asyncio
-    async def test_execute_calls_pre_post_hooks(self, terminator_node, mock_context):
+    async def test_execute_calls_pre_post_hooks(
+        self, terminator_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute calls pre and post execution hooks."""
         with patch(
             "cognivault.orchestration.nodes.terminator_node.emit_termination_triggered"
@@ -724,7 +737,9 @@ class TestTerminatorNodeExecute:
         mock_context.update_resource_usage.assert_called()
 
     @pytest.mark.asyncio
-    async def test_execute_validation_failure_invalid_context(self, terminator_node):
+    async def test_execute_validation_failure_invalid_context(
+        self, terminator_node: Mock
+    ) -> None:
         """Test execute fails with invalid context."""
         invalid_context = Mock(spec=NodeExecutionContext)
         invalid_context.correlation_id = ""  # Invalid
@@ -736,7 +751,9 @@ class TestTerminatorNodeExecute:
             await terminator_node.execute(invalid_context)
 
     @pytest.mark.asyncio
-    async def test_execute_timing_measurement(self, terminator_node, mock_context):
+    async def test_execute_timing_measurement(
+        self, terminator_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute measures evaluation timing."""
         with patch(
             "cognivault.orchestration.nodes.terminator_node.emit_termination_triggered"
@@ -749,8 +766,8 @@ class TestTerminatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_resource_savings_calculation(
-        self, terminator_node, mock_context
-    ):
+        self, terminator_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute calculates resource savings correctly."""
         with patch(
             "cognivault.orchestration.nodes.terminator_node.emit_termination_triggered"
@@ -773,7 +790,7 @@ class TestTerminatorNodeCanHandle:
     """Test TerminatorNode can_handle method."""
 
     @pytest.fixture
-    def terminator_node(self):
+    def terminator_node(self) -> Any:
         """Create a TerminatorNode for testing."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "terminator"
@@ -797,7 +814,7 @@ class TestTerminatorNodeCanHandle:
             resource_limit_threshold=0.8,
         )
 
-    def test_can_handle_with_sufficient_context(self, terminator_node):
+    def test_can_handle_with_sufficient_context(self, terminator_node: Mock) -> None:
         """Test can_handle returns True with sufficient context."""
         context = Mock(spec=NodeExecutionContext)
         context.execution_path = ["refiner", "historian", "current"]
@@ -806,7 +823,9 @@ class TestTerminatorNodeCanHandle:
 
         assert terminator_node.can_handle(context) is True
 
-    def test_can_handle_insufficient_execution_history(self, terminator_node):
+    def test_can_handle_insufficient_execution_history(
+        self, terminator_node: Mock
+    ) -> None:
         """Test can_handle returns False with insufficient execution history."""
         context = Mock(spec=NodeExecutionContext)
         context.execution_path = ["current"]  # Only 1 step
@@ -815,7 +834,9 @@ class TestTerminatorNodeCanHandle:
 
         assert terminator_node.can_handle(context) is False
 
-    def test_can_handle_no_available_inputs_or_results(self, terminator_node):
+    def test_can_handle_no_available_inputs_or_results(
+        self, terminator_node: Mock
+    ) -> None:
         """Test can_handle returns False with no available inputs or results."""
         context = Mock(spec=NodeExecutionContext)
         context.execution_path = ["refiner", "historian", "current"]
@@ -824,7 +845,7 @@ class TestTerminatorNodeCanHandle:
 
         assert terminator_node.can_handle(context) is False
 
-    def test_can_handle_no_resource_usage(self, terminator_node):
+    def test_can_handle_no_resource_usage(self, terminator_node: Mock) -> None:
         """Test can_handle returns False with no resource usage information."""
         context = Mock(spec=NodeExecutionContext)
         context.execution_path = ["refiner", "historian", "current"]
@@ -833,7 +854,7 @@ class TestTerminatorNodeCanHandle:
 
         assert terminator_node.can_handle(context) is False
 
-    def test_can_handle_with_intermediate_results(self, terminator_node):
+    def test_can_handle_with_intermediate_results(self, terminator_node: Mock) -> None:
         """Test can_handle returns True with intermediate results."""
         context = Mock(spec=NodeExecutionContext)
         context.execution_path = ["refiner", "historian", "current"]
@@ -845,7 +866,7 @@ class TestTerminatorNodeCanHandle:
 
         assert terminator_node.can_handle(context) is True
 
-    def test_can_handle_evaluation_error(self, terminator_node):
+    def test_can_handle_evaluation_error(self, terminator_node: Mock) -> None:
         """Test can_handle returns False when evaluation raises exception."""
         context = Mock(spec=NodeExecutionContext)
         # Set up mock to raise exception when len() is called

@@ -81,7 +81,7 @@ class GraphCache:
     - Performance statistics
     """
 
-    def __init__(self, config: Optional[CacheConfig] = None):
+    def __init__(self, config: Optional[CacheConfig] = None) -> None:
         """
         Initialize the graph cache.
 

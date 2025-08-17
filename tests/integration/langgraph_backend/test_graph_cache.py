@@ -1,9 +1,10 @@
 """Tests for langgraph_backend.graph_cache module (corrected)."""
 
 import pytest
+from typing import Any, List
 import time
 import threading
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from cognivault.langgraph_backend.graph_cache import (
     GraphCache,
@@ -16,7 +17,7 @@ from cognivault.langgraph_backend.graph_cache import (
 class TestCacheConfig:
     """Test CacheConfig dataclass."""
 
-    def test_cache_config_creation_default(self):
+    def test_cache_config_creation_default(self) -> None:
         """Test creating CacheConfig with default values."""
         config = CacheConfig()
 
@@ -24,7 +25,7 @@ class TestCacheConfig:
         assert config.ttl_seconds == 3600  # 1 hour
         assert config.enable_stats is True
 
-    def test_cache_config_creation_custom(self):
+    def test_cache_config_creation_custom(self) -> None:
         """Test creating CacheConfig with custom values."""
         config = CacheConfig(
             max_size=5,
@@ -40,9 +41,9 @@ class TestCacheConfig:
 class TestCacheEntry:
     """Test CacheEntry dataclass."""
 
-    def test_cache_entry_creation(self):
+    def test_cache_entry_creation(self) -> None:
         """Test creating CacheEntry."""
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
         current_time = time.time()
 
         entry = CacheEntry(
@@ -59,9 +60,9 @@ class TestCacheEntry:
         assert entry.access_count == 0
         assert entry.size_estimate == 1024
 
-    def test_cache_entry_is_expired(self):
+    def test_cache_entry_is_expired(self) -> None:
         """Test cache entry expiration check."""
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
         current_time = time.time()
 
         entry = CacheEntry(
@@ -76,9 +77,9 @@ class TestCacheEntry:
         # Should not be expired with 2 hour TTL
         assert entry.is_expired(7200) is False
 
-    def test_cache_entry_touch(self):
+    def test_cache_entry_touch(self) -> None:
         """Test cache entry touch method."""
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
         current_time = time.time()
 
         entry = CacheEntry(
@@ -103,7 +104,7 @@ class TestCacheEntry:
 class TestCacheStats:
     """Test CacheStats dataclass."""
 
-    def test_cache_stats_creation(self):
+    def test_cache_stats_creation(self) -> None:
         """Test creating CacheStats."""
         stats = CacheStats(hits=10, misses=5, evictions=2, current_size=3, max_size=10)
 
@@ -113,7 +114,7 @@ class TestCacheStats:
         assert stats.current_size == 3
         assert stats.max_size == 10
 
-    def test_cache_stats_hit_rate(self):
+    def test_cache_stats_hit_rate(self) -> None:
         """Test cache stats hit rate calculation."""
         stats = CacheStats(hits=10, misses=5)
         assert stats.hit_rate == 10 / 15
@@ -122,7 +123,7 @@ class TestCacheStats:
         empty_stats = CacheStats()
         assert empty_stats.hit_rate == 0.0
 
-    def test_cache_stats_total_requests(self):
+    def test_cache_stats_total_requests(self) -> None:
         """Test cache stats total requests calculation."""
         stats = CacheStats(hits=10, misses=5)
         assert stats.total_requests == 15
@@ -132,7 +133,7 @@ class TestGraphCache:
     """Test GraphCache class."""
 
     @pytest.fixture
-    def cache_config(self):
+    def cache_config(self) -> Any:
         """Fixture for cache configuration."""
         return CacheConfig(
             max_size=3,
@@ -141,18 +142,18 @@ class TestGraphCache:
         )
 
     @pytest.fixture
-    def graph_cache(self, cache_config):
+    def graph_cache(self, cache_config: Any) -> Any:
         """Fixture for GraphCache instance."""
         return GraphCache(cache_config)
 
-    def test_graph_cache_initialization(self, cache_config):
+    def test_graph_cache_initialization(self, cache_config: Any) -> None:
         """Test GraphCache initialization."""
         cache = GraphCache(cache_config)
 
         assert cache.config is cache_config
         assert len(cache._cache) == 0
 
-    def test_graph_cache_initialization_default(self):
+    def test_graph_cache_initialization_default(self) -> None:
         """Test GraphCache initialization with default values."""
         cache = GraphCache()
 
@@ -160,12 +161,12 @@ class TestGraphCache:
         assert cache.config.ttl_seconds == 3600
         assert cache.config.enable_stats is True
 
-    def test_cache_graph_basic(self, graph_cache):
+    def test_cache_graph_basic(self, graph_cache: Mock) -> None:
         """Test basic graph caching."""
         pattern_name = "standard"
         agents = ["refiner", "synthesis"]
         checkpoints_enabled = False
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
 
         # Cache the graph
         graph_cache.cache_graph(pattern_name, agents, checkpoints_enabled, mock_graph)
@@ -176,12 +177,12 @@ class TestGraphCache:
         )
         assert cached_graph is mock_graph
 
-    def test_cache_graph_with_checkpoints(self, graph_cache):
+    def test_cache_graph_with_checkpoints(self, graph_cache: Mock) -> None:
         """Test caching graph with checkpoints enabled."""
         pattern_name = "standard"
         agents = ["refiner", "critic", "synthesis"]
         checkpoints_enabled = True
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
 
         # Cache the graph
         graph_cache.cache_graph(pattern_name, agents, checkpoints_enabled, mock_graph)
@@ -192,11 +193,11 @@ class TestGraphCache:
         )
         assert cached_graph is mock_graph
 
-    def test_cache_graph_different_keys(self, graph_cache):
+    def test_cache_graph_different_keys(self, graph_cache: Mock) -> None:
         """Test caching graphs with different keys."""
-        mock_graph1 = Mock()
-        mock_graph2 = Mock()
-        mock_graph3 = Mock()
+        mock_graph1: Mock = Mock()
+        mock_graph2: Mock = Mock()
+        mock_graph3: Mock = Mock()
 
         # Cache different graphs
         graph_cache.cache_graph("standard", ["refiner"], False, mock_graph1)
@@ -214,12 +215,12 @@ class TestGraphCache:
             graph_cache.get_cached_graph("parallel", ["refiner"], False) is mock_graph3
         )
 
-    def test_get_cached_graph_miss(self, graph_cache):
+    def test_get_cached_graph_miss(self, graph_cache: Mock) -> None:
         """Test cache miss."""
         cached_graph = graph_cache.get_cached_graph("standard", ["refiner"], False)
         assert cached_graph is None
 
-    def test_cache_key_generation(self, graph_cache):
+    def test_cache_key_generation(self, graph_cache: Mock) -> None:
         """Test cache key generation consistency."""
         pattern = "standard"
         agents1 = ["refiner", "critic", "synthesis"]
@@ -233,10 +234,10 @@ class TestGraphCache:
         # Should be the same (normalized)
         assert key1 == key2
 
-    def test_cache_key_generation_empty_agents(self, graph_cache):
+    def test_cache_key_generation_empty_agents(self, graph_cache: Mock) -> None:
         """Test cache key generation with empty agents list."""
         pattern = "standard"
-        agents = []
+        agents: List[str] = []
         checkpoints = False
 
         # Should handle empty agents list
@@ -244,7 +245,7 @@ class TestGraphCache:
         assert isinstance(key, str)
         assert len(key) > 0
 
-    def test_lru_eviction(self, graph_cache):
+    def test_lru_eviction(self, graph_cache: Mock) -> None:
         """Test LRU eviction when cache is full."""
         mock_graphs = [Mock() for _ in range(4)]  # More than max_size (3)
 
@@ -269,9 +270,9 @@ class TestGraphCache:
             is mock_graphs[3]
         )
 
-    def test_ttl_expiration(self, graph_cache):
+    def test_ttl_expiration(self, graph_cache: Mock) -> None:
         """Test TTL-based expiration."""
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
 
         # Cache graph
         graph_cache.cache_graph("standard", ["refiner"], False, mock_graph)
@@ -287,7 +288,7 @@ class TestGraphCache:
         # Should be expired now
         assert graph_cache.get_cached_graph("standard", ["refiner"], False) is None
 
-    def test_clear_cache(self, graph_cache):
+    def test_clear_cache(self, graph_cache: Mock) -> None:
         """Test clearing the cache."""
         mock_graphs = [Mock() for _ in range(3)]
 
@@ -310,9 +311,9 @@ class TestGraphCache:
                 graph_cache.get_cached_graph("standard", [f"agent_{i}"], False) is None
             )
 
-    def test_get_stats(self, graph_cache):
+    def test_get_stats(self, graph_cache: Mock) -> None:
         """Test getting cache statistics."""
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
 
         # Cache miss
         graph_cache.get_cached_graph("standard", ["refiner"], False)
@@ -330,12 +331,12 @@ class TestGraphCache:
         assert "max_size" in stats
         assert "hit_rate" in stats
 
-    def test_thread_safety_basic(self, graph_cache):
+    def test_thread_safety_basic(self, graph_cache: Mock) -> None:
         """Test basic thread safety of cache operations."""
         results = []
 
-        def cache_operation(thread_id):
-            mock_graph = Mock()
+        def cache_operation(thread_id: int) -> None:
+            mock_graph: Mock = Mock()
             mock_graph.thread_id = thread_id
 
             # Cache and retrieve
@@ -361,7 +362,7 @@ class TestGraphCache:
         # All operations should succeed
         assert all(results)
 
-    def test_cache_none_value(self, graph_cache):
+    def test_cache_none_value(self, graph_cache: Mock) -> None:
         """Test that None values are not cached."""
         # Try to cache None
         graph_cache.cache_graph("standard", ["refiner"], False, None)
@@ -370,10 +371,10 @@ class TestGraphCache:
         cached = graph_cache.get_cached_graph("standard", ["refiner"], False)
         assert cached is None
 
-    def test_cache_with_duplicate_agents(self, graph_cache):
+    def test_cache_with_duplicate_agents(self, graph_cache: Mock) -> None:
         """Test caching with duplicate agents in list."""
         agents_with_duplicates = ["refiner", "critic", "refiner", "synthesis"]
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
 
         # Cache with duplicates
         graph_cache.cache_graph("standard", agents_with_duplicates, False, mock_graph)
@@ -387,10 +388,10 @@ class TestGraphCache:
         cached_unique = graph_cache.get_cached_graph("standard", unique_agents, False)
         assert cached_unique is None  # Different because duplicates aren't normalized
 
-    def test_cache_key_case_sensitivity(self, graph_cache):
+    def test_cache_key_case_sensitivity(self, graph_cache: Mock) -> None:
         """Test that cache keys are case sensitive for pattern names."""
-        mock_graph1 = Mock()
-        mock_graph2 = Mock()
+        mock_graph1: Mock = Mock()
+        mock_graph2: Mock = Mock()
 
         # Cache with different cases
         graph_cache.cache_graph("Standard", ["refiner"], False, mock_graph1)
@@ -405,12 +406,12 @@ class TestGraphCache:
         )
 
     @patch("time.time")
-    def test_ttl_with_mocked_time(self, mock_time, graph_cache):
+    def test_ttl_with_mocked_time(self, mock_time: Mock, graph_cache: Mock) -> None:
         """Test TTL functionality with mocked time."""
         # Start at time 0
         mock_time.return_value = 0
 
-        mock_graph = Mock()
+        mock_graph: Mock = Mock()
         graph_cache.cache_graph("standard", ["refiner"], False, mock_graph)
 
         # Should be cached at time 0

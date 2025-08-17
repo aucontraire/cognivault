@@ -9,42 +9,45 @@ import json
 from datetime import datetime, timedelta
 
 from cognivault.diagnostics.formatters import (
-    JSONFormatter,
+    DiagnosticJSONFormatter,
     CSVFormatter,
     PrometheusFormatter,
     InfluxDBFormatter,
 )
-from cognivault.diagnostics.health import HealthStatus, ComponentHealth
-from cognivault.diagnostics.metrics import PerformanceMetrics
-from cognivault.diagnostics.diagnostics import SystemDiagnostics
+from cognivault.diagnostics.health import HealthStatus
+
+# Import diagnostic health factories
+from tests.factories.diagnostic_health_factories import (
+    ComponentHealthFactory,
+    PerformanceMetricsFactory,
+    SystemDiagnosticsFactory,
+    DiagnosticHealthTestPatterns,
+)
 
 
-class TestJSONFormatter:
+class TestDiagnosticJSONFormatter:
     """Test JSON formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
-        self.formatter = JSONFormatter()
+        self.formatter = DiagnosticJSONFormatter()
 
-    def test_format_health_results(self):
+    def test_format_health_results(self) -> None:
         """Test formatting health results as JSON."""
         timestamp = datetime.now()
         health_results = {
-            "agent_registry": ComponentHealth(
-                name="agent_registry",
+            "agent_registry": ComponentHealthFactory.agent_registry_health(
                 status=HealthStatus.HEALTHY,
-                message="Registry is healthy",
-                details={"agent_count": 4},
-                check_time=timestamp,
+                agent_count=4,
                 response_time_ms=25.0,
-            ),
-            "llm_connectivity": ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.DEGRADED,
-                message="LLM has issues",
-                details={"provider": "openai", "errors": ["timeout"]},
                 check_time=timestamp,
+            ),
+            "llm_connectivity": ComponentHealthFactory.llm_connectivity_health(
+                status=HealthStatus.DEGRADED,
+                provider="openai",
                 response_time_ms=150.0,
+                check_time=timestamp,
+                details={"provider": "openai", "errors": ["timeout"]},
             ),
         }
 
@@ -58,7 +61,7 @@ class TestJSONFormatter:
         registry_data = parsed["agent_registry"]
         assert registry_data["name"] == "agent_registry"
         assert registry_data["status"] == "healthy"
-        assert registry_data["message"] == "Registry is healthy"
+        assert registry_data["message"] == "Registry is healthy with 4 agents"
         assert registry_data["details"]["agent_count"] == 4
         assert registry_data["response_time_ms"] == 25.0
 
@@ -71,14 +74,14 @@ class TestJSONFormatter:
         assert llm_data["details"]["errors"] == ["timeout"]
         assert llm_data["response_time_ms"] == 150.0
 
-    def test_format_performance_metrics(self):
+    def test_format_performance_metrics(self) -> None:
         """Test formatting performance metrics as JSON."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
 
-        metrics = PerformanceMetrics(
-            collection_start=start_time,
-            collection_end=end_time,
+        metrics = PerformanceMetricsFactory.with_time_range(
+            start_time=start_time,
+            end_time=end_time,
             total_executions=4,
             successful_executions=3,
             failed_executions=1,
@@ -97,39 +100,30 @@ class TestJSONFormatter:
         assert parsed["resources"]["llm_api_calls"] == 10
         assert parsed["resources"]["total_tokens"] == 1500
 
-    def test_format_system_diagnostics(self):
+    def test_format_system_diagnostics(self) -> None:
         """Test formatting complete system diagnostics as JSON."""
         timestamp = datetime.now()
 
         health_results = {
-            "test_component": ComponentHealth(
+            "test_component": ComponentHealthFactory.healthy_component_with_details(
                 name="test_component",
-                status=HealthStatus.HEALTHY,
                 message="Component is healthy",
                 details={"test": "value"},
                 check_time=timestamp,
             )
         }
 
-        performance_metrics = PerformanceMetrics(
+        performance_metrics = PerformanceMetricsFactory.minimal_metrics(
             collection_start=timestamp - timedelta(minutes=1),
             collection_end=timestamp,
-            total_executions=1,
-            successful_executions=1,
-            failed_executions=0,
-            llm_api_calls=1,
-            total_tokens_consumed=100,
-            average_execution_time_ms=100.0,
         )
 
-        diagnostics = SystemDiagnostics(
+        diagnostics = SystemDiagnosticsFactory.basic_diagnostics(
             timestamp=timestamp,
             overall_health=HealthStatus.HEALTHY,
             component_healths=health_results,
             performance_metrics=performance_metrics,
             system_info={"version": "1.0.0", "platform": "Darwin"},
-            configuration_status={"is_valid": True},
-            environment_info={"mode": "test"},
         )
 
         formatted = self.formatter.format_system_diagnostics(diagnostics)
@@ -146,13 +140,12 @@ class TestJSONFormatter:
         assert parsed["performance"]["execution"]["total"] == 1
         assert parsed["system_info"]["version"] == "1.0.0"
 
-    def test_format_json_pretty_print(self):
+    def test_format_json_pretty_print(self) -> None:
         """Test JSON formatting with pretty printing."""
-        formatter = JSONFormatter(indent=4)
+        formatter = DiagnosticJSONFormatter(indent=4)
         health_results = {
-            "test": ComponentHealth(
+            "test": ComponentHealthFactory.basic_healthy_component(
                 name="test",
-                status=HealthStatus.HEALTHY,
                 message="Test message",
                 details={},
                 check_time=datetime.now(),
@@ -173,31 +166,17 @@ class TestJSONFormatter:
 class TestCSVFormatter:
     """Test CSV formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.formatter = CSVFormatter()
 
-    def test_format_health_results_csv(self):
+    def test_format_health_results_csv(self) -> None:
         """Test formatting health results as CSV."""
         timestamp = datetime.now()
-        health_results = {
-            "agent_registry": ComponentHealth(
-                name="agent_registry",
-                status=HealthStatus.HEALTHY,
-                message="Registry is healthy",
-                details={"agent_count": 4},
-                check_time=timestamp,
-                response_time_ms=25.0,
-            ),
-            "llm_connectivity": ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.DEGRADED,
-                message="LLM has issues",
-                details={"provider": "openai"},
-                check_time=timestamp,
-                response_time_ms=150.0,
-            ),
-        }
+        health_results = DiagnosticHealthTestPatterns.create_health_results_dict(
+            component_count=2,
+            timestamp=timestamp,
+        )
 
         formatted = self.formatter.format_health_results(health_results)
         lines = formatted.strip().split("\n")
@@ -222,20 +201,15 @@ class TestCSVFormatter:
         assert "degraded" in lines[2]
         assert "150.0" in lines[2]
 
-    def test_format_performance_metrics_csv(self):
+    def test_format_performance_metrics_csv(self) -> None:
         """Test formatting performance metrics as CSV."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
 
-        metrics = PerformanceMetrics(
-            collection_start=start_time,
-            collection_end=end_time,
+        metrics = PerformanceMetricsFactory.basic_metrics(
             total_executions=4,
             successful_executions=3,
             failed_executions=1,
-            llm_api_calls=10,
-            total_tokens_consumed=1500,
-            average_execution_time_ms=125.5,
         )
 
         formatted = self.formatter.format_performance_metrics(metrics)
@@ -265,39 +239,28 @@ class TestCSVFormatter:
         assert "750" in data_row
         assert "125.5" in data_row
 
-    def test_format_system_diagnostics_csv(self):
+    def test_format_system_diagnostics_csv(self) -> None:
         """Test formatting system diagnostics as CSV."""
         timestamp = datetime.now()
 
         health_results = {
-            "test_component": ComponentHealth(
+            "test_component": ComponentHealthFactory.basic_healthy_component(
                 name="test_component",
-                status=HealthStatus.HEALTHY,
                 message="Component is healthy",
-                details={},
                 check_time=timestamp,
             )
         }
 
-        performance_metrics = PerformanceMetrics(
+        performance_metrics = PerformanceMetricsFactory.minimal_metrics(
             collection_start=timestamp - timedelta(minutes=1),
             collection_end=timestamp,
-            total_executions=1,
-            successful_executions=1,
-            failed_executions=0,
-            llm_api_calls=1,
-            total_tokens_consumed=100,
-            average_execution_time_ms=100.0,
         )
 
-        diagnostics = SystemDiagnostics(
+        diagnostics = SystemDiagnosticsFactory.basic_diagnostics(
             timestamp=timestamp,
-            overall_health=HealthStatus.HEALTHY,
             component_healths=health_results,
             performance_metrics=performance_metrics,
             system_info={"version": "1.0.0"},
-            configuration_status={"is_valid": True},
-            environment_info={"mode": "test"},
         )
 
         formatted = self.formatter.format_system_diagnostics(diagnostics)
@@ -306,18 +269,16 @@ class TestCSVFormatter:
         assert "timestamp,overall_health,total_components" in formatted
         assert "healthy" in formatted
         assert (
-            "1,1,0,0,1" in formatted
-        )  # healthy_components,degraded_components,unhealthy_components,total_executions
+            "1,1,0,0,0,1" in formatted
+        )  # healthy_components,degraded_components,unhealthy_components,maintenance_components,total_executions
 
-    def test_csv_special_characters(self):
+    def test_csv_special_characters(self) -> None:
         """Test CSV formatting handles special characters properly."""
         timestamp = datetime.now()
         health_results = {
-            "test_component": ComponentHealth(
+            "test_component": ComponentHealthFactory.component_with_special_characters(
                 name="test_component",
                 status=HealthStatus.DEGRADED,
-                message='Component has "quotes" and, commas',
-                details={"description": "Multi-line\ntext with\ttabs"},
                 check_time=timestamp,
             )
         }
@@ -334,31 +295,17 @@ class TestCSVFormatter:
 class TestPrometheusFormatter:
     """Test Prometheus formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.formatter = PrometheusFormatter()
 
-    def test_format_health_results_prometheus(self):
+    def test_format_health_results_prometheus(self) -> None:
         """Test formatting health results as Prometheus metrics."""
         timestamp = datetime.now()
-        health_results = {
-            "agent_registry": ComponentHealth(
-                name="agent_registry",
-                status=HealthStatus.HEALTHY,
-                message="Registry is healthy",
-                details={"agent_count": 4},
-                check_time=timestamp,
-                response_time_ms=25.0,
-            ),
-            "llm_connectivity": ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.DEGRADED,
-                message="LLM has issues",
-                details={"provider": "openai"},
-                check_time=timestamp,
-                response_time_ms=150.0,
-            ),
-        }
+        health_results = DiagnosticHealthTestPatterns.create_health_results_dict(
+            component_count=2,
+            timestamp=timestamp,
+        )
 
         formatted = self.formatter.format_health_results(health_results)
 
@@ -385,20 +332,15 @@ class TestPrometheusFormatter:
             in formatted
         )
 
-    def test_format_performance_metrics_prometheus(self):
+    def test_format_performance_metrics_prometheus(self) -> None:
         """Test formatting performance metrics as Prometheus metrics."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
 
-        metrics = PerformanceMetrics(
-            collection_start=start_time,
-            collection_end=end_time,
+        metrics = PerformanceMetricsFactory.basic_metrics(
             total_executions=4,
             successful_executions=3,
             failed_executions=1,
-            llm_api_calls=10,
-            total_tokens_consumed=1500,
-            average_execution_time_ms=125.5,
         )
 
         formatted = self.formatter.format_performance_metrics(metrics)
@@ -454,39 +396,28 @@ class TestPrometheusFormatter:
         )
         assert "cognivault_pipeline_duration 500.0" in formatted
 
-    def test_format_system_diagnostics_prometheus(self):
+    def test_format_system_diagnostics_prometheus(self) -> None:
         """Test formatting system diagnostics as Prometheus metrics."""
         timestamp = datetime.now()
 
         health_results = {
-            "test_component": ComponentHealth(
+            "test_component": ComponentHealthFactory.basic_healthy_component(
                 name="test_component",
-                status=HealthStatus.HEALTHY,
                 message="Component is healthy",
-                details={},
                 check_time=timestamp,
             )
         }
 
-        performance_metrics = PerformanceMetrics(
+        performance_metrics = PerformanceMetricsFactory.minimal_metrics(
             collection_start=timestamp - timedelta(minutes=1),
             collection_end=timestamp,
-            total_executions=1,
-            successful_executions=1,
-            failed_executions=0,
-            llm_api_calls=1,
-            total_tokens_consumed=100,
-            average_execution_time_ms=100.0,
         )
 
-        diagnostics = SystemDiagnostics(
+        diagnostics = SystemDiagnosticsFactory.basic_diagnostics(
             timestamp=timestamp,
-            overall_health=HealthStatus.HEALTHY,
             component_healths=health_results,
             performance_metrics=performance_metrics,
             system_info={"version": "1.0.0"},
-            configuration_status={"is_valid": True},
-            environment_info={"mode": "test"},
         )
 
         formatted = self.formatter.format_system_diagnostics(diagnostics)
@@ -503,7 +434,7 @@ class TestPrometheusFormatter:
         assert "cognivault_executions_total 1" in formatted
         assert "cognivault_tokens_consumed_total 100" in formatted
 
-    def test_prometheus_health_status_values(self):
+    def test_prometheus_health_status_values(self) -> None:
         """Test Prometheus health status numeric values."""
         assert self.formatter._health_status_to_value(HealthStatus.HEALTHY) == 1.0
         assert self.formatter._health_status_to_value(HealthStatus.DEGRADED) == 0.5
@@ -514,31 +445,17 @@ class TestPrometheusFormatter:
 class TestInfluxDBFormatter:
     """Test InfluxDB formatter functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.formatter = InfluxDBFormatter()
 
-    def test_format_health_results_influxdb(self):
+    def test_format_health_results_influxdb(self) -> None:
         """Test formatting health results as InfluxDB line protocol."""
         timestamp = datetime.now()
-        health_results = {
-            "agent_registry": ComponentHealth(
-                name="agent_registry",
-                status=HealthStatus.HEALTHY,
-                message="Registry is healthy",
-                details={"agent_count": 4},
-                check_time=timestamp,
-                response_time_ms=25.0,
-            ),
-            "llm_connectivity": ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.DEGRADED,
-                message="LLM has issues",
-                details={"provider": "openai"},
-                check_time=timestamp,
-                response_time_ms=150.0,
-            ),
-        }
+        health_results = DiagnosticHealthTestPatterns.create_health_results_dict(
+            component_count=2,
+            timestamp=timestamp,
+        )
 
         formatted = self.formatter.format_health_data(health_results)
         lines = formatted.strip().split("\n")
@@ -566,14 +483,14 @@ class TestInfluxDBFormatter:
         assert "value=0.5" in llm_line
         assert "response_time_ms=150.0" in llm_line
 
-    def test_format_performance_metrics_influxdb(self):
+    def test_format_performance_metrics_influxdb(self) -> None:
         """Test formatting performance metrics as InfluxDB line protocol."""
         start_time = datetime.now() - timedelta(minutes=5)
         end_time = datetime.now()
 
-        metrics = PerformanceMetrics(
-            collection_start=start_time,
-            collection_end=end_time,
+        metrics = PerformanceMetricsFactory.with_time_range(
+            start_time=start_time,
+            end_time=end_time,
             total_executions=4,
             successful_executions=3,
             failed_executions=1,
@@ -601,39 +518,28 @@ class TestInfluxDBFormatter:
         # Should end with timestamp
         assert formatted.strip().endswith(str(int(end_time.timestamp() * 1000000000)))
 
-    def test_format_system_diagnostics_influxdb(self):
+    def test_format_system_diagnostics_influxdb(self) -> None:
         """Test formatting system diagnostics as InfluxDB line protocol."""
         timestamp = datetime.now()
 
         health_results = {
-            "test_component": ComponentHealth(
+            "test_component": ComponentHealthFactory.basic_healthy_component(
                 name="test_component",
-                status=HealthStatus.HEALTHY,
                 message="Component is healthy",
-                details={},
                 check_time=timestamp,
             )
         }
 
-        performance_metrics = PerformanceMetrics(
+        performance_metrics = PerformanceMetricsFactory.minimal_metrics(
             collection_start=timestamp - timedelta(minutes=1),
             collection_end=timestamp,
-            total_executions=1,
-            successful_executions=1,
-            failed_executions=0,
-            llm_api_calls=1,
-            total_tokens_consumed=100,
-            average_execution_time_ms=100.0,
         )
 
-        diagnostics = SystemDiagnostics(
+        diagnostics = SystemDiagnosticsFactory.basic_diagnostics(
             timestamp=timestamp,
-            overall_health=HealthStatus.HEALTHY,
             component_healths=health_results,
             performance_metrics=performance_metrics,
             system_info={"version": "1.0.0"},
-            configuration_status={"is_valid": True},
-            environment_info={"mode": "test"},
         )
 
         formatted = self.formatter.format_system_diagnostics(diagnostics)
@@ -658,12 +564,12 @@ class TestInfluxDBFormatter:
             timestamp_part = line.split()[-1]
             assert timestamp_part.isdigit()
 
-    def test_influxdb_special_characters(self):
+    def test_influxdb_special_characters(self) -> None:
         """Test InfluxDB formatting handles special characters properly."""
         timestamp = datetime.now()
         health_results = {
-            "test component": ComponentHealth(  # Space in name
-                name="test component",
+            "test component": ComponentHealthFactory.component_with_special_characters(
+                name="test component",  # Space in name
                 status=HealthStatus.HEALTHY,
                 message="Component with spaces and = signs",
                 details={"key with spaces": "value,with,commas"},
@@ -677,7 +583,7 @@ class TestInfluxDBFormatter:
         assert "component=test component" in formatted
         assert "value=1.0" in formatted
 
-    def test_influxdb_health_status_values(self):
+    def test_influxdb_health_status_values(self) -> None:
         """Test InfluxDB health status numeric values."""
         assert self.formatter._health_status_to_value(HealthStatus.HEALTHY) == 1.0
         assert self.formatter._health_status_to_value(HealthStatus.DEGRADED) == 0.5
@@ -688,10 +594,10 @@ class TestInfluxDBFormatter:
 class TestFormatterIntegration:
     """Test formatter integration and edge cases."""
 
-    def test_empty_health_results(self):
+    def test_empty_health_results(self) -> None:
         """Test formatters handle empty health results."""
         formatters = [
-            JSONFormatter(),
+            DiagnosticJSONFormatter(),
             CSVFormatter(),
             PrometheusFormatter(),
             InfluxDBFormatter(),
@@ -701,16 +607,16 @@ class TestFormatterIntegration:
             result = formatter.format_health_results({})
             assert isinstance(result, str)
             # Should not crash and should return valid format
-            if isinstance(formatter, JSONFormatter):
+            if isinstance(formatter, DiagnosticJSONFormatter):
                 assert result == "{}"
             elif isinstance(formatter, CSVFormatter):
                 # Should at least have headers
                 assert "component" in result
 
-    def test_none_values(self):
+    def test_none_values(self) -> None:
         """Test formatters handle None values gracefully."""
         formatters = [
-            JSONFormatter(),
+            DiagnosticJSONFormatter(),
             CSVFormatter(),
             PrometheusFormatter(),
             InfluxDBFormatter(),
@@ -721,20 +627,19 @@ class TestFormatterIntegration:
             assert isinstance(result, str)
             # Should not crash
 
-    def test_formatter_consistency(self):
+    def test_formatter_consistency(self) -> None:
         """Test that all formatters produce consistent data."""
         timestamp = datetime.now()
         health_results = {
-            "test_component": ComponentHealth(
+            "test_component": ComponentHealthFactory.healthy_component_with_details(
                 name="test_component",
-                status=HealthStatus.HEALTHY,
                 message="Component is healthy",
                 details={"test": "value"},
                 check_time=timestamp,
             )
         }
 
-        json_formatter = JSONFormatter()
+        json_formatter = DiagnosticJSONFormatter()
         csv_formatter = CSVFormatter()
         prometheus_formatter = PrometheusFormatter()
         influxdb_formatter = InfluxDBFormatter()

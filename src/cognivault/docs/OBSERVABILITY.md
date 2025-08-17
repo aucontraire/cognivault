@@ -55,7 +55,7 @@ This document describes CogniVault's comprehensive observability and diagnostics
 - LLM Connectivity: Tests API connectivity and authentication
 - Configuration: Validates settings and directory access including YAML workflows
 - File System: Checks permissions and disk space
-- Dependencies: Verifies critical package availability including LangGraph 0.5.3
+- Dependencies: Verifies critical package availability including LangGraph 0.6.4
 
 ### 4. Diagnostic CLI Commands
 
@@ -92,7 +92,7 @@ This document describes CogniVault's comprehensive observability and diagnostics
 
 **Location:** `src/cognivault/orchestration/orchestrator.py`
 
-- **StateGraph Monitoring**: Real-time DAG execution tracking with LangGraph 0.5.3
+- **StateGraph Monitoring**: Real-time DAG execution tracking with LangGraph 0.6.4
 - **Parallel Processing Analytics**: Performance metrics for concurrent agent execution
 - **Context Propagation**: Correlation IDs across StateGraph node execution
 - **Circuit Breaker Integration**: Comprehensive error handling and recovery monitoring
@@ -157,7 +157,7 @@ The observability system demonstrates:
 
 ## LangGraph Integration
 
-The observability system is fully integrated with LangGraph 0.5.3:
+The observability system is fully integrated with LangGraph 0.6.4:
 - **StateGraph Monitoring**: Real-time DAG execution tracking and performance analytics
 - **Parallel Processing Observability**: Metrics for concurrent agent execution
 - **Node-Level Tracing**: Detailed execution path tracking with correlation context
@@ -193,7 +193,7 @@ This observability system integrates with broader CogniVault architecture:
 - **[ROADMAP.md](../ROADMAP.md)** - Strategic development timeline and observability enhancements
 
 ### System Positioning
-- **Current State**: Comprehensive observability operational with LangGraph 0.5.3 integration
+- **Current State**: Comprehensive observability operational with LangGraph 0.6.4 integration
 - **Strategic Value**: Enables production deployment and performance optimization  
 - **Platform Evolution**: Foundation for Phase 2-3 community ecosystem monitoring and enterprise features
 

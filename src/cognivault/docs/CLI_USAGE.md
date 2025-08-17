@@ -119,7 +119,7 @@ The full pipeline executes: **Refiner** → **Critic** + **Historian** (parallel
 - **Advanced WorkflowComposer** (662 lines): Sophisticated DAG composition with configuration support
 - **Multi-Axis Classification**: 6-axis agent metadata system for intelligent routing  
 - **Advanced Node Types**: Decision, Aggregator, Validator, Terminator nodes with conditional logic
-- **LangGraph 0.5.3 Integration**: StateGraph-based execution with parallel processing
+- **LangGraph 0.6.4 Integration**: StateGraph-based execution with parallel processing
 - **Configuration-Driven Behaviors**: YAML-driven agent specialization without code changes
 
 ### Configurable Prompt Composition Showcase
@@ -681,7 +681,7 @@ export COGNIVAULT_TRACE=false
 - **Domain-Specific**: Academic, executive, legal workflow specializations operational
 - **Sophisticated Composition**: 662-line WorkflowComposer with advanced DAG capabilities
 - **Multi-Axis Classification**: 6-axis agent metadata system for intelligent routing
-- **Production-Ready Orchestration**: LangGraph 0.5.3 integration with parallel processing
+- **Production-Ready Orchestration**: LangGraph 0.6.4 integration with parallel processing
 
 ### Observability and Monitoring Benefits
 - **Observable**: Rich tracing, health checks, and diagnostic capabilities

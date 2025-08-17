@@ -19,6 +19,7 @@ from .types import (
 from .emitter import (
     EventEmitter,
     get_global_event_emitter,
+    reset_global_event_emitter,
     emit_workflow_started,
     emit_workflow_completed,
     emit_agent_execution_started,
@@ -54,6 +55,7 @@ __all__ = [
     # Event emission
     "EventEmitter",
     "get_global_event_emitter",
+    "reset_global_event_emitter",
     "emit_workflow_started",
     "emit_workflow_completed",
     "emit_agent_execution_started",

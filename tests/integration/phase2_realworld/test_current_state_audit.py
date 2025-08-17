@@ -4,6 +4,7 @@ and are used, rather than designing in a vacuum.
 """
 
 import pytest
+from typing import Any
 from pathlib import Path
 import yaml
 
@@ -26,7 +27,7 @@ class TestCurrentStateAudit:
     and what existing workflows actually use.
     """
 
-    def test_audit_working_enhanced_prompts_example(self):
+    def test_audit_working_enhanced_prompts_example(self) -> None:
         """Audit the working enhanced_prompts_example.yaml to see what it actually uses."""
 
         example_path = (
@@ -57,7 +58,7 @@ class TestCurrentStateAudit:
         # This tells us what the working example actually needs
         assert True  # Always pass - this is just for information
 
-    def test_audit_chart_workflows_config_usage(self):
+    def test_audit_chart_workflows_config_usage(self) -> None:
         """Audit chart workflows to see what config fields they expect."""
 
         charts_dir = Path(__file__).parent.parent.parent.parent / "examples" / "charts"
@@ -99,12 +100,12 @@ class TestCurrentStateAudit:
 
         assert True  # Always pass - this is for information
 
-    def test_audit_current_agent_config_support(self):
+    def test_audit_current_agent_config_support(self) -> None:
         """Audit what configuration support actually exists in current agents."""
 
-        from unittest.mock import Mock
+        from unittest.mock import MagicMock, Mock
 
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
 
         print("\n📋 AUDIT: Current agent configuration support")
         print("=" * 50)
@@ -163,7 +164,7 @@ class TestCurrentStateAudit:
 
         assert True  # Always pass - this is for information
 
-    def test_audit_pydantic_config_schemas(self):
+    def test_audit_pydantic_config_schemas(self) -> None:
         """Audit what fields our Pydantic config schemas actually define."""
 
         print("\n📋 AUDIT: Current Pydantic config schemas")
@@ -183,10 +184,10 @@ class TestCurrentStateAudit:
         # Test CriticConfig
         print("\n📋 CriticConfig:")
         try:
-            config = CriticConfig()  # Use defaults
+            critic_config = CriticConfig()  # Use defaults
             print(f"  ✅ CriticConfig instantiates")
-            print(f"  Fields: {list(config.__dict__.keys())}")
-            for field_name, field_value in config.__dict__.items():
+            print(f"  Fields: {list(critic_config.__dict__.keys())}")
+            for field_name, field_value in critic_config.__dict__.items():
                 print(f"    {field_name}: {field_value} ({type(field_value).__name__})")
         except Exception as e:
             print(f"  ❌ Failed: {e}")
@@ -194,10 +195,10 @@ class TestCurrentStateAudit:
         # Test HistorianConfig
         print("\n📋 HistorianConfig:")
         try:
-            config = HistorianConfig()  # Use defaults
+            historian_config = HistorianConfig()  # Use defaults
             print(f"  ✅ HistorianConfig instantiates")
-            print(f"  Fields: {list(config.__dict__.keys())}")
-            for field_name, field_value in config.__dict__.items():
+            print(f"  Fields: {list(historian_config.__dict__.keys())}")
+            for field_name, field_value in historian_config.__dict__.items():
                 print(f"    {field_name}: {field_value} ({type(field_value).__name__})")
         except Exception as e:
             print(f"  ❌ Failed: {e}")
@@ -205,17 +206,17 @@ class TestCurrentStateAudit:
         # Test SynthesisConfig
         print("\n📋 SynthesisConfig:")
         try:
-            config = SynthesisConfig()  # Use defaults
+            synthesis_config = SynthesisConfig()  # Use defaults
             print(f"  ✅ SynthesisConfig instantiates")
-            print(f"  Fields: {list(config.__dict__.keys())}")
-            for field_name, field_value in config.__dict__.items():
+            print(f"  Fields: {list(synthesis_config.__dict__.keys())}")
+            for field_name, field_value in synthesis_config.__dict__.items():
                 print(f"    {field_name}: {field_value} ({type(field_value).__name__})")
         except Exception as e:
             print(f"  ❌ Failed: {e}")
 
         assert True  # Always pass - this is for information
 
-    def test_audit_prompt_composer_expectations(self):
+    def test_audit_prompt_composer_expectations(self) -> None:
         """Audit what the PromptComposer expects from configurations."""
 
         print("\n📋 AUDIT: PromptComposer expectations")
@@ -249,7 +250,7 @@ class TestCurrentStateAudit:
 
         assert True  # Always pass - this is for information
 
-    def test_audit_config_field_mismatches(self):
+    def test_audit_config_field_mismatches(self) -> None:
         """Find mismatches between what workflows expect and what Pydantic schemas support."""
 
         print("\n📋 AUDIT: Configuration field mismatches")

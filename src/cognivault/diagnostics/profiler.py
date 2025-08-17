@@ -206,7 +206,7 @@ class PerformanceProfiler:
         output_file: Optional[str] = typer.Option(
             None, "--output", "-o", help="Save profile to file"
         ),
-    ):
+    ) -> None:
         """Profile DAG execution with detailed performance metrics."""
         self.console.print("[bold blue]📊 Performance Profiler[/bold blue]")
 
@@ -244,7 +244,7 @@ class PerformanceProfiler:
         suite_name: Optional[str] = typer.Option(
             None, "--name", help="Benchmark suite name"
         ),
-    ):
+    ) -> None:
         """Run comprehensive benchmark suite across modes and queries."""
         self.console.print("[bold green]🏁 Benchmark Suite[/bold green]")
 
@@ -278,7 +278,7 @@ class PerformanceProfiler:
         runs: int = typer.Option(5, "--runs", "-r", help="Runs per mode"),
         statistical: bool = typer.Option(True, "--stats", help="Statistical analysis"),
         visual: bool = typer.Option(False, "--visual", help="Visual comparison charts"),
-    ):
+    ) -> None:
         """Compare performance across different execution modes."""
         self.console.print("[bold magenta]⚖️  Mode Comparison[/bold magenta]")
 
@@ -310,7 +310,7 @@ class PerformanceProfiler:
         output_file: Optional[str] = typer.Option(
             None, "--output", "-o", help="Save monitoring data"
         ),
-    ):
+    ) -> None:
         """Monitor system performance during DAG execution."""
         self.console.print("[bold yellow]🔍 Performance Monitor[/bold yellow]")
 
@@ -335,7 +335,7 @@ class PerformanceProfiler:
         generate_insights: bool = typer.Option(
             True, "--insights", help="Generate optimization insights"
         ),
-    ):
+    ) -> None:
         """Analyze existing performance profiles."""
         self.console.print("[bold cyan]🔬 Profile Analyzer[/bold cyan]")
 
@@ -368,7 +368,7 @@ class PerformanceProfiler:
         include_graphs: bool = typer.Option(
             True, "--graphs", help="Include performance graphs"
         ),
-    ):
+    ) -> None:
         """Generate comprehensive performance report."""
         self.console.print("[bold green]📋 Report Generator[/bold green]")
 
@@ -396,7 +396,7 @@ class PerformanceProfiler:
         interactive: bool = typer.Option(
             False, "--interactive", help="Interactive optimization suggestions"
         ),
-    ):
+    ) -> None:
         """Suggest performance optimizations based on profile analysis."""
         self.console.print("[bold red]🚀 Optimization Advisor[/bold red]")
 
@@ -427,7 +427,7 @@ class PerformanceProfiler:
         mode: str = typer.Option(
             "langgraph-real", "--mode", "-m", help="Execution mode"
         ),
-    ):
+    ) -> None:
         """Perform stress testing on DAG execution."""
         self.console.print("[bold red]💥 Stress Test[/bold red]")
 
@@ -531,12 +531,12 @@ class PerformanceProfiler:
 
         return profile
 
-    def _start_resource_monitoring(self):
+    def _start_resource_monitoring(self) -> None:
         """Start monitoring system resources."""
         self.monitoring = True
         self.resource_data = []
 
-        def monitor():
+        def monitor() -> None:
             while self.monitoring:
                 try:
                     self.resource_data.append(
@@ -595,7 +595,7 @@ class PerformanceProfiler:
         # This would need real integration with LLM call tracking
         return len(context.agent_outputs)
 
-    def _display_profile_results(self, profiles: List[ExecutionProfile]):
+    def _display_profile_results(self, profiles: List[ExecutionProfile]) -> None:
         """Display profiling results."""
         if not profiles:
             return
@@ -745,7 +745,7 @@ class PerformanceProfiler:
             "by_mode": mode_stats,
         }
 
-    def _display_benchmark_results(self, suite: BenchmarkSuite):
+    def _display_benchmark_results(self, suite: BenchmarkSuite) -> None:
         """Display benchmark suite results."""
         self.console.print(f"[bold]📊 Benchmark Suite: {suite.suite_name}[/bold]")
 
@@ -783,7 +783,9 @@ class PerformanceProfiler:
 
             self.console.print(mode_table)
 
-    def _save_profiles(self, profiles: List[ExecutionProfile], output_file: str):
+    def _save_profiles(
+        self, profiles: List[ExecutionProfile], output_file: str
+    ) -> None:
         """Save profiles to file."""
         data = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -808,7 +810,7 @@ class PerformanceProfiler:
 
         self.console.print(f"[green]✅ Profiles saved to: {output_file}[/green]")
 
-    def _save_benchmark_suite(self, suite: BenchmarkSuite, output_dir: str):
+    def _save_benchmark_suite(self, suite: BenchmarkSuite, output_dir: str) -> None:
         """Save benchmark suite to directory."""
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
@@ -852,7 +854,7 @@ class PerformanceProfiler:
         mode: str,
         runs: int,
         detailed: bool,
-    ):
+    ) -> None:
         """Profile with live monitoring (simplified)."""
         self.console.print("🔴 Live monitoring active...")
         profiles = self._run_profiling_suite(query, agents, mode, runs, detailed)
@@ -867,7 +869,9 @@ class PerformanceProfiler:
             results[mode] = {"avg_duration": 1.5, "success_rate": 0.95, "runs": runs}
         return results
 
-    def _display_comparison_results(self, results: Dict[str, Any], statistical: bool):
+    def _display_comparison_results(
+        self, results: Dict[str, Any], statistical: bool
+    ) -> None:
         """Display comparison results."""
         table = Table(title="Mode Comparison")
         table.add_column("Mode", style="bold")
@@ -881,7 +885,7 @@ class PerformanceProfiler:
 
         self.console.print(table)
 
-    def _generate_visual_comparison(self, results: Dict[str, Any]):
+    def _generate_visual_comparison(self, results: Dict[str, Any]) -> None:
         """Generate visual comparison (placeholder)."""
         self.console.print("📊 Visual comparison would be generated here")
 
@@ -895,11 +899,13 @@ class PerformanceProfiler:
         time.sleep(min(duration, 2))  # Simulate monitoring
         return [{"timestamp": time.time(), "cpu": 50.0, "memory": 60.0}]
 
-    def _display_monitoring_results(self, data: List[Dict[str, Any]]):
+    def _display_monitoring_results(self, data: List[Dict[str, Any]]) -> None:
         """Display monitoring results."""
         self.console.print(f"📈 Monitoring completed with {len(data)} data points")
 
-    def _save_monitoring_data(self, data: List[Dict[str, Any]], output_file: str):
+    def _save_monitoring_data(
+        self, data: List[Dict[str, Any]], output_file: str
+    ) -> None:
         """Save monitoring data."""
         with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
@@ -908,7 +914,8 @@ class PerformanceProfiler:
         """Load profile data from file."""
         try:
             with open(profile_file, "r") as f:
-                return json.load(f)
+                result = json.load(f)
+                return result if isinstance(result, dict) else {}
         except FileNotFoundError:
             return {"error": "Profile file not found"}
 
@@ -922,7 +929,7 @@ class PerformanceProfiler:
             "recommendations": ["Optimize slow operations"],
         }
 
-    def _display_analysis_results(self, analysis: Dict[str, Any]):
+    def _display_analysis_results(self, analysis: Dict[str, Any]) -> None:
         """Display analysis results."""
         self.console.print(f"Analysis Type: {analysis.get('analysis_type', 'Unknown')}")
         self.console.print(f"Summary: {analysis.get('summary', 'No summary')}")
@@ -937,7 +944,7 @@ class PerformanceProfiler:
             "improvement": "10% faster",
         }
 
-    def _display_profile_comparison(self, comparison: Dict[str, Any]):
+    def _display_profile_comparison(self, comparison: Dict[str, Any]) -> None:
         """Display profile comparison."""
         self.console.print("Profile Comparison Results:")
         for key, value in comparison.items():
@@ -947,7 +954,7 @@ class PerformanceProfiler:
         """Generate optimization insights."""
         return ["Consider caching", "Reduce API calls", "Optimize loops"]
 
-    def _display_optimization_insights(self, insights: List[str]):
+    def _display_optimization_insights(self, insights: List[str]) -> None:
         """Display optimization insights."""
         self.console.print("💡 Optimization Insights:")
         for insight in insights:
@@ -967,7 +974,7 @@ class PerformanceProfiler:
         """Generate performance report."""
         return f"# Performance Report\n\nFormat: {format}\nGraphs: {include_graphs}\n"
 
-    def _save_report(self, report: str, output_file: str):
+    def _save_report(self, report: str, output_file: str) -> None:
         """Save report to file."""
         with open(output_file, "w") as f:
             f.write(report)
@@ -978,13 +985,13 @@ class PerformanceProfiler:
         """Generate optimization suggestions."""
         return [f"Optimize {target} operations", "Implement caching"]
 
-    def _interactive_optimization_session(self, suggestions: List[str]):
+    def _interactive_optimization_session(self, suggestions: List[str]) -> None:
         """Interactive optimization session."""
         self.console.print("🔧 Interactive optimization session:")
         for i, suggestion in enumerate(suggestions, 1):
             self.console.print(f"  {i}. {suggestion}")
 
-    def _display_optimization_suggestions(self, suggestions: List[str]):
+    def _display_optimization_suggestions(self, suggestions: List[str]) -> None:
         """Display optimization suggestions."""
         self.console.print("🚀 Optimization Suggestions:")
         for suggestion in suggestions:
@@ -1007,7 +1014,7 @@ class PerformanceProfiler:
             "success_rate": 0.95,
         }
 
-    def _display_stress_test_results(self, results: Dict[str, Any]):
+    def _display_stress_test_results(self, results: Dict[str, Any]) -> None:
         """Display stress test results."""
         table = Table(title="Stress Test Results")
         table.add_column("Metric", style="bold")

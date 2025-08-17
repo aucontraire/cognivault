@@ -7,7 +7,7 @@ health status enumeration, and the HealthChecker class.
 
 import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 try:
     from importlib.metadata import version, PackageNotFoundError
@@ -17,10 +17,10 @@ except ImportError:
         from importlib_metadata import version, PackageNotFoundError  # type: ignore
     except ImportError:
         # Create a stub if neither is available
-        class PackageNotFoundError(Exception):  # type: ignore[misc,no-redef]
+        class PackageNotFoundError(Exception):  # type: ignore[no-redef]
             pass
 
-        def version(distribution_name: str) -> str:  # type: ignore[misc]
+        def version(distribution_name: str) -> str:
             raise PackageNotFoundError(f"Package {distribution_name} not found")
 
 
@@ -29,23 +29,24 @@ from cognivault.diagnostics.health import (
     ComponentHealth,
     HealthChecker,
 )
+from tests.factories.diagnostic_health_factories import ComponentHealthFactory
 
 
 class TestHealthStatus:
     """Test HealthStatus enumeration."""
 
-    def test_health_status_values(self):
+    def test_health_status_values(self) -> None:
         """Test health status enum values."""
         assert HealthStatus.HEALTHY.value == "healthy"
         assert HealthStatus.DEGRADED.value == "degraded"
         assert HealthStatus.UNHEALTHY.value == "unhealthy"
         assert HealthStatus.UNKNOWN.value == "unknown"
 
-    def test_health_status_comparison(self):
+    def test_health_status_comparison(self) -> None:
         """Test health status can be compared."""
         # Test basic equality
         assert HealthStatus.HEALTHY == HealthStatus.HEALTHY
-        assert HealthStatus.HEALTHY != HealthStatus.DEGRADED
+        # Note: HealthStatus.HEALTHY != HealthStatus.DEGRADED is always true by definition
 
         # Test with string values
         assert HealthStatus.HEALTHY.value == "healthy"
@@ -54,14 +55,13 @@ class TestHealthStatus:
 class TestComponentHealth:
     """Test ComponentHealth dataclass."""
 
-    def test_component_health_creation(self):
+    def test_component_health_creation(self) -> None:
         """Test creating ComponentHealth instance."""
         check_time = datetime.now()
         details = {"test": "value", "count": 42}
 
-        health = ComponentHealth(
+        health = ComponentHealthFactory.healthy_component_with_details(
             name="test_component",
-            status=HealthStatus.HEALTHY,
             message="Component is healthy",
             details=details,
             check_time=check_time,
@@ -75,14 +75,13 @@ class TestComponentHealth:
         assert health.check_time == check_time
         assert health.response_time_ms == 150.5
 
-    def test_component_health_to_dict(self):
+    def test_component_health_to_dict(self) -> None:
         """Test ComponentHealth serialization to dictionary."""
         check_time = datetime.now()
         details = {"test": "value"}
 
-        health = ComponentHealth(
+        health = ComponentHealthFactory.degraded_component(
             name="test_component",
-            status=HealthStatus.DEGRADED,
             message="Component has issues",
             details=details,
             check_time=check_time,
@@ -98,11 +97,10 @@ class TestComponentHealth:
         assert result["check_time"] == check_time.isoformat()
         assert result["response_time_ms"] == 250.0
 
-    def test_component_health_without_response_time(self):
+    def test_component_health_without_response_time(self) -> None:
         """Test ComponentHealth without response time."""
-        health = ComponentHealth(
+        health = ComponentHealthFactory.basic_healthy_component(
             name="test_component",
-            status=HealthStatus.HEALTHY,
             message="Test message",
             details={},
             check_time=datetime.now(),
@@ -115,12 +113,12 @@ class TestComponentHealth:
 class TestHealthChecker:
     """Test HealthChecker functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.health_checker = HealthChecker()
 
     @pytest.mark.asyncio
-    async def test_check_all_basic(self):
+    async def test_check_all_basic(self) -> None:
         """Test basic check_all functionality."""
         with (
             patch.object(self.health_checker, "_check_agent_registry") as mock_registry,
@@ -130,39 +128,25 @@ class TestHealthChecker:
             patch.object(self.health_checker, "_check_dependencies") as mock_deps,
         ):
             # Mock all health checks to return healthy
-            mock_registry.return_value = ComponentHealth(
-                name="agent_registry",
-                status=HealthStatus.HEALTHY,
-                message="Registry is healthy",
-                details={},
+            mock_registry.return_value = ComponentHealthFactory.agent_registry_health(
                 check_time=datetime.now(),
             )
-            mock_llm.return_value = ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.HEALTHY,
-                message="LLM is healthy",
-                details={},
+            mock_llm.return_value = ComponentHealthFactory.llm_connectivity_health(
                 check_time=datetime.now(),
             )
-            mock_config.return_value = ComponentHealth(
+            mock_config.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="configuration",
-                status=HealthStatus.HEALTHY,
                 message="Config is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_fs.return_value = ComponentHealth(
+            mock_fs.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="file_system",
-                status=HealthStatus.HEALTHY,
                 message="File system is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_deps.return_value = ComponentHealth(
+            mock_deps.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="dependencies",
-                status=HealthStatus.HEALTHY,
                 message="Dependencies are healthy",
-                details={},
                 check_time=datetime.now(),
             )
 
@@ -180,7 +164,7 @@ class TestHealthChecker:
                 assert component_health.status == HealthStatus.HEALTHY
 
     @pytest.mark.asyncio
-    async def test_check_all_with_exception(self):
+    async def test_check_all_with_exception(self) -> None:
         """Test check_all handles exceptions."""
         with (
             patch.object(self.health_checker, "_check_agent_registry") as mock_registry,
@@ -193,32 +177,22 @@ class TestHealthChecker:
             mock_registry.side_effect = RuntimeError("Registry check failed")
 
             # Others return healthy
-            mock_llm.return_value = ComponentHealth(
-                name="llm_connectivity",
-                status=HealthStatus.HEALTHY,
-                message="LLM is healthy",
-                details={},
+            mock_llm.return_value = ComponentHealthFactory.llm_connectivity_health(
                 check_time=datetime.now(),
             )
-            mock_config.return_value = ComponentHealth(
+            mock_config.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="configuration",
-                status=HealthStatus.HEALTHY,
                 message="Config is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_fs.return_value = ComponentHealth(
+            mock_fs.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="file_system",
-                status=HealthStatus.HEALTHY,
                 message="File system is healthy",
-                details={},
                 check_time=datetime.now(),
             )
-            mock_deps.return_value = ComponentHealth(
+            mock_deps.return_value = ComponentHealthFactory.basic_healthy_component(
                 name="dependencies",
-                status=HealthStatus.HEALTHY,
                 message="Dependencies are healthy",
-                details={},
                 check_time=datetime.now(),
             )
 
@@ -230,7 +204,7 @@ class TestHealthChecker:
             assert "Registry check failed" in result["error"].message
 
     @pytest.mark.asyncio
-    async def test_check_agent_registry_healthy(self):
+    async def test_check_agent_registry_healthy(self) -> None:
         """Test agent registry health check when healthy."""
         with (
             patch.object(
@@ -256,7 +230,7 @@ class TestHealthChecker:
             assert result.details["pipeline_valid"] is True
 
     @pytest.mark.asyncio
-    async def test_check_agent_registry_no_agents(self):
+    async def test_check_agent_registry_no_agents(self) -> None:
         """Test agent registry health check when no agents are registered."""
         with patch.object(
             self.health_checker.registry, "get_available_agents"
@@ -271,7 +245,7 @@ class TestHealthChecker:
             assert result.details["agent_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_check_llm_connectivity_stub_provider(self):
+    async def test_check_llm_connectivity_stub_provider(self) -> None:
         """Test LLM connectivity check with stub provider."""
         with patch.object(
             self.health_checker.config.models, "default_provider", "stub"
@@ -284,7 +258,7 @@ class TestHealthChecker:
             assert result.details["provider"] == "stub"
 
     @pytest.mark.asyncio
-    async def test_check_llm_connectivity_openai_no_api_key(self):
+    async def test_check_llm_connectivity_openai_no_api_key(self) -> None:
         """Test LLM connectivity check with OpenAI but no API key."""
         with (
             patch.object(
@@ -292,7 +266,7 @@ class TestHealthChecker:
             ),
             patch("cognivault.config.openai_config.OpenAIConfig") as mock_config_class,
         ):
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.api_key = None
             mock_config_class.load.return_value = mock_config
 
@@ -303,7 +277,7 @@ class TestHealthChecker:
             assert "OpenAI API key not configured" in result.message
 
     @pytest.mark.asyncio
-    async def test_check_configuration_valid(self):
+    async def test_check_configuration_valid(self) -> None:
         """Test configuration check when configuration is valid."""
         with (
             patch.object(self.health_checker, "config") as mock_config,
@@ -324,7 +298,7 @@ class TestHealthChecker:
             assert "Configuration is valid and complete" in result.message
 
     @pytest.mark.asyncio
-    async def test_check_configuration_validation_errors(self):
+    async def test_check_configuration_validation_errors(self) -> None:
         """Test configuration check with validation errors."""
         with patch.object(self.health_checker, "config") as mock_config:
             # Setup mock config with validation errors
@@ -345,7 +319,7 @@ class TestHealthChecker:
             ]
 
     @pytest.mark.asyncio
-    async def test_check_file_system_healthy(self):
+    async def test_check_file_system_healthy(self) -> None:
         """Test file system check when everything is healthy."""
         with (
             patch("os.path.exists") as mock_exists,
@@ -359,7 +333,7 @@ class TestHealthChecker:
             mock_temp.return_value.__enter__.return_value = MagicMock()
 
             # Mock disk space check
-            mock_stat = MagicMock()
+            mock_stat: MagicMock = MagicMock()
             mock_stat.f_frsize = 4096
             mock_stat.f_bavail = 1000000  # ~4GB free
             mock_statvfs.return_value = mock_stat
@@ -374,7 +348,7 @@ class TestHealthChecker:
             assert result.details["temp_file_creation"] is True
 
     @pytest.mark.asyncio
-    async def test_check_file_system_missing_directories(self):
+    async def test_check_file_system_missing_directories(self) -> None:
         """Test file system check when directories are missing."""
         with (
             patch("os.path.exists") as mock_exists,
@@ -390,7 +364,7 @@ class TestHealthChecker:
             assert len(result.details["issues"]) > 0
 
     @pytest.mark.asyncio
-    async def test_check_dependencies_all_present(self):
+    async def test_check_dependencies_all_present(self) -> None:
         """Test dependencies check when all packages are present."""
         with patch("cognivault.diagnostics.health.version") as mock_version:
             # Mock successful package lookups
@@ -403,7 +377,7 @@ class TestHealthChecker:
             assert "All 4 critical packages available" in result.message
 
     @pytest.mark.asyncio
-    async def test_check_dependencies_missing_packages(self):
+    async def test_check_dependencies_missing_packages(self) -> None:
         """Test dependencies check when packages are missing."""
         with patch("cognivault.diagnostics.health.version") as mock_version:
             # Mock missing package
@@ -415,21 +389,17 @@ class TestHealthChecker:
             assert result.status == HealthStatus.UNHEALTHY
             assert "Missing critical packages" in result.message
 
-    def test_get_overall_status_all_healthy(self):
+    def test_get_overall_status_all_healthy(self) -> None:
         """Test overall status when all components are healthy."""
         components = {
-            "comp1": ComponentHealth(
+            "comp1": ComponentHealthFactory.basic_healthy_component(
                 name="comp1",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "comp2": ComponentHealth(
+            "comp2": ComponentHealthFactory.basic_healthy_component(
                 name="comp2",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -438,21 +408,17 @@ class TestHealthChecker:
 
         assert status == HealthStatus.HEALTHY
 
-    def test_get_overall_status_some_degraded(self):
+    def test_get_overall_status_some_degraded(self) -> None:
         """Test overall status when some components are degraded."""
         components = {
-            "comp1": ComponentHealth(
+            "comp1": ComponentHealthFactory.basic_healthy_component(
                 name="comp1",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "comp2": ComponentHealth(
+            "comp2": ComponentHealthFactory.degraded_component(
                 name="comp2",
-                status=HealthStatus.DEGRADED,
                 message="Issues",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -461,21 +427,17 @@ class TestHealthChecker:
 
         assert status == HealthStatus.DEGRADED
 
-    def test_get_overall_status_some_unhealthy(self):
+    def test_get_overall_status_some_unhealthy(self) -> None:
         """Test overall status when some components are unhealthy."""
         components = {
-            "comp1": ComponentHealth(
+            "comp1": ComponentHealthFactory.basic_healthy_component(
                 name="comp1",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "comp2": ComponentHealth(
+            "comp2": ComponentHealthFactory.unhealthy_component(
                 name="comp2",
-                status=HealthStatus.UNHEALTHY,
                 message="Failed",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -484,16 +446,16 @@ class TestHealthChecker:
 
         assert status == HealthStatus.UNHEALTHY
 
-    def test_get_overall_status_empty(self):
+    def test_get_overall_status_empty(self) -> None:
         """Test overall status when no components are provided."""
-        components = {}
+        components: dict[str, ComponentHealth] = {}
 
         status = self.health_checker.get_overall_status(components)
 
         assert status == HealthStatus.UNKNOWN
 
     @pytest.mark.asyncio
-    async def test_check_llm_connectivity_openai_success(self):
+    async def test_check_llm_connectivity_openai_success(self) -> None:
         """Test LLM connectivity check with successful OpenAI connection."""
 
         with (
@@ -504,13 +466,13 @@ class TestHealthChecker:
             patch("cognivault.config.openai_config.OpenAIConfig") as mock_config_class,
         ):
             # Mock successful OpenAI configuration
-            mock_config = MagicMock()
+            mock_config: MagicMock = MagicMock()
             mock_config.api_key = "test-key"
             mock_config.model = "gpt-4"
             mock_config_class.load.return_value = mock_config
 
             # Mock successful LLM creation (no exception means success)
-            mock_llm = MagicMock()
+            mock_llm: MagicMock = MagicMock()
             mock_llm_class.return_value = mock_llm
 
             result = await self.health_checker._check_llm_connectivity()
@@ -522,7 +484,7 @@ class TestHealthChecker:
             assert result.details["model"] == "gpt-4"
 
     @pytest.mark.asyncio
-    async def test_check_llm_connectivity_openai_failure(self):
+    async def test_check_llm_connectivity_openai_failure(self) -> None:
         """Test LLM connectivity check with failed OpenAI connection."""
 
         with (
@@ -541,7 +503,7 @@ class TestHealthChecker:
             assert "LLM health check failed" in result.message
 
     @pytest.mark.asyncio
-    async def test_check_llm_connectivity_exception(self):
+    async def test_check_llm_connectivity_exception(self) -> None:
         """Test LLM connectivity check with exception."""
         with (
             patch.object(
@@ -559,7 +521,7 @@ class TestHealthChecker:
             assert "LLM health check failed" in result.message
 
     @pytest.mark.asyncio
-    async def test_check_file_system_low_disk_space(self):
+    async def test_check_file_system_low_disk_space(self) -> None:
         """Test file system check with low disk space."""
         with (
             patch("os.path.exists") as mock_exists,
@@ -573,7 +535,7 @@ class TestHealthChecker:
             mock_temp.return_value.__enter__.return_value = MagicMock()
 
             # Mock low disk space (< 100MB)
-            mock_stat = MagicMock()
+            mock_stat: MagicMock = MagicMock()
             mock_stat.f_frsize = 4096
             mock_stat.f_bavail = 10000  # ~40MB free
             mock_statvfs.return_value = mock_stat
@@ -586,7 +548,7 @@ class TestHealthChecker:
             assert "Low disk space (< 100MB)" in result.details["issues"]
 
     @pytest.mark.asyncio
-    async def test_check_file_system_temp_file_creation_failure(self):
+    async def test_check_file_system_temp_file_creation_failure(self) -> None:
         """Test file system check when temp file creation fails."""
         with (
             patch("os.path.exists") as mock_exists,
@@ -608,7 +570,7 @@ class TestHealthChecker:
             assert result.details["temp_file_creation"] is False
 
     @pytest.mark.asyncio
-    async def test_check_dependencies_version_conflict(self):
+    async def test_check_dependencies_version_conflict(self) -> None:
         """Test dependencies check with version conflicts."""
 
         with patch("cognivault.diagnostics.health.version") as mock_version:
@@ -622,29 +584,23 @@ class TestHealthChecker:
             assert result.status == HealthStatus.HEALTHY
             assert "package_versions" in result.details
 
-    def test_get_overall_status_priority_order(self):
+    def test_get_overall_status_priority_order(self) -> None:
         """Test overall status priority (unhealthy > degraded > healthy)."""
         # Test all combinations to ensure unhealthy takes precedence
         components = {
-            "healthy": ComponentHealth(
+            "healthy": ComponentHealthFactory.basic_healthy_component(
                 name="healthy",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "degraded": ComponentHealth(
+            "degraded": ComponentHealthFactory.degraded_component(
                 name="degraded",
-                status=HealthStatus.DEGRADED,
                 message="Issues",
-                details={},
                 check_time=datetime.now(),
             ),
-            "unhealthy": ComponentHealth(
+            "unhealthy": ComponentHealthFactory.unhealthy_component(
                 name="unhealthy",
-                status=HealthStatus.UNHEALTHY,
                 message="Failed",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -654,18 +610,14 @@ class TestHealthChecker:
 
         # Test degraded + healthy
         components_degraded = {
-            "healthy": ComponentHealth(
+            "healthy": ComponentHealthFactory.basic_healthy_component(
                 name="healthy",
-                status=HealthStatus.HEALTHY,
                 message="OK",
-                details={},
                 check_time=datetime.now(),
             ),
-            "degraded": ComponentHealth(
+            "degraded": ComponentHealthFactory.degraded_component(
                 name="degraded",
-                status=HealthStatus.DEGRADED,
                 message="Issues",
-                details={},
                 check_time=datetime.now(),
             ),
         }
@@ -674,7 +626,7 @@ class TestHealthChecker:
         assert status == HealthStatus.DEGRADED
 
     @pytest.mark.asyncio
-    async def test_check_agent_registry_validation_failure(self):
+    async def test_check_agent_registry_validation_failure(self) -> None:
         """Test agent registry health check when pipeline validation fails."""
         with (
             patch.object(
@@ -695,7 +647,7 @@ class TestHealthChecker:
             assert "Pipeline validation failed" in result.details["error"]
 
     @pytest.mark.asyncio
-    async def test_check_configuration_missing_directories(self):
+    async def test_check_configuration_missing_directories(self) -> None:
         """Test configuration check when directories are missing."""
         with (
             patch.object(self.health_checker, "config") as mock_config,
@@ -717,7 +669,7 @@ class TestHealthChecker:
             assert "does not exist" in str(result.details["critical_issues"])
 
     @pytest.mark.asyncio
-    async def test_component_health_response_time_tracking(self):
+    async def test_component_health_response_time_tracking(self) -> None:
         """Test that component health tracks response times."""
         import time
 

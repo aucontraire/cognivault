@@ -205,8 +205,8 @@ class ExecutionTracer:
         self.console = Console()
         self.active_sessions: Dict[str, TracingSession] = {}
         self.traces: Dict[str, ExecutionTrace] = {}
-        self.event_handlers: List[Callable] = []
-        self.breakpoint_handler: Optional[Callable] = None
+        self.event_handlers: List[Callable[..., Any]] = []
+        self.breakpoint_handler: Optional[Callable[..., Any]] = None
         self._trace_lock = threading.Lock()
 
     def create_app(self) -> typer.Typer:
@@ -253,7 +253,7 @@ class ExecutionTracer:
         capture_memory: bool = typer.Option(
             False, "--memory", help="Capture memory usage"
         ),
-    ):
+    ) -> None:
         """Trace DAG execution with detailed path analysis."""
         self.console.print("[bold blue]🔍 Execution Path Tracer[/bold blue]")
 
@@ -316,7 +316,7 @@ class ExecutionTracer:
             0.5, "--refresh", "-r", help="Refresh rate in seconds"
         ),
         show_events: bool = typer.Option(True, "--events", help="Show live events"),
-    ):
+    ) -> None:
         """Live trace execution with real-time updates."""
         self.console.print("[bold green]📡 Live Execution Tracer[/bold green]")
 
@@ -358,7 +358,7 @@ class ExecutionTracer:
         interactive: bool = typer.Option(
             True, "--interactive", "-i", help="Interactive debugging"
         ),
-    ):
+    ) -> None:
         """Debug execution with breakpoints and step-by-step analysis."""
         self.console.print("[bold red]🐛 Interactive Debugger[/bold red]")
 
@@ -400,7 +400,7 @@ class ExecutionTracer:
         performance_analysis: bool = typer.Option(
             True, "--performance", help="Include performance analysis"
         ),
-    ):
+    ) -> None:
         """Analyze execution trace with detailed insights."""
         self.console.print("[bold cyan]📊 Trace Analyzer[/bold cyan]")
 
@@ -430,7 +430,7 @@ class ExecutionTracer:
         highlight_events: Optional[str] = typer.Option(
             None, "--highlight", help="Event types to highlight"
         ),
-    ):
+    ) -> None:
         """Replay execution trace with visualization."""
         self.console.print("[bold magenta]🎬 Trace Replay[/bold magenta]")
 
@@ -461,7 +461,7 @@ class ExecutionTracer:
         output_file: Optional[str] = typer.Option(
             None, "--output", "-o", help="Comparison output file"
         ),
-    ):
+    ) -> None:
         """Compare two execution traces."""
         self.console.print("[bold yellow]⚖️ Trace Comparison[/bold yellow]")
 
@@ -495,7 +495,7 @@ class ExecutionTracer:
         condition: Optional[str] = typer.Option(
             None, "--condition", "-c", help="Breakpoint condition"
         ),
-    ):
+    ) -> None:
         """Manage debugging breakpoints."""
         self.console.print("[bold red]🔴 Breakpoint Manager[/bold red]")
 
@@ -521,7 +521,7 @@ class ExecutionTracer:
         output_file: str = typer.Option(
             "exported_trace", "--output", "-o", help="Output file"
         ),
-    ):
+    ) -> None:
         """Export trace in various formats."""
         self.console.print("[bold blue]📤 Trace Exporter[/bold blue]")
 
@@ -558,7 +558,7 @@ class ExecutionTracer:
         output_dir: str = typer.Option(
             "./monitoring", "--output", "-o", help="Output directory"
         ),
-    ):
+    ) -> None:
         """Monitor execution patterns and performance."""
         self.console.print("[bold green]📡 Execution Monitor[/bold green]")
 
@@ -615,7 +615,7 @@ class ExecutionTracer:
 
     def _generate_trace_events(
         self, trace: ExecutionTrace, context: AgentContext, session: TracingSession
-    ):
+    ) -> None:
         """Generate trace events from execution context."""
         # Simplified event generation
         for agent_name, output in context.agent_outputs.items():
@@ -644,7 +644,7 @@ class ExecutionTracer:
         session: TracingSession,
         refresh_rate: float,
         show_events: bool,
-    ):
+    ) -> None:
         """Execute with live real-time tracing."""
         layout = Layout()
         layout.split_column(
@@ -656,7 +656,7 @@ class ExecutionTracer:
 
         with Live(layout, refresh_per_second=1 / refresh_rate) as live:
             # Start execution in background
-            async def execute_async():
+            async def execute_async() -> AgentContext:
                 # Use LangGraphOrchestrator if available
                 if LangGraphOrchestrator is None:
                     raise ImportError("LangGraphOrchestrator not available")
@@ -688,7 +688,7 @@ class ExecutionTracer:
 
             layout["events"].update(events_table)
 
-    def _display_trace_summary(self, trace: ExecutionTrace):
+    def _display_trace_summary(self, trace: ExecutionTrace) -> None:
         """Display trace execution summary."""
         status_color = "green" if trace.success else "red"
         status_icon = "✅" if trace.success else "❌"
@@ -705,7 +705,7 @@ class ExecutionTracer:
         )
         self.console.print(summary_panel)
 
-    def _display_execution_path(self, trace: ExecutionTrace):
+    def _display_execution_path(self, trace: ExecutionTrace) -> None:
         """Display execution path as a tree."""
         if not trace.execution_path:
             return
@@ -733,7 +733,7 @@ class ExecutionTracer:
 
         self.console.print(tree)
 
-    def _display_detailed_events(self, trace: ExecutionTrace):
+    def _display_detailed_events(self, trace: ExecutionTrace) -> None:
         """Display detailed event information."""
         if not trace.events:
             return
@@ -763,7 +763,7 @@ class ExecutionTracer:
 
         self.console.print(events_table)
 
-    def _save_trace(self, trace: ExecutionTrace, output_file: str):
+    def _save_trace(self, trace: ExecutionTrace, output_file: str) -> None:
         """Save trace to file."""
         trace_data = {
             "trace_id": trace.trace_id,
@@ -830,7 +830,7 @@ class ExecutionTracer:
 
     def _start_interactive_debug_session(
         self, query: str, agents: Optional[List[str]], session: TracingSession
-    ):
+    ) -> None:
         """Start interactive debugging session."""
         self.console.print("🐛 Interactive Debug Session Started")
         self.console.print(
@@ -858,25 +858,25 @@ class ExecutionTracer:
             else:
                 self.console.print("Unknown command")
 
-    def _list_breakpoints(self):
+    def _list_breakpoints(self) -> None:
         """List current breakpoints."""
         self.console.print("📍 Current Breakpoints:")
         # Would show actual breakpoints
         self.console.print("  • refiner (on entry)")
         self.console.print("  • critic (on error)")
 
-    def _add_breakpoint(self, agent: str, condition: Optional[str]):
+    def _add_breakpoint(self, agent: str, condition: Optional[str]) -> None:
         """Add a breakpoint."""
         condition_text = f" with condition: {condition}" if condition else ""
         self.console.print(
             f"[green]✅ Breakpoint added for {agent}{condition_text}[/green]"
         )
 
-    def _remove_breakpoint(self, agent: str):
+    def _remove_breakpoint(self, agent: str) -> None:
         """Remove a breakpoint."""
         self.console.print(f"[yellow]🗑️ Breakpoint removed for {agent}[/yellow]")
 
-    def _clear_breakpoints(self):
+    def _clear_breakpoints(self) -> None:
         """Clear all breakpoints."""
         self.console.print("[red]🧹 All breakpoints cleared[/red]")
 
@@ -886,13 +886,13 @@ class ExecutionTracer:
         agents: Optional[List[str]],
         session: TracingSession,
         step_mode: bool,
-    ):
+    ) -> None:
         """Execute debug session (simplified)."""
         self.console.print("🐛 Debug session started")
         trace = self._execute_with_tracing(query, agents, session)
         self._display_trace_summary(trace)
 
-    def _save_comparison(self, comparison: Dict[str, Any], output_file: str):
+    def _save_comparison(self, comparison: Dict[str, Any], output_file: str) -> None:
         """Save comparison results to file."""
         with open(output_file, "w") as f:
             json.dump(comparison, f, indent=2)
@@ -1107,7 +1107,7 @@ class ExecutionTracer:
 
     def _display_trace_analysis(
         self, analysis: Dict[str, Any], performance_analysis: bool
-    ):
+    ) -> None:
         """Display comprehensive trace analysis."""
         self.console.print("[bold]📊 Trace Analysis Results[/bold]")
 
@@ -1178,7 +1178,7 @@ class ExecutionTracer:
             },
         }
 
-    def _display_trace_comparison(self, comparison: Dict[str, Any]):
+    def _display_trace_comparison(self, comparison: Dict[str, Any]) -> None:
         """Display trace comparison results."""
         self.console.print("[bold]⚖️ Trace Comparison Results[/bold]")
 
@@ -1215,7 +1215,7 @@ class ExecutionTracer:
 
     def _interactive_replay(
         self, trace: ExecutionTrace, speed: float, highlight_list: List[str]
-    ):
+    ) -> None:
         """Interactive trace replay."""
         self.console.print("🎬 Interactive Trace Replay")
         self.console.print(
@@ -1248,7 +1248,7 @@ class ExecutionTracer:
 
     def _automated_replay(
         self, trace: ExecutionTrace, speed: float, highlight_list: List[str]
-    ):
+    ) -> None:
         """Automated trace replay."""
         self.console.print(f"🎬 Replaying trace at {speed}x speed...")
 
@@ -1256,7 +1256,7 @@ class ExecutionTracer:
             self._display_event(event)
             time.sleep(0.5 / speed)  # Adjust timing based on speed
 
-    def _display_event(self, event: Optional[TraceEvent]):
+    def _display_event(self, event: Optional[TraceEvent]) -> None:
         """Display a single trace event."""
         if not event:
             return
@@ -1272,7 +1272,7 @@ class ExecutionTracer:
         agents: Optional[List[str]],
         alert_threshold: float,
         output_dir: str,
-    ):
+    ) -> None:
         """Start continuous execution monitoring."""
         self.console.print(f"📡 Monitoring execution for {duration} seconds...")
 
@@ -1284,11 +1284,11 @@ class ExecutionTracer:
 
         self.console.print(f"\n✅ Monitoring complete. Results saved to {output_dir}")
 
-    def _export_json(self, trace: ExecutionTrace, output_file: str):
+    def _export_json(self, trace: ExecutionTrace, output_file: str) -> None:
         """Export trace as JSON."""
         self._save_trace(trace, output_file)
 
-    def _export_csv(self, trace: ExecutionTrace, output_file: str):
+    def _export_csv(self, trace: ExecutionTrace, output_file: str) -> None:
         """Export trace as CSV."""
         import csv
 
@@ -1309,7 +1309,7 @@ class ExecutionTracer:
 
         self.console.print(f"[green]✅ CSV exported to: {output_file}[/green]")
 
-    def _export_html(self, trace: ExecutionTrace, output_file: str):
+    def _export_html(self, trace: ExecutionTrace, output_file: str) -> None:
         """Export trace as HTML report."""
         html_content = f"""
         <!DOCTYPE html>
@@ -1347,7 +1347,7 @@ class ExecutionTracer:
 
         self.console.print(f"[green]✅ HTML exported to: {output_file}[/green]")
 
-    def _export_flamegraph(self, trace: ExecutionTrace, output_file: str):
+    def _export_flamegraph(self, trace: ExecutionTrace, output_file: str) -> None:
         """Export trace as flamegraph SVG."""
         # Simplified flamegraph export
         self.console.print("[yellow]⚠️ Flamegraph export not yet implemented[/yellow]")

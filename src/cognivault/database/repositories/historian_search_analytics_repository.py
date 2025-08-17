@@ -9,6 +9,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select, and_, text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import JSONB
 
 from cognivault.database.models import HistorianSearchAnalytics
@@ -27,7 +28,7 @@ class HistorianSearchAnalyticsRepository(BaseRepository[HistorianSearchAnalytics
     usage pattern analysis, and search optimization insights.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, HistorianSearchAnalytics)
 
     async def log_search(

@@ -1,23 +1,27 @@
 import pytest
+from typing import Any
 from unittest.mock import MagicMock
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.context import AgentContext
 from cognivault.config.app_config import ApplicationConfig, set_config, reset_config
+from tests.factories.agent_context_factories import (
+    AgentContextPatterns,
+    AgentContextFactory,
+)
+from tests.factories.mock_llm_factories import MockLLMFactory, MockLLMResponseFactory
 
 
 @pytest.mark.asyncio
-async def test_refiner_agent_adds_output():
-    context = AgentContext(query="What is the future of AI in education?")
+async def test_refiner_agent_adds_output() -> None:
+    context = AgentContextPatterns.simple_query(
+        "What is the future of AI in education?"
+    )
 
     # Mock the LLMInterface to return a valid response structure
-    from cognivault.llm.llm_interface import LLMResponse
-
-    mock_llm = MagicMock()
-    mock_llm.generate.return_value = LLMResponse(
-        text="How will artificial intelligence transform educational practices and student learning outcomes over the next decade?",
+    mock_llm = MockLLMFactory.with_response(
+        "How will artificial intelligence transform educational practices and student learning outcomes over the next decade?",
         tokens_used=42,
         model_name="gpt-4",
-        finish_reason="stop",
     )
 
     agent = RefinerAgent(llm=mock_llm)
@@ -36,18 +40,16 @@ async def test_refiner_agent_adds_output():
 
 
 @pytest.mark.asyncio
-async def test_refiner_agent_unchanged_query():
-    context = AgentContext(query="How do economic policies affect income inequality?")
+async def test_refiner_agent_unchanged_query() -> None:
+    context = AgentContextPatterns.simple_query(
+        "How do economic policies affect income inequality?"
+    )
 
     # Mock the LLMInterface to return an unchanged response
-    from cognivault.llm.llm_interface import LLMResponse
-
-    mock_llm = MagicMock()
-    mock_llm.generate.return_value = LLMResponse(
-        text="[Unchanged] How do economic policies affect income inequality?",
+    mock_llm = MockLLMFactory.with_response(
+        "[Unchanged] How do economic policies affect income inequality?",
         tokens_used=20,
         model_name="gpt-4",
-        finish_reason="stop",
     )
 
     agent = RefinerAgent(llm=mock_llm)
@@ -60,11 +62,11 @@ async def test_refiner_agent_unchanged_query():
 
 
 @pytest.mark.asyncio
-async def test_refiner_agent_raises_without_text_field():
-    context = AgentContext(query="Will this break?")
+async def test_refiner_agent_raises_without_text_field() -> None:
+    context = AgentContextPatterns.simple_query("Will this break?")
 
-    mock_llm = MagicMock()
-    mock_response = MagicMock()
+    mock_llm: MagicMock = MagicMock()
+    mock_response: MagicMock = MagicMock()
     del mock_response.text  # Ensure 'text' attribute is missing
     mock_llm.generate.return_value = mock_response
 
@@ -75,11 +77,11 @@ async def test_refiner_agent_raises_without_text_field():
 
 
 @pytest.mark.asyncio
-async def test_refiner_handles_nonsense_query():
+async def test_refiner_handles_nonsense_query() -> None:
     """Test that RefinerAgent handles malformed or unclear queries with appropriate fallbacks."""
     from cognivault.llm.llm_interface import LLMResponse
 
-    mock_llm = MagicMock()
+    mock_llm: MagicMock = MagicMock()
     agent = RefinerAgent(llm=mock_llm)
 
     # Test cases: input -> expected fallback response (removed empty strings - validation should reject them)
@@ -100,14 +102,11 @@ async def test_refiner_handles_nonsense_query():
 
     for input_query, expected_fallback in test_cases:
         # Mock LLM to return the expected fallback response
-        mock_llm.generate.return_value = LLMResponse(
-            text=expected_fallback,
-            tokens_used=15,
-            model_name="gpt-4",
-            finish_reason="stop",
+        mock_llm.generate.return_value = MockLLMResponseFactory.generate_valid_data(
+            text=expected_fallback, tokens_used=15, model_name="gpt-4"
         )
 
-        context = AgentContext(query=input_query)
+        context = AgentContextPatterns.simple_query(input_query)
         updated_context = await agent.run(context)
 
         # Verify fallback behavior
@@ -122,21 +121,21 @@ async def test_refiner_handles_nonsense_query():
 
 
 @pytest.mark.asyncio
-async def test_refiner_rejects_empty_query():
+async def test_refiner_rejects_empty_query() -> None:
     """Test that AgentContext validation properly rejects empty queries."""
     from pydantic import ValidationError
 
     # Empty queries should be rejected at validation level
     with pytest.raises(ValidationError, match="Query cannot be empty"):
-        AgentContext(query="")
+        AgentContextPatterns.simple_query("")
 
     # Whitespace-only queries should also be rejected
     with pytest.raises(ValidationError, match="Query cannot be empty"):
-        AgentContext(query="   ")
+        AgentContextPatterns.simple_query("   ")
 
 
 @pytest.mark.asyncio
-async def test_refiner_agent_with_simulation_delay():
+async def test_refiner_agent_with_simulation_delay() -> None:
     """Test that refiner agent respects simulation delay configuration."""
     # Set up configuration with simulation delay enabled
     config = ApplicationConfig()
@@ -145,18 +144,12 @@ async def test_refiner_agent_with_simulation_delay():
     set_config(config)
 
     try:
-        from cognivault.llm.llm_interface import LLMResponse
-
-        mock_llm = MagicMock()
-        mock_llm.generate.return_value = LLMResponse(
-            text="Test refined query with delay",
-            tokens_used=10,
-            model_name="gpt-4",
-            finish_reason="stop",
+        mock_llm = MockLLMFactory.with_response(
+            "Test refined query with delay", tokens_used=10, model_name="gpt-4"
         )
 
         query = "Test query with simulation delay"
-        context = AgentContext(query=query)
+        context = AgentContextPatterns.simple_query(query)
 
         agent = RefinerAgent(llm=mock_llm)
 

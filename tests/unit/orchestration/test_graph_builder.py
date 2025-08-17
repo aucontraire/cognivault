@@ -3,9 +3,13 @@ Tests for LangGraph graph builder functionality.
 """
 
 import pytest
-from typing import Optional, List
+from typing import Any, Dict, List, Optional
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.agents.base_agent import (
     BaseAgent,
     NodeType,
@@ -29,7 +33,7 @@ class MockAgent(BaseAgent):
         name: str,
         dependencies: Optional[List[str]] = None,
         node_type: NodeType = NodeType.PROCESSOR,
-    ):
+    ) -> None:
         super().__init__(name)
         self._dependencies = dependencies or []
         self._node_type = node_type
@@ -40,7 +44,7 @@ class MockAgent(BaseAgent):
         context.agent_outputs[self.name] = f"output from {self.name}"
         return context
 
-    def define_node_metadata(self) -> dict:
+    def define_node_metadata(self) -> Dict[str, Any]:
         return {
             "node_type": self._node_type,
             "dependencies": self._dependencies,
@@ -51,7 +55,7 @@ class MockAgent(BaseAgent):
 class DecisionAgent(MockAgent):
     """Agent that makes routing decisions."""
 
-    def __init__(self, name: str = "DecisionAgent"):
+    def __init__(self, name: str = "DecisionAgent") -> None:
         super().__init__(name, node_type=NodeType.DECISION)
 
     async def run(self, context: AgentContext) -> AgentContext:
@@ -64,7 +68,7 @@ class DecisionAgent(MockAgent):
 
 
 # Graph Builder Tests
-def test_graph_builder_initialization():
+def test_graph_builder_initialization() -> None:
     """Test GraphBuilder initialization."""
     builder = GraphBuilder()
     assert builder.agents == {}
@@ -72,7 +76,7 @@ def test_graph_builder_initialization():
     assert builder.custom_routing == {}
 
 
-def test_add_single_agent():
+def test_add_single_agent() -> None:
     """Test adding a single agent."""
     builder = GraphBuilder()
     agent = MockAgent("TestAgent")
@@ -84,10 +88,14 @@ def test_add_single_agent():
     assert builder.agents["testagent"] is agent
 
 
-def test_add_multiple_agents():
+def test_add_multiple_agents() -> None:
     """Test adding multiple agents."""
     builder = GraphBuilder()
-    agents = [MockAgent("Agent1"), MockAgent("Agent2"), MockAgent("Agent3")]
+    agents: List[BaseAgent] = [
+        MockAgent("Agent1"),
+        MockAgent("Agent2"),
+        MockAgent("Agent3"),
+    ]
 
     result = builder.add_agents(agents)
 
@@ -98,7 +106,7 @@ def test_add_multiple_agents():
     assert "agent3" in builder.agents
 
 
-def test_add_custom_edge():
+def test_add_custom_edge() -> None:
     """Test adding custom edges."""
     builder = GraphBuilder()
     edge = GraphEdge(
@@ -112,21 +120,22 @@ def test_add_custom_edge():
     assert builder.custom_edges[0] is edge
 
 
-def test_add_conditional_routing():
+def test_add_conditional_routing() -> None:
     """Test adding conditional routing."""
     builder = GraphBuilder()
 
-    def routing_func(context):
+    def routing_func(context: AgentContext) -> str:
         return "agent2" if "route_to_2" in context.query else "agent3"
 
     result = builder.add_conditional_routing("agent1", routing_func, "test_routing")
 
     assert result is builder
     assert "agent1" in builder.custom_routing
-    assert builder.custom_routing["agent1"] is routing_func
+    assert "agent1" in builder.custom_routing
+    assert builder.custom_routing["agent1"] == routing_func
 
 
-def test_build_empty_graph_raises_error():
+def test_build_empty_graph_raises_error() -> None:
     """Test that building with no agents raises error."""
     builder = GraphBuilder()
 
@@ -134,7 +143,7 @@ def test_build_empty_graph_raises_error():
         builder.build()
 
 
-def test_build_simple_sequential_graph():
+def test_build_simple_sequential_graph() -> None:
     """Test building a simple sequential graph."""
     builder = GraphBuilder()
     agent1 = MockAgent("Agent1")
@@ -151,7 +160,7 @@ def test_build_simple_sequential_graph():
     assert graph.exit_points == ["agent3"]
 
 
-def test_build_graph_with_custom_edges():
+def test_build_graph_with_custom_edges() -> None:
     """Test building graph with custom edges."""
     builder = GraphBuilder()
     agent1 = MockAgent("Agent1")
@@ -171,7 +180,7 @@ def test_build_graph_with_custom_edges():
     assert graph.edges[0].condition_name == "custom_condition"
 
 
-def test_build_graph_with_parallel_structure():
+def test_build_graph_with_parallel_structure() -> None:
     """Test building graph with parallel execution."""
     builder = GraphBuilder()
     agent1 = MockAgent("Agent1")
@@ -187,7 +196,7 @@ def test_build_graph_with_parallel_structure():
     assert graph.exit_points == ["agent4"]
 
 
-def test_graph_validation_detects_cycles():
+def test_graph_validation_detects_cycles() -> None:
     """Test that graph validation detects cycles."""
     builder = GraphBuilder()
     agent1 = MockAgent("Agent1", dependencies=["agent2"])
@@ -199,7 +208,7 @@ def test_graph_validation_detects_cycles():
         builder.build()
 
 
-def test_graph_validation_invalid_edge_nodes():
+def test_graph_validation_invalid_edge_nodes() -> None:
     """Test validation of edge node references."""
     builder = GraphBuilder()
     agent1 = MockAgent("Agent1")
@@ -217,7 +226,7 @@ def test_graph_validation_invalid_edge_nodes():
 
 
 # Graph Edge Tests
-def test_graph_edge_creation():
+def test_graph_edge_creation() -> None:
     """Test GraphEdge creation and to_dict."""
     edge = GraphEdge(
         from_node="agent1",
@@ -231,6 +240,7 @@ def test_graph_edge_creation():
     assert edge.to_node == "agent2"
     assert edge.edge_type == EdgeType.CONDITIONAL
     assert edge.condition_name == "test_condition"
+    assert edge.metadata is not None
     assert edge.metadata["priority"] == "high"
 
     # Test to_dict
@@ -243,7 +253,7 @@ def test_graph_edge_creation():
 
 
 # Graph Definition Tests
-def test_graph_definition_to_dict():
+def test_graph_definition_to_dict() -> None:
     """Test GraphDefinition to_dict conversion."""
     # Create a simple graph definition
     builder = GraphBuilder()
@@ -270,7 +280,7 @@ def test_graph_definition_to_dict():
 
 # Graph Executor Tests
 @pytest.mark.asyncio
-async def test_graph_executor_simple_execution():
+async def test_graph_executor_simple_execution() -> None:
     """Test basic graph execution."""
 
     # Build a simple graph
@@ -281,11 +291,11 @@ async def test_graph_executor_simple_execution():
     graph = builder.add_agents([agent1, agent2]).build()
 
     # Create executor
-    agents_dict = {"agent1": agent1, "agent2": agent2}
+    agents_dict: Dict[str, BaseAgent] = {"agent1": agent1, "agent2": agent2}
     executor = GraphExecutor(graph, agents_dict)
 
     # Execute the graph
-    initial_context = AgentContext(query="test execution")
+    initial_context = AgentContextPatterns.simple_query("test execution")
     result_context = await executor.execute(initial_context)
 
     # Verify execution
@@ -301,7 +311,7 @@ async def test_graph_executor_simple_execution():
 
 
 @pytest.mark.asyncio
-async def test_graph_executor_parallel_execution():
+async def test_graph_executor_parallel_execution() -> None:
     """Test graph execution with parallel branches."""
 
     # Build parallel graph
@@ -313,11 +323,15 @@ async def test_graph_executor_parallel_execution():
     graph = builder.add_agents([agent1, agent2, agent3]).build()
 
     # Create executor
-    agents_dict = {"agent1": agent1, "agent2": agent2, "agent3": agent3}
+    agents_dict: Dict[str, BaseAgent] = {
+        "agent1": agent1,
+        "agent2": agent2,
+        "agent3": agent3,
+    }
     executor = GraphExecutor(graph, agents_dict)
 
     # Execute the graph
-    initial_context = AgentContext(query="test parallel")
+    initial_context = AgentContextPatterns.simple_query("test parallel")
     result_context = await executor.execute(initial_context)
 
     # Verify all agents executed
@@ -332,7 +346,7 @@ async def test_graph_executor_parallel_execution():
 
 
 # Integration Tests
-def test_complex_graph_build_and_validate():
+def test_complex_graph_build_and_validate() -> None:
     """Test building and validating a complex graph."""
     builder = GraphBuilder()
 
@@ -350,7 +364,7 @@ def test_complex_graph_build_and_validate():
     )
 
     # Add conditional routing
-    def decision_routing(context):
+    def decision_routing(context: AgentContext) -> str:
         return "processagent" if "process" in context.query else "exitagent"
 
     graph = (
@@ -380,7 +394,7 @@ def test_complex_graph_build_and_validate():
     assert graph.metadata["has_custom_routing"] is True
 
 
-def test_edge_type_enum():
+def test_edge_type_enum() -> None:
     """Test EdgeType enum values."""
     assert EdgeType.SEQUENTIAL.value == "sequential"
     assert EdgeType.CONDITIONAL.value == "conditional"
@@ -388,7 +402,7 @@ def test_edge_type_enum():
     assert EdgeType.AGGREGATION.value == "aggregation"
 
 
-def test_graph_builder_method_chaining():
+def test_graph_builder_method_chaining() -> None:
     """Test that all builder methods support chaining."""
     builder = GraphBuilder()
     agent1 = MockAgent("Agent1")
@@ -397,7 +411,7 @@ def test_graph_builder_method_chaining():
         from_node="agent1", to_node="agent2", edge_type=EdgeType.SEQUENTIAL
     )
 
-    def routing_func(context):
+    def routing_func(context: AgentContext) -> str:
         return "agent2"
 
     # Test chaining

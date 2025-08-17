@@ -8,14 +8,19 @@ are properly escaped when serialized to JSON, preventing invalid JSON output.
 
 import json
 import pytest
+from typing import Any
 from cognivault.workflows.executor import WorkflowResult
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestJSONSerialization:
     """Test JSON serialization and string escaping functionality."""
 
-    def test_clean_strings_for_json_method(self):
+    def test_clean_strings_for_json_method(self) -> None:
         """Test the _clean_strings_for_json method directly."""
 
         # Create the exact metadata structure that caused the original issue
@@ -36,7 +41,7 @@ Focus on:
         }
 
         # Create a WorkflowResult with the problematic data
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.add_agent_output("test_agent", "Line 1\nLine 2\nLine 3")
 
         result = WorkflowResult(
@@ -72,11 +77,11 @@ Focus on:
             "\n" not in cleaned_agent_outputs["test_agent"]
         )  # No actual newlines remain
 
-    def test_workflow_result_to_dict_json_escaping(self):
+    def test_workflow_result_to_dict_json_escaping(self) -> None:
         """Test that WorkflowResult.to_dict() properly escapes strings for JSON."""
 
         # Create test data with multiline strings
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.add_agent_output("agent1", "Output with\nmultiple\nlines")
 
         metadata_with_newlines = {
@@ -107,11 +112,11 @@ Focus on:
         assert "\\n" in escaped_output
         assert "\n" not in escaped_output  # No actual newlines remain
 
-    def test_json_serialization_validity(self):
+    def test_json_serialization_validity(self) -> None:
         """Test that the final JSON output is valid and can be parsed."""
 
         # Create WorkflowResult with complex multiline data
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.add_agent_output(
             "historian",
             """Historical analysis:
@@ -188,7 +193,7 @@ Structure your response with:
         assert "Historical analysis" in historian_output
         assert "Ancient civilizations" in historian_output
 
-    def test_edge_cases_json_escaping(self):
+    def test_edge_cases_json_escaping(self) -> None:
         """Test edge cases for JSON string escaping."""
 
         # Test various control characters
@@ -203,7 +208,7 @@ Structure your response with:
             "list_with_strings": ["Item1\nwith newline", "Item2\twith tab"],
         }
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         result = WorkflowResult(
             workflow_id="edge-case-test",
             execution_id="test",

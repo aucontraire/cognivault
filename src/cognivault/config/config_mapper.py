@@ -9,7 +9,7 @@ Modernized to use Pydantic's native validation and transformation capabilities
 while maintaining backward compatibility with existing chart workflows.
 """
 
-from typing import Dict, Any, Type, TypeVar, Optional
+from typing import Dict, Any, Type, TypeVar, Optional, overload, Literal
 from pydantic import BaseModel, ValidationError
 import logging
 
@@ -18,6 +18,8 @@ from cognivault.config.agent_configs import (
     CriticConfig,
     HistorianConfig,
     SynthesisConfig,
+    AgentConfigType,
+    get_agent_config_class,
 )
 
 T = TypeVar("T", bound=BaseModel)
@@ -229,9 +231,9 @@ class ConfigMapper:
         return mappings.get(agent_type, {})
 
     @classmethod
-    def _get_config_class(cls, agent_type: str) -> Optional[Type[BaseModel]]:
+    def _get_config_class(cls, agent_type: str) -> Optional[Type[AgentConfigType]]:
         """Get the appropriate config class for an agent type."""
-        config_classes: Dict[str, Type[BaseModel]] = {
+        config_classes: Dict[str, Type[AgentConfigType]] = {
             "refiner": RefinerConfig,
             "critic": CriticConfig,
             "historian": HistorianConfig,
@@ -280,7 +282,7 @@ class ConfigMapper:
     @classmethod
     def create_agent_config(
         cls, flat_config: Dict[str, Any], agent_type: str
-    ) -> BaseModel:
+    ) -> AgentConfigType:
         """
         Create a Pydantic agent configuration from flat configuration format.
 
@@ -297,18 +299,8 @@ class ConfigMapper:
         # Map flat config to nested format
         nested_config = cls.map_flat_to_nested(flat_config, agent_type)
 
-        # Create appropriate config class
-        config_classes = {
-            "refiner": RefinerConfig,
-            "critic": CriticConfig,
-            "historian": HistorianConfig,
-            "synthesis": SynthesisConfig,
-        }
-
-        if agent_type not in config_classes:
-            raise ValueError(f"Unsupported agent type: {agent_type}")
-
-        config_class = config_classes[agent_type]
+        # Get appropriate config class using existing function
+        config_class = get_agent_config_class(agent_type)
 
         try:
             return config_class(**nested_config)
@@ -321,10 +313,41 @@ class ConfigMapper:
                 f"Error: {e}"
             ) from e
 
+    # Overloads for better type safety
+    @overload
     @classmethod
     def model_validate_config(
-        cls, config_data: Dict[str, Any], agent_type: str
-    ) -> Optional[BaseModel]:
+        cls, config_data: Optional[Dict[str, Any]], agent_type: Literal["refiner"]
+    ) -> Optional[RefinerConfig]: ...
+
+    @overload
+    @classmethod
+    def model_validate_config(
+        cls, config_data: Optional[Dict[str, Any]], agent_type: Literal["critic"]
+    ) -> Optional[CriticConfig]: ...
+
+    @overload
+    @classmethod
+    def model_validate_config(
+        cls, config_data: Optional[Dict[str, Any]], agent_type: Literal["historian"]
+    ) -> Optional[HistorianConfig]: ...
+
+    @overload
+    @classmethod
+    def model_validate_config(
+        cls, config_data: Optional[Dict[str, Any]], agent_type: Literal["synthesis"]
+    ) -> Optional[SynthesisConfig]: ...
+
+    @overload
+    @classmethod
+    def model_validate_config(
+        cls, config_data: Optional[Dict[str, Any]], agent_type: str
+    ) -> Optional[AgentConfigType]: ...
+
+    @classmethod
+    def model_validate_config(
+        cls, config_data: Optional[Dict[str, Any]], agent_type: str
+    ) -> Optional[AgentConfigType]:
         """
         Validate configuration data using Pydantic's model_validate().
 
@@ -368,10 +391,41 @@ class ConfigMapper:
                     )
                     return None
 
+    # Overloads for validate_and_create_config for better type safety
+    @overload
+    @classmethod
+    def validate_and_create_config(
+        cls, config_data: Dict[str, Any], agent_type: Literal["refiner"]
+    ) -> Optional[RefinerConfig]: ...
+
+    @overload
+    @classmethod
+    def validate_and_create_config(
+        cls, config_data: Dict[str, Any], agent_type: Literal["critic"]
+    ) -> Optional[CriticConfig]: ...
+
+    @overload
+    @classmethod
+    def validate_and_create_config(
+        cls, config_data: Dict[str, Any], agent_type: Literal["historian"]
+    ) -> Optional[HistorianConfig]: ...
+
+    @overload
+    @classmethod
+    def validate_and_create_config(
+        cls, config_data: Dict[str, Any], agent_type: Literal["synthesis"]
+    ) -> Optional[SynthesisConfig]: ...
+
+    @overload
     @classmethod
     def validate_and_create_config(
         cls, config_data: Dict[str, Any], agent_type: str
-    ) -> Optional[BaseModel]:
+    ) -> Optional[AgentConfigType]: ...
+
+    @classmethod
+    def validate_and_create_config(
+        cls, config_data: Dict[str, Any], agent_type: str
+    ) -> Optional[AgentConfigType]:
         """
         Validate configuration data and create appropriate config object.
 
@@ -390,18 +444,10 @@ class ConfigMapper:
     @classmethod
     def _create_config_with_known_fields(
         cls, config_data: Dict[str, Any], agent_type: str
-    ) -> Optional[BaseModel]:
+    ) -> Optional[AgentConfigType]:
         """Create config using only fields that are known to the Pydantic schema."""
-        config_classes = {
-            "refiner": RefinerConfig,
-            "critic": CriticConfig,
-            "historian": HistorianConfig,
-            "synthesis": SynthesisConfig,
-        }
 
-        config_class = config_classes.get(agent_type)
-        if not config_class:
-            return None
+        config_class = get_agent_config_class(agent_type)
 
         # Get field mapping for this agent type
         field_mapping = cls._get_field_mapping(agent_type)

@@ -1,7 +1,7 @@
 import subprocess
 
 
-def get_git_version(default="unknown"):
+def get_git_version(default: str = "unknown") -> str:
     try:
         return (
             subprocess.check_output(

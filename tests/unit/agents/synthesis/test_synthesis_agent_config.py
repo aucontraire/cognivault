@@ -11,19 +11,25 @@ Tests the configuration system integration including:
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import asyncio
 
 from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.config.agent_configs import SynthesisConfig
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextPatterns,
+    AgentContextFactory,
+)
 from cognivault.llm.llm_interface import LLMInterface
+from tests.factories import SynthesisConfigFactory
 
 
 class TestSynthesisAgentConfig:
     """Test SynthesisAgent configuration system integration."""
 
-    def test_synthesis_agent_backward_compatibility_no_params(self):
+    def test_synthesis_agent_backward_compatibility_no_params(self) -> None:
         """Test that SynthesisAgent works without any parameters (backward compatibility)."""
         # Should work without any parameters (existing code compatibility)
         agent = SynthesisAgent()
@@ -40,7 +46,7 @@ class TestSynthesisAgentConfig:
         # Should have composed prompt (or None if composition failed)
         assert hasattr(agent, "_composed_prompt")
 
-    def test_synthesis_agent_backward_compatibility_with_llm(self):
+    def test_synthesis_agent_backward_compatibility_with_llm(self) -> None:
         """Test that SynthesisAgent works with existing LLM parameter (backward compatibility)."""
         mock_llm = Mock(spec=LLMInterface)
 
@@ -54,13 +60,12 @@ class TestSynthesisAgentConfig:
         assert agent.config is not None
         assert isinstance(agent.config, SynthesisConfig)
 
-    def test_synthesis_agent_with_config_parameter(self):
+    def test_synthesis_agent_with_config_parameter(self) -> None:
         """Test that SynthesisAgent accepts config parameter while preserving existing params."""
         mock_llm = Mock(spec=LLMInterface)
 
         # Create custom config
-        custom_config = SynthesisConfig(
-            synthesis_strategy="focused",
+        custom_config = SynthesisConfigFactory.focused_creative(
             meta_analysis=False,
             thematic_focus="analytical",
             integration_mode="sequential",
@@ -79,19 +84,19 @@ class TestSynthesisAgentConfig:
         assert agent.llm is mock_llm
 
     @patch("cognivault.agents.synthesis.agent.PromptComposer")
-    def test_prompt_composer_integration(self, mock_prompt_composer_class):
+    def test_prompt_composer_integration(self, mock_prompt_composer_class: Any) -> None:
         """Test that SynthesisAgent integrates with PromptComposer correctly."""
         mock_llm = Mock(spec=LLMInterface)
-        mock_composer = Mock()
+        mock_composer: Mock = Mock()
         mock_prompt_composer_class.return_value = mock_composer
 
         # Mock prompt composition
-        mock_composed_prompt = Mock()
+        mock_composed_prompt: Mock = Mock()
         mock_composed_prompt.system_prompt = "Custom synthesis system prompt"
         mock_composer.compose_synthesis_prompt.return_value = mock_composed_prompt
         mock_composer.validate_composition.return_value = True
 
-        config = SynthesisConfig(synthesis_strategy="focused")
+        config = SynthesisConfigFactory.focused_creative()
         agent = SynthesisAgent(llm=mock_llm, config=config)
 
         # Should call compose_synthesis_prompt during initialization
@@ -102,10 +107,10 @@ class TestSynthesisAgentConfig:
         assert system_prompt == "Custom synthesis system prompt"
 
     @patch("cognivault.agents.synthesis.agent.PromptComposer")
-    def test_prompt_composition_fallback(self, mock_prompt_composer_class):
+    def test_prompt_composition_fallback(self, mock_prompt_composer_class: Any) -> None:
         """Test fallback to default prompt when composition fails."""
         mock_llm = Mock(spec=LLMInterface)
-        mock_composer = Mock()
+        mock_composer: Mock = Mock()
         mock_prompt_composer_class.return_value = mock_composer
 
         # Mock composition failure
@@ -122,19 +127,17 @@ class TestSynthesisAgentConfig:
         assert len(system_prompt) > 0
 
     @patch("cognivault.agents.synthesis.agent.PromptComposer")
-    def test_update_config_method(self, mock_prompt_composer_class):
+    def test_update_config_method(self, mock_prompt_composer_class: Any) -> None:
         """Test the update_config method updates configuration and recomposes prompts."""
         mock_llm = Mock(spec=LLMInterface)
-        mock_composer = Mock()
+        mock_composer: Mock = Mock()
         mock_prompt_composer_class.return_value = mock_composer
 
         agent = SynthesisAgent(llm=mock_llm)
         original_config = agent.config
 
         # Update config
-        new_config = SynthesisConfig(
-            synthesis_strategy="comprehensive", meta_analysis=False
-        )
+        new_config = SynthesisConfigFactory.comprehensive_strategy(meta_analysis=False)
 
         agent.update_config(new_config)
 
@@ -146,17 +149,17 @@ class TestSynthesisAgentConfig:
         assert mock_composer.compose_synthesis_prompt.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_run_method_preserves_functionality(self):
+    async def test_run_method_preserves_functionality(self) -> None:
         """Test that run method preserves existing SynthesisAgent functionality."""
         mock_llm = Mock(spec=LLMInterface)
 
         # Mock LLM responses for analysis and synthesis
-        mock_analysis_response = Mock()
+        mock_analysis_response: Mock = Mock()
         mock_analysis_response.text = (
             "THEMES: test theme\nTOPICS: test topic\nCONFLICTS: none"
         )
 
-        mock_synthesis_response = Mock()
+        mock_synthesis_response: Mock = Mock()
         mock_synthesis_response.text = "Comprehensive synthesis of agent outputs"
 
         mock_llm.generate.side_effect = [
@@ -167,15 +170,9 @@ class TestSynthesisAgentConfig:
         agent = SynthesisAgent(llm=mock_llm)
 
         # Create context with multiple agent outputs
-        context = AgentContext(
-            user_id="test_user",
-            session_id="test_session",
-            query="Test synthesis query",
-            workflow_metadata={},
+        context = AgentContextPatterns.synthesis_with_session(
+            query="Test synthesis query", user_id="test_user", session_id="test_session"
         )
-        context.add_agent_output("refiner", "Refined query output")
-        context.add_agent_output("critic", "Critical analysis output")
-        context.add_agent_output("historian", "Historical context output")
 
         # Run agent
         result_context = await agent.run(context)
@@ -186,19 +183,21 @@ class TestSynthesisAgentConfig:
         assert len(result_context.agent_outputs["synthesis"]) > 0
 
     @pytest.mark.asyncio
-    async def test_run_method_with_no_llm_fallback(self):
+    async def test_run_method_with_no_llm_fallback(self) -> None:
         """Test that run method works with fallback synthesis when no LLM."""
         agent = SynthesisAgent(llm=None)
 
         # Create context with agent outputs
-        context = AgentContext(
-            user_id="test_user",
-            session_id="test_session",
+        context = AgentContextFactory.with_agent_outputs(
             query="Test fallback query",
-            workflow_metadata={},
+            refiner="Refined output",
+            critic="Critical output",
         )
-        context.add_agent_output("refiner", "Refined output")
-        context.add_agent_output("critic", "Critical output")
+        # Add session metadata for this test
+        context.user_config.update(
+            {"user_id": "test_user", "session_id": "test_session"}
+        )
+        context.metadata.update({"workflow_metadata": {}})
 
         # Run agent
         result_context = await agent.run(context)
@@ -210,7 +209,7 @@ class TestSynthesisAgentConfig:
         assert "Refined output" in synthesis_output
         assert "Critical output" in synthesis_output
 
-    def test_agent_has_required_attributes(self):
+    def test_agent_has_required_attributes(self) -> None:
         """Test that SynthesisAgent has all required attributes for config integration."""
         agent = SynthesisAgent()
 
@@ -230,10 +229,10 @@ class TestSynthesisAgentConfig:
         assert callable(agent._update_composed_prompt)
         assert callable(agent._get_system_prompt)
 
-    def test_config_property_type_safety(self):
+    def test_config_property_type_safety(self) -> None:
         """Test that config property maintains type safety."""
         # With custom config
-        custom_config = SynthesisConfig(synthesis_strategy="focused")
+        custom_config = SynthesisConfigFactory.focused_creative()
         agent_with_config = SynthesisAgent(config=custom_config)
         assert isinstance(agent_with_config.config, SynthesisConfig)
 
@@ -241,7 +240,7 @@ class TestSynthesisAgentConfig:
         agent_default = SynthesisAgent()
         assert isinstance(agent_default.config, SynthesisConfig)
 
-    def test_parameter_order_and_compatibility(self):
+    def test_parameter_order_and_compatibility(self) -> None:
         """Test that parameter order and types are preserved for backward compatibility."""
         mock_llm = Mock(spec=LLMInterface)
 
@@ -258,26 +257,32 @@ class TestSynthesisAgentConfig:
         assert agent2.llm is mock_llm
 
         # With config (new)
-        config = SynthesisConfig(synthesis_strategy="comprehensive")
+        config = SynthesisConfigFactory.comprehensive_strategy()
         agent3 = SynthesisAgent(llm=mock_llm, config=config)
         assert agent3.llm is mock_llm
         assert agent3.config is config
 
     @patch("cognivault.agents.synthesis.agent.PromptComposer")
-    def test_composed_prompt_usage_in_build_methods(self, mock_prompt_composer_class):
+    def test_composed_prompt_usage_in_build_methods(
+        self, mock_prompt_composer_class: Any
+    ) -> None:
         """Test that build methods can use composed prompts from PromptComposer."""
         mock_llm = Mock(spec=LLMInterface)
-        mock_composer = Mock()
+        mock_composer: Mock = Mock()
         mock_prompt_composer_class.return_value = mock_composer
 
-        # Mock composed prompt with analysis and synthesis templates
-        mock_composed_prompt = Mock()
-        mock_composed_prompt.analysis_prompt = (
-            "Custom analysis: {query} - {outputs_text}"
-        )
-        mock_composed_prompt.synthesis_prompt = (
-            "Custom synthesis: {query} - {themes_text}"
-        )
+        # Mock composed prompt with proper get_template method
+        mock_composed_prompt: Mock = Mock()
+
+        # Set up get_template method to return the appropriate template strings
+        def get_template_side_effect(template_name: str) -> Optional[str]:
+            templates = {
+                "analysis_prompt": "Custom analysis: {query} - {outputs_text}",
+                "synthesis_prompt": "Custom synthesis: {query} - {themes_text}",
+            }
+            return templates.get(template_name)
+
+        mock_composed_prompt.get_template.side_effect = get_template_side_effect
         mock_composer.compose_synthesis_prompt.return_value = mock_composed_prompt
         mock_composer.validate_composition.return_value = True
 
@@ -295,7 +300,7 @@ class TestSynthesisAgentConfig:
         )
         assert "Custom synthesis: test query" in synthesis_prompt
 
-    def test_default_llm_creation_with_config(self):
+    def test_default_llm_creation_with_config(self) -> None:
         """Test that default LLM creation works with config integration."""
         with patch(
             "cognivault.agents.synthesis.agent.SynthesisAgent._create_default_llm"
@@ -314,7 +319,7 @@ class TestSynthesisAgentConfig:
             assert isinstance(agent.config, SynthesisConfig)
 
     @pytest.mark.asyncio
-    async def test_emergency_fallback_preserves_functionality(self):
+    async def test_emergency_fallback_preserves_functionality(self) -> None:
         """Test that emergency fallback works when all synthesis methods fail."""
         # Create agent with mock LLM that will fail
         mock_llm = Mock(spec=LLMInterface)
@@ -323,13 +328,14 @@ class TestSynthesisAgentConfig:
         agent = SynthesisAgent(llm=mock_llm)
 
         # Create context
-        context = AgentContext(
-            user_id="test_user",
-            session_id="test_session",
-            query="Test emergency fallback",
-            workflow_metadata={},
+        context = AgentContextFactory.with_agent_outputs(
+            query="Test emergency fallback", refiner="Test output"
         )
-        context.add_agent_output("refiner", "Test output")
+        # Add session metadata for this test
+        context.user_config.update(
+            {"user_id": "test_user", "session_id": "test_session"}
+        )
+        context.metadata.update({"workflow_metadata": {}})
 
         # Run agent - should handle failure gracefully
         result_context = await agent.run(context)

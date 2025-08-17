@@ -1,32 +1,39 @@
 from cognivault.context import AgentContext
+from typing import Any
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
-def test_add_and_get_agent_output():
-    context = AgentContext(query="What is democracy?")
+def test_add_and_get_agent_output() -> None:
+    context = AgentContextPatterns.simple_query("What is democracy?")
     context.add_agent_output("refiner", "Structured explanation of democracy.")
 
     assert "refiner" in context.agent_outputs
     assert context.get_output("refiner") == "Structured explanation of democracy."
 
 
-def test_get_output_returns_none_for_missing_agent():
-    context = AgentContext(query="History of voting rights?")
+def test_get_output_returns_none_for_missing_agent() -> None:
+    context = AgentContextPatterns.simple_query("History of voting rights?")
     assert context.get_output("historian") is None
 
 
-def test_retrieved_notes_are_optional():
-    context = AgentContext(query="Constitutional reforms", retrieved_notes=None)
+def test_retrieved_notes_are_optional() -> None:
+    context = AgentContextFactory.basic(
+        query="Constitutional reforms", retrieved_notes=None
+    )
     assert context.retrieved_notes is None or isinstance(context.retrieved_notes, list)
 
 
-def test_user_config_and_final_synthesis_defaults():
-    context = AgentContext(query="Impact of social media on elections")
+def test_user_config_and_final_synthesis_defaults() -> None:
+    context = AgentContextPatterns.simple_query("Impact of social media on elections")
     assert context.user_config == {}
     assert context.final_synthesis is None
 
 
-def test_update_and_get_user_config():
-    context = AgentContext(query="AI alignment")
+def test_update_and_get_user_config() -> None:
+    context = AgentContextPatterns.simple_query("AI alignment")
     context.update_user_config({"verbosity": "high", "style": "explanatory"})
 
     assert context.user_config["verbosity"] == "high"
@@ -36,8 +43,8 @@ def test_update_and_get_user_config():
     )
 
 
-def test_set_and_get_final_synthesis():
-    context = AgentContext(query="Ethics in AI")
+def test_set_and_get_final_synthesis() -> None:
+    context = AgentContextPatterns.simple_query("Ethics in AI")
     context.set_final_synthesis("AI ethics involves balancing risks and benefits.")
 
     assert (
@@ -46,8 +53,8 @@ def test_set_and_get_final_synthesis():
     )
 
 
-def test_log_trace():
-    context = AgentContext(query="History of AI")
+def test_log_trace() -> None:
+    context = AgentContextPatterns.simple_query("History of AI")
     context.log_trace(
         "historian", input_data="Query: History", output_data="AI history summary"
     )
@@ -58,8 +65,8 @@ def test_log_trace():
     assert "timestamp" in context.agent_trace["historian"][0]
 
 
-def test_start_agent_execution():
-    context = AgentContext(query="Test query")
+def test_start_agent_execution() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     # Test with step_id
     context.start_agent_execution("TestAgent", "step_123")
@@ -75,8 +82,8 @@ def test_start_agent_execution():
     assert "AnotherAgent_start_time" in context.execution_state
 
 
-def test_complete_agent_execution_success():
-    context = AgentContext(query="Test query")
+def test_complete_agent_execution_success() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     context.complete_agent_execution("TestAgent", success=True)
 
@@ -87,8 +94,8 @@ def test_complete_agent_execution_success():
     assert context.success is True
 
 
-def test_complete_agent_execution_failure():
-    context = AgentContext(query="Test query")
+def test_complete_agent_execution_failure() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     context.complete_agent_execution("TestAgent", success=False)
 
@@ -99,8 +106,8 @@ def test_complete_agent_execution_failure():
     assert context.success is False
 
 
-def test_set_agent_dependencies():
-    context = AgentContext(query="Test query")
+def test_set_agent_dependencies() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     context.set_agent_dependencies("CriticAgent", ["RefinerAgent", "HistorianAgent"])
 
@@ -110,8 +117,8 @@ def test_set_agent_dependencies():
     ]
 
 
-def test_check_agent_dependencies_satisfied():
-    context = AgentContext(query="Test query")
+def test_check_agent_dependencies_satisfied() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     # Set up dependencies
     context.set_agent_dependencies("CriticAgent", ["RefinerAgent", "HistorianAgent"])
@@ -134,16 +141,16 @@ def test_check_agent_dependencies_satisfied():
     assert deps["HistorianAgent"] is True
 
 
-def test_check_agent_dependencies_no_dependencies():
-    context = AgentContext(query="Test query")
+def test_check_agent_dependencies_no_dependencies() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     # Agent with no dependencies should return empty dict
     deps = context.check_agent_dependencies("IndependentAgent")
     assert deps == {}
 
 
-def test_failed_and_successful_agents_sets():
-    context = AgentContext(query="Test query")
+def test_failed_and_successful_agents_sets() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     context.complete_agent_execution("Agent1", success=True)
     context.complete_agent_execution("Agent2", success=False)
@@ -160,8 +167,8 @@ def test_failed_and_successful_agents_sets():
     assert "Agent3" not in context.successful_agents
 
 
-def test_can_agent_execute():
-    context = AgentContext(query="Test query")
+def test_can_agent_execute() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     # Set up dependencies
     context.set_agent_dependencies("CriticAgent", ["RefinerAgent", "HistorianAgent"])
@@ -181,8 +188,8 @@ def test_can_agent_execute():
     assert context.can_agent_execute("IndependentAgent")
 
 
-def test_get_execution_summary():
-    context = AgentContext(query="Test query")
+def test_get_execution_summary() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     context.complete_agent_execution("Agent1", success=True)
     context.complete_agent_execution("Agent2", success=False)
@@ -197,8 +204,8 @@ def test_get_execution_summary():
     assert summary["overall_success"] is False
 
 
-def test_agent_mutation_tracking():
-    context = AgentContext(query="Test query")
+def test_agent_mutation_tracking() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     # The mutation tracking might work differently than expected
     # Let's just test that the method exists and returns a dict
@@ -206,8 +213,8 @@ def test_agent_mutation_tracking():
     assert isinstance(mutations, dict)
 
 
-def test_field_isolation():
-    context = AgentContext(query="Test query")
+def test_field_isolation() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     # Test the isolation methods exist and work
     context.lock_field("agent_outputs")
@@ -220,8 +227,8 @@ def test_field_isolation():
     assert isinstance(result, bool)
 
 
-def test_execution_snapshots():
-    context = AgentContext(query="Test query")
+def test_execution_snapshots() -> None:
+    context = AgentContextPatterns.simple_query("Test query")
 
     # Create some execution state
     context.start_agent_execution("Agent1")
@@ -243,10 +250,10 @@ def test_execution_snapshots():
     assert len(options) > 0
 
 
-def test_context_error_handling():
+def test_context_error_handling() -> None:
     from cognivault.exceptions import StateTransitionError
 
-    context = AgentContext(query="Test query")
+    context = AgentContextPatterns.simple_query("Test query")
 
     # Test state transition error when trying to complete non-started agent
     try:

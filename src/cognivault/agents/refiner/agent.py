@@ -12,7 +12,7 @@ from .prompts import REFINER_SYSTEM_PROMPT
 # Configuration system imports
 from typing import Optional
 from cognivault.config.agent_configs import RefinerConfig
-from cognivault.workflows.prompt_composer import PromptComposer
+from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
 import logging
 import asyncio
@@ -31,7 +31,9 @@ class RefinerAgent(BaseAgent):
     downstream agents can process the query effectively.
     """
 
-    def __init__(self, llm: LLMInterface, config: Optional[RefinerConfig] = None):
+    def __init__(
+        self, llm: LLMInterface, config: Optional[RefinerConfig] = None
+    ) -> None:
         """
         Initialize the RefinerAgent with LLM interface and optional configuration.
 
@@ -47,14 +49,15 @@ class RefinerAgent(BaseAgent):
         self.llm: LLMInterface = llm
 
         # Configuration system - backward compatible
+        # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else RefinerConfig()
         self._prompt_composer = PromptComposer()
-        self._composed_prompt = None
+        self._composed_prompt: Optional[ComposedPrompt]
 
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
 
-    def _update_composed_prompt(self):
+    def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
         try:
             self._composed_prompt = self._prompt_composer.compose_refiner_prompt(
@@ -80,7 +83,7 @@ class RefinerAgent(BaseAgent):
             logger.debug(f"[{self.name}] Using default system prompt (fallback)")
             return REFINER_SYSTEM_PROMPT
 
-    def update_config(self, config: RefinerConfig):
+    def update_config(self, config: RefinerConfig) -> None:
         """
         Update the agent configuration and recompose prompts.
 

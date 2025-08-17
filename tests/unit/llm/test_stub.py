@@ -1,8 +1,9 @@
 from cognivault.llm.stub import StubLLM
 from cognivault.llm.llm_interface import LLMResponse
+from typing import Any
 
 
-def test_stub_llm_generate():
+def test_stub_llm_generate() -> None:
     llm = StubLLM()
     prompt = "What is the capital of France?"
     response = llm.generate(prompt)
@@ -10,7 +11,7 @@ def test_stub_llm_generate():
     assert response.text == "[STUB RESPONSE] You asked: What is the capital of France?"
 
 
-def test_stub_llm_generate_with_system_prompt():
+def test_stub_llm_generate_with_system_prompt() -> None:
     llm = StubLLM()
     prompt = "What is the capital of France?"
     system_prompt = (

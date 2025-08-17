@@ -3,7 +3,7 @@ import json
 import gzip
 import hashlib
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any, Set
+from typing import List, Optional, Dict, Any, Set, cast, Mapping
 from copy import deepcopy
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from .config.app_config import get_config
@@ -94,7 +94,7 @@ class ContextCompressionManager:
     def decompress_data(compressed_data: bytes) -> Dict[str, Any]:
         """Decompress gzipped data."""
         json_str = gzip.decompress(compressed_data).decode("utf-8")
-        return json.loads(json_str)
+        return cast(Dict[str, Any], json.loads(json_str))
 
     @staticmethod
     def truncate_large_outputs(
@@ -273,7 +273,7 @@ class AgentContext(BaseModel):
 
         return self
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         # Store compression manager as private attribute for mypy compatibility
         self._compression_manager = ContextCompressionManager()
@@ -338,7 +338,7 @@ class AgentContext(BaseModel):
             self._update_size()
             logger.info(f"Context compressed to {self.current_size} bytes")
 
-    def add_agent_output(self, agent_name: str, output: Any):
+    def add_agent_output(self, agent_name: str, output: Any) -> None:
         """Add agent output with size monitoring."""
         self.agent_outputs[agent_name] = output
         self._update_size()
@@ -439,7 +439,7 @@ class AgentContext(BaseModel):
         input_data: Any,
         output_data: Any,
         timestamp: Optional[str] = None,
-    ):
+    ) -> None:
         """Log agent trace with size monitoring."""
         if timestamp is None:
             timestamp = datetime.now(timezone.utc).isoformat()
@@ -464,7 +464,7 @@ class AgentContext(BaseModel):
         logger.debug(f"Retrieving output for agent '{agent_name}'")
         return self.agent_outputs.get(agent_name)
 
-    def update_user_config(self, config_updates: Dict[str, Any]):
+    def update_user_config(self, config_updates: Dict[str, Any]) -> None:
         """Update the user_config dictionary with new key-value pairs."""
         self.user_config.update(config_updates)
         self._update_size()
@@ -475,7 +475,7 @@ class AgentContext(BaseModel):
         """Retrieve a value from user_config with an optional default."""
         return self.user_config.get(key, default)
 
-    def set_final_synthesis(self, summary: str):
+    def set_final_synthesis(self, summary: str) -> None:
         """Set the final synthesis string."""
         self.final_synthesis = summary
         self._update_size()
@@ -652,7 +652,9 @@ class AgentContext(BaseModel):
         logger.debug(f"Cloned context {self.context_id} to {cloned.context_id}")
         return cloned
 
-    def model_copy(self, *, update=None, deep=False):
+    def model_copy(
+        self, *, update: Optional[Mapping[str, Any]] = None, deep: bool = False
+    ) -> "AgentContext":
         """Override Pydantic's model_copy to ensure context_id regeneration."""
         # Create the copy using parent's model_copy
         copied = super().model_copy(update=update, deep=deep)

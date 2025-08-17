@@ -6,28 +6,25 @@ to reach the critical components that our configuration system relies on.
 """
 
 import pytest
-import asyncio
-import uuid
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
+from unittest.mock import AsyncMock, Mock, patch
+from datetime import datetime
+from typing import Any
 
 from cognivault.workflows.executor import (
     WorkflowExecutor,
     DeclarativeOrchestrator,
     WorkflowResult,
     CompositionResult,
-    ExecutionContext,
     WorkflowExecutionError,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import AgentContextPatterns
 
 
 class TestWorkflowExecutorAdvancedCoverage:
     """Test advanced WorkflowExecutor functionality for complete coverage."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composition_result = CompositionResult(
             node_mapping={"node1": "func1", "node2": "func2"},
@@ -44,10 +41,10 @@ class TestWorkflowExecutorAdvancedCoverage:
         )
 
     @pytest.mark.asyncio
-    async def test_execute_method_auto_generated_execution_id(self):
+    async def test_execute_method_auto_generated_execution_id(self) -> None:
         """Test execute method with auto-generated execution ID."""
         executor = WorkflowExecutor(self.composition_result)
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
         with patch.object(executor, "_execute_state_graph") as mock_execute:
             mock_execute.return_value = initial_context
@@ -63,10 +60,10 @@ class TestWorkflowExecutorAdvancedCoverage:
             assert len(result.execution_id) > 0
 
     @pytest.mark.asyncio
-    async def test_execute_method_with_task_classification_failure(self):
+    async def test_execute_method_with_task_classification_failure(self) -> None:
         """Test execute method when task classification fails."""
         executor = WorkflowExecutor(self.composition_result)
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
         with patch(
             "cognivault.agents.metadata.classify_query_task", side_effect=ImportError
@@ -83,10 +80,10 @@ class TestWorkflowExecutorAdvancedCoverage:
                 assert hasattr(executor.execution_context, "task_classification")
 
     @pytest.mark.asyncio
-    async def test_execute_method_with_node_execution_context_failure(self):
+    async def test_execute_method_with_node_execution_context_failure(self) -> None:
         """Test execute method when NodeExecutionContext creation fails."""
         executor = WorkflowExecutor(self.composition_result)
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
         with patch(
             "cognivault.orchestration.nodes.base_advanced_node.NodeExecutionContext",
@@ -104,15 +101,15 @@ class TestWorkflowExecutorAdvancedCoverage:
                 assert hasattr(executor.execution_context, "correlation_id")
 
     @pytest.mark.asyncio
-    async def test_execute_state_graph_with_execution_path_update(self):
+    async def test_execute_state_graph_with_execution_path_update(self) -> None:
         """Test _execute_state_graph updates execution path correctly."""
         executor = WorkflowExecutor(self.composition_result)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Mock workflow and execution context - create proper mock workflow
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
         )
         from datetime import datetime
@@ -126,7 +123,7 @@ class TestWorkflowExecutorAdvancedCoverage:
             description="Test workflow",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="agent1",
                     node_type="refiner",
                     category="BASE",
@@ -141,7 +138,7 @@ class TestWorkflowExecutorAdvancedCoverage:
         )
         executor._current_workflow = mock_workflow
 
-        mock_exec_context = Mock()
+        mock_exec_context: Mock = Mock()
         mock_exec_context.workflow_id = "test-workflow"
         mock_exec_context.correlation_id = "correlation-123"
         mock_exec_context.execution_path = []
@@ -158,13 +155,13 @@ class TestWorkflowExecutorAdvancedCoverage:
             "execution_metadata": {"meta": "data"},
         }
 
-        mock_graph = Mock()
-        mock_compiled_graph = Mock()
+        mock_graph: Mock = Mock()
+        mock_compiled_graph: Mock = Mock()
         mock_compiled_graph.ainvoke = AsyncMock(return_value=mock_final_state)
         mock_graph.compile.return_value = mock_compiled_graph
 
         with patch("cognivault.workflows.composer.DagComposer") as mock_composer_class:
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.compose_workflow.return_value = mock_graph
             mock_composer_class.return_value = mock_composer
 
@@ -178,20 +175,20 @@ class TestWorkflowExecutorAdvancedCoverage:
             )
 
     @pytest.mark.asyncio
-    async def test_execute_state_graph_with_event_emission_failure(self):
+    async def test_execute_state_graph_with_event_emission_failure(self) -> None:
         """Test _execute_state_graph when event emission fails."""
         executor = WorkflowExecutor(self.composition_result)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Mock event emitter that fails
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_emitter.emit = AsyncMock(side_effect=ImportError("Event emission failed"))
         executor.event_emitter = mock_emitter
 
         # Mock workflow and execution context - create proper mock workflow
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
         )
         from datetime import datetime
@@ -205,7 +202,7 @@ class TestWorkflowExecutorAdvancedCoverage:
             description="Test workflow",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="agent1",
                     node_type="refiner",
                     category="BASE",
@@ -220,7 +217,7 @@ class TestWorkflowExecutorAdvancedCoverage:
         )
         executor._current_workflow = mock_workflow
 
-        mock_exec_context = Mock()
+        mock_exec_context: Mock = Mock()
         mock_exec_context.workflow_id = "test-workflow"
         mock_exec_context.correlation_id = "correlation-123"
         mock_exec_context.execution_path = []
@@ -235,13 +232,13 @@ class TestWorkflowExecutorAdvancedCoverage:
             "errors": [],
         }
 
-        mock_graph = Mock()
-        mock_compiled_graph = Mock()
+        mock_graph: Mock = Mock()
+        mock_compiled_graph: Mock = Mock()
         mock_compiled_graph.ainvoke = AsyncMock(return_value=mock_final_state)
         mock_graph.compile.return_value = mock_compiled_graph
 
         with patch("cognivault.workflows.executor.DagComposer") as mock_composer_class:
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.compose_workflow.return_value = mock_graph
             mock_composer_class.return_value = mock_composer
 
@@ -254,28 +251,28 @@ class TestWorkflowExecutorAdvancedCoverage:
                     assert result.query == "test query"
 
     @pytest.mark.asyncio
-    async def test_execute_state_graph_failure_with_event_emission(self):
+    async def test_execute_state_graph_failure_with_event_emission(self) -> None:
         """Test _execute_state_graph failure handling with event emission."""
         executor = WorkflowExecutor(self.composition_result)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Mock event emitter
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_emitter.emit = AsyncMock()
         executor.event_emitter = mock_emitter
 
         # Mock workflow and execution context
-        mock_workflow = Mock()
+        mock_workflow: Mock = Mock()
         executor._current_workflow = mock_workflow
 
-        mock_exec_context = Mock()
+        mock_exec_context: Mock = Mock()
         mock_exec_context.workflow_id = "test-workflow"
         mock_exec_context.correlation_id = "correlation-123"
         executor.execution_context = mock_exec_context
 
         # Mock LangGraph execution failure
         with patch("cognivault.workflows.executor.DagComposer") as mock_composer_class:
-            mock_composer = Mock()
+            mock_composer: Mock = Mock()
             mock_composer.compose_workflow.side_effect = RuntimeError(
                 "Graph composition failed"
             )
@@ -290,10 +287,10 @@ class TestWorkflowExecutorAdvancedCoverage:
                     mock_emitter.emit.assert_called()
 
     @pytest.mark.asyncio
-    async def test_execute_node_with_prompts_fallback_to_basic(self):
+    async def test_execute_node_with_prompts_fallback_to_basic(self) -> None:
         """Test _execute_node_with_prompts falls back to basic execution on any error."""
         executor = WorkflowExecutor(self.composition_result)
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         mock_node_func = AsyncMock(return_value={"output": "fallback_result"})
 
@@ -319,13 +316,12 @@ class TestWorkflowExecutorAdvancedCoverage:
 class TestDeclarativeOrchestratorAdvancedCoverage:
     """Test advanced DeclarativeOrchestrator functionality for complete coverage."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
-            EdgeDefinition,
         )
 
         self.workflow_def = WorkflowDefinition(
@@ -337,7 +333,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             description="Advanced test workflow",
             tags=["test", "advanced"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -353,16 +349,16 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
         )
 
     @patch("cognivault.events.get_global_event_emitter")
-    def test_orchestrator_with_event_emitter(self, mock_get_emitter):
+    def test_orchestrator_with_event_emitter(self, mock_get_emitter: Any) -> None:
         """Test orchestrator initialization with event emitter."""
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_get_emitter.return_value = mock_emitter
 
         orchestrator = DeclarativeOrchestrator()
 
         assert orchestrator.event_emitter == mock_emitter
 
-    def test_orchestrator_without_event_emitter(self):
+    def test_orchestrator_without_event_emitter(self) -> None:
         """Test orchestrator when event emitter not available."""
         with patch(
             "cognivault.events.get_global_event_emitter", side_effect=ImportError
@@ -372,13 +368,13 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             assert orchestrator.event_emitter is None
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_success_with_event_emission(self):
+    async def test_execute_workflow_success_with_event_emission(self) -> None:
         """Test successful workflow execution with event emission."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
         # Mock event emitter
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_emitter.emit = AsyncMock()
         orchestrator.event_emitter = mock_emitter
 
@@ -402,7 +398,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
         with patch(
             "cognivault.workflows.executor.WorkflowExecutor"
         ) as mock_executor_class:
-            mock_executor = Mock()
+            mock_executor: Mock = Mock()
             mock_executor.execute = AsyncMock(return_value=mock_workflow_result)
             mock_executor_class.return_value = mock_executor
 
@@ -415,13 +411,13 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             assert mock_executor._current_workflow == self.workflow_def
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_with_event_emission_import_error(self):
+    async def test_execute_workflow_with_event_emission_import_error(self) -> None:
         """Test workflow execution when event classes can't be imported."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
         # Mock event emitter
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_emitter.emit = AsyncMock()
         orchestrator.event_emitter = mock_emitter
 
@@ -447,7 +443,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
                 mock_emitter.emit.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_validate_workflow_use_instance_workflow(self):
+    async def test_validate_workflow_use_instance_workflow(self) -> None:
         """Test validation using instance workflow definition."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
 
@@ -475,7 +471,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
         orchestrator.dag_composer.compose_dag.assert_called_once_with(self.workflow_def)
 
     @pytest.mark.asyncio
-    async def test_validate_workflow_without_composer(self):
+    async def test_validate_workflow_without_composer(self) -> None:
         """Test workflow validation without DAG composer."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
         orchestrator.dag_composer = None
@@ -489,7 +485,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
         assert result["metadata"] == {}
 
     @pytest.mark.asyncio
-    async def test_export_workflow_snapshot_fallback(self):
+    async def test_export_workflow_snapshot_fallback(self) -> None:
         """Test exporting workflow snapshot falls back to workflow's own method."""
         orchestrator = DeclarativeOrchestrator(self.workflow_def)
         orchestrator.dag_composer = None
@@ -514,13 +510,13 @@ class TestErrorHandlingAndEdgeCases:
     """Test comprehensive error handling and edge cases."""
 
     @pytest.mark.asyncio
-    async def test_workflow_executor_missing_current_workflow_attribute(self):
+    async def test_workflow_executor_missing_current_workflow_attribute(self) -> None:
         """Test execution when _current_workflow attribute is missing."""
         executor = WorkflowExecutor()
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Don't set _current_workflow attribute
-        mock_exec_context = Mock()
+        mock_exec_context: Mock = Mock()
         mock_exec_context.workflow_id = "test-workflow"
         executor.execution_context = mock_exec_context
 
@@ -528,13 +524,13 @@ class TestErrorHandlingAndEdgeCases:
             await executor._execute_state_graph(context)
 
     @pytest.mark.asyncio
-    async def test_workflow_executor_missing_current_workflow_error(self):
+    async def test_workflow_executor_missing_current_workflow_error(self) -> None:
         """Test execution when _current_workflow is not set."""
         executor = WorkflowExecutor()
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         # Set execution context but no workflow
-        mock_exec_context = Mock()
+        mock_exec_context: Mock = Mock()
         mock_exec_context.workflow_id = "test-workflow"
         executor.execution_context = mock_exec_context
 
@@ -547,9 +543,9 @@ class TestErrorHandlingAndEdgeCases:
             with pytest.raises(RuntimeError, match="Workflow definition not available"):
                 await executor._execute_state_graph(context)
 
-    def test_workflow_result_clean_metadata_for_json(self):
+    def test_workflow_result_clean_metadata_for_json(self) -> None:
         """Test _clean_metadata_for_json method."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         result = WorkflowResult(
             workflow_id="test-workflow",
             execution_id="test-execution",
@@ -569,12 +565,12 @@ class TestErrorHandlingAndEdgeCases:
         assert cleaned["key3"] == ["item with\\rcarriage return"]
 
     @pytest.mark.asyncio
-    async def test_execute_method_event_emission_without_workflow_event(self):
+    async def test_execute_method_event_emission_without_workflow_event(self) -> None:
         """Test execute method when WorkflowEvent cannot be imported."""
         executor = WorkflowExecutor()
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_emitter.emit = AsyncMock()
         executor.event_emitter = mock_emitter
 
@@ -592,12 +588,12 @@ class TestErrorHandlingAndEdgeCases:
                 mock_emitter.emit.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_execute_method_event_emission_failure_on_exception(self):
+    async def test_execute_method_event_emission_failure_on_exception(self) -> None:
         """Test execute method event emission during exception handling."""
         executor = WorkflowExecutor()
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_emitter.emit = AsyncMock()
         executor.event_emitter = mock_emitter
 
@@ -612,18 +608,23 @@ class TestErrorHandlingAndEdgeCases:
 
                     # Should handle failure gracefully
                     assert result.success is False
-                    assert "Execution failed" in result.error_message
+                    assert (
+                        result.error_message is not None
+                        and "Execution failed" in result.error_message
+                    )
 
                     # Should emit both start and failure events
                     assert mock_emitter.emit.call_count >= 2
 
     @pytest.mark.asyncio
-    async def test_execute_method_event_emission_import_error_on_exception(self):
+    async def test_execute_method_event_emission_import_error_on_exception(
+        self,
+    ) -> None:
         """Test execute method when event emission fails during exception handling."""
         executor = WorkflowExecutor()
-        initial_context = AgentContext(query="test query")
+        initial_context = AgentContextPatterns.simple_query("test query")
 
-        mock_emitter = Mock()
+        mock_emitter: Mock = Mock()
         mock_emitter.emit = AsyncMock()
         executor.event_emitter = mock_emitter
 
@@ -638,4 +639,7 @@ class TestErrorHandlingAndEdgeCases:
 
                 # Should still handle failure gracefully
                 assert result.success is False
-                assert "Execution failed" in result.error_message
+                assert (
+                    result.error_message is not None
+                    and "Execution failed" in result.error_message
+                )

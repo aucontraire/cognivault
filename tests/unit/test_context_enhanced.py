@@ -1,18 +1,23 @@
 import pytest
+from typing import Any
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 from cognivault.context import (
     AgentContext,
     ContextSnapshot,
     ContextCompressionManager,
-    StateTransitionError,
+)
+from cognivault.exceptions import StateTransitionError
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
 )
 
 
 class TestContextCompressionManager:
     """Test the context compression manager functionality."""
 
-    def test_calculate_size(self):
+    def test_calculate_size(self) -> None:
         """Test size calculation for various data types."""
         manager = ContextCompressionManager()
 
@@ -27,7 +32,7 @@ class TestContextCompressionManager:
         large_size = manager.calculate_size(large_data)
         assert large_size > size
 
-    def test_compress_and_decompress_data(self):
+    def test_compress_and_decompress_data(self) -> None:
         """Test data compression and decompression."""
         manager = ContextCompressionManager()
 
@@ -46,7 +51,7 @@ class TestContextCompressionManager:
         decompressed = manager.decompress_data(compressed)
         assert decompressed == original_data
 
-    def test_truncate_large_outputs(self):
+    def test_truncate_large_outputs(self) -> None:
         """Test truncation of large outputs."""
         manager = ContextCompressionManager()
 
@@ -66,13 +71,13 @@ class TestContextCompressionManager:
         assert "truncated" in truncated["long_output"]
         assert truncated["medium_output"] == "y" * 50
 
-    def test_calculate_size_with_unserializable_data(self):
+    def test_calculate_size_with_unserializable_data(self) -> None:
         """Test size calculation with data that can't be JSON serialized."""
         manager = ContextCompressionManager()
 
         # Create an object that can't be JSON serialized
         class UnserializableObject:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.circular_ref = self
 
         unserializable_data = UnserializableObject()
@@ -82,13 +87,13 @@ class TestContextCompressionManager:
         assert size > 0
         assert isinstance(size, int)
 
-    def test_calculate_size_json_exception_handling(self):
+    def test_calculate_size_json_exception_handling(self) -> None:
         """Test that calculate_size properly handles JSON encoding errors."""
         manager = ContextCompressionManager()
 
         # Create an object that raises a specific JSON encoding error
         class ProblematicObject:
-            def __str__(self):
+            def __str__(self) -> str:
                 return "ProblematicObject instance"
 
         # Use a set with the problematic object to trigger TypeError in json.dumps
@@ -100,7 +105,7 @@ class TestContextCompressionManager:
         assert isinstance(size, int)
 
     @patch("cognivault.context.json.dumps")
-    def test_calculate_size_handles_json_exceptions(self, mock_json_dumps):
+    def test_calculate_size_handles_json_exceptions(self, mock_json_dumps: Any) -> None:
         """Test that calculate_size handles both TypeError and ValueError from json.dumps."""
         manager = ContextCompressionManager()
 
@@ -120,7 +125,7 @@ class TestContextCompressionManager:
 class TestContextSnapshot:
     """Test context snapshot functionality."""
 
-    def test_snapshot_creation(self):
+    def test_snapshot_creation(self) -> None:
         """Test creating a context snapshot."""
         snapshot = ContextSnapshot(
             context_id="test_id",
@@ -139,7 +144,7 @@ class TestContextSnapshot:
         assert snapshot.agent_outputs == {"agent1": "output1"}
         assert not snapshot.compressed  # Default value
 
-    def test_snapshot_to_dict(self):
+    def test_snapshot_to_dict(self) -> None:
         """Test converting snapshot to dictionary."""
         snapshot = ContextSnapshot(
             context_id="test_id",
@@ -158,7 +163,7 @@ class TestContextSnapshot:
         assert snapshot_dict["context_id"] == "test_id"
         assert snapshot_dict["query"] == "test query"
 
-    def test_snapshot_from_dict(self):
+    def test_snapshot_from_dict(self) -> None:
         """Test creating snapshot from dictionary."""
         data = {
             "context_id": "test_id",
@@ -181,9 +186,9 @@ class TestContextSnapshot:
 class TestEnhancedAgentContext:
     """Test enhanced agent context functionality."""
 
-    def test_context_initialization(self):
+    def test_context_initialization(self) -> None:
         """Test context initialization with new features."""
-        context = AgentContext(query="What is AI?")
+        context = AgentContextPatterns.simple_query("What is AI?")
 
         assert context.query == "What is AI?"
         assert hasattr(context, "context_id")
@@ -192,18 +197,18 @@ class TestEnhancedAgentContext:
         assert hasattr(context, "compression_manager")
         assert context.current_size >= 0
 
-    def test_context_id_generation(self):
+    def test_context_id_generation(self) -> None:
         """Test context ID generation."""
-        context1 = AgentContext(query="Query 1")
-        context2 = AgentContext(query="Query 2")
+        context1 = AgentContextPatterns.simple_query("Query 1")
+        context2 = AgentContextPatterns.simple_query("Query 2")
 
         # Context IDs should be different
         assert context1.get_context_id() != context2.get_context_id()
         assert len(context1.get_context_id()) == 8  # MD5 hash truncated to 8 chars
 
-    def test_size_monitoring(self):
+    def test_size_monitoring(self) -> None:
         """Test context size monitoring."""
-        context = AgentContext(query="Small query")
+        context = AgentContextPatterns.simple_query("Small query")
         initial_size = context.get_current_size_bytes()
 
         # Add some data and check size increases
@@ -214,14 +219,14 @@ class TestEnhancedAgentContext:
         assert new_size > initial_size
 
     @patch("cognivault.context.get_config")
-    def test_size_limit_enforcement(self, mock_get_config):
+    def test_size_limit_enforcement(self, mock_get_config: Any) -> None:
         """Test that size limits are enforced."""
         # Mock config to return small size limit
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.testing.max_context_size_bytes = 100
         mock_get_config.return_value = mock_config
 
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Add large output that exceeds limit
         large_output = "x" * 1000
@@ -230,9 +235,9 @@ class TestEnhancedAgentContext:
         # Context should have been compressed
         assert context.get_current_size_bytes() <= 1000  # Should be compressed
 
-    def test_create_snapshot(self):
+    def test_create_snapshot(self) -> None:
         """Test creating context snapshots."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
         context.add_agent_output("agent1", "output1")
         context.update_user_config({"setting": "value"})
 
@@ -243,9 +248,9 @@ class TestEnhancedAgentContext:
         assert context.snapshots[0].query == "Test query"
         assert context.snapshots[0].agent_outputs == {"agent1": "output1"}
 
-    def test_restore_snapshot(self):
+    def test_restore_snapshot(self) -> None:
         """Test restoring from snapshots."""
-        context = AgentContext(query="Original query")
+        context = AgentContextPatterns.simple_query("Original query")
         context.add_agent_output("agent1", "original_output")
 
         # Create snapshot
@@ -263,9 +268,9 @@ class TestEnhancedAgentContext:
         assert context.agent_outputs == {"agent1": "original_output"}
         assert "agent2" not in context.agent_outputs
 
-    def test_list_snapshots(self):
+    def test_list_snapshots(self) -> None:
         """Test listing snapshots."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Create multiple snapshots
         context.add_agent_output("agent1", "output1")
@@ -282,9 +287,9 @@ class TestEnhancedAgentContext:
         assert all("agents_present" in s for s in snapshots)
         assert snapshots[1]["agents_present"] == ["agent1", "agent2"]
 
-    def test_clear_snapshots(self):
+    def test_clear_snapshots(self) -> None:
         """Test clearing snapshots."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Create snapshots
         context.create_snapshot()
@@ -296,9 +301,9 @@ class TestEnhancedAgentContext:
 
         assert len(context.snapshots) == 0
 
-    def test_get_memory_usage(self):
+    def test_get_memory_usage(self) -> None:
         """Test memory usage reporting."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
         context.add_agent_output("agent1", "output1")
         context.log_trace("agent1", "input", "output")
         context.create_snapshot()
@@ -316,9 +321,9 @@ class TestEnhancedAgentContext:
         assert usage["snapshots_count"] == 1
         assert usage["total_size_bytes"] > 0
 
-    def test_optimize_memory(self):
+    def test_optimize_memory(self) -> None:
         """Test memory optimization."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Create many snapshots
         for i in range(10):
@@ -342,9 +347,9 @@ class TestEnhancedAgentContext:
         assert len(context.snapshots) == 5
         assert stats["snapshots_removed"] == 5
 
-    def test_clone_context(self):
+    def test_clone_context(self) -> None:
         """Test cloning context for parallel processing."""
-        context = AgentContext(query="Original query")
+        context = AgentContextPatterns.simple_query("Original query")
         context.add_agent_output("agent1", "output1")
         context.update_user_config({"setting": "value"})
         context.set_final_synthesis("synthesis")
@@ -365,9 +370,9 @@ class TestEnhancedAgentContext:
         cloned.add_agent_output("agent2", "output2")
         assert "agent2" not in context.agent_outputs
 
-    def test_size_update_on_operations(self):
+    def test_size_update_on_operations(self) -> None:
         """Test that size is updated on various operations."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
         initial_size = context.get_current_size_bytes()
 
         # Add agent output
@@ -390,9 +395,9 @@ class TestEnhancedAgentContext:
         size_after_trace = context.get_current_size_bytes()
         assert size_after_trace > size_after_synthesis
 
-    def test_snapshot_restore_invalid_id(self):
+    def test_snapshot_restore_invalid_id(self) -> None:
         """Test restoring with invalid snapshot ID."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Try to restore non-existent snapshot
         success = context.restore_snapshot("invalid_id")
@@ -400,14 +405,14 @@ class TestEnhancedAgentContext:
         assert not success
 
     @patch("cognivault.context.get_config")
-    def test_compression_on_large_context(self, mock_get_config):
+    def test_compression_on_large_context(self, mock_get_config: Any) -> None:
         """Test compression when context becomes too large."""
         # Mock config with very small size limit
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.testing.max_context_size_bytes = 50
         mock_get_config.return_value = mock_config
 
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Add large agent trace
         for i in range(10):
@@ -419,14 +424,14 @@ class TestEnhancedAgentContext:
             assert len(context.agent_trace[agent_name]) <= 3
 
     @patch("cognivault.context.get_config")
-    def test_agent_trace_compression_in_context(self, mock_get_config):
+    def test_agent_trace_compression_in_context(self, mock_get_config: Any) -> None:
         """Test agent trace compression when context exceeds size limit."""
         # Mock config with small size limit to trigger compression
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.testing.max_context_size_bytes = 100
         mock_get_config.return_value = mock_config
 
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Add multiple traces for a single agent to trigger compression
         agent_name = "test_agent"
@@ -439,14 +444,14 @@ class TestEnhancedAgentContext:
         assert len(context.agent_trace[agent_name]) <= 3
 
     @patch("cognivault.context.get_config")
-    def test_optimize_memory_with_compression(self, mock_get_config):
+    def test_optimize_memory_with_compression(self, mock_get_config: Any) -> None:
         """Test memory optimization that triggers context compression."""
         # Mock config with small size limit
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.testing.max_context_size_bytes = 200
         mock_get_config.return_value = mock_config
 
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Add large amount of data to exceed size limit
         for i in range(3):
@@ -461,9 +466,9 @@ class TestEnhancedAgentContext:
         # Verify compression was triggered
         assert stats["size_after"] <= stats["size_before"]
 
-    def test_getter_methods_coverage(self):
+    def test_getter_methods_coverage(self) -> None:
         """Test getter methods to achieve 100% coverage."""
-        context = AgentContext(query="Test query")
+        context = AgentContextPatterns.simple_query("Test query")
 
         # Test get_output with existing and non-existing agents
         context.add_agent_output("agent1", "output1")
@@ -480,9 +485,9 @@ class TestEnhancedAgentContext:
         assert context.get_final_synthesis() == "Test synthesis"
 
     @patch("cognivault.context.ContextSnapshot")
-    def test_create_execution_snapshot_failure(self, mock_snapshot_cls):
+    def test_create_execution_snapshot_failure(self, mock_snapshot_cls: Any) -> None:
         """Test error handling during execution snapshot creation."""
-        context = AgentContext(query="Failing snapshot test")
+        context = AgentContextPatterns.simple_query("Failing snapshot test")
 
         # Simulate ContextSnapshot raising an exception
         mock_snapshot_cls.side_effect = Exception("Simulated snapshot error")
@@ -497,9 +502,11 @@ class TestEnhancedAgentContext:
         assert exception.state_details == "Simulated snapshot error"
 
     @patch.object(AgentContext, "restore_snapshot", return_value=True)
-    def test_restore_execution_snapshot_failure(self, mock_restore_snapshot):
+    def test_restore_execution_snapshot_failure(
+        self, mock_restore_snapshot: Any
+    ) -> None:
         """Test error handling during execution snapshot restore."""
-        context = AgentContext(query="Restore failure test")
+        context = AgentContextPatterns.simple_query("Restore failure test")
         snapshot_id = "2024-01-01T00:00:00Z_0"
         context.execution_state = {
             f"snapshot_{snapshot_id}_execution_data": "invalid_state"
@@ -514,9 +521,9 @@ class TestEnhancedAgentContext:
         assert exception.agent_id == "context_manager"
         assert snapshot_id in str(exception)
 
-    def test_get_rollback_options_fallback(self):
+    def test_get_rollback_options_fallback(self) -> None:
         """Test get_rollback_options with missing execution state."""
-        context = AgentContext(query="Rollback edge case")
+        context = AgentContextPatterns.simple_query("Rollback edge case")
         context.create_snapshot()  # Create a basic snapshot
 
         rollback_options = context.get_rollback_options()
@@ -526,9 +533,9 @@ class TestEnhancedAgentContext:
         assert "overall_success" in rollback_options[0]
         assert rollback_options[0]["overall_success"] is True  # fallback default
 
-    def test_get_rollback_options_partial_execution_state(self):
+    def test_get_rollback_options_partial_execution_state(self) -> None:
         """Test get_rollback_options when some execution metadata is missing."""
-        context = AgentContext(query="Partial rollback test")
+        context = AgentContextPatterns.simple_query("Partial rollback test")
 
         # Create a snapshot
         snapshot_id = context.create_snapshot()

@@ -1,3 +1,5 @@
+from typing import Any
+
 #!/usr/bin/env python3
 """
 End-to-end workflow testing with DeclarativeOrchestrator.
@@ -19,7 +21,7 @@ from cognivault.workflows.definition import WorkflowDefinition
 from cognivault.context import AgentContext
 
 
-async def test_validator_workflow_execution():
+async def test_validator_workflow_execution() -> bool:
     """Test end-to-end execution of ValidatorNode-focused workflow."""
 
     print("🧪 Testing ValidatorNode Workflow End-to-End Execution")
@@ -84,7 +86,7 @@ async def test_validator_workflow_execution():
         return False
 
 
-async def test_terminator_workflow_execution():
+async def test_terminator_workflow_execution() -> bool:
     """Test end-to-end execution of TerminatorNode-focused workflow."""
 
     print("\n🧪 Testing TerminatorNode Workflow End-to-End Execution")
@@ -149,7 +151,7 @@ async def test_terminator_workflow_execution():
         return False
 
 
-async def test_comprehensive_advanced_workflow():
+async def test_comprehensive_advanced_workflow() -> bool:
     """Test end-to-end execution of comprehensive advanced workflow."""
 
     print("\n🧪 Testing Comprehensive Advanced Workflow End-to-End Execution")
@@ -214,7 +216,7 @@ async def test_comprehensive_advanced_workflow():
         return False
 
 
-async def test_workflow_validation_and_metadata():
+async def test_workflow_validation_and_metadata() -> bool:
     """Test workflow validation and metadata extraction."""
 
     print("\n🔍 Testing Workflow Validation and Metadata")
@@ -276,7 +278,7 @@ async def test_workflow_validation_and_metadata():
         return False
 
 
-async def main():
+async def main() -> bool:
     """Run all end-to-end workflow tests."""
 
     print("🚀 Starting End-to-End Workflow Testing")

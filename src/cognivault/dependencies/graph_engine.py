@@ -288,7 +288,7 @@ class DependencyNode(BaseModel):
 class CircularDependencyError(Exception):
     """Raised when circular dependencies are detected in the graph."""
 
-    def __init__(self, cycle: List[str]):
+    def __init__(self, cycle: List[str]) -> None:
         self.cycle = cycle
         super().__init__(
             f"Circular dependency detected: {' -> '.join(cycle + [cycle[0]])}"
@@ -458,7 +458,7 @@ class DependencyGraphEngine:
         dependency_type: DependencyType = DependencyType.HARD,
         condition: Optional[Callable[[AgentContext], bool]] = None,
         weight: float = 1.0,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Convenience method to add a dependency between two agents."""
         edge = DependencyEdge(
@@ -799,7 +799,7 @@ class DependencyGraphEngine:
         visited = set()
         dependencies = []
 
-        def dfs(current_agent: str):
+        def dfs(current_agent: str) -> None:
             if current_agent in visited:
                 return
             visited.add(current_agent)
@@ -817,7 +817,7 @@ class DependencyGraphEngine:
         visited = set()
         dependents = []
 
-        def dfs(current_agent: str):
+        def dfs(current_agent: str) -> None:
             if current_agent in visited:
                 return
             visited.add(current_agent)

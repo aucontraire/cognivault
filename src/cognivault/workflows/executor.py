@@ -46,7 +46,7 @@ except ImportError:
 class WorkflowExecutionError(Exception):
     """Exception raised during workflow execution."""
 
-    def __init__(self, message: str, workflow_id: Optional[str] = None):
+    def __init__(self, message: str, workflow_id: Optional[str] = None) -> None:
         super().__init__(message)
         self.workflow_id = workflow_id
 
@@ -169,14 +169,21 @@ class WorkflowResult(BaseModel):
 
         # Clean strings for JSON serialization
         if result_dict.get("execution_metadata"):
-            result_dict["execution_metadata"] = self._clean_strings_for_json(
+            cleaned_metadata = self._clean_strings_for_json(
                 result_dict["execution_metadata"]
+            )
+            # Ensure we maintain dict type after cleaning
+            result_dict["execution_metadata"] = (
+                cleaned_metadata if isinstance(cleaned_metadata, dict) else {}
             )
 
         # Add agent outputs from final_context if available
         if hasattr(self.final_context, "agent_outputs"):
             agent_outputs = dict(self.final_context.agent_outputs)
-            result_dict["agent_outputs"] = self._clean_strings_for_json(agent_outputs)
+            cleaned_outputs = self._clean_strings_for_json(agent_outputs)
+            result_dict["agent_outputs"] = (
+                cleaned_outputs if isinstance(cleaned_outputs, dict) else {}
+            )
 
         # Add final context summary for backward compatibility
         result_dict["final_context_summary"] = {
@@ -194,9 +201,9 @@ class WorkflowResult(BaseModel):
         }
 
         # Convert sets to lists for JSON serialization
-        result_dict = self._convert_sets_to_lists(result_dict)
-
-        return result_dict
+        converted_dict = self._convert_sets_to_lists(result_dict)
+        # Ensure we return a dict type
+        return converted_dict if isinstance(converted_dict, dict) else result_dict
 
     def _clean_strings_for_json(self, data: Any) -> Any:
         """Recursively clean strings in data structure for JSON serialization."""
@@ -214,7 +221,9 @@ class WorkflowResult(BaseModel):
 
     def _clean_metadata_for_json(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Clean metadata for JSON serialization (alias for _clean_strings_for_json)."""
-        return self._clean_strings_for_json(metadata)
+        cleaned_result = self._clean_strings_for_json(metadata)
+        # Ensure we return a Dict[str, Any] as promised by the signature
+        return cleaned_result if isinstance(cleaned_result, dict) else {}
 
     def _convert_sets_to_lists(self, data: Any) -> Any:
         """Recursively convert sets to lists for JSON serialization."""
@@ -296,7 +305,7 @@ class WorkflowExecutor:
     monitoring for complex DAG state propagation with correlation tracking.
     """
 
-    def __init__(self, composition_result: Optional[CompositionResult] = None):
+    def __init__(self, composition_result: Optional[CompositionResult] = None) -> None:
         self.composition_result = composition_result or CompositionResult()
         try:
             from cognivault.events import get_global_event_emitter
@@ -448,7 +457,7 @@ class WorkflowExecutor:
                     "cognitive_depth": "variable",
                     "processing_pattern": "atomic",
                 },
-                task_classification=task_classification,  # type: ignore
+                task_classification=task_classification,
                 execution_path=[],
                 confidence_score=0.0,
                 resource_usage={},
@@ -780,7 +789,10 @@ class WorkflowExecutor:
             )
 
     async def _execute_node_with_prompts(
-        self, node_func: Callable, node_id: str, context: AgentContext
+        self,
+        node_func: Callable[[Dict[str, Any]], Any],
+        node_id: str,
+        context: AgentContext,
     ) -> Any:
         """
         Execute a node function with prompt configuration support.
@@ -832,7 +844,9 @@ class DeclarativeOrchestrator:
     comprehensive event emission, error handling, and result tracking.
     """
 
-    def __init__(self, workflow_definition: Optional["WorkflowDefinition"] = None):
+    def __init__(
+        self, workflow_definition: Optional["WorkflowDefinition"] = None
+    ) -> None:
         self.workflow_definition = workflow_definition
         self.executor = WorkflowExecutor()  # For backward compatibility
         self.dag_composer = None

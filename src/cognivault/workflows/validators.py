@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator, ConfigD
 
 from cognivault.workflows.definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
     EdgeDefinition,
     NodeCategory,
@@ -637,7 +637,7 @@ class WorkflowValidator(BaseModel):
         WHITE, GRAY, BLACK = 0, 1, 2
         colors = {node.node_id: WHITE for node in workflow.nodes}
 
-        def dfs(node):
+        def dfs(node: str) -> bool:
             # Safety check - node must exist in colors dictionary
             if node not in colors:
                 return False
@@ -675,7 +675,7 @@ class WorkflowValidator(BaseModel):
             graph[edge.from_node].append(edge.to_node)
 
         # Find longest path using DFS
-        def dfs(node, visited):
+        def dfs(node: str, visited: Set[str]) -> int:
             if node in visited:
                 return 0  # Cycle detected, avoid infinite recursion
 

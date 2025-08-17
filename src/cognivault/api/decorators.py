@@ -9,7 +9,9 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any, Optional, TypeVar, Awaitable
+
+T = TypeVar("T")
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from cognivault.observability import get_logger
@@ -17,7 +19,9 @@ from cognivault.observability import get_logger
 logger = get_logger(__name__)
 
 
-def ensure_initialized(func: Callable) -> Callable:
+def ensure_initialized(
+    func: Callable[..., Awaitable[T]],
+) -> Callable[..., Awaitable[T]]:
     """
     Decorator to ensure API is initialized before method execution.
 
@@ -25,7 +29,7 @@ def ensure_initialized(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    async def wrapper(self, *args, **kwargs):
+    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
         if not getattr(self, "_initialized", False):
             raise RuntimeError(
                 f"{self.__class__.__name__} must be initialized before calling {func.__name__}. "
@@ -111,7 +115,9 @@ class TokenBucket(BaseModel):
 _rate_limiters: Dict[str, TokenBucket] = {}
 
 
-def rate_limited(calls_per_second: int = 10, burst_size: Optional[int] = None):
+def rate_limited(
+    calls_per_second: int = 10, burst_size: Optional[int] = None
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """
     Rate limiting decorator for API methods using token bucket algorithm.
 
@@ -121,9 +127,9 @@ def rate_limited(calls_per_second: int = 10, burst_size: Optional[int] = None):
     """
     burst_size = burst_size or calls_per_second * 2
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(func)
-        async def wrapper(self, *args, **kwargs):
+        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             # Create unique key for this API method
             limiter_key = f"{self.__class__.__name__}.{func.__name__}"
 
@@ -229,7 +235,7 @@ class APICircuitBreaker(BaseModel):
             return True
         return False
 
-    def record_success(self):
+    def record_success(self) -> None:
         """Record a successful execution."""
         if self.state == CircuitState.HALF_OPEN:
             # Recovery successful, close the circuit
@@ -241,7 +247,7 @@ class APICircuitBreaker(BaseModel):
             # Reset failure count on success
             self.failure_count = 0
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """Record a failed execution."""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -266,7 +272,9 @@ class APICircuitBreaker(BaseModel):
 _circuit_breakers: Dict[str, APICircuitBreaker] = {}
 
 
-def circuit_breaker(failure_threshold: int = 5, recovery_timeout: int = 60):
+def circuit_breaker(
+    failure_threshold: int = 5, recovery_timeout: int = 60
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """
     Circuit breaker pattern decorator for API resilience.
 
@@ -275,9 +283,9 @@ def circuit_breaker(failure_threshold: int = 5, recovery_timeout: int = 60):
         recovery_timeout: Seconds before attempting recovery
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(func)
-        async def wrapper(self, *args, **kwargs):
+        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             # Create unique key for this API method
             breaker_key = f"{self.__class__.__name__}.{func.__name__}"
 
@@ -364,13 +372,13 @@ def get_circuit_breaker_stats() -> Dict[str, Dict[str, Any]]:
     return stats
 
 
-def reset_rate_limiters():
+def reset_rate_limiters() -> None:
     """Reset all rate limiters (useful for testing)."""
     global _rate_limiters
     _rate_limiters.clear()
 
 
-def reset_circuit_breakers():
+def reset_circuit_breakers() -> None:
     """Reset all circuit breakers (useful for testing)."""
     global _circuit_breakers
     _circuit_breakers.clear()

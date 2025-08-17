@@ -6,13 +6,14 @@ routing and flow control in the advanced node execution system.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.orchestration.nodes.decision_node import (
     DecisionNode,
     DecisionCriteria,
-    NodeExecutionContext,
 )
+from cognivault.orchestration.nodes.base_advanced_node import NodeExecutionContext
 from cognivault.agents.metadata import AgentMetadata, TaskClassification
 
 
@@ -20,7 +21,7 @@ class TestDecisionNodeInitialization:
     """Test DecisionNode initialization and validation."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock AgentMetadata with decision execution pattern."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
@@ -29,7 +30,7 @@ class TestDecisionNodeInitialization:
         return metadata
 
     @pytest.fixture
-    def basic_criteria(self):
+    def basic_criteria(self) -> Any:
         """Create basic decision criteria."""
         return [
             DecisionCriteria(
@@ -44,7 +45,7 @@ class TestDecisionNodeInitialization:
         ]
 
     @pytest.fixture
-    def basic_paths(self):
+    def basic_paths(self) -> Any:
         """Create basic path configuration."""
         return {
             "fast_path": ["refiner", "synthesis"],
@@ -53,8 +54,8 @@ class TestDecisionNodeInitialization:
         }
 
     def test_decision_node_creation_success(
-        self, mock_metadata, basic_criteria, basic_paths
-    ):
+        self, mock_metadata: Mock, basic_criteria: Mock, basic_paths: Mock
+    ) -> None:
         """Test successful DecisionNode creation."""
         node = DecisionNode(
             metadata=mock_metadata,
@@ -69,7 +70,9 @@ class TestDecisionNodeInitialization:
         assert len(node.paths) == 3
         assert node.default_path == "fast_path"  # First path is default
 
-    def test_decision_node_wrong_execution_pattern(self, basic_criteria, basic_paths):
+    def test_decision_node_wrong_execution_pattern(
+        self, basic_criteria: Mock, basic_paths: Mock
+    ) -> None:
         """Test that DecisionNode requires decision execution pattern."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "processor"  # Wrong pattern
@@ -84,7 +87,9 @@ class TestDecisionNodeInitialization:
                 paths=basic_paths,
             )
 
-    def test_decision_node_empty_criteria(self, mock_metadata, basic_paths):
+    def test_decision_node_empty_criteria(
+        self, mock_metadata: Mock, basic_paths: Mock
+    ) -> None:
         """Test that DecisionNode requires at least one criterion."""
         with pytest.raises(
             ValueError, match="DecisionNode requires at least one decision criterion"
@@ -96,7 +101,9 @@ class TestDecisionNodeInitialization:
                 paths=basic_paths,
             )
 
-    def test_decision_node_empty_paths(self, mock_metadata, basic_criteria):
+    def test_decision_node_empty_paths(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that DecisionNode requires at least one path."""
         with pytest.raises(ValueError, match="DecisionNode requires at least one path"):
             DecisionNode(
@@ -106,7 +113,7 @@ class TestDecisionNodeInitialization:
                 paths={},  # Empty paths
             )
 
-    def test_decision_criteria_evaluate(self):
+    def test_decision_criteria_evaluate(self) -> None:
         """Test DecisionCriteria evaluation."""
         context = Mock(spec=NodeExecutionContext)
         context.confidence_score = 0.85
@@ -122,8 +129,8 @@ class TestDecisionNodeInitialization:
         assert score == 0.85
 
     def test_decision_node_inherits_base_methods(
-        self, mock_metadata, basic_criteria, basic_paths
-    ):
+        self, mock_metadata: Mock, basic_criteria: Mock, basic_paths: Mock
+    ) -> None:
         """Test that DecisionNode inherits BaseAdvancedNode methods."""
         node = DecisionNode(
             metadata=mock_metadata,
@@ -147,14 +154,14 @@ class TestDecisionNodeExecute:
     """Test DecisionNode execute method."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock AgentMetadata."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
         return metadata
 
     @pytest.fixture
-    def mock_context(self):
+    def mock_context(self) -> Any:
         """Create mock NodeExecutionContext."""
         context = Mock(spec=NodeExecutionContext)
         context.correlation_id = "test-correlation"
@@ -168,7 +175,7 @@ class TestDecisionNodeExecute:
         return context
 
     @pytest.fixture
-    def decision_node(self, mock_metadata):
+    def decision_node(self, mock_metadata: Mock) -> Any:
         """Create a DecisionNode for testing."""
         criteria = [
             DecisionCriteria(
@@ -185,7 +192,9 @@ class TestDecisionNodeExecute:
         return DecisionNode(mock_metadata, "test_decision", criteria, paths)
 
     @pytest.mark.asyncio
-    async def test_execute_high_confidence_path(self, decision_node, mock_context):
+    async def test_execute_high_confidence_path(
+        self, decision_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute selects high confidence path."""
         mock_context.confidence_score = 0.9  # Above threshold
 
@@ -209,7 +218,9 @@ class TestDecisionNodeExecute:
         assert call_args["confidence_score"] == 0.9
 
     @pytest.mark.asyncio
-    async def test_execute_low_confidence_path(self, decision_node, mock_context):
+    async def test_execute_low_confidence_path(
+        self, decision_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute selects low confidence path."""
         mock_context.confidence_score = 0.5  # Below threshold
 
@@ -224,7 +235,9 @@ class TestDecisionNodeExecute:
         assert result["alternatives"]
 
     @pytest.mark.asyncio
-    async def test_execute_calls_pre_post_hooks(self, decision_node, mock_context):
+    async def test_execute_calls_pre_post_hooks(
+        self, decision_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute calls pre and post execution hooks."""
         # Mock the methods that should be called
         mock_context.add_to_execution_path = Mock()
@@ -240,7 +253,7 @@ class TestDecisionNodeExecute:
         mock_context.update_resource_usage.assert_called()
 
     @pytest.mark.asyncio
-    async def test_execute_validation_failure(self, decision_node):
+    async def test_execute_validation_failure(self, decision_node: Mock) -> None:
         """Test execute fails with invalid context."""
         invalid_context = Mock(spec=NodeExecutionContext)
         invalid_context.correlation_id = ""  # Invalid
@@ -252,7 +265,9 @@ class TestDecisionNodeExecute:
             await decision_node.execute(invalid_context)
 
     @pytest.mark.asyncio
-    async def test_execute_multiple_criteria(self, mock_metadata, mock_context):
+    async def test_execute_multiple_criteria(
+        self, mock_metadata: Mock, mock_context: Mock
+    ) -> None:
         """Test execute with multiple weighted criteria."""
         criteria = [
             DecisionCriteria(
@@ -279,7 +294,7 @@ class TestDecisionNodeCanHandle:
     """Test DecisionNode can_handle method."""
 
     @pytest.fixture
-    def decision_node(self):
+    def decision_node(self) -> Any:
         """Create a DecisionNode for testing."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
@@ -302,7 +317,7 @@ class TestDecisionNodeCanHandle:
 
         return DecisionNode(metadata, "can_handle_test", criteria, paths)
 
-    def test_can_handle_valid_context(self, decision_node):
+    def test_can_handle_valid_context(self, decision_node: Mock) -> None:
         """Test can_handle returns True for valid context."""
         context = Mock(spec=NodeExecutionContext)
         context.cognitive_classification = {"speed": "fast"}
@@ -310,7 +325,7 @@ class TestDecisionNodeCanHandle:
 
         assert decision_node.can_handle(context) is True
 
-    def test_can_handle_missing_classification(self, decision_node):
+    def test_can_handle_missing_classification(self, decision_node: Mock) -> None:
         """Test can_handle returns False when cognitive_classification is missing."""
         context = Mock(spec=NodeExecutionContext)
         context.cognitive_classification = None
@@ -318,7 +333,7 @@ class TestDecisionNodeCanHandle:
 
         assert decision_node.can_handle(context) is False
 
-    def test_can_handle_empty_classification(self, decision_node):
+    def test_can_handle_empty_classification(self, decision_node: Mock) -> None:
         """Test can_handle with empty cognitive_classification."""
         context = Mock(spec=NodeExecutionContext)
         context.cognitive_classification = {}
@@ -327,13 +342,13 @@ class TestDecisionNodeCanHandle:
         # Should return False because len(ctx.cognitive_classification) = 0
         assert decision_node.can_handle(context) is False
 
-    def test_can_handle_evaluation_error(self):
+    def test_can_handle_evaluation_error(self) -> None:
         """Test can_handle returns False when criteria evaluation fails."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
 
         # Create a criterion that will fail
-        def failing_evaluator(ctx):
+        def failing_evaluator(ctx: Any) -> None:
             raise ValueError("Evaluation failed")
 
         criteria = [
@@ -353,7 +368,7 @@ class TestDecisionNodeCanHandle:
 
         assert node.can_handle(context) is False
 
-    def test_can_handle_with_complex_criteria(self):
+    def test_can_handle_with_complex_criteria(self) -> None:
         """Test can_handle with criteria that access nested properties."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
@@ -390,7 +405,7 @@ class TestDecisionNodeEvaluateCriteria:
     """Test DecisionNode _evaluate_criteria method."""
 
     @pytest.fixture
-    def decision_node(self):
+    def decision_node(self) -> Any:
         """Create a DecisionNode for testing."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
@@ -418,7 +433,7 @@ class TestDecisionNodeEvaluateCriteria:
         return DecisionNode(metadata, "eval_test", criteria, paths)
 
     @pytest.fixture
-    def mock_context(self):
+    def mock_context(self) -> Any:
         """Create mock context for testing."""
         context = Mock(spec=NodeExecutionContext)
         context.confidence_score = 0.9
@@ -426,7 +441,9 @@ class TestDecisionNodeEvaluateCriteria:
         return context
 
     @pytest.mark.asyncio
-    async def test_evaluate_criteria_high_scoring(self, decision_node, mock_context):
+    async def test_evaluate_criteria_high_scoring(
+        self, decision_node: Mock, mock_context: Mock
+    ) -> None:
         """Test _evaluate_criteria with high-scoring criteria."""
         result = await decision_node._evaluate_criteria(mock_context)
 
@@ -463,7 +480,9 @@ class TestDecisionNodeEvaluateCriteria:
         assert complexity_score["passed"] is True
 
     @pytest.mark.asyncio
-    async def test_evaluate_criteria_path_selection(self, decision_node, mock_context):
+    async def test_evaluate_criteria_path_selection(
+        self, decision_node: Mock, mock_context: Mock
+    ) -> None:
         """Test that _evaluate_criteria selects appropriate path."""
         result = await decision_node._evaluate_criteria(mock_context)
 
@@ -487,8 +506,8 @@ class TestDecisionNodeEvaluateCriteria:
 
     @pytest.mark.asyncio
     async def test_evaluate_criteria_confidence_calculation(
-        self, decision_node, mock_context
-    ):
+        self, decision_node: Mock, mock_context: Mock
+    ) -> None:
         """Test confidence score calculation."""
         result = await decision_node._evaluate_criteria(mock_context)
 
@@ -502,7 +521,7 @@ class TestDecisionNodeEvaluateCriteria:
         assert abs(confidence - expected_confidence) < 0.01
 
     @pytest.mark.asyncio
-    async def test_evaluate_criteria_low_confidence(self, decision_node):
+    async def test_evaluate_criteria_low_confidence(self, decision_node: Mock) -> None:
         """Test _evaluate_criteria with low confidence score."""
         context = Mock(spec=NodeExecutionContext)
         context.confidence_score = 0.3  # Below threshold
@@ -519,7 +538,7 @@ class TestDecisionNodeEvaluateCriteria:
         assert result["selected_path"] in decision_node.paths
 
     @pytest.mark.asyncio
-    async def test_evaluate_criteria_all_fail(self, decision_node):
+    async def test_evaluate_criteria_all_fail(self, decision_node: Mock) -> None:
         """Test _evaluate_criteria when all criteria fail."""
         context = Mock(spec=NodeExecutionContext)
         context.confidence_score = 0.1  # Below threshold
@@ -544,7 +563,9 @@ class TestDecisionNodeEvaluateCriteria:
         assert result["confidence"] == 0.0
 
     @pytest.mark.asyncio
-    async def test_evaluate_criteria_confidence_capped(self, decision_node):
+    async def test_evaluate_criteria_confidence_capped(
+        self, decision_node: Mock
+    ) -> None:
         """Test that confidence is capped at 1.0."""
         context = Mock(spec=NodeExecutionContext)
         context.confidence_score = 2.0  # Artificially high

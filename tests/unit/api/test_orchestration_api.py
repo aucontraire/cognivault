@@ -5,15 +5,20 @@ Comprehensive test coverage for the production API implementation.
 """
 
 import pytest
+from typing import Any, Tuple
 import uuid
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime, timezone
 
 from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
 from cognivault.api.models import WorkflowRequest, WorkflowResponse, StatusResponse
-from cognivault.api.base import HealthStatus
+from cognivault.api.base import APIHealthStatus
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.exceptions import StateTransitionError
 
 
@@ -21,7 +26,7 @@ class TestLangGraphOrchestrationAPIInitialization:
     """Test LangGraphOrchestrationAPI initialization and lifecycle."""
 
     @pytest.mark.asyncio
-    async def test_initialization_success(self):
+    async def test_initialization_success(self) -> None:
         """Test successful API initialization."""
         api = LangGraphOrchestrationAPI()
 
@@ -38,7 +43,7 @@ class TestLangGraphOrchestrationAPIInitialization:
             mock_orchestrator_class.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_double_initialization_idempotent(self):
+    async def test_double_initialization_idempotent(self) -> None:
         """Test that double initialization is idempotent."""
         api = LangGraphOrchestrationAPI()
 
@@ -57,7 +62,7 @@ class TestLangGraphOrchestrationAPIInitialization:
             mock_orchestrator_class.assert_called_once()  # Only called once
 
     @pytest.mark.asyncio
-    async def test_initialization_failure(self):
+    async def test_initialization_failure(self) -> None:
         """Test API initialization failure handling."""
         api = LangGraphOrchestrationAPI()
 
@@ -75,7 +80,7 @@ class TestLangGraphOrchestrationAPIInitialization:
             assert api._orchestrator is None
 
     @pytest.mark.asyncio
-    async def test_shutdown_success(self):
+    async def test_shutdown_success(self) -> None:
         """Test successful API shutdown."""
         api = LangGraphOrchestrationAPI()
 
@@ -94,7 +99,7 @@ class TestLangGraphOrchestrationAPIInitialization:
             assert len(api._active_workflows) == 0
 
     @pytest.mark.asyncio
-    async def test_shutdown_without_initialization(self):
+    async def test_shutdown_without_initialization(self) -> None:
         """Test shutdown when not initialized."""
         api = LangGraphOrchestrationAPI()
 
@@ -109,7 +114,7 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
     """Test workflow execution functionality."""
 
     @pytest.fixture
-    async def initialized_api(self):
+    async def initialized_api(self) -> Any:
         """Provide an initialized API instance."""
         api = LangGraphOrchestrationAPI()
 
@@ -122,7 +127,7 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
             mock_orchestrator_class.return_value = mock_orchestrator
 
             # Mock successful orchestrator execution
-            mock_context = AgentContext(
+            mock_context = AgentContextFactory.basic(
                 query="Test query",
                 agent_outputs={
                     "refiner": "Refined output",
@@ -136,7 +141,9 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
             await api.shutdown()
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_success(self, initialized_api):
+    async def test_execute_workflow_success(
+        self, initialized_api: Tuple[LangGraphOrchestrationAPI, AsyncMock]
+    ) -> None:
         """Test successful workflow execution."""
         api, mock_orchestrator = initialized_api
 
@@ -194,7 +201,7 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
             # rather than asserting on internal implementation details here
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_not_initialized(self):
+    async def test_execute_workflow_not_initialized(self) -> None:
         """Test workflow execution when API is not initialized."""
         api = LangGraphOrchestrationAPI()
 
@@ -206,7 +213,9 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
             await api.execute_workflow(request)
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_orchestrator_failure(self, initialized_api):
+    async def test_execute_workflow_orchestrator_failure(
+        self, initialized_api: Tuple[LangGraphOrchestrationAPI, AsyncMock]
+    ) -> None:
         """Test workflow execution when orchestrator fails."""
         api, mock_orchestrator = initialized_api
 
@@ -234,7 +243,9 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
             # Focus on testing the API contract, not internal event implementation
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_state_transition_error(self, initialized_api):
+    async def test_execute_workflow_state_transition_error(
+        self, initialized_api: Tuple[LangGraphOrchestrationAPI, AsyncMock]
+    ) -> None:
         """Test workflow execution with StateTransitionError."""
         api, mock_orchestrator = initialized_api
 
@@ -254,11 +265,14 @@ class TestLangGraphOrchestrationAPIWorkflowExecution:
         response = await api.execute_workflow(request)
 
         assert response.status == "failed"
+        assert response.error_message is not None
         assert "StateTransitionError" in response.error_message
         assert "agent_execution_failed" in response.error_message
 
     @pytest.mark.asyncio
-    async def test_execute_workflow_with_default_agents(self, initialized_api):
+    async def test_execute_workflow_with_default_agents(
+        self, initialized_api: Tuple[LangGraphOrchestrationAPI, AsyncMock]
+    ) -> None:
         """Test workflow execution with default agents when none specified."""
         api, mock_orchestrator = initialized_api
 
@@ -274,7 +288,7 @@ class TestLangGraphOrchestrationAPIStatus:
     """Test status query functionality."""
 
     @pytest.fixture
-    async def api_with_workflow(self):
+    async def api_with_workflow(self) -> Any:
         """Provide API with a completed workflow."""
         api = LangGraphOrchestrationAPI()
 
@@ -297,7 +311,9 @@ class TestLangGraphOrchestrationAPIStatus:
             await api.shutdown()
 
     @pytest.mark.asyncio
-    async def test_get_status_success(self, api_with_workflow):
+    async def test_get_status_success(
+        self, api_with_workflow: Tuple[LangGraphOrchestrationAPI, str]
+    ) -> None:
         """Test successful status retrieval."""
         api, workflow_id = api_with_workflow
 
@@ -310,7 +326,9 @@ class TestLangGraphOrchestrationAPIStatus:
         assert status.current_agent is None  # Completed workflows have no current agent
 
     @pytest.mark.asyncio
-    async def test_get_status_not_found(self, api_with_workflow):
+    async def test_get_status_not_found(
+        self, api_with_workflow: Tuple[LangGraphOrchestrationAPI, str]
+    ) -> None:
         """Test status query for non-existent workflow."""
         api, _ = api_with_workflow
 
@@ -320,7 +338,7 @@ class TestLangGraphOrchestrationAPIStatus:
             await api.get_status(non_existent_id)
 
     @pytest.mark.asyncio
-    async def test_get_status_not_initialized(self):
+    async def test_get_status_not_initialized(self) -> None:
         """Test status query when API is not initialized."""
         api = LangGraphOrchestrationAPI()
 
@@ -330,7 +348,9 @@ class TestLangGraphOrchestrationAPIStatus:
             await api.get_status("any-id")
 
     @pytest.mark.asyncio
-    async def test_get_status_running_workflow(self, api_with_workflow):
+    async def test_get_status_running_workflow(
+        self, api_with_workflow: Tuple[LangGraphOrchestrationAPI, str]
+    ) -> None:
         """Test status for a running workflow."""
         api, _ = api_with_workflow
 
@@ -354,7 +374,7 @@ class TestLangGraphOrchestrationAPICancellation:
     """Test workflow cancellation functionality."""
 
     @pytest.fixture
-    async def api_with_workflows(self):
+    async def api_with_workflows(self) -> Any:
         """Provide API with multiple workflows."""
         api = LangGraphOrchestrationAPI()
 
@@ -376,7 +396,9 @@ class TestLangGraphOrchestrationAPICancellation:
             await api.shutdown()
 
     @pytest.mark.asyncio
-    async def test_cancel_workflow_running(self, api_with_workflows):
+    async def test_cancel_workflow_running(
+        self, api_with_workflows: Tuple[LangGraphOrchestrationAPI, list[str]]
+    ) -> None:
         """Test cancelling a running workflow."""
         api, workflow_ids = api_with_workflows
         running_id = workflow_ids[0]  # First one is running
@@ -387,7 +409,9 @@ class TestLangGraphOrchestrationAPICancellation:
         assert running_id not in api._active_workflows
 
     @pytest.mark.asyncio
-    async def test_cancel_workflow_completed(self, api_with_workflows):
+    async def test_cancel_workflow_completed(
+        self, api_with_workflows: Tuple[LangGraphOrchestrationAPI, list[str]]
+    ) -> None:
         """Test cancelling a completed workflow."""
         api, workflow_ids = api_with_workflows
         completed_id = workflow_ids[1]  # Second one is completed
@@ -398,7 +422,9 @@ class TestLangGraphOrchestrationAPICancellation:
         assert completed_id in api._active_workflows  # Still tracked
 
     @pytest.mark.asyncio
-    async def test_cancel_workflow_not_found(self, api_with_workflows):
+    async def test_cancel_workflow_not_found(
+        self, api_with_workflows: Tuple[LangGraphOrchestrationAPI, list[str]]
+    ) -> None:
         """Test cancelling a non-existent workflow."""
         api, _ = api_with_workflows
 
@@ -408,7 +434,7 @@ class TestLangGraphOrchestrationAPICancellation:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_cancel_workflow_not_initialized(self):
+    async def test_cancel_workflow_not_initialized(self) -> None:
         """Test cancellation when API is not initialized."""
         api = LangGraphOrchestrationAPI()
 
@@ -422,14 +448,14 @@ class TestLangGraphOrchestrationAPIHealth:
     """Test health check functionality."""
 
     @pytest.mark.asyncio
-    async def test_health_check_initialized(self):
+    async def test_health_check_initialized(self) -> None:
         """Test health check when API is initialized."""
         api = LangGraphOrchestrationAPI()
 
         with patch(
             "cognivault.api.orchestration_api.LangGraphOrchestrator"
         ) as mock_orchestrator_class:
-            mock_orchestrator = Mock()
+            mock_orchestrator: Mock = Mock()
             mock_orchestrator.get_execution_statistics = Mock(
                 return_value={"total_executions": 10, "failed_executions": 2}
             )
@@ -439,7 +465,7 @@ class TestLangGraphOrchestrationAPIHealth:
 
             health = await api.health_check()
 
-            assert isinstance(health, HealthStatus)
+            assert isinstance(health, APIHealthStatus)
             # With 2/10 failures (20%), status should be healthy
             assert health.status.value == "healthy"
             assert health.timestamp is not None
@@ -449,7 +475,7 @@ class TestLangGraphOrchestrationAPIHealth:
             await api.shutdown()
 
     @pytest.mark.asyncio
-    async def test_health_check_not_initialized(self):
+    async def test_health_check_not_initialized(self) -> None:
         """Test health check when API is not initialized."""
         api = LangGraphOrchestrationAPI()
 
@@ -460,7 +486,7 @@ class TestLangGraphOrchestrationAPIHealth:
         assert health.checks["orchestrator_available"] is False
 
     @pytest.mark.asyncio
-    async def test_health_check_with_active_workflows(self):
+    async def test_health_check_with_active_workflows(self) -> None:
         """Test health check includes active workflow count."""
         api = LangGraphOrchestrationAPI()
 
@@ -483,7 +509,7 @@ class TestLangGraphOrchestrationAPIMetrics:
     """Test metrics functionality."""
 
     @pytest.mark.asyncio
-    async def test_get_metrics_initialized(self):
+    async def test_get_metrics_initialized(self) -> None:
         """Test metrics when API is initialized."""
         api = LangGraphOrchestrationAPI()
 
@@ -511,7 +537,7 @@ class TestLangGraphOrchestrationAPIMetrics:
             await api.shutdown()
 
     @pytest.mark.asyncio
-    async def test_get_metrics_not_initialized(self):
+    async def test_get_metrics_not_initialized(self) -> None:
         """Test metrics when API is not initialized."""
         api = LangGraphOrchestrationAPI()
 
@@ -522,7 +548,7 @@ class TestLangGraphOrchestrationAPIMetrics:
         assert metrics["active_workflows"] == 0
 
     @pytest.mark.asyncio
-    async def test_get_metrics_empty_workflows(self):
+    async def test_get_metrics_empty_workflows(self) -> None:
         """Test metrics with no active workflows."""
         api = LangGraphOrchestrationAPI()
 
@@ -541,7 +567,7 @@ class TestLangGraphOrchestrationAPIErrorHandling:
     """Test error handling and edge cases."""
 
     @pytest.mark.asyncio
-    async def test_workflow_tracking_cleanup(self):
+    async def test_workflow_tracking_cleanup(self) -> None:
         """Test that workflows are properly tracked and cleaned up."""
         api = LangGraphOrchestrationAPI()
 
@@ -574,7 +600,7 @@ class TestLangGraphOrchestrationAPIErrorHandling:
             )  # All were completed, so none removed
 
     @pytest.mark.asyncio
-    async def test_concurrent_workflow_execution(self):
+    async def test_concurrent_workflow_execution(self) -> None:
         """Test handling of concurrent workflow executions."""
         api = LangGraphOrchestrationAPI()
 
@@ -587,8 +613,8 @@ class TestLangGraphOrchestrationAPIErrorHandling:
             mock_orchestrator_class.return_value = mock_orchestrator
 
             # Mock context for each execution
-            def create_mock_context(query):
-                return AgentContext(
+            def create_mock_context(query: str) -> Any:
+                return AgentContextFactory.basic(
                     query=query, agent_outputs={"refiner": f"Output for {query}"}
                 )
 
@@ -624,7 +650,7 @@ class TestLangGraphOrchestrationAPIErrorHandling:
             await api.shutdown()
 
     @pytest.mark.asyncio
-    async def test_event_emission_failure_handling(self):
+    async def test_event_emission_failure_handling(self) -> None:
         """Test that event emission failures don't break workflow execution."""
         api = LangGraphOrchestrationAPI()
 
@@ -635,7 +661,7 @@ class TestLangGraphOrchestrationAPIErrorHandling:
             # Set up clear_graph_cache as a regular (non-async) method to avoid warnings
             mock_orchestrator.clear_graph_cache = Mock()
             mock_orchestrator_class.return_value = mock_orchestrator
-            mock_orchestrator.run.return_value = AgentContext(
+            mock_orchestrator.run.return_value = AgentContextFactory.basic(
                 query="Test", agent_outputs={"refiner": "output"}
             )
 

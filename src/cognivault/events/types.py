@@ -190,7 +190,7 @@ class WorkflowEvent(BaseModel):
 
     @field_validator("event_id")
     @classmethod
-    def validate_event_id(cls, v):
+    def validate_event_id(cls, v: str) -> str:
         """Validate event ID format."""
         if not isinstance(v, str) or len(v) != 32:
             raise ValueError("event_id must be a 32-character hex string")
@@ -202,7 +202,7 @@ class WorkflowEvent(BaseModel):
 
     @field_validator("capabilities_used")
     @classmethod
-    def validate_capabilities(cls, v):
+    def validate_capabilities(cls, v: List[str]) -> List[str]:
         """Validate capabilities list."""
         if not isinstance(v, list):
             raise ValueError("capabilities_used must be a list")
@@ -212,7 +212,7 @@ class WorkflowEvent(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_error_consistency(self):
+    def validate_error_consistency(self) -> "WorkflowEvent":
         """Validate error field consistency."""
         has_error_message = bool(self.error_message)
         has_error_type = bool(self.error_type)
@@ -341,7 +341,7 @@ class WorkflowStartedEvent(WorkflowEvent):
         json_schema_extra={"example": "langgraph-real"},
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Populate data after initialization."""
         self.data.update(
             {
@@ -404,7 +404,7 @@ class WorkflowCompletedEvent(WorkflowEvent):
 
     @field_validator("agent_outputs")
     @classmethod
-    def validate_agent_outputs(cls, v):
+    def validate_agent_outputs(cls, v: Dict[str, str]) -> Dict[str, str]:
         """Validate agent outputs structure."""
         for agent_name, output in v.items():
             if not isinstance(agent_name, str) or len(agent_name.strip()) == 0:
@@ -413,7 +413,7 @@ class WorkflowCompletedEvent(WorkflowEvent):
                 raise ValueError(f"Output for agent '{agent_name}' must be a string")
         return v
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Populate data after initialization."""
         self.execution_time_ms = self.execution_time_seconds * 1000
         self.data.update(
@@ -461,7 +461,7 @@ class AgentExecutionStartedEvent(WorkflowEvent):
         },
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Populate data after initialization."""
         self.data.update(
             {
@@ -509,7 +509,7 @@ class AgentExecutionCompletedEvent(WorkflowEvent):
         },
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Populate data after initialization."""
         self.data.update(
             {
@@ -565,14 +565,14 @@ class RoutingDecisionEvent(WorkflowEvent):
 
     @field_validator("selected_agents")
     @classmethod
-    def validate_selected_agents(cls, v):
+    def validate_selected_agents(cls, v: List[str]) -> List[str]:
         """Validate selected agents list."""
         for agent in v:
             if not isinstance(agent, str) or len(agent.strip()) == 0:
                 raise ValueError("All agent names must be non-empty strings")
         return v
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Populate data after initialization."""
         self.data.update(
             {
@@ -641,7 +641,7 @@ class EventFilters(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_time_range(self):
+    def validate_time_range(self) -> "EventFilters":
         """Validate that start_time is before end_time."""
         if self.start_time and self.end_time and self.start_time >= self.end_time:
             raise ValueError("start_time must be before end_time")
@@ -732,14 +732,14 @@ class EventStatistics(BaseModel):
 
     @field_validator("events_by_type", "events_by_agent", "events_by_capability")
     @classmethod
-    def validate_event_counts(cls, v):
+    def validate_event_counts(cls, v: Dict[str, int]) -> Dict[str, int]:
         """Validate that all counts are non-negative."""
         for key, count in v.items():
             if not isinstance(count, int) or count < 0:
                 raise ValueError(f"Count for '{key}' must be a non-negative integer")
         return v
 
-    def update_with_event(self, event: WorkflowEvent):
+    def update_with_event(self, event: WorkflowEvent) -> None:
         """Update statistics with a new event."""
         self.total_events += 1
 

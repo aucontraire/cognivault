@@ -1,20 +1,25 @@
 """Tests for LangGraphOrchestrator."""
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any, Dict
+from unittest.mock import AsyncMock, Mock, patch
 
 from cognivault.context import AgentContext
 from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.orchestration.node_wrappers import NodeExecutionError
 from cognivault.orchestration.state_schemas import (
     create_initial_state,
+    RefinerOutput as LangGraphRefinerOutput,
+    CriticOutput as LangGraphCriticOutput,
+    HistorianOutput as LangGraphHistorianOutput,
+    SynthesisOutput as LangGraphSynthesisOutput,
 )
 
 
 class TestLangGraphOrchestrator:
     """Test LangGraphOrchestrator class."""
 
-    def test_initialization_default(self):
+    def test_initialization_default(self) -> None:
         """Test orchestrator initialization with default parameters."""
         orchestrator = LangGraphOrchestrator()
 
@@ -33,7 +38,7 @@ class TestLangGraphOrchestrator:
         assert orchestrator._compiled_graph is None
         assert orchestrator.memory_manager is not None
 
-    def test_initialization_custom_agents(self):
+    def test_initialization_custom_agents(self) -> None:
         """Test orchestrator initialization with custom agents."""
         custom_agents = ["refiner", "synthesis"]
         orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
@@ -41,7 +46,7 @@ class TestLangGraphOrchestrator:
         assert orchestrator.agents_to_run == custom_agents
         assert orchestrator.enable_checkpoints is False
 
-    def test_initialization_with_checkpoints(self):
+    def test_initialization_with_checkpoints(self) -> None:
         """Test orchestrator initialization with checkpoints enabled."""
         orchestrator = LangGraphOrchestrator(enable_checkpoints=True)
 
@@ -53,10 +58,10 @@ class TestLangGraphOrchestrator:
             "synthesis",
         ]
 
-    def test_initialization_logging(self):
+    def test_initialization_logging(self) -> None:
         """Test that initialization logs appropriate messages."""
         with patch("cognivault.orchestration.orchestrator.get_logger") as mock_logger:
-            mock_logger_instance = Mock()
+            mock_logger_instance: Mock = Mock()
             mock_logger.return_value = mock_logger_instance
 
             orchestrator = LangGraphOrchestrator(
@@ -74,7 +79,7 @@ class TestLangGraphOrchestratorRun:
     """Test LangGraphOrchestrator.run method."""
 
     @pytest.mark.asyncio
-    async def test_run_success(self):
+    async def test_run_success(self) -> None:
         """Test successful orchestrator run."""
         orchestrator = LangGraphOrchestrator()
 
@@ -83,47 +88,47 @@ class TestLangGraphOrchestratorRun:
         final_state = create_initial_state("What is AI?", "test-exec-id")
 
         # Add successful agent outputs
-        final_state["refiner"] = {
-            "refined_question": "What is artificial intelligence?",
-            "topics": ["AI", "technology"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["refiner"] = LangGraphRefinerOutput(
+            refined_question="What is artificial intelligence?",
+            topics=["AI", "technology"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
 
-        final_state["critic"] = {
-            "critique": "Good question expansion",
-            "suggestions": ["Add context"],
-            "severity": "low",
-            "strengths": ["Clear"],
-            "weaknesses": ["Could be more specific"],
-            "confidence": 0.8,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["critic"] = LangGraphCriticOutput(
+            critique="Good question expansion",
+            suggestions=["Add context"],
+            severity="low",
+            strengths=["Clear"],
+            weaknesses=["Could be more specific"],
+            confidence=0.8,
+            timestamp="2023-01-01T00:00:00",
+        )
 
-        final_state["historian"] = {
-            "historical_summary": "AI has evolved from early computer science",
-            "retrieved_notes": ["/notes/ai_history.md"],
-            "search_results_count": 10,
-            "filtered_results_count": 5,
-            "search_strategy": "hybrid",
-            "topics_found": ["artificial_intelligence", "history"],
-            "confidence": 0.8,
-            "llm_analysis_used": True,
-            "metadata": {},
-            "timestamp": "2023-01-01T00:00:00Z",
-        }
+        final_state["historian"] = LangGraphHistorianOutput(
+            historical_summary="AI has evolved from early computer science",
+            retrieved_notes=["/notes/ai_history.md"],
+            search_results_count=10,
+            filtered_results_count=5,
+            search_strategy="hybrid",
+            topics_found=["artificial_intelligence", "history"],
+            confidence=0.8,
+            llm_analysis_used=True,
+            metadata={},
+            timestamp="2023-01-01T00:00:00Z",
+        )
 
-        final_state["synthesis"] = {
-            "final_analysis": "AI is a field of computer science",
-            "key_insights": ["AI is growing rapidly"],
-            "sources_used": ["refiner", "critic", "historian"],
-            "themes_identified": ["technology"],
-            "conflicts_resolved": 0,
-            "confidence": 0.85,
-            "metadata": {},
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["synthesis"] = LangGraphSynthesisOutput(
+            final_analysis="AI is a field of computer science",
+            key_insights=["AI is growing rapidly"],
+            sources_used=["refiner", "critic", "historian"],
+            themes_identified=["technology"],
+            conflicts_resolved=0,
+            confidence=0.85,
+            metadata={},
+            timestamp="2023-01-01T00:00:00",
+        )
 
         final_state["successful_agents"] = [
             "refiner",
@@ -152,7 +157,7 @@ class TestLangGraphOrchestratorRun:
             assert orchestrator.total_executions == 1
 
     @pytest.mark.asyncio
-    async def test_run_with_config(self):
+    async def test_run_with_config(self) -> None:
         """Test orchestrator run with configuration."""
         orchestrator = LangGraphOrchestrator()
 
@@ -181,7 +186,7 @@ class TestLangGraphOrchestratorRun:
             assert hasattr(context, "query")
 
     @pytest.mark.asyncio
-    async def test_run_with_checkpoints(self):
+    async def test_run_with_checkpoints(self) -> None:
         """Test orchestrator run with checkpoints enabled."""
         orchestrator = LangGraphOrchestrator(enable_checkpoints=True)
 
@@ -190,8 +195,7 @@ class TestLangGraphOrchestratorRun:
         final_state["successful_agents"] = ["refiner"]
         mock_compiled_graph.ainvoke.return_value = final_state
 
-        mock_checkpointer = Mock()
-        orchestrator._checkpointer = mock_checkpointer
+        # Checkpoints are handled through memory_manager, not a separate _checkpointer attribute
 
         with patch.object(
             orchestrator, "_get_compiled_graph", return_value=mock_compiled_graph
@@ -207,7 +211,7 @@ class TestLangGraphOrchestratorRun:
             assert context.enable_checkpoints is True
 
     @pytest.mark.asyncio
-    async def test_run_with_partial_failure(self):
+    async def test_run_with_partial_failure(self) -> None:
         """Test orchestrator run with partial agent failure."""
         orchestrator = LangGraphOrchestrator()
 
@@ -215,13 +219,13 @@ class TestLangGraphOrchestratorRun:
         final_state = create_initial_state("Test query", "test-exec-id")
 
         # Add successful refiner output
-        final_state["refiner"] = {
-            "refined_question": "Test refined query",
-            "topics": ["test"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["refiner"] = LangGraphRefinerOutput(
+            refined_question="Test refined query",
+            topics=["test"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
 
         # Add failed agents
         final_state["successful_agents"] = ["refiner"]
@@ -249,7 +253,7 @@ class TestLangGraphOrchestratorRun:
             assert orchestrator.failed_executions == 1
 
     @pytest.mark.asyncio
-    async def test_run_execution_failure(self):
+    async def test_run_execution_failure(self) -> None:
         """Test orchestrator run with execution failure."""
         orchestrator = LangGraphOrchestrator()
 
@@ -266,7 +270,7 @@ class TestLangGraphOrchestratorRun:
             assert orchestrator.total_executions == 1
 
     @pytest.mark.asyncio
-    async def test_run_invalid_initial_state(self):
+    async def test_run_invalid_initial_state(self) -> None:
         """Test orchestrator run with invalid initial state."""
         orchestrator = LangGraphOrchestrator()
 
@@ -274,7 +278,7 @@ class TestLangGraphOrchestratorRun:
             "cognivault.orchestration.orchestrator.create_initial_state"
         ) as mock_create:
             # Create invalid state
-            invalid_state = {}
+            invalid_state: Dict[str, Any] = {}
             mock_create.return_value = invalid_state
 
             with patch(
@@ -287,7 +291,7 @@ class TestLangGraphOrchestratorRun:
                     await orchestrator.run("Test query")
 
     @pytest.mark.asyncio
-    async def test_run_logging(self):
+    async def test_run_logging(self) -> None:
         """Test that run method logs appropriate messages."""
         orchestrator = LangGraphOrchestrator()
 
@@ -314,7 +318,7 @@ class TestGetCompiledGraph:
     """Test LangGraphOrchestrator._get_compiled_graph method."""
 
     @pytest.mark.asyncio
-    async def test_get_compiled_graph_basic(self):
+    async def test_get_compiled_graph_basic(self) -> None:
         """Test getting compiled graph without checkpoints using GraphFactory."""
         orchestrator = LangGraphOrchestrator()
 
@@ -322,7 +326,7 @@ class TestGetCompiledGraph:
         with patch.object(
             orchestrator.graph_factory, "create_graph"
         ) as mock_create_graph:
-            mock_compiled = Mock()
+            mock_compiled: Mock = Mock()
             mock_create_graph.return_value = mock_compiled
 
             result = await orchestrator._get_compiled_graph()
@@ -344,12 +348,12 @@ class TestGetCompiledGraph:
             assert call_args.cache_enabled == True
 
     @pytest.mark.asyncio
-    async def test_get_compiled_graph_with_checkpoints(self):
+    async def test_get_compiled_graph_with_checkpoints(self) -> None:
         """Test getting compiled graph with checkpoints using GraphFactory."""
         with patch(
             "cognivault.orchestration.memory_manager.MemorySaver"
         ) as mock_memory_saver:
-            mock_checkpointer = Mock()
+            mock_checkpointer: Mock = Mock()
             mock_memory_saver.return_value = mock_checkpointer
 
             # Create orchestrator after patching MemorySaver
@@ -359,7 +363,7 @@ class TestGetCompiledGraph:
             with patch.object(
                 orchestrator.graph_factory, "create_graph"
             ) as mock_create_graph:
-                mock_compiled = Mock()
+                mock_compiled: Mock = Mock()
                 mock_create_graph.return_value = mock_compiled
 
                 result = await orchestrator._get_compiled_graph()
@@ -375,7 +379,7 @@ class TestGetCompiledGraph:
                 assert call_args.memory_manager == orchestrator.memory_manager
 
     @pytest.mark.asyncio
-    async def test_get_compiled_graph_caching(self):
+    async def test_get_compiled_graph_caching(self) -> None:
         """Test that compiled graph is cached by the orchestrator."""
         orchestrator = LangGraphOrchestrator()
 
@@ -383,7 +387,7 @@ class TestGetCompiledGraph:
         with patch.object(
             orchestrator.graph_factory, "create_graph"
         ) as mock_create_graph:
-            mock_compiled = Mock()
+            mock_compiled: Mock = Mock()
             mock_create_graph.return_value = mock_compiled
 
             # First call
@@ -403,7 +407,7 @@ class TestConvertStateToContext:
     """Test LangGraphOrchestrator._convert_state_to_context method."""
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_basic(self):
+    async def test_convert_state_to_context_basic(self) -> None:
         """Test basic state to context conversion."""
         orchestrator = LangGraphOrchestrator()
 
@@ -415,18 +419,18 @@ class TestConvertStateToContext:
         assert context.query == "Test query"
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_with_refiner(self):
+    async def test_convert_state_to_context_with_refiner(self) -> None:
         """Test conversion with refiner output."""
         orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
-        state["refiner"] = {
-            "refined_question": "Refined test query",
-            "topics": ["test", "query"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        state["refiner"] = LangGraphRefinerOutput(
+            refined_question="Refined test query",
+            topics=["test", "query"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
 
         context = await orchestrator._convert_state_to_context(state)
 
@@ -436,20 +440,20 @@ class TestConvertStateToContext:
         assert context.execution_state["refiner_confidence"] == 0.9
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_with_critic(self):
+    async def test_convert_state_to_context_with_critic(self) -> None:
         """Test conversion with critic output."""
         orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
-        state["critic"] = {
-            "critique": "Good analysis",
-            "suggestions": ["Add more details"],
-            "severity": "medium",
-            "strengths": ["Clear structure"],
-            "weaknesses": ["Too brief"],
-            "confidence": 0.8,
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        state["critic"] = LangGraphCriticOutput(
+            critique="Good analysis",
+            suggestions=["Add more details"],
+            severity="medium",
+            strengths=["Clear structure"],
+            weaknesses=["Too brief"],
+            confidence=0.8,
+            timestamp="2023-01-01T00:00:00",
+        )
 
         context = await orchestrator._convert_state_to_context(state)
 
@@ -459,21 +463,21 @@ class TestConvertStateToContext:
         assert context.execution_state["critic_severity"] == "medium"
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_with_synthesis(self):
+    async def test_convert_state_to_context_with_synthesis(self) -> None:
         """Test conversion with synthesis output."""
         orchestrator = LangGraphOrchestrator()
 
         state = create_initial_state("Test query", "test-exec-id")
-        state["synthesis"] = {
-            "final_analysis": "Final analysis text",
-            "key_insights": ["Insight 1", "Insight 2"],
-            "sources_used": ["refiner", "critic"],
-            "themes_identified": ["theme1", "theme2"],
-            "conflicts_resolved": 1,
-            "confidence": 0.85,
-            "metadata": {"test": "value"},
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        state["synthesis"] = LangGraphSynthesisOutput(
+            final_analysis="Final analysis text",
+            key_insights=["Insight 1", "Insight 2"],
+            sources_used=["refiner", "critic"],
+            themes_identified=["theme1", "theme2"],
+            conflicts_resolved=1,
+            confidence=0.85,
+            metadata={"test": "value"},
+            timestamp="2023-01-01T00:00:00",
+        )
 
         context = await orchestrator._convert_state_to_context(state)
 
@@ -486,7 +490,7 @@ class TestConvertStateToContext:
         assert context.execution_state["synthesis_themes"] == ["theme1", "theme2"]
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_with_successful_agents(self):
+    async def test_convert_state_to_context_with_successful_agents(self) -> None:
         """Test conversion with successful agents tracking."""
         orchestrator = LangGraphOrchestrator()
 
@@ -500,7 +504,7 @@ class TestConvertStateToContext:
         assert "synthesis" in context.successful_agents
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_with_errors(self):
+    async def test_convert_state_to_context_with_errors(self) -> None:
         """Test conversion with errors."""
         orchestrator = LangGraphOrchestrator()
 
@@ -520,7 +524,7 @@ class TestConvertStateToContext:
         assert context.execution_state["langgraph_errors"] == state["errors"]
 
     @pytest.mark.asyncio
-    async def test_convert_state_to_context_with_none_outputs(self):
+    async def test_convert_state_to_context_with_none_outputs(self) -> None:
         """Test conversion with None agent outputs."""
         orchestrator = LangGraphOrchestrator()
 
@@ -539,7 +543,7 @@ class TestConvertStateToContext:
 class TestGetExecutionStatistics:
     """Test LangGraphOrchestrator.get_execution_statistics method."""
 
-    def test_get_execution_statistics_no_executions(self):
+    def test_get_execution_statistics_no_executions(self) -> None:
         """Test statistics with no executions."""
         orchestrator = LangGraphOrchestrator()
 
@@ -556,7 +560,7 @@ class TestGetExecutionStatistics:
         assert stats["checkpoints_enabled"] is False
         assert stats["dag_structure"] == "refiner → [critic, historian] → synthesis"
 
-    def test_get_execution_statistics_with_executions(self):
+    def test_get_execution_statistics_with_executions(self) -> None:
         """Test statistics with executions."""
         orchestrator = LangGraphOrchestrator(enable_checkpoints=True)
 
@@ -572,7 +576,7 @@ class TestGetExecutionStatistics:
         assert stats["success_rate"] == 0.8
         assert stats["checkpoints_enabled"] is True
 
-    def test_get_execution_statistics_custom_agents(self):
+    def test_get_execution_statistics_custom_agents(self) -> None:
         """Test statistics with custom agents."""
         custom_agents = ["refiner", "synthesis"]
         orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
@@ -585,7 +589,7 @@ class TestGetExecutionStatistics:
 class TestGetDagStructure:
     """Test LangGraphOrchestrator.get_dag_structure method."""
 
-    def test_get_dag_structure_basic(self):
+    def test_get_dag_structure_basic(self) -> None:
         """Test getting DAG structure."""
         orchestrator = LangGraphOrchestrator()
 
@@ -618,7 +622,7 @@ class TestGetDagStructure:
             assert structure["entry_point"] == "refiner"
             assert structure["terminal_nodes"] == ["synthesis"]
 
-    def test_get_dag_structure_custom_agents(self):
+    def test_get_dag_structure_custom_agents(self) -> None:
         """Test getting DAG structure with custom agents."""
         custom_agents = ["refiner", "synthesis"]
         orchestrator = LangGraphOrchestrator(agents_to_run=custom_agents)
@@ -640,50 +644,50 @@ class TestIntegration:
     """Integration tests for LangGraphOrchestrator."""
 
     @pytest.mark.asyncio
-    async def test_full_orchestration_workflow(self):
+    async def test_full_orchestration_workflow(self) -> None:
         """Test complete orchestration workflow using GraphFactory."""
         orchestrator = LangGraphOrchestrator()
 
         # Create realistic final state
         final_state = create_initial_state("What is AI?", "test-exec-id")
-        final_state["refiner"] = {
-            "refined_question": "What is artificial intelligence?",
-            "topics": ["AI", "technology"],
-            "confidence": 0.9,
-            "processing_notes": None,
-            "timestamp": "2023-01-01T00:00:00",
-        }
-        final_state["critic"] = {
-            "critique": "Good question expansion",
-            "suggestions": ["Add context about machine learning"],
-            "severity": "low",
-            "strengths": ["Clear terminology"],
-            "weaknesses": ["Could be more specific"],
-            "confidence": 0.8,
-            "timestamp": "2023-01-01T00:00:00",
-        }
-        final_state["historian"] = {
-            "historical_summary": "AI has evolved from early computer science",
-            "retrieved_notes": ["/notes/ai_history.md"],
-            "search_results_count": 10,
-            "filtered_results_count": 5,
-            "search_strategy": "hybrid",
-            "topics_found": ["artificial_intelligence", "history"],
-            "confidence": 0.8,
-            "llm_analysis_used": True,
-            "metadata": {},
-            "timestamp": "2023-01-01T00:00:00Z",
-        }
-        final_state["synthesis"] = {
-            "final_analysis": "AI is a comprehensive field",
-            "key_insights": ["AI encompasses many subfields"],
-            "sources_used": ["refiner", "critic", "historian"],
-            "themes_identified": ["technology", "intelligence"],
-            "conflicts_resolved": 0,
-            "confidence": 0.85,
-            "metadata": {"complexity": "moderate"},
-            "timestamp": "2023-01-01T00:00:00",
-        }
+        final_state["refiner"] = LangGraphRefinerOutput(
+            refined_question="What is artificial intelligence?",
+            topics=["AI", "technology"],
+            confidence=0.9,
+            processing_notes=None,
+            timestamp="2023-01-01T00:00:00",
+        )
+        final_state["critic"] = LangGraphCriticOutput(
+            critique="Good question expansion",
+            suggestions=["Add context about machine learning"],
+            severity="low",
+            strengths=["Clear terminology"],
+            weaknesses=["Could be more specific"],
+            confidence=0.8,
+            timestamp="2023-01-01T00:00:00",
+        )
+        final_state["historian"] = LangGraphHistorianOutput(
+            historical_summary="AI has evolved from early computer science",
+            retrieved_notes=["/notes/ai_history.md"],
+            search_results_count=10,
+            filtered_results_count=5,
+            search_strategy="hybrid",
+            topics_found=["artificial_intelligence", "history"],
+            confidence=0.8,
+            llm_analysis_used=True,
+            metadata={},
+            timestamp="2023-01-01T00:00:00Z",
+        )
+        final_state["synthesis"] = LangGraphSynthesisOutput(
+            final_analysis="AI is a comprehensive field",
+            key_insights=["AI encompasses many subfields"],
+            sources_used=["refiner", "critic", "historian"],
+            themes_identified=["technology", "intelligence"],
+            conflicts_resolved=0,
+            confidence=0.85,
+            metadata={"complexity": "moderate"},
+            timestamp="2023-01-01T00:00:00",
+        )
         final_state["successful_agents"] = [
             "refiner",
             "critic",
@@ -692,7 +696,7 @@ class TestIntegration:
         ]
 
         # Mock the compiled graph through GraphFactory
-        mock_compiled = Mock()
+        mock_compiled: Mock = Mock()
         mock_compiled.ainvoke = AsyncMock(return_value=final_state)
 
         with patch.object(
@@ -724,7 +728,7 @@ class TestIntegration:
             assert stats["success_rate"] == 1.0
 
     @pytest.mark.asyncio
-    async def test_error_handling_integration(self):
+    async def test_error_handling_integration(self) -> None:
         """Test error handling integration."""
         orchestrator = LangGraphOrchestrator()
 
@@ -744,7 +748,7 @@ class TestIntegration:
             assert stats["failed_executions"] == 1
             assert stats["success_rate"] == 0
 
-    def test_multiple_orchestrator_instances(self):
+    def test_multiple_orchestrator_instances(self) -> None:
         """Test multiple orchestrator instances maintain separate state."""
         orchestrator1 = LangGraphOrchestrator(agents_to_run=["refiner"])
         orchestrator2 = LangGraphOrchestrator(agents_to_run=["critic"])

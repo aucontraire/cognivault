@@ -7,18 +7,19 @@ focusing on error handling, fallback mechanisms, and import error scenarios.
 
 import pytest
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from typing import List, Optional
 
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.context import AgentContext
 from cognivault.agents.historian.search import SearchResult
+from tests.factories.agent_context_factories import AgentContextPatterns
 
 
 class TestHistorianAgentErrorHandling:
     """Test error handling and fallback mechanisms in HistorianAgent."""
 
-    def test_init_with_invalid_llm_interface(self):
+    def test_init_with_invalid_llm_interface(self) -> None:
         """Test initialization with invalid LLM interface (line 55)."""
         # Test with a string that's not "default" - should be treated as invalid LLM
         invalid_llm = "not_an_llm_interface"
@@ -30,10 +31,10 @@ class TestHistorianAgentErrorHandling:
         assert agent.name == "historian"
         assert agent.search_type == "hybrid"
 
-    def test_init_with_object_without_generate_method(self):
+    def test_init_with_object_without_generate_method(self) -> None:
         """Test initialization with object that doesn't have generate method."""
         # Create a mock object without the generate method
-        invalid_llm_obj = Mock()
+        invalid_llm_obj: Mock = Mock()
         del invalid_llm_obj.generate  # Ensure it doesn't have generate method
 
         agent = HistorianAgent(llm=invalid_llm_obj, search_type="hybrid")
@@ -41,7 +42,7 @@ class TestHistorianAgentErrorHandling:
         # Should set llm to None for object without generate method
         assert agent.llm is None
 
-    def test_init_with_none_llm_explicit(self):
+    def test_init_with_none_llm_explicit(self) -> None:
         """Test initialization with explicit None LLM."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -49,13 +50,13 @@ class TestHistorianAgentErrorHandling:
         assert agent.name == "historian"
 
     @pytest.mark.asyncio
-    async def test_run_with_search_exception_and_mock_fallback(self):
+    async def test_run_with_search_exception_and_mock_fallback(self) -> None:
         """Test run method with search exception and mock fallback (lines 130-142)."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Mock config to enable fallback
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.execution.enable_simulation_delay = False
         mock_config.testing.mock_history_entries = [
             {"content": "Mock historical data", "title": "Test Entry"}
@@ -87,17 +88,17 @@ class TestHistorianAgentErrorHandling:
                     )
                     assert result_context.successful_agents == {agent.name}
                     mock_fallback.assert_called_once_with(
-                        "test query", mock_config.testing.mock_history_entries
+                        "test", mock_config.testing.mock_history_entries
                     )
 
     @pytest.mark.asyncio
-    async def test_run_with_search_exception_no_fallback(self):
+    async def test_run_with_search_exception_no_fallback(self) -> None:
         """Test run method with search exception and no fallback (lines 143-150)."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Mock config with no fallback data
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.execution.enable_simulation_delay = False
         mock_config.testing.mock_history_entries = None
 
@@ -123,13 +124,13 @@ class TestHistorianAgentErrorHandling:
                     )
                     assert result_context.failed_agents == {agent.name}
                     assert agent.name not in result_context.successful_agents
-                    mock_no_context.assert_called_once_with("test query")
+                    mock_no_context.assert_called_once_with("test")
 
     @pytest.mark.asyncio
-    async def test_run_with_llm_exception_and_fallback(self):
+    async def test_run_with_llm_exception_and_fallback(self) -> None:
         """Test run method when LLM analysis fails but search succeeds."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Mock successful search but failed analysis
         mock_search_results = [
@@ -146,12 +147,12 @@ class TestHistorianAgentErrorHandling:
             )
         ]
 
-        mock_search_engine = Mock()
+        mock_search_engine: Mock = Mock()
         mock_search_engine.search = Mock(return_value=mock_search_results)
         agent.search_engine = mock_search_engine
 
         # Mock config
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.execution.enable_simulation_delay = False
         mock_config.testing.mock_history_entries = ["fallback entry"]
 
@@ -181,7 +182,7 @@ class TestHistorianAgentImportErrorHandling:
     """Test import error handling and fallback prompt scenarios."""
 
     @pytest.mark.asyncio
-    async def test_build_relevance_prompt_import_error(self):
+    async def test_build_relevance_prompt_import_error(self) -> None:
         """Test _build_relevance_prompt with ImportError fallback (lines 266-268)."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -211,7 +212,7 @@ class TestHistorianAgentImportErrorHandling:
             assert "RELEVANT INDICES:" in prompt
 
     @pytest.mark.asyncio
-    async def test_build_synthesis_prompt_import_error(self):
+    async def test_build_synthesis_prompt_import_error(self) -> None:
         """Test _build_synthesis_prompt with ImportError fallback (lines 325-327)."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -238,7 +239,7 @@ class TestHistorianAgentImportErrorHandling:
             assert "test query" in prompt
             assert "Test Entry" in prompt
 
-    def test_parse_relevance_response_exception_handling(self):
+    def test_parse_relevance_response_exception_handling(self) -> None:
         """Test _parse_relevance_response with exception (lines 301-303)."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -260,7 +261,7 @@ class TestHistorianAgentImportErrorHandling:
             assert isinstance(result, list)
             assert len(result) <= 5
 
-    def test_parse_relevance_response_with_malformed_input(self):
+    def test_parse_relevance_response_with_malformed_input(self) -> None:
         """Test parsing with various malformed inputs that could cause exceptions."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -278,7 +279,7 @@ class TestHistorianAgentImportErrorHandling:
             assert isinstance(result, list)
             assert len(result) <= 5  # Should never exceed 5 results
 
-    def test_parse_relevance_response_none_response(self):
+    def test_parse_relevance_response_none_response(self) -> None:
         """Test parsing NONE response."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -288,7 +289,7 @@ class TestHistorianAgentImportErrorHandling:
         result = agent._parse_relevance_response("none")
         assert result == []
 
-    def test_parse_relevance_response_valid_indices(self):
+    def test_parse_relevance_response_valid_indices(self) -> None:
         """Test parsing valid indices."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -299,10 +300,10 @@ class TestHistorianAgentImportErrorHandling:
         assert result == [1, 3, 5, 7, 9]
 
     @pytest.mark.asyncio
-    async def test_complex_error_scenario_full_fallback_chain(self):
+    async def test_complex_error_scenario_full_fallback_chain(self) -> None:
         """Test complex scenario with multiple failures triggering full fallback chain."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
-        context = AgentContext(query="complex test query")
+        context = AgentContextPatterns.complex_test_query()
 
         # Mock search to succeed but return results
         mock_search_results = [
@@ -319,12 +320,12 @@ class TestHistorianAgentImportErrorHandling:
             )
         ]
 
-        mock_search_engine = Mock()
+        mock_search_engine: Mock = Mock()
         mock_search_engine.search = Mock(return_value=mock_search_results)
         agent.search_engine = mock_search_engine
 
         # Mock config with fallback data
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.execution.enable_simulation_delay = False
         mock_config.testing.mock_history_entries = [
             {"content": "Fallback content", "title": "Fallback Entry"}
@@ -362,9 +363,9 @@ class TestHistorianAgentImportErrorHandling:
 class TestHistorianAgentEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def test_init_with_valid_llm_interface(self):
+    def test_init_with_valid_llm_interface(self) -> None:
         """Test that valid LLM interface is preserved."""
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm.generate = AsyncMock(return_value="test response")
 
         agent = HistorianAgent(llm=mock_llm, search_type="hybrid")
@@ -373,10 +374,10 @@ class TestHistorianAgentEdgeCases:
         assert hasattr(agent.llm, "generate")
 
     @pytest.mark.asyncio
-    async def test_create_default_llm_success(self):
+    async def test_create_default_llm_success(self) -> None:
         """Test successful default LLM creation."""
         with patch("cognivault.llm.openai.OpenAIChatLLM") as mock_llm_class:
-            mock_llm_instance = Mock()
+            mock_llm_instance: Mock = Mock()
             mock_llm_class.return_value = mock_llm_instance
 
             agent = HistorianAgent(llm="default", search_type="hybrid")
@@ -385,7 +386,7 @@ class TestHistorianAgentEdgeCases:
             mock_llm_class.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_default_llm_failure(self):
+    async def test_create_default_llm_failure(self) -> None:
         """Test default LLM creation failure."""
         with patch(
             "cognivault.llm.openai.OpenAIChatLLM",
@@ -396,7 +397,7 @@ class TestHistorianAgentEdgeCases:
             # Should handle exception and set llm to None
             assert agent.llm is None
 
-    def test_logger_is_set_correctly(self):
+    def test_logger_is_set_correctly(self) -> None:
         """Test that logger is properly configured."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -404,18 +405,18 @@ class TestHistorianAgentEdgeCases:
         assert "cognivault.agents.historian.agent" in agent.logger.name
 
     @pytest.mark.asyncio
-    async def test_run_with_empty_search_results(self):
+    async def test_run_with_empty_search_results(self) -> None:
         """Test run method with empty search results."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Mock search to return empty results
-        mock_search_engine = Mock()
+        mock_search_engine: Mock = Mock()
         mock_search_engine.search = AsyncMock(return_value=[])
         agent.search_engine = mock_search_engine
 
         # Mock config without fallback
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.execution.enable_simulation_delay = False
         mock_config.testing.mock_history_entries = None
 
@@ -427,7 +428,7 @@ class TestHistorianAgentEdgeCases:
             # Should handle empty results gracefully via _synthesize_historical_context
             assert agent.name in result_context.agent_outputs
             assert (
-                "No relevant historical context found for: test query"
+                "No relevant historical context found for: test"
                 in result_context.agent_outputs[agent.name]
             )
             assert result_context.successful_agents == {
@@ -435,7 +436,7 @@ class TestHistorianAgentEdgeCases:
             }  # Empty results is still success
 
     @pytest.mark.asyncio
-    async def test_analyze_relevance_with_no_llm(self):
+    async def test_analyze_relevance_with_no_llm(self) -> None:
         """Test that _analyze_relevance handles case with no LLM."""
         agent = HistorianAgent(llm=None, search_type="hybrid")
 
@@ -455,7 +456,7 @@ class TestHistorianAgentEdgeCases:
 
         from cognivault.context import AgentContext
 
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query()
 
         # Should return top 5 results when no LLM is available
         filtered = await agent._analyze_relevance("test query", mock_results, context)

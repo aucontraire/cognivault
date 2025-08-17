@@ -6,6 +6,7 @@ and schema validation functionality.
 """
 
 import pytest
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 import asyncio
 
@@ -24,14 +25,14 @@ from cognivault.database.connection import (
 class TestDatabaseEngine:
     """Test suite for database engine management."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset global engine state before each test."""
         from cognivault.database import connection
 
         connection._database_engine = None
         connection._session_factory = None
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Reset global engine state after each test."""
         from cognivault.database import connection
 
@@ -42,11 +43,11 @@ class TestDatabaseEngine:
     @patch("cognivault.database.connection.create_async_engine")
     @patch("cognivault.database.connection.async_sessionmaker")
     def test_get_database_engine_creation(
-        self, mock_sessionmaker, mock_create_engine, mock_get_config
-    ):
+        self, mock_sessionmaker: Any, mock_create_engine: Any, mock_get_config: Any
+    ) -> None:
         """Test database engine creation with proper configuration."""
         # Mock configuration
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.validate.return_value = None
         mock_config.get_engine_kwargs.return_value = {
             "echo": False,
@@ -64,9 +65,9 @@ class TestDatabaseEngine:
         mock_get_config.return_value = mock_config
 
         # Mock engine and session factory
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_create_engine.return_value = mock_engine
-        mock_session_factory = MagicMock()
+        mock_session_factory: MagicMock = MagicMock()
         mock_sessionmaker.return_value = mock_session_factory
 
         # Test engine creation
@@ -79,9 +80,11 @@ class TestDatabaseEngine:
 
     @patch("cognivault.database.connection.get_database_config")
     @patch("cognivault.database.connection.create_async_engine")
-    def test_get_database_engine_singleton(self, mock_create_engine, mock_get_config):
+    def test_get_database_engine_singleton(
+        self, mock_create_engine: Any, mock_get_config: Any
+    ) -> None:
         """Test that database engine is a singleton."""
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.validate.return_value = None
         mock_config.get_engine_kwargs.return_value = {"echo": False}
         mock_config.get_connection_info.return_value = {
@@ -93,7 +96,7 @@ class TestDatabaseEngine:
         mock_config.max_overflow = 30
         mock_get_config.return_value = mock_config
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_create_engine.return_value = mock_engine
 
         engine1 = get_database_engine()
@@ -104,15 +107,15 @@ class TestDatabaseEngine:
         assert mock_create_engine.call_count == 1
 
     @patch("cognivault.database.connection.get_database_engine")
-    def test_get_session_factory(self, mock_get_engine):
+    def test_get_session_factory(self, mock_get_engine: Any) -> None:
         """Test getting session factory."""
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_get_engine.return_value = mock_engine
 
         # Mock that session factory was created during engine creation
         from cognivault.database import connection
 
-        mock_session_factory = MagicMock()
+        mock_session_factory: MagicMock = MagicMock()
         connection._session_factory = mock_session_factory
 
         session_factory = get_session_factory()
@@ -124,49 +127,61 @@ class TestDatabaseSession:
     """Test suite for database session management."""
 
     @patch("cognivault.database.connection.get_session_factory")
-    async def test_get_database_session_success(self, mock_get_factory):
+    async def test_get_database_session_success(self, mock_get_factory: Any) -> None:
         """Test successful database session creation and cleanup."""
+        # Mock the session that will be created by session_factory()
         mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        # Mock the session factory to return our session when called
         mock_session_factory = MagicMock()
-        mock_session_factory.return_value.__aenter__ = AsyncMock(
-            return_value=mock_session
-        )
-        mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_session_factory.return_value = mock_session
         mock_get_factory.return_value = mock_session_factory
 
         async with get_database_session() as session:
             assert session is mock_session
 
-        # Verify session factory was called
+        # Verify session factory was called and session was created
         mock_get_factory.assert_called_once()
+        mock_session_factory.assert_called_once()
 
     @patch("cognivault.database.connection.get_session_factory")
-    async def test_get_database_session_with_exception(self, mock_get_factory):
+    async def test_get_database_session_with_exception(
+        self, mock_get_factory: Any
+    ) -> None:
         """Test database session rollback on exception."""
+        # Mock the session that will be created by session_factory()
         mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.rollback = AsyncMock()
+        mock_session.close = AsyncMock()
+
+        # Mock the session factory to return our session when called
         mock_session_factory = MagicMock()
-        mock_session_factory.return_value.__aenter__ = AsyncMock(
-            return_value=mock_session
-        )
-        mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_session_factory.return_value = mock_session
         mock_get_factory.return_value = mock_session_factory
 
         with pytest.raises(ValueError, match="Test error"):
             async with get_database_session() as session:
                 raise ValueError("Test error")
 
-        # Session context manager should handle rollback
+        # Session factory should have been called and cleanup attempted
         mock_get_factory.assert_called_once()
+        mock_session_factory.assert_called_once()
 
 
 class TestConnectionPoolStatus:
     """Test suite for connection pool status monitoring."""
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_get_connection_pool_status_success(self, mock_get_engine):
+    async def test_get_connection_pool_status_success(
+        self, mock_get_engine: Any
+    ) -> None:
         """Test successful connection pool status retrieval."""
         # Mock pool with realistic values
-        mock_pool = MagicMock()
+        mock_pool: MagicMock = MagicMock()
         mock_pool.__class__.__name__ = "QueuePool"
         mock_pool.size.return_value = 20
         mock_pool.checkedin.return_value = 15
@@ -175,7 +190,7 @@ class TestConnectionPoolStatus:
         mock_pool.invalid.return_value = 0
         mock_pool._max_overflow = 30
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.pool = mock_pool
         mock_get_engine.return_value = mock_engine
 
@@ -191,9 +206,11 @@ class TestConnectionPoolStatus:
         assert status["status"] == "healthy"  # < 80%
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_get_connection_pool_status_high_utilization(self, mock_get_engine):
+    async def test_get_connection_pool_status_high_utilization(
+        self, mock_get_engine: Any
+    ) -> None:
         """Test connection pool status with high utilization."""
-        mock_pool = MagicMock()
+        mock_pool: MagicMock = MagicMock()
         mock_pool.__class__.__name__ = "QueuePool"
         mock_pool.size.return_value = 20
         mock_pool.checkedin.return_value = 5
@@ -202,7 +219,7 @@ class TestConnectionPoolStatus:
         mock_pool.invalid.return_value = 0
         mock_pool._max_overflow = 30
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.pool = mock_pool
         mock_get_engine.return_value = mock_engine
 
@@ -213,9 +230,11 @@ class TestConnectionPoolStatus:
         assert status["status"] == "warning"  # 80% <= x < 95%
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_get_connection_pool_status_critical(self, mock_get_engine):
+    async def test_get_connection_pool_status_critical(
+        self, mock_get_engine: Any
+    ) -> None:
         """Test connection pool status with critical utilization."""
-        mock_pool = MagicMock()
+        mock_pool: MagicMock = MagicMock()
         mock_pool.__class__.__name__ = "QueuePool"
         mock_pool.size.return_value = 20
         mock_pool.checkedin.return_value = 2
@@ -224,7 +243,7 @@ class TestConnectionPoolStatus:
         mock_pool.invalid.return_value = 0
         mock_pool._max_overflow = 30
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.pool = mock_pool
         mock_get_engine.return_value = mock_engine
 
@@ -234,7 +253,7 @@ class TestConnectionPoolStatus:
         assert status["status"] == "critical"
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_get_connection_pool_status_error(self, mock_get_engine):
+    async def test_get_connection_pool_status_error(self, mock_get_engine: Any) -> None:
         """Test connection pool status error handling."""
         mock_get_engine.side_effect = Exception("Engine error")
 
@@ -253,11 +272,15 @@ class TestHealthCheck:
     @patch("cognivault.database.connection.get_connection_pool_status")
     @patch("asyncio.get_event_loop")
     async def test_health_check_success(
-        self, mock_get_loop, mock_pool_status, mock_get_engine, mock_get_config
-    ):
+        self,
+        mock_get_loop: Any,
+        mock_pool_status: Any,
+        mock_get_engine: Any,
+        mock_get_config: Any,
+    ) -> None:
         """Test successful health check."""
         # Mock configuration
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.connection_timeout = 10
         mock_config.get_connection_info.return_value = {
             "hostname": "test",
@@ -267,7 +290,7 @@ class TestHealthCheck:
         mock_get_config.return_value = mock_config
 
         # Mock event loop for timing
-        mock_loop = MagicMock()
+        mock_loop: MagicMock = MagicMock()
         mock_loop.time.side_effect = [
             0.0,
             0.1,
@@ -279,19 +302,19 @@ class TestHealthCheck:
         mock_conn = AsyncMock()
 
         # Mock basic connectivity test - SELECT 1 as test
-        mock_result1 = MagicMock()
+        mock_result1: MagicMock = MagicMock()
         mock_result1.scalar.return_value = 1
 
         # Mock pgvector vector creation test - SELECT '[1,2,3]'::vector
-        mock_result2 = MagicMock()
+        mock_result2: MagicMock = MagicMock()
         mock_result2.scalar.return_value = "[1,2,3]"  # vector creation success
 
         # Mock pgvector distance test - SELECT '[1,2,3]'::vector <-> '[1,2,4]'::vector
-        mock_result3 = MagicMock()
+        mock_result3: MagicMock = MagicMock()
         mock_result3.scalar.return_value = 1.0  # vector distance
 
         # Mock database version - SELECT version()
-        mock_result4 = MagicMock()
+        mock_result4: MagicMock = MagicMock()
         mock_result4.scalar.return_value = "PostgreSQL 15.0"
 
         mock_conn.execute.side_effect = [
@@ -301,7 +324,7 @@ class TestHealthCheck:
             mock_result4,
         ]
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
         mock_get_engine.return_value = mock_engine
@@ -321,10 +344,10 @@ class TestHealthCheck:
     @patch("cognivault.database.connection.get_database_config")
     @patch("cognivault.database.connection.get_database_engine")
     async def test_health_check_pgvector_unavailable(
-        self, mock_get_engine, mock_get_config
-    ):
+        self, mock_get_engine: Any, mock_get_config: Any
+    ) -> None:
         """Test health check when pgvector is unavailable."""
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.connection_timeout = 10
         mock_config.get_connection_info.return_value = {"hostname": "test"}
         mock_get_config.return_value = mock_config
@@ -332,11 +355,11 @@ class TestHealthCheck:
         mock_conn = AsyncMock()
 
         # Mock basic connectivity success
-        mock_result1 = MagicMock()
+        mock_result1: MagicMock = MagicMock()
         mock_result1.scalar.return_value = 1
 
         # Mock database version
-        mock_result2 = MagicMock()
+        mock_result2: MagicMock = MagicMock()
         mock_result2.scalar.return_value = "PostgreSQL 15.0"
 
         # Mock pgvector test failure
@@ -346,7 +369,7 @@ class TestHealthCheck:
             mock_result2,  # Version check passes
         ]
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
         mock_get_engine.return_value = mock_engine
@@ -365,17 +388,17 @@ class TestHealthCheck:
     @patch("cognivault.database.connection.get_database_engine")
     @patch("asyncio.timeout")
     async def test_health_check_timeout(
-        self, mock_timeout, mock_get_engine, mock_get_config
-    ):
+        self, mock_timeout: Any, mock_get_engine: Any, mock_get_config: Any
+    ) -> None:
         """Test health check timeout handling."""
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.connection_timeout = 1  # Short timeout
         mock_get_config.return_value = mock_config
 
         # Mock timeout exception
         mock_timeout.side_effect = asyncio.TimeoutError()
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_get_engine.return_value = mock_engine
 
         health = await health_check()
@@ -388,10 +411,10 @@ class TestHealthCheck:
     @patch("cognivault.database.connection.get_database_config")
     @patch("cognivault.database.connection.get_database_engine")
     async def test_health_check_connection_error(
-        self, mock_get_engine, mock_get_config
-    ):
+        self, mock_get_engine: Any, mock_get_config: Any
+    ) -> None:
         """Test health check connection error handling."""
-        mock_config = MagicMock()
+        mock_config: MagicMock = MagicMock()
         mock_config.connection_timeout = 10
         mock_get_config.return_value = mock_config
 
@@ -408,7 +431,9 @@ class TestSchemaValidation:
     """Test suite for database schema validation."""
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_validate_database_schema_complete(self, mock_get_engine):
+    async def test_validate_database_schema_complete(
+        self, mock_get_engine: Any
+    ) -> None:
         """Test schema validation with complete schema."""
         mock_conn = AsyncMock()
 
@@ -418,11 +443,11 @@ class TestSchemaValidation:
             result.scalar.return_value = 1
 
         # Mock pgvector extension check
-        pgvector_result = MagicMock()
+        pgvector_result: MagicMock = MagicMock()
         pgvector_result.scalar.return_value = 1
 
         # Mock migration version check
-        migration_result = MagicMock()
+        migration_result: MagicMock = MagicMock()
         migration_result.scalar.return_value = "abc123def456"
 
         mock_conn.execute.side_effect = table_results + [
@@ -430,7 +455,7 @@ class TestSchemaValidation:
             migration_result,
         ]
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
         mock_get_engine.return_value = mock_engine
@@ -445,7 +470,9 @@ class TestSchemaValidation:
         assert validation["migration_version"] == "abc123def456"
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_validate_database_schema_missing_tables(self, mock_get_engine):
+    async def test_validate_database_schema_missing_tables(
+        self, mock_get_engine: Any
+    ) -> None:
         """Test schema validation with missing tables."""
         mock_conn = AsyncMock()
 
@@ -464,12 +491,12 @@ class TestSchemaValidation:
         table_results[4].scalar.return_value = None  # semantic_links missing
 
         # Mock pgvector extension check
-        pgvector_result = MagicMock()
+        pgvector_result: MagicMock = MagicMock()
         pgvector_result.scalar.return_value = 1
 
         mock_conn.execute.side_effect = table_results + [pgvector_result]
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
         mock_get_engine.return_value = mock_engine
@@ -483,7 +510,7 @@ class TestSchemaValidation:
         assert validation["pgvector_installed"] is True
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_validate_database_schema_error(self, mock_get_engine):
+    async def test_validate_database_schema_error(self, mock_get_engine: Any) -> None:
         """Test schema validation error handling."""
         mock_get_engine.side_effect = Exception("Database connection failed")
 
@@ -498,21 +525,21 @@ class TestDatabaseInitialization:
     """Test suite for database initialization and cleanup."""
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_init_database_success(self, mock_get_engine):
+    async def test_init_database_success(self, mock_get_engine: Any) -> None:
         """Test successful database initialization."""
         mock_conn = AsyncMock()
 
         # Mock successful connectivity test
-        basic_result = MagicMock()
+        basic_result: MagicMock = MagicMock()
         basic_result.scalar.return_value = 1
 
         # Mock pgvector extension check
-        pgvector_result = MagicMock()
+        pgvector_result: MagicMock = MagicMock()
         pgvector_result.scalar.return_value = 1
 
         mock_conn.execute.side_effect = [basic_result, pgvector_result, MagicMock()]
 
-        mock_engine = MagicMock()
+        mock_engine: MagicMock = MagicMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
         mock_get_engine.return_value = mock_engine
@@ -521,29 +548,74 @@ class TestDatabaseInitialization:
         await init_database()
 
     @patch("cognivault.database.connection.get_database_engine")
-    async def test_init_database_missing_pgvector(self, mock_get_engine):
-        """Test database initialization with missing pgvector."""
+    @patch("os.environ.get")
+    async def test_init_database_missing_pgvector(
+        self, mock_env_get: Any, mock_get_engine: Any
+    ) -> None:
+        """Test database initialization with missing pgvector in production mode."""
+        # Mock production environment (not testing mode)
+        mock_env_get.side_effect = lambda key, default: (
+            "false" if key == "TESTING" else default
+        )
+
         mock_conn = AsyncMock()
-
-        # Mock successful connectivity test
-        basic_result = MagicMock()
-        basic_result.scalar.return_value = 1
-
-        # Mock missing pgvector extension
-        pgvector_result = MagicMock()
-        pgvector_result.scalar.return_value = None
-
-        mock_conn.execute.side_effect = [basic_result, pgvector_result]
-
-        mock_engine = MagicMock()
+        # Mock engine URL to not contain 'test'
+        mock_engine: MagicMock = MagicMock()
+        mock_engine.url = "postgresql+asyncpg://user:pass@localhost:5432/cognivault"
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
         mock_get_engine.return_value = mock_engine
 
+        # Mock successful connectivity test
+        basic_result: MagicMock = MagicMock()
+        basic_result.scalar.return_value = 1
+
+        # Mock missing pgvector extension
+        pgvector_result: MagicMock = MagicMock()
+        pgvector_result.scalar.return_value = None
+
+        mock_conn.execute.side_effect = [basic_result, pgvector_result]
+
+        # In production mode, should raise RuntimeError for missing pgvector
         with pytest.raises(RuntimeError, match="pgvector extension"):
             await init_database()
 
-    async def test_close_database(self):
+    @patch("cognivault.database.connection.get_database_engine")
+    @patch("os.environ.get")
+    async def test_init_database_missing_pgvector_testing_mode(
+        self, mock_env_get: Any, mock_get_engine: Any
+    ) -> None:
+        """Test database initialization with missing pgvector in testing mode (should not error)."""
+
+        # Mock testing environment
+        def env_get_side_effect(key: str, default: Any) -> Any:
+            if key == "TESTING":
+                return "true"
+            return default
+
+        mock_env_get.side_effect = env_get_side_effect
+
+        mock_conn = AsyncMock()
+        mock_engine: MagicMock = MagicMock()
+        mock_engine.url = "postgresql+asyncpg://user:pass@localhost:5432/cognivault"
+        mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_get_engine.return_value = mock_engine
+
+        # Mock successful connectivity test
+        basic_result: MagicMock = MagicMock()
+        basic_result.scalar.return_value = 1
+
+        # Mock missing pgvector extension
+        pgvector_result: MagicMock = MagicMock()
+        pgvector_result.scalar.return_value = None
+
+        mock_conn.execute.side_effect = [basic_result, pgvector_result]
+
+        # In testing mode, should not raise error for missing pgvector (just log warning)
+        await init_database()  # Should complete without error
+
+    async def test_close_database(self) -> None:
         """Test database connection cleanup."""
         # Set up global state
         from cognivault.database import connection

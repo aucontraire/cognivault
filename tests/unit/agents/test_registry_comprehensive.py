@@ -6,14 +6,13 @@ focusing on error handling, edge cases, and advanced features.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from typing import List, Optional
+from unittest.mock import Mock
+from typing import Any, Optional
 
 from cognivault.agents.registry import (
     AgentRegistry,
     get_agent_registry,
     register_agent,
-    create_agent,
     get_agent_metadata,
 )
 from cognivault.agents.base_agent import BaseAgent
@@ -29,7 +28,7 @@ from cognivault.exceptions import (
 class MockAgentWithName(BaseAgent):
     """Mock agent that accepts name parameter in constructor."""
 
-    def __init__(self, name: str = "MockWithName"):
+    def __init__(self, name: str = "MockWithName") -> None:
         super().__init__(name)
 
     async def run(self, context: AgentContext) -> AgentContext:
@@ -39,7 +38,7 @@ class MockAgentWithName(BaseAgent):
 class MockAgentWithLLMAndName(BaseAgent):
     """Mock agent that accepts both LLM and name parameters."""
 
-    def __init__(self, llm: LLMInterface, name: str = "MockLLMWithName"):
+    def __init__(self, llm: LLMInterface, name: str = "MockLLMWithName") -> None:
         super().__init__(name)
         self.llm = llm
 
@@ -50,7 +49,7 @@ class MockAgentWithLLMAndName(BaseAgent):
 class MockAgentWithKwargs(BaseAgent):
     """Mock agent that accepts additional kwargs."""
 
-    def __init__(self, custom_param: str = "default", **kwargs):
+    def __init__(self, custom_param: str = "default", **kwargs: Any) -> None:
         super().__init__("MockWithKwargs")
         self.custom_param = custom_param
 
@@ -61,24 +60,24 @@ class MockAgentWithKwargs(BaseAgent):
 class TestAgentRegistryAdvancedFeatures:
     """Test advanced registry features and edge cases."""
 
-    def test_create_agent_with_name_parameter_llm_required(self):
+    def test_create_agent_with_name_parameter_llm_required(self) -> None:
         """Test creating agent with name parameter when LLM is required (line 163)."""
         registry = AgentRegistry()
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
 
         # Register agent that accepts both llm and name
         registry.register(
             "agent_with_name_llm", MockAgentWithLLMAndName, requires_llm=True
         )
 
-        agent = registry.create_agent("agent_with_name_llm", llm=mock_llm)
+        agent = registry.create_agent_with_llm("agent_with_name_llm", llm=mock_llm)
 
         assert agent is not None
         # The registry passes the registered name to the agent constructor
         assert agent.name == "agent_with_name_llm"
         assert agent.llm == mock_llm
 
-    def test_create_agent_with_name_parameter_no_llm(self):
+    def test_create_agent_with_name_parameter_no_llm(self) -> None:
         """Test creating agent with name parameter when LLM not required (line 168)."""
         registry = AgentRegistry()
 
@@ -91,14 +90,14 @@ class TestAgentRegistryAdvancedFeatures:
         # The registry passes the registered name to the agent constructor
         assert agent.name == "agent_with_name"
 
-    def test_get_metadata_unknown_agent(self):
+    def test_get_metadata_unknown_agent(self) -> None:
         """Test get_metadata with unknown agent (line 199)."""
         registry = AgentRegistry()
 
         with pytest.raises(ValueError, match="Unknown agent: 'nonexistent'"):
             registry.get_metadata("nonexistent")
 
-    def test_validate_pipeline_dependency_resolution_error(self):
+    def test_validate_pipeline_dependency_resolution_error(self) -> None:
         """Test validate_pipeline when dependency resolution fails (lines 256-257)."""
         registry = AgentRegistry()
 
@@ -114,7 +113,7 @@ class TestAgentRegistryAdvancedFeatures:
         result = registry.validate_pipeline(["agent_a", "agent_b"])
         assert result is False
 
-    def test_resolve_dependencies_unknown_agent_in_graph(self):
+    def test_resolve_dependencies_unknown_agent_in_graph(self) -> None:
         """Test resolve_dependencies with unknown agent creates empty deps (line 285)."""
         registry = AgentRegistry()
 
@@ -126,7 +125,7 @@ class TestAgentRegistryAdvancedFeatures:
         # Should return the agents in some order (they have no dependencies)
         assert set(result) == {"unknown_agent", "another_unknown"}
 
-    def test_resolve_dependencies_circular_dependency_detection(self):
+    def test_resolve_dependencies_circular_dependency_detection(self) -> None:
         """Test circular dependency detection in resolve_dependencies (lines 292, 306, 311-312)."""
         registry = AgentRegistry()
 
@@ -155,7 +154,7 @@ class TestAgentRegistryAdvancedFeatures:
             or "circular_b" in error.affected_agents
         )
 
-    def test_resolve_dependencies_successful_ordering(self):
+    def test_resolve_dependencies_successful_ordering(self) -> None:
         """Test successful dependency resolution and ordering."""
         registry = AgentRegistry()
 
@@ -175,7 +174,7 @@ class TestAgentRegistryAdvancedFeatures:
         # Should order correctly: a, then b, then c
         assert result == ["dep_a", "dep_b", "dep_c"]
 
-    def test_check_health_unknown_agent(self):
+    def test_check_health_unknown_agent(self) -> None:
         """Test check_health with unknown agent returns True (lines 334-335)."""
         registry = AgentRegistry()
 
@@ -183,7 +182,7 @@ class TestAgentRegistryAdvancedFeatures:
         result = registry.check_health("unknown_agent")
         assert result is True
 
-    def test_check_health_agent_requires_llm(self):
+    def test_check_health_agent_requires_llm(self) -> None:
         """Test check_health for agent that requires LLM (lines 343-348)."""
         registry = AgentRegistry()
 
@@ -191,7 +190,7 @@ class TestAgentRegistryAdvancedFeatures:
         result = registry.check_health("refiner")  # refiner requires LLM
         assert result is True  # Should pass basic health check
 
-    def test_get_fallback_agents_unknown_agent(self):
+    def test_get_fallback_agents_unknown_agent(self) -> None:
         """Test get_fallback_agents with unknown agent (lines 364-365)."""
         registry = AgentRegistry()
 
@@ -199,7 +198,7 @@ class TestAgentRegistryAdvancedFeatures:
         fallbacks = registry.get_fallback_agents("unknown_agent")
         assert fallbacks == []
 
-    def test_get_fallback_agents_with_fallbacks(self):
+    def test_get_fallback_agents_with_fallbacks(self) -> None:
         """Test get_fallback_agents with configured fallbacks (lines 366-367)."""
         registry = AgentRegistry()
 
@@ -219,7 +218,7 @@ class TestAgentRegistryAdvancedFeatures:
         original_fallbacks = registry.get_fallback_agents("primary_agent")
         assert "modified" not in original_fallbacks
 
-    def test_get_failure_strategy_unknown_agent(self):
+    def test_get_failure_strategy_unknown_agent(self) -> None:
         """Test get_failure_strategy with unknown agent (lines 383-384)."""
         registry = AgentRegistry()
 
@@ -227,7 +226,7 @@ class TestAgentRegistryAdvancedFeatures:
         strategy = registry.get_failure_strategy("unknown_agent")
         assert strategy == FailurePropagationStrategy.FAIL_FAST
 
-    def test_get_failure_strategy_configured_agent(self):
+    def test_get_failure_strategy_configured_agent(self) -> None:
         """Test get_failure_strategy with configured agent (line 385)."""
         registry = AgentRegistry()
 
@@ -242,7 +241,7 @@ class TestAgentRegistryAdvancedFeatures:
         strategy = registry.get_failure_strategy("graceful_agent")
         assert strategy == FailurePropagationStrategy.GRACEFUL_DEGRADATION
 
-    def test_is_critical_agent_unknown_agent(self):
+    def test_is_critical_agent_unknown_agent(self) -> None:
         """Test is_critical_agent with unknown agent (lines 401-402)."""
         registry = AgentRegistry()
 
@@ -250,7 +249,7 @@ class TestAgentRegistryAdvancedFeatures:
         result = registry.is_critical_agent("unknown_agent")
         assert result is True
 
-    def test_is_critical_agent_configured_agent(self):
+    def test_is_critical_agent_configured_agent(self) -> None:
         """Test is_critical_agent with configured agent (line 403)."""
         registry = AgentRegistry()
 
@@ -262,7 +261,7 @@ class TestAgentRegistryAdvancedFeatures:
         result = registry.is_critical_agent("optional_agent")
         assert result is False
 
-    def test_get_agent_metadata_exists(self):
+    def test_get_agent_metadata_exists(self) -> None:
         """Test get_agent_metadata with existing agent (line 419)."""
         registry = AgentRegistry()
 
@@ -271,14 +270,14 @@ class TestAgentRegistryAdvancedFeatures:
         assert metadata.name == "refiner"
         assert isinstance(metadata, AgentMetadata)
 
-    def test_get_agent_metadata_not_exists(self):
+    def test_get_agent_metadata_not_exists(self) -> None:
         """Test get_agent_metadata with non-existent agent."""
         registry = AgentRegistry()
 
         metadata = registry.get_agent_metadata("nonexistent")
         assert metadata is None
 
-    def test_create_agent_with_additional_kwargs(self):
+    def test_create_agent_with_additional_kwargs(self) -> None:
         """Test creating agent with additional kwargs passed through."""
         registry = AgentRegistry()
 
@@ -288,9 +287,10 @@ class TestAgentRegistryAdvancedFeatures:
         agent = registry.create_agent("agent_with_kwargs", custom_param="test_value")
 
         assert agent is not None
-        assert agent.custom_param == "test_value"
+        assert hasattr(agent, "custom_param")
+        assert getattr(agent, "custom_param") == "test_value"
 
-    def test_agent_creation_constructor_inspection_edge_cases(self):
+    def test_agent_creation_constructor_inspection_edge_cases(self) -> None:
         """Test edge cases in constructor parameter inspection."""
         registry = AgentRegistry()
 
@@ -300,8 +300,8 @@ class TestAgentRegistryAdvancedFeatures:
                 self,
                 llm: Optional[LLMInterface] = None,
                 name: str = "Complex",
-                **kwargs,
-            ):
+                **kwargs: Any,
+            ) -> None:
                 super().__init__(name)
                 self.llm = llm
                 self.extra_params = kwargs
@@ -311,20 +311,21 @@ class TestAgentRegistryAdvancedFeatures:
 
         registry.register("complex_agent", ComplexAgent, requires_llm=True)
 
-        mock_llm = Mock()
-        agent = registry.create_agent(
+        mock_llm: Mock = Mock()
+        agent = registry.create_agent_with_llm(
             "complex_agent", llm=mock_llm, extra_param="value"
         )
 
         assert agent is not None
         assert agent.llm == mock_llm
-        assert agent.extra_params == {"extra_param": "value"}
+        assert hasattr(agent, "extra_params")
+        assert getattr(agent, "extra_params") == {"extra_param": "value"}
 
 
 class TestGlobalRegistryFunctions:
     """Test global registry convenience functions."""
 
-    def test_get_agent_metadata_global_function(self):
+    def test_get_agent_metadata_global_function(self) -> None:
         """Test get_agent_metadata global function (lines 630-631)."""
         # Test with existing agent
         metadata = get_agent_metadata("refiner")
@@ -335,7 +336,7 @@ class TestGlobalRegistryFunctions:
         metadata = get_agent_metadata("nonexistent")
         assert metadata is None
 
-    def test_global_registry_persistence(self):
+    def test_global_registry_persistence(self) -> None:
         """Test that global registry persists across function calls."""
         # Register agent using global function
         register_agent("persistent_agent", MockAgentWithName, requires_llm=False)
@@ -348,7 +349,7 @@ class TestGlobalRegistryFunctions:
         assert "persistent_agent" in registry2.get_available_agents()
         assert registry1 is registry2  # Should be the same instance
 
-    def test_register_agent_with_all_parameters(self):
+    def test_register_agent_with_all_parameters(self) -> None:
         """Test register_agent global function with all parameters."""
         register_agent(
             name="full_featured_agent",
@@ -390,12 +391,13 @@ class TestGlobalRegistryFunctions:
 class TestRegistryErrorScenarios:
     """Test error handling and edge cases."""
 
-    def test_create_agent_creation_exception_details(self):
+    def test_create_agent_creation_exception_details(self) -> None:
         """Test detailed exception handling during agent creation."""
         registry = AgentRegistry()
 
         class ProblemAgent(BaseAgent):
-            def __init__(self):
+            def __init__(self) -> None:
+                super().__init__(name="problem_agent")
                 raise RuntimeError("Constructor failed with specific message")
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -410,7 +412,7 @@ class TestRegistryErrorScenarios:
         assert "Failed to create agent 'problem_agent'" in error_message
         assert "Constructor failed with specific message" in error_message
 
-    def test_dependency_resolution_with_partial_unknown_agents(self):
+    def test_dependency_resolution_with_partial_unknown_agents(self) -> None:
         """Test dependency resolution when some agents are unknown."""
         registry = AgentRegistry()
 
@@ -428,7 +430,7 @@ class TestRegistryErrorScenarios:
             # This is also acceptable behavior for unknown agents
             pass
 
-    def test_validate_pipeline_mixed_valid_invalid(self):
+    def test_validate_pipeline_mixed_valid_invalid(self) -> None:
         """Test validate_pipeline with mix of valid and invalid agents."""
         registry = AgentRegistry()
 
@@ -438,7 +440,7 @@ class TestRegistryErrorScenarios:
 
         assert result is False
 
-    def test_agent_registration_edge_cases(self):
+    def test_agent_registration_edge_cases(self) -> None:
         """Test edge cases in agent registration."""
         registry = AgentRegistry()
 
@@ -454,13 +456,14 @@ class TestRegistryErrorScenarios:
         assert metadata.dependencies == []  # Default value
         assert metadata.is_critical is True  # Default value
 
-    def test_multi_axis_classification_defaults(self):
+    def test_multi_axis_classification_defaults(self) -> None:
         """Test multi-axis classification with default values."""
         registry = AgentRegistry()
 
         registry.register("classified_agent", MockAgentWithName)
 
         metadata = registry.get_agent_metadata("classified_agent")
+        assert metadata is not None
         assert metadata.cognitive_speed == "adaptive"
         assert metadata.cognitive_depth == "variable"
         assert metadata.processing_pattern == "atomic"

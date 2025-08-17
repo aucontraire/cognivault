@@ -5,7 +5,7 @@ Provides endpoints for executing multi-agent workflows using the existing
 orchestration infrastructure.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, List
 
 from cognivault.api.models import (
@@ -42,7 +42,7 @@ async def execute_query(request: WorkflowRequest) -> WorkflowResponse:
 
         # Use existing factory pattern and business logic
         orchestration_api = get_orchestration_api()
-        response = await orchestration_api.execute_workflow(request)
+        response: WorkflowResponse = await orchestration_api.execute_workflow(request)
 
         logger.info(
             f"Query executed successfully, correlation_id: {response.correlation_id}"
@@ -82,8 +82,8 @@ async def get_query_status(correlation_id: str) -> StatusResponse:
         orchestration_api = get_orchestration_api()
 
         # Get status using correlation_id to workflow_id mapping
-        status_response = await orchestration_api.get_status_by_correlation_id(
-            correlation_id
+        status_response: StatusResponse = (
+            await orchestration_api.get_status_by_correlation_id(correlation_id)
         )
 
         logger.info(

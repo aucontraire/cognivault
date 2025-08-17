@@ -22,7 +22,7 @@ from rich.syntax import Syntax
 
 from cognivault.context import AgentContext
 from cognivault.workflows import WorkflowDefinition
-from cognivault.workflows.executor import DeclarativeOrchestrator
+from cognivault.workflows.executor import DeclarativeOrchestrator, WorkflowResult
 from cognivault.store.wiki_adapter import MarkdownExporter
 from cognivault.store.frontmatter import WorkflowExecutionMetadata
 from cognivault.store.topic_manager import TopicManager
@@ -49,7 +49,7 @@ def run_workflow(
         False, "--export-md", help="Export to markdown with rich frontmatter"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-):
+) -> None:
     """
     Execute a declarative workflow with the given query.
 
@@ -87,7 +87,7 @@ async def _run_workflow_async(
     save_result: Optional[str],
     export_md: bool,
     verbose: bool,
-):
+) -> None:
     """Async implementation of workflow execution."""
     try:
         # For JSON output, suppress logging to avoid interfering with JSON
@@ -434,7 +434,7 @@ def validate_workflow(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Verbose validation output"
     ),
-):
+) -> None:
     """
     Validate a workflow definition without executing it.
 
@@ -457,7 +457,7 @@ def validate_workflow(
             raise
 
 
-async def _validate_workflow_async(workflow_file: str, verbose: bool):
+async def _validate_workflow_async(workflow_file: str, verbose: bool) -> None:
     """Async implementation of workflow validation."""
     try:
         # Load workflow definition
@@ -505,7 +505,7 @@ def list_workflows(
     format: str = typer.Option(
         "table", "--format", "-f", help="Output format (table, json)"
     ),
-):
+) -> None:
     """
     List available workflow examples and definitions.
 
@@ -539,7 +539,7 @@ def show_workflow(
     format: str = typer.Option(
         "yaml", "--format", "-f", help="Display format (yaml, json)"
     ),
-):
+) -> None:
     """
     Display workflow definition in readable format.
 
@@ -582,7 +582,7 @@ def export_workflow(
     include_snapshot: bool = typer.Option(
         False, "--snapshot", help="Include composition snapshot"
     ),
-):
+) -> None:
     """
     Export workflow definition to file with optional composition metadata.
 
@@ -616,7 +616,7 @@ async def _export_workflow_async(
     output_file: str,
     format: str,
     include_snapshot: bool,
-):
+) -> None:
     """Async implementation of workflow export."""
     try:
         # Load workflow definition
@@ -662,7 +662,7 @@ def _load_workflow_file(file_path: str) -> WorkflowDefinition:
         raise ValueError(f"Unsupported file format: {file_path}")
 
 
-def _find_workflow_files(directory: str) -> List[dict]:
+def _find_workflow_files(directory: str) -> List[Dict[str, Any]]:
     """Find workflow files in directory."""
     if not os.path.exists(directory):
         return []
@@ -705,7 +705,7 @@ def _find_workflow_files(directory: str) -> List[dict]:
     return workflows
 
 
-def _display_workflows_table(workflows: List[dict]):
+def _display_workflows_table(workflows: List[Dict[str, Any]]) -> None:
     """Display workflows in table format."""
     table = Table(title="Available Workflows")
     table.add_column("Name", style="cyan")
@@ -726,12 +726,14 @@ def _display_workflows_table(workflows: List[dict]):
     console.print(table)
 
 
-def _display_workflows_json(workflows: List[dict]):
+def _display_workflows_json(workflows: List[Dict[str, Any]]) -> None:
     """Display workflows in JSON format."""
     console.print(json.dumps(workflows, indent=2))
 
 
-def _display_workflow_result(result, output_format: str, verbose: bool):
+def _display_workflow_result(
+    result: WorkflowResult, output_format: str, verbose: bool
+) -> None:
     """Display workflow execution result."""
     if output_format == "json":
         # Ensure proper JSON encoding with escaped characters
@@ -744,7 +746,7 @@ def _display_workflow_result(result, output_format: str, verbose: bool):
         console.print(f"[red]Unsupported output format: {output_format}[/red]")
 
 
-def _display_result_table(result, verbose: bool):
+def _display_result_table(result: WorkflowResult, verbose: bool) -> None:
     """Display result in table format."""
     # Execution summary
     table = Table(title="Workflow Execution Result")
@@ -772,7 +774,7 @@ def _display_result_table(result, verbose: bool):
         console.print(order_table)
 
 
-def _save_workflow_result(result, file_path: str, format: str):
+def _save_workflow_result(result: WorkflowResult, file_path: str, format: str) -> None:
     """Save workflow result to file."""
     content = json.dumps(result.to_dict(), indent=2)
 

@@ -9,17 +9,16 @@ and dynamic composition.
 import pytest
 import asyncio
 import time
-from typing import Optional
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any, Optional
+from unittest.mock import AsyncMock, Mock, patch
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import AgentContextPatterns
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.dependencies.graph_engine import (
     DependencyGraphEngine,
-    DependencyNode,
     DependencyType,
     ExecutionPriority,
-    ResourceConstraint,
 )
 from cognivault.dependencies.execution_planner import (
     ExecutionPlanner,
@@ -38,11 +37,15 @@ from cognivault.dependencies.dynamic_composition import (
 )
 from cognivault.dependencies.advanced_orchestrator import (
     AdvancedOrchestrator,
-    OrchestratorConfig,
     ExecutionPhase,
-    ExecutionResults,
-    ResourceAllocationResult,
-    PipelineStage,
+)
+from tests.factories.advanced_orchestrator_factories import (
+    AdvancedResourceConstraintFactory,
+    OrchestratorConfigFactory,
+    ExecutionResultsFactory,
+    ResourceAllocationResultFactory,
+    PipelineStageFactory,
+    DependencyNodeFactory,
 )
 
 
@@ -55,7 +58,7 @@ class MockAgent(BaseAgent):
         should_fail: bool = False,
         delay: float = 0.0,
         execution_time: Optional[float] = None,
-    ):
+    ) -> None:
         super().__init__(name=name)
         self.should_fail = should_fail
         self.delay = delay if execution_time is None else execution_time
@@ -77,9 +80,9 @@ class MockAgent(BaseAgent):
 
 
 @pytest.fixture
-def orchestrator_config():
+def orchestrator_config() -> Any:
     """Create orchestrator configuration for testing."""
-    return OrchestratorConfig(
+    return OrchestratorConfigFactory.generate_valid_data(
         max_concurrent_agents=3,
         enable_failure_recovery=True,
         enable_resource_scheduling=True,
@@ -92,11 +95,11 @@ def orchestrator_config():
 
 
 @pytest.fixture
-def mock_agent_registry():
+def mock_agent_registry() -> Any:
     """Create a comprehensive mock for AgentRegistry with common defaults."""
     from cognivault.exceptions import FailurePropagationStrategy
 
-    mock = Mock()
+    mock: Mock = Mock()
 
     # Set up default behaviors
     mock.get_failure_strategy.return_value = (
@@ -113,11 +116,11 @@ def mock_agent_registry():
     return mock
 
 
-def create_registry_mock(**overrides):
+def create_registry_mock(**overrides: Any) -> Mock:
     """Helper function to create registry mocks with custom behavior."""
     from cognivault.exceptions import FailurePropagationStrategy
 
-    mock = Mock()
+    mock: Mock = Mock()
 
     # Set up default behaviors
     defaults = {
@@ -150,7 +153,9 @@ def create_registry_mock(**overrides):
     return mock
 
 
-def assert_execution_success(results, expected_agents=None, min_successful=None):
+def assert_execution_success(
+    results: Any, expected_agents: Any = None, min_successful: Any = None
+) -> None:
     """Helper to assert successful execution with observable metrics."""
     assert results.execution_time_ms > 0, "Execution should take measurable time"
     assert results.total_agents_executed > 0, "Should execute at least one agent"
@@ -181,7 +186,9 @@ def assert_execution_success(results, expected_agents=None, min_successful=None)
     )
 
 
-def assert_execution_failure(results, expected_failures=None, recovery_actions=True):
+def assert_execution_failure(
+    results: Any, expected_failures: Any = None, recovery_actions: bool = True
+) -> None:
     """Helper to assert execution failure with recovery actions."""
     assert results.execution_time_ms > 0, "Execution should take measurable time"
     assert results.failed_agents > 0, "Should have at least one failure"
@@ -195,7 +202,7 @@ def assert_execution_failure(results, expected_failures=None, recovery_actions=T
         assert len(results.failure_recovery_actions) > 0, "Should have recovery actions"
 
 
-def assert_specific_agents_executed(results, agent_names):
+def assert_specific_agents_executed(results: Any, agent_names: Any) -> None:
     """Assert that specific agents were executed based on pipeline stages."""
     executed_agents = set()
     for stage in results.pipeline_stages:
@@ -207,7 +214,7 @@ def assert_specific_agents_executed(results, agent_names):
         )
 
 
-def get_executed_agents(results):
+def get_executed_agents(results: Any) -> Any:
     """Get set of all agents that were executed according to pipeline stages."""
     executed_agents = set()
     for stage in results.pipeline_stages:
@@ -216,7 +223,7 @@ def get_executed_agents(results):
 
 
 @pytest.fixture
-def simple_graph_engine():
+def simple_graph_engine() -> Any:
     """Create a simple graph engine with test agents."""
     engine = DependencyGraphEngine()
 
@@ -227,16 +234,18 @@ def simple_graph_engine():
     }
 
     for agent_id, agent in agents.items():
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id=agent_id,
             agent=agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
             resource_constraints=[
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="cpu", max_usage=30.0, units="percentage"
                 ),
-                ResourceConstraint(resource_type="memory", max_usage=512.0, units="MB"),
+                AdvancedResourceConstraintFactory.basic(
+                    resource_type="memory", max_usage=512.0, units="MB"
+                ),
             ],
         )
         engine.add_node(node)
@@ -249,23 +258,23 @@ def simple_graph_engine():
 
 
 @pytest.fixture
-def orchestrator(orchestrator_config, simple_graph_engine):
+def orchestrator(orchestrator_config: Any, simple_graph_engine: Any) -> Any:
     """Create an advanced orchestrator for testing."""
     return AdvancedOrchestrator(simple_graph_engine, orchestrator_config)
 
 
 @pytest.fixture
-def context():
+def context() -> Any:
     """Create a basic agent context."""
-    return AgentContext(query="test query for orchestration")
+    return AgentContextPatterns.simple_query("test query for orchestration")
 
 
 class TestOrchestratorConfig:
     """Test OrchestratorConfig functionality."""
 
-    def test_config_creation(self):
+    def test_config_creation(self) -> None:
         """Test creating orchestrator configuration."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             max_concurrent_agents=5,
             enable_failure_recovery=True,
             enable_resource_scheduling=True,
@@ -286,9 +295,9 @@ class TestOrchestratorConfig:
         )
         assert config.pipeline_timeout_ms == 60000
 
-    def test_config_defaults(self):
+    def test_config_defaults(self) -> None:
         """Test default configuration values."""
-        config = OrchestratorConfig()
+        config = OrchestratorConfigFactory.basic()
 
         assert config.max_concurrent_agents == 4
         assert config.enable_failure_recovery is True
@@ -304,9 +313,9 @@ class TestOrchestratorConfig:
 class TestExecutionResults:
     """Test ExecutionResults functionality."""
 
-    def test_results_creation(self):
+    def test_results_creation(self) -> None:
         """Test creating execution results."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=True,
             total_agents_executed=3,
             successful_agents=3,
@@ -323,9 +332,9 @@ class TestExecutionResults:
         assert results.failed_agents == 0
         assert results.execution_time_ms == 1500.0
 
-    def test_results_get_success_rate(self):
+    def test_results_get_success_rate(self) -> None:
         """Test success rate calculation."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=False,
             total_agents_executed=5,
             successful_agents=3,
@@ -338,9 +347,9 @@ class TestExecutionResults:
 
         assert results.get_success_rate() == 0.6  # 3/5
 
-    def test_results_get_success_rate_no_agents(self):
+    def test_results_get_success_rate_no_agents(self) -> None:
         """Test success rate with no agents executed."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=False,
             total_agents_executed=0,
             successful_agents=0,
@@ -353,9 +362,9 @@ class TestExecutionResults:
 
         assert results.get_success_rate() == 0.0
 
-    def test_results_to_dict(self):
+    def test_results_to_dict(self) -> None:
         """Test converting results to dictionary."""
-        results = ExecutionResults(
+        results = ExecutionResultsFactory.basic(
             success=True,
             total_agents_executed=2,
             successful_agents=2,
@@ -382,9 +391,9 @@ class TestExecutionResults:
 class TestResourceAllocationResult:
     """Test ResourceAllocationResult functionality."""
 
-    def test_allocation_result_creation(self):
+    def test_allocation_result_creation(self) -> None:
         """Test creating resource allocation result."""
-        result = ResourceAllocationResult(
+        result = ResourceAllocationResultFactory.basic(
             agent_id="test_agent",
             resource_type=ResourceType.CPU,
             requested_amount=50.0,
@@ -404,9 +413,9 @@ class TestResourceAllocationResult:
 class TestPipelineStage:
     """Test PipelineStage functionality."""
 
-    def test_pipeline_stage_creation(self):
+    def test_pipeline_stage_creation(self) -> None:
         """Test creating pipeline stage."""
-        stage = PipelineStage(
+        stage = PipelineStageFactory.basic(
             stage_id="test_stage",
             phase=ExecutionPhase.EXECUTION,
             agents_executed=["agent1", "agent2"],
@@ -424,7 +433,9 @@ class TestPipelineStage:
 class TestAdvancedOrchestrator:
     """Test AdvancedOrchestrator functionality."""
 
-    def test_orchestrator_creation(self, simple_graph_engine, orchestrator_config):
+    def test_orchestrator_creation(
+        self, simple_graph_engine: Any, orchestrator_config: Any
+    ) -> None:
         """Test creating advanced orchestrator."""
         orchestrator = AdvancedOrchestrator(simple_graph_engine, orchestrator_config)
 
@@ -435,16 +446,20 @@ class TestAdvancedOrchestrator:
         assert isinstance(orchestrator.resource_scheduler, ResourceScheduler)
         assert orchestrator.dynamic_composer is None  # Disabled in config
 
-    def test_orchestrator_with_dynamic_composition(self, simple_graph_engine):
+    def test_orchestrator_with_dynamic_composition(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test orchestrator with dynamic composition enabled."""
-        config = OrchestratorConfig(enable_dynamic_composition=True)
+        config = OrchestratorConfigFactory.basic(enable_dynamic_composition=True)
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
 
         assert orchestrator.dynamic_composer is not None
         assert isinstance(orchestrator.dynamic_composer, DynamicAgentComposer)
 
     @pytest.mark.asyncio
-    async def test_execute_pipeline_success(self, orchestrator, context):
+    async def test_execute_pipeline_success(
+        self, orchestrator: Any, context: Any
+    ) -> None:
         """Test successful pipeline execution."""
         results = await orchestrator.execute_pipeline(context)
 
@@ -463,7 +478,9 @@ class TestAdvancedOrchestrator:
         assert "formatter" in context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_execute_pipeline_with_failure(self, orchestrator_config, context):
+    async def test_execute_pipeline_with_failure(
+        self, orchestrator_config: Any, context: Any
+    ) -> None:
         """Test pipeline execution with agent failure."""
         # Create graph with failing agent
         engine = DependencyGraphEngine()
@@ -475,7 +492,7 @@ class TestAdvancedOrchestrator:
         }
 
         for agent_id, agent in agents.items():
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=ExecutionPriority.NORMAL,
@@ -496,14 +513,16 @@ class TestAdvancedOrchestrator:
         assert len(results.failure_recovery_actions) > 0
 
     @pytest.mark.asyncio
-    async def test_execute_pipeline_timeout(self, orchestrator_config, context):
+    async def test_execute_pipeline_timeout(
+        self, orchestrator_config: Any, context: Any
+    ) -> None:
         """Test pipeline execution with timeout."""
         # Create graph with slow agent
         engine = DependencyGraphEngine()
 
         # Create agent that takes longer than pipeline timeout
         slow_agent = MockAgent("slow_agent", delay=1.0)  # 1 second delay
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="slow_agent",
             agent=slow_agent,
             priority=ExecutionPriority.NORMAL,
@@ -521,7 +540,9 @@ class TestAdvancedOrchestrator:
         assert results.success is False
 
     @pytest.mark.asyncio
-    async def test_prepare_execution_phase(self, orchestrator, context):
+    async def test_prepare_execution_phase(
+        self, orchestrator: Any, context: Any
+    ) -> None:
         """Test execution preparation phase."""
         stage = await orchestrator._prepare_execution(context)
 
@@ -533,7 +554,9 @@ class TestAdvancedOrchestrator:
         assert orchestrator._current_execution_plan is not None
 
     @pytest.mark.asyncio
-    async def test_allocate_resources_phase(self, orchestrator, context):
+    async def test_allocate_resources_phase(
+        self, orchestrator: Any, context: Any
+    ) -> None:
         """Test resource allocation phase."""
         # First prepare execution
         await orchestrator._prepare_execution(context)
@@ -545,19 +568,21 @@ class TestAdvancedOrchestrator:
         assert len(stage.agents_executed) == 3  # All agents should get resources
 
     @pytest.mark.asyncio
-    async def test_allocate_resources_with_failure(self, orchestrator_config, context):
+    async def test_allocate_resources_with_failure(
+        self, orchestrator_config: Any, context: Any
+    ) -> None:
         """Test resource allocation with insufficient resources."""
         # Create limited resource pool
         engine = DependencyGraphEngine()
 
         # Create agent with high resource requirements
         high_resource_agent = MockAgent("high_resource_agent")
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="high_resource_agent",
             agent=high_resource_agent,
             priority=ExecutionPriority.NORMAL,
             resource_constraints=[
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="memory", max_usage=20000.0, units="MB"
                 ),  # Very high memory
             ],
@@ -576,7 +601,7 @@ class TestAdvancedOrchestrator:
         # Success depends on available resources
 
     @pytest.mark.asyncio
-    async def test_execute_agents_phase(self, orchestrator, context):
+    async def test_execute_agents_phase(self, orchestrator: Any, context: Any) -> None:
         """Test agent execution phase."""
         # Prepare and allocate resources first
         await orchestrator._prepare_execution(context)
@@ -598,7 +623,9 @@ class TestAdvancedOrchestrator:
         assert "formatter" in context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_cleanup_resources_phase(self, orchestrator, context):
+    async def test_cleanup_resources_phase(
+        self, orchestrator: Any, context: Any
+    ) -> None:
         """Test resource cleanup phase."""
         # Execute full pipeline first
         await orchestrator._prepare_execution(context)
@@ -611,7 +638,9 @@ class TestAdvancedOrchestrator:
         assert stage.success is True
 
     @pytest.mark.asyncio
-    async def test_handle_agent_execution_success(self, orchestrator, context):
+    async def test_handle_agent_execution_success(
+        self, orchestrator: Any, context: Any
+    ) -> None:
         """Test handling successful agent execution."""
         agent = MockAgent("test_agent")
 
@@ -625,7 +654,9 @@ class TestAdvancedOrchestrator:
         assert "test_agent" in context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_handle_agent_execution_failure(self, orchestrator, context):
+    async def test_handle_agent_execution_failure(
+        self, orchestrator: Any, context: Any
+    ) -> None:
         """Test handling failed agent execution."""
         failing_agent = MockAgent("failing_agent", should_fail=True)
 
@@ -638,13 +669,15 @@ class TestAdvancedOrchestrator:
         assert "error" in result
 
     @pytest.mark.asyncio
-    async def test_handle_agent_execution_timeout(self, orchestrator, context):
+    async def test_handle_agent_execution_timeout(
+        self, orchestrator: Any, context: Any
+    ) -> None:
         """Test handling agent execution timeout."""
         # Create very slow agent
         slow_agent = MockAgent("slow_agent", delay=2.0)  # 2 second delay
 
         # Mock the node to have a short timeout
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="slow_agent",
             agent=slow_agent,
             priority=ExecutionPriority.NORMAL,
@@ -660,7 +693,7 @@ class TestAdvancedOrchestrator:
         assert result["success"] is False
         assert "timeout" in result.get("error", "").lower()
 
-    def test_create_resource_allocation_result(self, orchestrator):
+    def test_create_resource_allocation_result(self, orchestrator: Any) -> None:
         """Test creating resource allocation result."""
         result = orchestrator._create_resource_allocation_result(
             "test_agent",
@@ -678,7 +711,7 @@ class TestAdvancedOrchestrator:
         assert result.allocation_time_ms == 150.0
         assert result.success is True
 
-    def test_aggregate_execution_results(self, orchestrator):
+    def test_aggregate_execution_results(self, orchestrator: Any) -> None:
         """Test aggregating execution results."""
         agent_results = [
             {"agent_id": "agent1", "success": True, "execution_time_ms": 100.0},
@@ -692,14 +725,14 @@ class TestAdvancedOrchestrator:
         ]
 
         pipeline_stages = [
-            PipelineStage(
+            PipelineStageFactory.basic(
                 stage_id="prep",
                 phase=ExecutionPhase.PREPARATION,
                 agents_executed=[],
                 stage_duration_ms=50.0,
                 success=True,
             ),
-            PipelineStage(
+            PipelineStageFactory.basic(
                 stage_id="exec",
                 phase=ExecutionPhase.EXECUTION,
                 agents_executed=["agent1", "agent2", "agent3"],
@@ -708,7 +741,7 @@ class TestAdvancedOrchestrator:
             ),
         ]
 
-        resource_results = []
+        resource_results: list[Any] = []
         failure_actions = ["graceful_degradation"]
         start_time = time.time() - 1.0  # 1 second ago
 
@@ -728,7 +761,7 @@ class TestAdvancedOrchestrator:
         assert len(results.pipeline_stages) == 2
         assert len(results.failure_recovery_actions) == 1
 
-    def test_create_pipeline_stage(self, orchestrator):
+    def test_create_pipeline_stage(self, orchestrator: Any) -> None:
         """Test creating pipeline stage."""
         stage = orchestrator._create_pipeline_stage(
             "test_stage",
@@ -744,7 +777,7 @@ class TestAdvancedOrchestrator:
         assert stage.stage_duration_ms == 1500.0
         assert stage.success is True
 
-    def test_calculate_execution_statistics(self, orchestrator):
+    def test_calculate_execution_statistics(self, orchestrator: Any) -> None:
         """Test calculating execution statistics."""
         agent_results = [
             {"agent_id": "agent1", "success": True, "execution_time_ms": 100.0},
@@ -766,7 +799,7 @@ class TestIntegration:
     """Integration tests for advanced orchestrator."""
 
     @pytest.mark.asyncio
-    async def test_complete_orchestration_workflow(self):
+    async def test_complete_orchestration_workflow(self) -> None:
         """Test complete orchestration workflow with all components."""
         # Create complex dependency graph
         engine = DependencyGraphEngine()
@@ -786,16 +819,16 @@ class TestIntegration:
                 if "loader" in agent_id
                 else ExecutionPriority.NORMAL
             )
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=priority,
                 timeout_ms=10000,
                 resource_constraints=[
-                    ResourceConstraint(
+                    AdvancedResourceConstraintFactory.basic(
                         resource_type="cpu", max_usage=25.0, units="percentage"
                     ),
-                    ResourceConstraint(
+                    AdvancedResourceConstraintFactory.basic(
                         resource_type="memory", max_usage=300.0, units="MB"
                     ),
                 ],
@@ -811,7 +844,7 @@ class TestIntegration:
         engine.add_dependency("aggregator", "reporter", DependencyType.HARD)
 
         # Create orchestrator with all features enabled
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             max_concurrent_agents=3,
             enable_failure_recovery=True,
             enable_resource_scheduling=True,
@@ -821,7 +854,7 @@ class TestIntegration:
         )
 
         orchestrator = AdvancedOrchestrator(engine, config)
-        context = AgentContext(query="Complex workflow test")
+        context = AgentContextPatterns.simple_query("Complex workflow test")
 
         # Execute complete pipeline
         results = await orchestrator.execute_pipeline(context)
@@ -856,7 +889,7 @@ class TestIntegration:
         assert len(results.resource_allocation_results) > 0
 
     @pytest.mark.asyncio
-    async def test_orchestration_with_failures_and_recovery(self):
+    async def test_orchestration_with_failures_and_recovery(self) -> None:
         """Test orchestration with failures and recovery mechanisms."""
         # Create graph with some failing agents
         engine = DependencyGraphEngine()
@@ -869,7 +902,7 @@ class TestIntegration:
         }
 
         for agent_id, agent in agents.items():
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=ExecutionPriority.NORMAL,
@@ -884,7 +917,7 @@ class TestIntegration:
         engine.add_dependency("backup_agent", "final_agent", DependencyType.HARD)
 
         # Configure for failure recovery
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
@@ -896,7 +929,7 @@ class TestIntegration:
             "failing_agent", ["backup_agent"]
         )
 
-        context = AgentContext(query="Failure recovery test")
+        context = AgentContextPatterns.simple_query("Failure recovery test")
         results = await orchestrator.execute_pipeline(context)
 
         # Should handle failure gracefully
@@ -907,7 +940,7 @@ class TestIntegration:
         # (depending on implementation details)
 
     @pytest.mark.asyncio
-    async def test_orchestration_performance_characteristics(self):
+    async def test_orchestration_performance_characteristics(self) -> None:
         """Test orchestration performance characteristics."""
         # Create graph optimized for parallelism
         engine = DependencyGraphEngine()
@@ -920,7 +953,7 @@ class TestIntegration:
                 agent_id, delay=0.1
             )  # Small delay for realism
 
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=parallel_agents[agent_id],
                 priority=ExecutionPriority.NORMAL,
@@ -930,7 +963,7 @@ class TestIntegration:
 
         # Add final aggregator
         aggregator = MockAgent("aggregator", delay=0.05)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="aggregator",
             agent=aggregator,
             priority=ExecutionPriority.HIGH,
@@ -951,11 +984,11 @@ class TestIntegration:
             ExecutionStrategy.ADAPTIVE,
         ]
 
-        context = AgentContext(query="Performance test")
+        context = AgentContextPatterns.simple_query("Performance test")
         performance_results = {}
 
         for strategy in strategies:
-            config = OrchestratorConfig(
+            config = OrchestratorConfigFactory.basic(
                 default_execution_strategy=strategy,
                 max_concurrent_agents=3,
             )
@@ -990,7 +1023,7 @@ class TestIntegration:
         assert parallel_time <= sequential_time + 0.1  # Within 100ms tolerance
 
     @pytest.mark.asyncio
-    async def test_orchestration_resource_constraints(self):
+    async def test_orchestration_resource_constraints(self) -> None:
         """Test orchestration with resource constraints."""
         # Create agents with high resource requirements
         engine = DependencyGraphEngine()
@@ -1004,23 +1037,27 @@ class TestIntegration:
         # Define different resource profiles
         resource_profiles = {
             "memory_intensive": [
-                ResourceConstraint(resource_type="memory", max_usage=2000.0, units="MB")
+                AdvancedResourceConstraintFactory.basic(
+                    resource_type="memory", max_usage=2000.0, units="MB"
+                )
             ],
             "cpu_intensive": [
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="cpu", max_usage=90.0, units="percentage"
                 )
             ],
             "balanced": [
-                ResourceConstraint(
+                AdvancedResourceConstraintFactory.basic(
                     resource_type="cpu", max_usage=50.0, units="percentage"
                 ),
-                ResourceConstraint(resource_type="memory", max_usage=500.0, units="MB"),
+                AdvancedResourceConstraintFactory.basic(
+                    resource_type="memory", max_usage=500.0, units="MB"
+                ),
             ],
         }
 
         for agent_id, agent in agents.items():
-            node = DependencyNode(
+            node = DependencyNodeFactory.basic(
                 agent_id=agent_id,
                 agent=agent,
                 priority=ExecutionPriority.NORMAL,
@@ -1032,13 +1069,13 @@ class TestIntegration:
         # Make them independent for parallel execution
         # (no dependencies to test resource scheduling)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_resource_scheduling=True,
             max_concurrent_agents=2,  # Limited concurrency
         )
 
         orchestrator = AdvancedOrchestrator(engine, config)
-        context = AgentContext(query="Resource constraint test")
+        context = AgentContextPatterns.simple_query("Resource constraint test")
 
         results = await orchestrator.execute_pipeline(context)
 
@@ -1056,13 +1093,13 @@ class TestIntegration:
         assert len(allocated_agents) == 3
 
     @pytest.mark.asyncio
-    async def test_orchestration_error_scenarios(self):
+    async def test_orchestration_error_scenarios(self) -> None:
         """Test orchestration with various error scenarios."""
         # Create minimal graph for error testing
         engine = DependencyGraphEngine()
 
         error_agent = MockAgent("error_agent", should_fail=True)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="error_agent",
             agent=error_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1070,13 +1107,13 @@ class TestIntegration:
         )
         engine.add_node(node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.ISOLATION,
         )
 
         orchestrator = AdvancedOrchestrator(engine, config)
-        context = AgentContext(query="Error scenario test")
+        context = AgentContextPatterns.simple_query("Error scenario test")
 
         results = await orchestrator.execute_pipeline(context)
 
@@ -1103,22 +1140,22 @@ class TestOrchestratorFailureHandling:
     """Test suite for failure propagation strategies and error handling."""
 
     @pytest.fixture
-    def orchestrator_with_failure_manager(self, simple_graph_engine):
+    def orchestrator_with_failure_manager(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with configured failure manager."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
         return AdvancedOrchestrator(simple_graph_engine, config)
 
     @pytest.mark.asyncio
-    async def test_fail_fast_strategy(self, simple_graph_engine):
+    async def test_fail_fast_strategy(self, simple_graph_engine: Any) -> None:
         """Test FAIL_FAST strategy raises PipelineExecutionError."""
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create agent that will fail and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1126,16 +1163,16 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.CIRCUIT_BREAKER,  # Use circuit breaker for fast failure
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry to return FAIL_FAST strategy
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = create_registry_mock(
+            mock_registry: Mock = create_registry_mock(
                 get_failure_strategy=FailurePropagationStrategy.FAIL_FAST,
                 is_critical_agent=True,
             )
@@ -1149,13 +1186,13 @@ class TestOrchestratorFailureHandling:
             # The overall success depends on the cascade prevention strategy configuration
 
     @pytest.mark.asyncio
-    async def test_warn_continue_strategy(self, simple_graph_engine):
+    async def test_warn_continue_strategy(self, simple_graph_engine: Any) -> None:
         """Test WARN_CONTINUE strategy logs warning but continues."""
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1163,12 +1200,12 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(failing_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry to return WARN_CONTINUE strategy
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
@@ -1189,13 +1226,15 @@ class TestOrchestratorFailureHandling:
             )  # The original 3 agents from simple_graph_engine
 
     @pytest.mark.asyncio
-    async def test_graceful_degradation_strategy(self, simple_graph_engine):
+    async def test_graceful_degradation_strategy(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test GRACEFUL_DEGRADATION creates warnings and marks degraded."""
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        node = DependencyNode(
+        node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1203,16 +1242,16 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry to return GRACEFUL_DEGRADATION strategy
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.get_failure_strategy.return_value = (
                 FailurePropagationStrategy.GRACEFUL_DEGRADATION
             )
@@ -1230,13 +1269,15 @@ class TestOrchestratorFailureHandling:
             assert "graceful_degradation" in results.failure_recovery_actions
 
     @pytest.mark.asyncio
-    async def test_conditional_fallback_with_agents(self, simple_graph_engine):
+    async def test_conditional_fallback_with_agents(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test CONDITIONAL_FALLBACK with actual fallback agents."""
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing primary agent and add to graph engine
         failing_agent = MockAgent("primary_agent", should_fail=True)
-        primary_node = DependencyNode(
+        primary_node = DependencyNodeFactory.basic(
             agent_id="primary_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1246,7 +1287,7 @@ class TestOrchestratorFailureHandling:
 
         # Also add a fallback agent to the graph engine
         fallback_agent = MockAgent("fallback_agent")
-        fallback_node = DependencyNode(
+        fallback_node = DependencyNodeFactory.basic(
             agent_id="fallback_agent",
             agent=fallback_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1254,12 +1295,12 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(fallback_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry to provide fallback agents
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
@@ -1279,13 +1320,15 @@ class TestOrchestratorFailureHandling:
             assert "fallback_agent" in context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_conditional_fallback_no_fallback_agents(self, simple_graph_engine):
+    async def test_conditional_fallback_no_fallback_agents(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test CONDITIONAL_FALLBACK when no fallback agents available."""
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True)
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1293,16 +1336,16 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(failing_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry with no fallback agents
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.get_failure_strategy.return_value = (
                 FailurePropagationStrategy.CONDITIONAL_FALLBACK
             )
@@ -1317,13 +1360,15 @@ class TestOrchestratorFailureHandling:
             assert results.failed_agents >= 1
 
     @pytest.mark.asyncio
-    async def test_critical_agent_failure_handling(self, simple_graph_engine):
+    async def test_critical_agent_failure_handling(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test handling of critical agent failures."""
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create critical failing agent and add to graph engine
         critical_agent = MockAgent("critical_agent", should_fail=True)
-        critical_node = DependencyNode(
+        critical_node = DependencyNodeFactory.basic(
             agent_id="critical_agent",
             agent=critical_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1331,16 +1376,16 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(critical_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.CIRCUIT_BREAKER,  # Use circuit breaker for critical agents
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry to mark agent as critical
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.get_failure_strategy.return_value = (
                 FailurePropagationStrategy.FAIL_FAST
             )
@@ -1356,13 +1401,15 @@ class TestOrchestratorFailureHandling:
             # Overall success depends on cascade prevention configuration
 
     @pytest.mark.asyncio
-    async def test_agent_execution_failure_with_metrics(self, simple_graph_engine):
+    async def test_agent_execution_failure_with_metrics(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test agent failure with proper metrics recording."""
         from cognivault.exceptions import FailurePropagationStrategy
 
         # Create failing agent and add to graph engine
         failing_agent = MockAgent("failing_agent", should_fail=True, execution_time=0.1)
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_agent",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1370,16 +1417,16 @@ class TestOrchestratorFailureHandling:
         )
         simple_graph_engine.add_node(failing_node)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             cascade_prevention_strategy=CascadePreventionStrategy.GRACEFUL_DEGRADATION,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry to allow graceful degradation
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.get_failure_strategy.return_value = (
                 FailurePropagationStrategy.GRACEFUL_DEGRADATION
             )
@@ -1399,29 +1446,29 @@ class TestOrchestratorDependencyManagement:
     """Test suite for agent dependency handling."""
 
     @pytest.fixture
-    def orchestrator_with_dependencies(self, simple_graph_engine):
+    def orchestrator_with_dependencies(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with dependency management enabled."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,  # Simplify for dependency tests
         )
         return AdvancedOrchestrator(simple_graph_engine, config)
 
     @pytest.mark.asyncio
-    async def test_agent_dependency_validation(self, simple_graph_engine):
+    async def test_agent_dependency_validation(self, simple_graph_engine: Any) -> None:
         """Test dependency validation for agents."""
 
         # Create agents with dependencies and add to graph engine
         agent_a = MockAgent("agent_a")
         agent_b = MockAgent("agent_b")
 
-        node_a = DependencyNode(
+        node_a = DependencyNodeFactory.basic(
             agent_id="agent_a",
             agent=agent_a,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        node_b = DependencyNode(
+        node_b = DependencyNodeFactory.basic(
             agent_id="agent_b",
             agent=agent_b,
             priority=ExecutionPriority.NORMAL,
@@ -1433,16 +1480,16 @@ class TestOrchestratorDependencyManagement:
         # Add dependency: agent_a must run before agent_b
         simple_graph_engine.add_dependency("agent_a", "agent_b", DependencyType.HARD)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry with dependencies
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.get_agent_dependencies.side_effect = lambda name: (
                 ["agent_a"] if name == "agent_b" else []
             )
@@ -1457,7 +1504,9 @@ class TestOrchestratorDependencyManagement:
             assert "agent_b" in context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_dependency_failure_strategies(self, simple_graph_engine):
+    async def test_dependency_failure_strategies(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test different failure strategies for dependencies."""
         from cognivault.exceptions import FailurePropagationStrategy
 
@@ -1465,13 +1514,13 @@ class TestOrchestratorDependencyManagement:
         agent_a = MockAgent("agent_a", should_fail=True)
         agent_b = MockAgent("agent_b")
 
-        node_a = DependencyNode(
+        node_a = DependencyNodeFactory.basic(
             agent_id="agent_a",
             agent=agent_a,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        node_b = DependencyNode(
+        node_b = DependencyNodeFactory.basic(
             agent_id="agent_b",
             agent=agent_b,
             priority=ExecutionPriority.NORMAL,
@@ -1483,16 +1532,16 @@ class TestOrchestratorDependencyManagement:
         # Add dependency
         simple_graph_engine.add_dependency("agent_a", "agent_b", DependencyType.HARD)
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry with dependencies
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.get_failure_strategy.return_value = (
                 FailurePropagationStrategy.GRACEFUL_DEGRADATION
             )
@@ -1510,7 +1559,9 @@ class TestOrchestratorDependencyManagement:
             assert "graceful_degradation" in results.failure_recovery_actions
 
     @pytest.mark.asyncio
-    async def test_graceful_degradation_with_dependencies(self, simple_graph_engine):
+    async def test_graceful_degradation_with_dependencies(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test graceful degradation when dependencies fail."""
         from cognivault.exceptions import FailurePropagationStrategy
 
@@ -1520,19 +1571,19 @@ class TestOrchestratorDependencyManagement:
         independent_agent = MockAgent("independent_agent")
 
         # Add all agents to graph engine
-        failing_node = DependencyNode(
+        failing_node = DependencyNodeFactory.basic(
             agent_id="failing_dependency",
             agent=failing_agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        dependent_node = DependencyNode(
+        dependent_node = DependencyNodeFactory.basic(
             agent_id="dependent_agent",
             agent=dependent_agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        independent_node = DependencyNode(
+        independent_node = DependencyNodeFactory.basic(
             agent_id="independent_agent",
             agent=independent_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1548,16 +1599,16 @@ class TestOrchestratorDependencyManagement:
             "failing_dependency", "dependent_agent", DependencyType.HARD
         )
 
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             enable_failure_recovery=True,
             enable_resource_scheduling=False,
         )
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.get_failure_strategy.return_value = (
                 FailurePropagationStrategy.GRACEFUL_DEGRADATION
             )
@@ -1580,18 +1631,18 @@ class TestOrchestratorHealthChecks:
     """Test suite for health check integration."""
 
     @pytest.fixture
-    def orchestrator_with_health_checks(self, simple_graph_engine):
+    def orchestrator_with_health_checks(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with health check validation."""
-        config = OrchestratorConfig(enable_failure_recovery=True)
+        config = OrchestratorConfigFactory.basic(enable_failure_recovery=True)
         return AdvancedOrchestrator(simple_graph_engine, config)
 
     @pytest.mark.asyncio
-    async def test_agent_health_check_failure(self, simple_graph_engine):
+    async def test_agent_health_check_failure(self, simple_graph_engine: Any) -> None:
         """Test agent health check failure handling."""
 
         # Create agent that will fail health check and add to graph engine
         unhealthy_agent = MockAgent("unhealthy_agent")
-        unhealthy_node = DependencyNode(
+        unhealthy_node = DependencyNodeFactory.basic(
             agent_id="unhealthy_agent",
             agent=unhealthy_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1599,13 +1650,13 @@ class TestOrchestratorHealthChecks:
         )
         simple_graph_engine.add_node(unhealthy_node)
 
-        config = OrchestratorConfig(enable_failure_recovery=True)
+        config = OrchestratorConfigFactory.basic(enable_failure_recovery=True)
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry with failing health check
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.validate_agent_health.return_value = False
             mock_registry_class.return_value = mock_registry
 
@@ -1615,20 +1666,22 @@ class TestOrchestratorHealthChecks:
             assert results.execution_time_ms > 0
 
     @pytest.mark.asyncio
-    async def test_health_check_routing_decisions(self, simple_graph_engine):
+    async def test_health_check_routing_decisions(
+        self, simple_graph_engine: Any
+    ) -> None:
         """Test conditional routing for health check failures."""
 
         # Create multiple agents with mixed health and add to graph engine
         healthy_agent = MockAgent("healthy_agent")
         unhealthy_agent = MockAgent("unhealthy_agent")
 
-        healthy_node = DependencyNode(
+        healthy_node = DependencyNodeFactory.basic(
             agent_id="healthy_agent",
             agent=healthy_agent,
             priority=ExecutionPriority.NORMAL,
             timeout_ms=5000,
         )
-        unhealthy_node = DependencyNode(
+        unhealthy_node = DependencyNodeFactory.basic(
             agent_id="unhealthy_agent",
             agent=unhealthy_agent,
             priority=ExecutionPriority.NORMAL,
@@ -1637,13 +1690,13 @@ class TestOrchestratorHealthChecks:
         simple_graph_engine.add_node(healthy_node)
         simple_graph_engine.add_node(unhealthy_node)
 
-        config = OrchestratorConfig(enable_failure_recovery=True)
+        config = OrchestratorConfigFactory.basic(enable_failure_recovery=True)
         orchestrator = AdvancedOrchestrator(simple_graph_engine, config)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry with selective health check results
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
             mock_registry.validate_agent_health.side_effect = (
                 lambda name: name == "healthy_agent"
             )
@@ -1660,7 +1713,7 @@ class TestOrchestratorObservability:
     """Test suite for observability and metrics integration."""
 
     @pytest.mark.asyncio
-    async def test_execution_state_tracking(self, orchestrator):
+    async def test_execution_state_tracking(self, orchestrator: Any) -> None:
         """Test complex execution state tracking across multiple failures."""
         from cognivault.exceptions import FailurePropagationStrategy
 
@@ -1673,13 +1726,13 @@ class TestOrchestratorObservability:
             "failing_agent": failing_agent,
             "degraded_agent": degraded_agent,
         }
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry with different strategies
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
-            mock_registry = Mock()
+            mock_registry: Mock = Mock()
 
-            def get_strategy(name):
+            def get_strategy(name: str) -> Any:
                 if name == "degraded_agent":
                     return FailurePropagationStrategy.GRACEFUL_DEGRADATION
                 return FailurePropagationStrategy.WARN_CONTINUE
@@ -1694,7 +1747,7 @@ class TestOrchestratorObservability:
                 if agent_name not in [
                     node.agent_id for node in orchestrator.graph_engine.nodes.values()
                 ]:
-                    node = DependencyNode(
+                    node = DependencyNodeFactory.basic(
                         agent_id=agent_name,
                         agent=agent,
                         priority=ExecutionPriority.NORMAL,
@@ -1710,20 +1763,20 @@ class TestOrchestratorObservability:
             assert "success_agent" in context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_metrics_recording_comprehensive(self, orchestrator):
+    async def test_metrics_recording_comprehensive(self, orchestrator: Any) -> None:
         """Test comprehensive metrics recording for various scenarios."""
         # Create agents with different execution characteristics
         fast_agent = MockAgent("fast_agent", execution_time=0.05)
         slow_agent = MockAgent("slow_agent", execution_time=0.15)
         agents = {"fast_agent": fast_agent, "slow_agent": slow_agent}
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Add agents to graph engine first
         for agent_name, agent in agents.items():
             if agent_name not in [
                 node.agent_id for node in orchestrator.graph_engine.nodes.values()
             ]:
-                node = DependencyNode(
+                node = DependencyNodeFactory.basic(
                     agent_id=agent_name,
                     agent=agent,
                     priority=ExecutionPriority.NORMAL,
@@ -1742,7 +1795,7 @@ class TestOrchestratorObservability:
         assert all(stage.success for stage in results.pipeline_stages)
 
     @pytest.mark.asyncio
-    async def test_mixed_failure_strategies(self, orchestrator):
+    async def test_mixed_failure_strategies(self, orchestrator: Any) -> None:
         """Test pipeline with agents having different failure strategies."""
         from cognivault.exceptions import FailurePropagationStrategy
 
@@ -1755,19 +1808,19 @@ class TestOrchestratorObservability:
             "degrade_agent": degrade_agent,
             "success_agent": success_agent,
         }
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock registry with different strategies
         with patch("cognivault.agents.registry.AgentRegistry") as mock_registry_class:
 
-            def get_strategy(name):
+            def get_strategy(name: str) -> Any:
                 if name == "warn_agent":
                     return FailurePropagationStrategy.WARN_CONTINUE
                 elif name == "degrade_agent":
                     return FailurePropagationStrategy.GRACEFUL_DEGRADATION
                 return FailurePropagationStrategy.FAIL_FAST
 
-            mock_registry = create_registry_mock(
+            mock_registry: Mock = create_registry_mock(
                 get_failure_strategy_side_effect=get_strategy, is_critical_agent=False
             )
             mock_registry_class.return_value = mock_registry
@@ -1777,7 +1830,7 @@ class TestOrchestratorObservability:
                 if agent_name not in [
                     node.agent_id for node in orchestrator.graph_engine.nodes.values()
                 ]:
-                    node = DependencyNode(
+                    node = DependencyNodeFactory.basic(
                         agent_id=agent_name,
                         agent=agent,
                         priority=ExecutionPriority.NORMAL,
@@ -1799,9 +1852,9 @@ class TestAdvancedOrchestratorCriticalPaths:
     """Tests for critical missing coverage areas to prevent race conditions, deadlocks, and resource leaks."""
 
     @pytest.fixture
-    def orchestrator_with_dynamic_composition(self, simple_graph_engine):
+    def orchestrator_with_dynamic_composition(self, simple_graph_engine: Any) -> Any:
         """Create orchestrator with dynamic composition enabled."""
-        config = OrchestratorConfig(
+        config = OrchestratorConfigFactory.basic(
             max_concurrent_agents=2,
             enable_failure_recovery=True,
             enable_resource_scheduling=True,
@@ -1813,8 +1866,8 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_agent_initialization_failure_handling(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test agent initialization failures - lines 217-272."""
         # Clear existing loaded agents
         orchestrator_with_dynamic_composition.loaded_agents.clear()
@@ -1847,7 +1900,7 @@ class TestAdvancedOrchestratorCriticalPaths:
         }
 
         # Mock dynamic composer to fail on certain agents
-        def mock_load_agent(agent_name):
+        def mock_load_agent(agent_name: str) -> Any:
             if agent_name == "successful_agent":
                 return MockAgent("successful_agent")
             elif agent_name == "failing_agent":
@@ -1885,10 +1938,10 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_discovery_and_composition_phase(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test discovery and composition phase - lines 343-359."""
-        context = AgentContext(query="test discovery")
+        context = AgentContextPatterns.simple_query("test discovery")
 
         # Mock dynamic composer methods
         discovery_results = {"discovered_agents": ["new_agent_1", "new_agent_2"]}
@@ -1913,13 +1966,13 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_execution_planning_phase(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test execution planning phase - lines 361-380."""
-        context = AgentContext(query="test planning")
+        context = AgentContextPatterns.simple_query("test planning")
 
         # Mock execution plan
-        mock_plan = Mock()
+        mock_plan: Mock = Mock()
         mock_plan.get_execution_summary.return_value = {
             "stages": 3,
             "parallel_factor": 2.0,
@@ -1940,10 +1993,10 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_resource_allocation_phase_with_constraints(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test resource allocation phase with constraints - lines 381-408."""
-        context = AgentContext(query="test resource allocation")
+        context = AgentContextPatterns.simple_query("test resource allocation")
 
         # Add agents with resource constraints
         agent1 = MockAgent("resource_heavy_agent")
@@ -1954,12 +2007,12 @@ class TestAdvancedOrchestratorCriticalPaths:
         }
 
         # Mock graph nodes with resource constraints
-        node1 = Mock()
+        node1: Mock = Mock()
         node1.resource_constraints = {"memory": 1024, "cpu": 2}
         node1.priority = ExecutionPriority.HIGH
         node1.timeout_ms = 5000
 
-        node2 = Mock()
+        node2: Mock = Mock()
         node2.resource_constraints = {"memory": 256, "cpu": 1}
         node2.priority = ExecutionPriority.NORMAL
         node2.timeout_ms = 3000
@@ -1988,14 +2041,14 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_parallel_execution_race_condition_prevention(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test parallel execution to prevent race conditions - lines 478-493."""
-        context = AgentContext(query="test parallel execution")
+        context = AgentContextPatterns.simple_query("test parallel execution")
 
         # Create mock stage with parallel groups
-        mock_stage = Mock()
-        mock_group = Mock()
+        mock_stage: Mock = Mock()
+        mock_group: Mock = Mock()
         mock_group.agents = ["agent1", "agent2", "agent3"]
         mock_stage.parallel_groups = [mock_group]
 
@@ -2016,7 +2069,7 @@ class TestAdvancedOrchestratorCriticalPaths:
             orchestrator_with_dynamic_composition._execute_agent_with_failure_handling
         )
 
-        async def track_execution(agent_id, ctx):
+        async def track_execution(agent_id: str, ctx: Any) -> None:
             execution_order.append(f"{agent_id}_start")
             await asyncio.sleep(0.05)  # Simulate work
             execution_order.append(f"{agent_id}_end")
@@ -2041,16 +2094,16 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_agent_execution_with_comprehensive_failure_handling(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test comprehensive agent execution failure handling - lines 501-573."""
-        context = AgentContext(query="test failure handling")
+        context = AgentContextPatterns.simple_query("test failure handling")
 
         # Create agent that fails on first two attempts, succeeds on third
         failing_agent = MockAgent("failing_agent", should_fail=True)
         call_count = 0
 
-        async def selective_failure_run(ctx):
+        async def selective_failure_run(ctx: Any) -> Any:
             nonlocal call_count
             call_count += 1
             if call_count <= 2:
@@ -2059,7 +2112,8 @@ class TestAdvancedOrchestratorCriticalPaths:
             ctx.agent_outputs["failing_agent"] = "success after retries"
             return ctx
 
-        failing_agent.run = selective_failure_run
+        # Replace the run method with our test implementation
+        setattr(failing_agent, "run", selective_failure_run)
         orchestrator_with_dynamic_composition.loaded_agents = {
             "failing_agent": failing_agent
         }
@@ -2076,7 +2130,7 @@ class TestAdvancedOrchestratorCriticalPaths:
         }
 
         # Mock retry configuration
-        retry_config = Mock()
+        retry_config: Mock = Mock()
         retry_config.calculate_delay.return_value = 1  # 1ms delay
         orchestrator_with_dynamic_composition.failure_manager.retry_configs = {
             "failing_agent": retry_config
@@ -2094,9 +2148,11 @@ class TestAdvancedOrchestratorCriticalPaths:
         assert call_count == 3  # Failed twice, succeeded third time
 
     @pytest.mark.asyncio
-    async def test_hot_swap_functionality(self, orchestrator_with_dynamic_composition):
+    async def test_hot_swap_functionality(
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test agent hot-swap functionality - lines 574-607."""
-        context = AgentContext(query="test hot swap")
+        context = AgentContextPatterns.simple_query("test hot swap")
 
         # Mock swap opportunities
         swap_opportunities = [
@@ -2131,10 +2187,10 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_cleanup_and_finalization_resource_release(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test cleanup and finalization phase - lines 448-477."""
-        context = AgentContext(query="test cleanup")
+        context = AgentContextPatterns.simple_query("test cleanup")
 
         # Add loaded agents
         orchestrator_with_dynamic_composition.loaded_agents = {
@@ -2185,21 +2241,21 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_stage_recovery_mechanisms(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test stage recovery mechanisms - lines 609-626."""
-        context = AgentContext(query="test stage recovery")
+        context = AgentContextPatterns.simple_query("test stage recovery")
         error = Exception("Stage execution failed")
 
         # Mock stage
-        mock_stage = Mock()
+        mock_stage: Mock = Mock()
         mock_stage.stage_id = "test_stage_1"
 
         # Test fallback plan recovery
-        fallback_plan = Mock()
+        fallback_plan: Mock = Mock()
         fallback_plan.stage_id = "fallback_stage_1"
 
-        current_plan = Mock()
+        current_plan: Mock = Mock()
         current_plan.fallback_plan = fallback_plan
         orchestrator_with_dynamic_composition.current_plan = current_plan
 
@@ -2213,10 +2269,10 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_pipeline_failure_handling(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test pipeline failure handling - lines 628-647."""
-        context = AgentContext(query="test pipeline failure")
+        context = AgentContextPatterns.simple_query("test pipeline failure")
         error = RuntimeError("Critical pipeline error")
 
         # Mock failure manager with recovery checkpoints
@@ -2245,8 +2301,8 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_advanced_orchestrator_full_pipeline_with_all_phases(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test complete advanced orchestrator pipeline - lines 289-341."""
         query = "test full pipeline"
 
@@ -2259,7 +2315,7 @@ class TestAdvancedOrchestratorCriticalPaths:
         )
 
         # Mock execution plan
-        mock_plan = Mock()
+        mock_plan: Mock = Mock()
         mock_plan.get_execution_summary.return_value = {"stages": 2}
         mock_plan.get_total_stages.return_value = 2
         mock_plan.parallelism_factor = 1.5
@@ -2282,7 +2338,7 @@ class TestAdvancedOrchestratorCriticalPaths:
         )
 
         # Mock metrics collector
-        mock_metrics = Mock()
+        mock_metrics: Mock = Mock()
         mock_metrics.record_pipeline_execution = Mock()
 
         with patch(
@@ -2308,13 +2364,13 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_sequential_stage_execution(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test sequential stage execution - lines 495-499."""
-        context = AgentContext(query="test sequential execution")
+        context = AgentContextPatterns.simple_query("test sequential execution")
 
         # Create mock stage
-        mock_stage = Mock()
+        mock_stage: Mock = Mock()
         mock_stage.agents = ["agent1", "agent2"]
 
         # Add agents
@@ -2326,7 +2382,7 @@ class TestAdvancedOrchestratorCriticalPaths:
         # Track execution order
         execution_order = []
 
-        async def track_sequential_execution(agent_id, ctx):
+        async def track_sequential_execution(agent_id: str, ctx: Any) -> None:
             execution_order.append(agent_id)
             await asyncio.sleep(0.01)  # Small delay
 
@@ -2343,19 +2399,20 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_checkpoint_rollback_recovery(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test checkpoint rollback recovery when fallback plan unavailable."""
-        context = AgentContext(query="test checkpoint recovery")
+        context = AgentContextPatterns.simple_query("test checkpoint recovery")
         error = Exception("Stage execution failed")
 
         # Mock stage
-        mock_stage = Mock()
+        mock_stage: Mock = Mock()
         mock_stage.stage_id = "failing_stage"
 
         # No fallback plan available
-        orchestrator_with_dynamic_composition.current_plan = Mock()
-        orchestrator_with_dynamic_composition.current_plan.fallback_plan = None
+        current_plan_mock = Mock()
+        current_plan_mock.fallback_plan = None
+        orchestrator_with_dynamic_composition.current_plan = current_plan_mock
 
         # Mock failure manager with checkpoints
         orchestrator_with_dynamic_composition.failure_manager.recovery_checkpoints = {
@@ -2377,10 +2434,10 @@ class TestAdvancedOrchestratorCriticalPaths:
 
     @pytest.mark.asyncio
     async def test_agent_execution_timeout_and_circuit_breaker(
-        self, orchestrator_with_dynamic_composition
-    ):
+        self, orchestrator_with_dynamic_composition: Any
+    ) -> None:
         """Test agent execution with timeout and circuit breaker integration."""
-        context = AgentContext(query="test timeout handling")
+        context = AgentContextPatterns.simple_query("test timeout handling")
 
         # Create agent that will fail immediately to trigger circuit breaker logic
         failing_agent = MockAgent("failing_agent", should_fail=True)
@@ -2391,7 +2448,7 @@ class TestAdvancedOrchestratorCriticalPaths:
         # Mock failure manager to deny execution on second attempt (circuit breaker opens)
         call_count = 0
 
-        def mock_can_execute(agent_id, ctx):
+        def mock_can_execute(agent_id: str, ctx: Any) -> Any:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -2409,7 +2466,7 @@ class TestAdvancedOrchestratorCriticalPaths:
         )
 
         # Mock circuit breaker
-        circuit_breaker = Mock()
+        circuit_breaker: Mock = Mock()
         orchestrator_with_dynamic_composition.failure_manager.circuit_breakers = {
             "failing_agent": circuit_breaker
         }

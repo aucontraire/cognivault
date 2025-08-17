@@ -308,7 +308,7 @@ class AdvancedOrchestrator:
         self,
         graph_engine: DependencyGraphEngine,
         config: OrchestratorConfig,
-    ):
+    ) -> None:
         # Core components
         self.graph_engine = graph_engine
         self.config = config
@@ -620,7 +620,7 @@ class AdvancedOrchestrator:
             "total_duration_ms", (time.time() - start_time) * 1000
         )
 
-    async def _execute_parallel_stage(self, stage, context: AgentContext) -> None:
+    async def _execute_parallel_stage(self, stage: Any, context: AgentContext) -> None:
         """Execute a parallel stage with concurrent agent execution."""
         tasks = []
 
@@ -637,7 +637,9 @@ class AdvancedOrchestrator:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _execute_sequential_stage(self, stage, context: AgentContext) -> None:
+    async def _execute_sequential_stage(
+        self, stage: Any, context: AgentContext
+    ) -> None:
         """Execute a sequential stage with one-by-one agent execution."""
         for agent_id in stage.agents:
             if agent_id in self.loaded_agents:
@@ -711,7 +713,18 @@ class AdvancedOrchestrator:
                 # Wait before retry
                 if attempt_number <= max_attempts:
                     retry_config = self.failure_manager.retry_configs.get(
-                        agent_id, RetryConfiguration()
+                        agent_id,
+                        RetryConfiguration(
+                            strategy=RetryStrategy.EXPONENTIAL_BACKOFF,
+                            max_attempts=3,
+                            base_delay_ms=1000.0,
+                            max_delay_ms=30000.0,
+                            backoff_multiplier=2.0,
+                            jitter=True,
+                            reset_on_success=True,
+                            success_rate_threshold=0.7,
+                            failure_window_size=10,
+                        ),
                     )
                     delay_ms = retry_config.calculate_delay(attempt_number)
                     await asyncio.sleep(delay_ms / 1000)
@@ -752,7 +765,7 @@ class AdvancedOrchestrator:
         return False
 
     async def _attempt_stage_recovery(
-        self, stage, error: Exception, context: AgentContext
+        self, stage: Any, error: Exception, context: AgentContext
     ) -> bool:
         """Attempt to recover from stage failure."""
         logger.info(f"Attempting stage recovery for: {stage.stage_id}")
@@ -809,7 +822,11 @@ class AdvancedOrchestrator:
         if hasattr(agent, "resource_requirements"):
             for req_type, req_amount in agent.resource_requirements.items():
                 constraint = ResourceConstraint(
-                    resource_type=req_type, max_usage=req_amount, units="units"
+                    resource_type=req_type,
+                    max_usage=req_amount,
+                    units="units",
+                    shared=False,
+                    renewable=True,
                 )
                 resource_constraints.append(constraint)
 
@@ -828,9 +845,15 @@ class AdvancedOrchestrator:
         """Configure failure handling for an agent."""
         # Configure retry behavior
         retry_config = RetryConfiguration(
-            max_attempts=3,
-            base_delay_ms=1000,
             strategy=RetryStrategy.EXPONENTIAL_BACKOFF,
+            max_attempts=3,
+            base_delay_ms=1000.0,
+            max_delay_ms=30000.0,
+            backoff_multiplier=2.0,
+            jitter=True,
+            reset_on_success=True,
+            success_rate_threshold=0.7,
+            failure_window_size=10,
         )
         self.failure_manager.configure_retry(agent_name, retry_config)
 

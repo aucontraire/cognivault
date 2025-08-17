@@ -77,7 +77,7 @@ class NodeExecutionConfig(BaseModel):
 
     @field_validator("timeout_seconds")
     @classmethod
-    def validate_timeout_positive(cls, v):
+    def validate_timeout_positive(cls, v: float) -> float:
         """Ensure timeout is positive."""
         if v <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -85,7 +85,7 @@ class NodeExecutionConfig(BaseModel):
 
     @field_validator("retry_delay_seconds")
     @classmethod
-    def validate_retry_delay_non_negative(cls, v):
+    def validate_retry_delay_non_negative(cls, v: float) -> float:
         """Ensure retry delay is non-negative."""
         if v < 0:
             raise ValueError("retry_delay_seconds must be non-negative")
@@ -161,14 +161,14 @@ class DAGExecutionConfig(BaseModel):
 
     @field_validator("max_execution_time_seconds")
     @classmethod
-    def validate_max_execution_time(cls, v):
+    def validate_max_execution_time(cls, v: float) -> float:
         """Ensure maximum execution time is positive."""
         if v <= 0:
             raise ValueError("max_execution_time_seconds must be positive")
         return v
 
     @model_validator(mode="after")
-    def validate_snapshot_interval(self):
+    def validate_snapshot_interval(self) -> "DAGExecutionConfig":
         """Ensure snapshot interval is positive when snapshots are enabled."""
         if self.enable_state_snapshots and self.snapshot_interval_seconds <= 0:
             raise ValueError(
@@ -178,7 +178,7 @@ class DAGExecutionConfig(BaseModel):
 
     @field_validator("global_timeout_seconds")
     @classmethod
-    def validate_global_timeout(cls, v):
+    def validate_global_timeout(cls, v: Optional[float]) -> Optional[float]:
         """Ensure global timeout is positive if specified."""
         if v is not None and v <= 0:
             raise ValueError("global_timeout_seconds must be positive")
@@ -315,7 +315,7 @@ class LangGraphIntegrationConfig(BaseModel):
 
     @field_validator("max_graph_depth")
     @classmethod
-    def validate_graph_depth(cls, v):
+    def validate_graph_depth(cls, v: int) -> int:
         """Ensure graph depth is within reasonable bounds."""
         if v <= 0:
             raise ValueError("max_graph_depth must be positive")

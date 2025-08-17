@@ -1,7 +1,14 @@
 import openai
 import time
-from typing import Any, Iterator, Optional, Callable, Union, cast, List
-from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+from typing import Any, Iterator, Optional, Callable, Union, cast, List, Generator
+from openai.types.chat import (
+    ChatCompletion,
+    ChatCompletionMessageParam,
+    ChatCompletionChunk,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionUserMessageParam,
+)
+from openai import Stream
 from .llm_interface import LLMInterface, LLMResponse
 from cognivault.exceptions import (
     LLMQuotaError,
@@ -22,7 +29,7 @@ class OpenAIChatLLM(LLMInterface):
         api_key: str,
         model: str = "gpt-4",
         base_url: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Initialize the OpenAIChatLLM.
 
@@ -95,8 +102,20 @@ class OpenAIChatLLM(LLMInterface):
         # Build messages array with optional system prompt
         messages: List[ChatCompletionMessageParam] = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+            system_message: ChatCompletionSystemMessageParam = {
+                "role": "system",
+                "content": system_prompt,
+            }
+            messages.append(system_message)
+
+        user_message: ChatCompletionUserMessageParam = {
+            "role": "user",
+            "content": prompt,
+        }
+        messages.append(user_message)
+
+        # Initialize response variable to ensure type safety
+        response: Union[Stream[ChatCompletionChunk], ChatCompletion]
 
         try:
             logger.debug(
@@ -184,9 +203,11 @@ class OpenAIChatLLM(LLMInterface):
             )
 
         if stream:
+            # Cast to proper streaming response type
+            stream_response = cast(Stream[ChatCompletionChunk], response)
 
-            def token_generator():
-                for chunk in response:
+            def token_generator() -> Generator[str, None, None]:
+                for chunk in stream_response:
                     delta = chunk.choices[0].delta
                     content = delta.content or ""
                     if on_log and content:
@@ -360,7 +381,7 @@ class OpenAIChatLLM(LLMInterface):
             import re
 
             token_match = re.search(
-                r"(\d+)\s*(?:tokens?).*?(?:maximum|limit).*?(\d+)",
+                r"(\d+)\s*tokens?.*?(?:maximum|limit).*?(\d+)",
                 error_message.lower(),
             )
             if token_match:
@@ -390,7 +411,7 @@ class OpenAIChatLLM(LLMInterface):
             )
 
         # Handle server errors (5xx)
-        if status_code and 500 <= status_code < 600:
+        if status_code is not None and 500 <= status_code < 600:
             raise LLMServerError(
                 llm_provider="openai",
                 http_status=status_code,

@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Test that API protection mechanisms work correctly.
 
@@ -11,7 +13,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
-def test_openai_api_key_is_safe():
+def test_openai_api_key_is_safe() -> None:
     """Test that OPENAI_API_KEY is set to a safe test value."""
     # Our conftest.py should set this to a safe test value
     api_key = os.getenv("OPENAI_API_KEY")
@@ -20,7 +22,7 @@ def test_openai_api_key_is_safe():
     )
 
 
-def test_openai_model_is_safe():
+def test_openai_model_is_safe() -> None:
     """Test that OPENAI_MODEL is set to a safe test value."""
     # Our conftest.py should set this to a safe test value
     model = os.getenv("OPENAI_MODEL")
@@ -29,7 +31,7 @@ def test_openai_model_is_safe():
     )
 
 
-def test_openai_base_url_is_safe():
+def test_openai_base_url_is_safe() -> None:
     """Test that OPENAI_BASE_URL is set to a safe test value."""
     # Our conftest.py should set this to a safe test value
     base_url = os.getenv("OPENAI_BASE_URL")
@@ -38,7 +40,7 @@ def test_openai_base_url_is_safe():
     )
 
 
-def test_agent_initialization_with_llm_none_is_safe():
+def test_agent_initialization_with_llm_none_is_safe() -> None:
     """Test that agent initialization with llm=None is safe."""
     from cognivault.agents.historian.agent import HistorianAgent
     from cognivault.agents.synthesis.agent import SynthesisAgent
@@ -53,7 +55,7 @@ def test_agent_initialization_with_llm_none_is_safe():
     assert synthesis.name == "synthesis"
 
 
-def test_config_loading_works_with_safe_values():
+def test_config_loading_works_with_safe_values() -> None:
     """Test that configuration loading works without errors."""
     from cognivault.config.openai_config import OpenAIConfig
 

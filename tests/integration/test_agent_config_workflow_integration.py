@@ -6,9 +6,10 @@ prompt composition architecture using a real YAML workflow definition.
 """
 
 import pytest
+from typing import Any
 import os
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.workflows.definition import WorkflowDefinition
 from cognivault.workflows.composer import DagComposer, create_agent_config
@@ -24,16 +25,18 @@ class TestAgentConfigWorkflowIntegration:
     """Integration tests for agent configuration with YAML workflows."""
 
     @pytest.fixture
-    def test_workflow_path(self):
+    def test_workflow_path(self) -> Path:
         """Get path to the test workflow YAML file."""
         return Path(__file__).parent / "test_agent_config_workflow_integration.yaml"
 
     @pytest.fixture
-    def workflow_definition(self, test_workflow_path):
+    def workflow_definition(self, test_workflow_path: Path) -> WorkflowDefinition:
         """Load the test workflow definition from YAML."""
         return WorkflowDefinition.from_yaml_file(str(test_workflow_path))
 
-    def test_workflow_yaml_loads_correctly(self, workflow_definition):
+    def test_workflow_yaml_loads_correctly(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that the YAML workflow loads and parses correctly."""
         assert workflow_definition.workflow_id == "agent-config-integration-test"
         assert (
@@ -52,7 +55,9 @@ class TestAgentConfigWorkflowIntegration:
         ]
         assert all(node_id in node_ids for node_id in expected_nodes)
 
-    def test_configured_refiner_node_config(self, workflow_definition):
+    def test_configured_refiner_node_config(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that the configured refiner node has correct configuration."""
         refiner_node = next(
             node
@@ -78,7 +83,9 @@ class TestAgentConfigWorkflowIntegration:
             "advanced query refinement specialist" in config["prompts"]["system_prompt"]
         )
 
-    def test_create_agent_config_from_workflow_node(self, workflow_definition):
+    def test_create_agent_config_from_workflow_node(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test creating agent configurations from workflow node definitions."""
         # Test configured refiner
         refiner_node = next(
@@ -147,7 +154,9 @@ class TestAgentConfigWorkflowIntegration:
         assert synthesis_config.meta_analysis is True
         assert synthesis_config.integration_mode == "hierarchical"
 
-    def test_legacy_configuration_backward_compatibility(self, workflow_definition):
+    def test_legacy_configuration_backward_compatibility(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that legacy configuration format still works."""
         legacy_node = next(
             node
@@ -164,7 +173,9 @@ class TestAgentConfigWorkflowIntegration:
             == "You are a legacy query refiner. Process queries using the traditional format."
         )
 
-    def test_workflow_composition_with_configurations(self, workflow_definition):
+    def test_workflow_composition_with_configurations(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that the workflow can be composed with agent configurations."""
         composer = DagComposer()
 
@@ -172,22 +183,24 @@ class TestAgentConfigWorkflowIntegration:
         composer._validate_workflow(workflow_definition)
 
         # Test that workflow can be composed (would create StateGraph in real usage)
-        # We'll mock the dependencies to avoid full LLM setup
-        with patch("cognivault.orchestration.state_schemas.CogniVaultState"):
-            graph = composer.compose_workflow(workflow_definition)
-            assert graph is not None
+        # CogniVaultState is a TypedDict and doesn't need mocking
+        graph = composer.compose_workflow(workflow_definition)
+        assert graph is not None
 
     @patch("cognivault.llm.openai.OpenAIChatLLM")
     @patch("cognivault.config.openai_config.OpenAIConfig.load")
     def test_node_creation_with_configurations(
-        self, mock_config_load, mock_llm_class, workflow_definition
-    ):
+        self,
+        mock_config_load: Mock,
+        mock_llm_class: Mock,
+        workflow_definition: WorkflowDefinition,
+    ) -> None:
         """Test that nodes are created with proper agent configurations."""
         # Setup mocks
         mock_config_load.return_value = Mock(
             api_key="test-key", model="gpt-4", base_url=None
         )
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
         mock_llm_class.return_value = mock_llm
 
         composer = DagComposer()
@@ -200,13 +213,13 @@ class TestAgentConfigWorkflowIntegration:
         )
 
         with patch("cognivault.workflows.composer.get_agent_class") as mock_get_agent:
-            mock_agent_class = Mock()
+            mock_agent_class: Mock = Mock()
             # Set up the mock to have a signature that accepts config
-            mock_signature = Mock()
+            mock_signature: Mock = Mock()
             mock_signature.parameters.keys.return_value = ["self", "llm", "config"]
 
             with patch("inspect.signature", return_value=mock_signature):
-                mock_agent_instance = Mock()
+                mock_agent_instance: Mock = Mock()
                 mock_agent_instance.name = "Refiner"
                 mock_agent_instance.run = AsyncMock(
                     return_value=Mock(agent_outputs={"Refiner": "Configured output"})
@@ -237,7 +250,9 @@ class TestAgentConfigWorkflowIntegration:
                 assert "configured_refiner" in result
                 assert result["configured_refiner"]["output"] == "Configured output"
 
-    def test_workflow_metadata_validation(self, workflow_definition):
+    def test_workflow_metadata_validation(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that workflow metadata includes configuration validation criteria."""
         metadata = workflow_definition.metadata
 
@@ -263,7 +278,9 @@ class TestAgentConfigWorkflowIntegration:
             "backward compatibility" in criteria for criteria in validation_criteria
         )
 
-    def test_configuration_serialization_roundtrip(self, workflow_definition):
+    def test_configuration_serialization_roundtrip(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that configurations can be serialized and restored correctly."""
         # Get a configured node
         refiner_node = next(
@@ -294,7 +311,9 @@ class TestAgentConfigWorkflowIntegration:
             == restored_config.prompt_config.custom_system_prompt
         )
 
-    def test_multi_agent_configuration_consistency(self, workflow_definition):
+    def test_multi_agent_configuration_consistency(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that multiple agents can be configured consistently in one workflow."""
         configs = {}
 
@@ -324,7 +343,9 @@ class TestAgentConfigWorkflowIntegration:
                         f"{config_name} should have custom constraints"
                     )
 
-    def test_workflow_flow_definition_with_configurations(self, workflow_definition):
+    def test_workflow_flow_definition_with_configurations(
+        self, workflow_definition: WorkflowDefinition
+    ) -> None:
         """Test that the workflow flow respects agent configurations."""
         flow = workflow_definition.flow
 
@@ -342,7 +363,7 @@ class TestAgentConfigWorkflowIntegration:
         # Verify terminal node
         assert "configured_synthesis" in flow.terminal_nodes
 
-    def test_configuration_error_handling(self):
+    def test_configuration_error_handling(self) -> None:
         """Test that configuration errors are handled gracefully with ConfigMapper fallbacks."""
         # Test with invalid configuration - ConfigMapper should gracefully fall back to defaults
         invalid_config = {
@@ -370,7 +391,7 @@ class TestAgentConfigWorkflowIntegration:
         assert config.refinement_level == "comprehensive"
         assert config.behavioral_mode == "active"
 
-    def test_empty_configuration_fallback(self):
+    def test_empty_configuration_fallback(self) -> None:
         """Test that empty or missing configurations fall back to defaults."""
         # Test with None config
         config = create_agent_config("refiner", None)
@@ -386,7 +407,7 @@ class TestAgentConfigWorkflowIntegration:
 class TestWorkflowConfigurationValidation:
     """Test configuration validation and error handling."""
 
-    def test_workflow_yaml_file_exists(self):
+    def test_workflow_yaml_file_exists(self) -> None:
         """Test that the workflow YAML file exists and is readable."""
         workflow_path = (
             Path(__file__).parent / "test_agent_config_workflow_integration.yaml"
@@ -401,7 +422,7 @@ class TestWorkflowConfigurationValidation:
             assert "workflow_id:" in content
             assert "nodes:" in content
 
-    def test_workflow_node_configuration_structure(self):
+    def test_workflow_node_configuration_structure(self) -> None:
         """Test that workflow nodes have the expected configuration structure."""
         workflow_path = (
             Path(__file__).parent / "test_agent_config_workflow_integration.yaml"

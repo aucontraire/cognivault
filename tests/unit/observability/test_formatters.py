@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Tests for observability formatters.
 
@@ -32,11 +34,11 @@ from cognivault.observability.context import (
 class TestJSONFormatter:
     """Test JSONFormatter functionality."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear observability context after each test."""
         clear_observability_context()
 
-    def test_basic_json_formatting(self):
+    def test_basic_json_formatting(self) -> None:
         """Test basic JSON log formatting."""
         formatter = JSONFormatter()
         record = logging.LogRecord(
@@ -62,7 +64,7 @@ class TestJSONFormatter:
         assert parsed["line"] == 42
         assert "timestamp" in parsed
 
-    def test_json_formatting_with_correlation_id(self):
+    def test_json_formatting_with_correlation_id(self) -> None:
         """Test JSON formatting includes correlation ID."""
         formatter = JSONFormatter(include_correlation=True)
         set_correlation_id("test-correlation-123")
@@ -84,7 +86,7 @@ class TestJSONFormatter:
 
         assert parsed["correlation_id"] == "test-correlation-123"
 
-    def test_json_formatting_without_correlation_id(self):
+    def test_json_formatting_without_correlation_id(self) -> None:
         """Test JSON formatting excludes correlation ID when disabled."""
         formatter = JSONFormatter(include_correlation=False)
         set_correlation_id("test-correlation-123")
@@ -106,7 +108,7 @@ class TestJSONFormatter:
 
         assert "correlation_id" not in parsed
 
-    def test_json_formatting_with_observability_context(self):
+    def test_json_formatting_with_observability_context(self) -> None:
         """Test JSON formatting includes observability context."""
         formatter = JSONFormatter()
         context = ObservabilityContext(
@@ -141,7 +143,7 @@ class TestJSONFormatter:
         assert parsed["context"]["execution_phase"] == "testing"
         assert parsed["context"]["metadata"]["custom"] == "value"
 
-    def test_json_formatting_with_exception(self):
+    def test_json_formatting_with_exception(self) -> None:
         """Test JSON formatting includes exception information."""
         formatter = JSONFormatter()
 
@@ -168,7 +170,7 @@ class TestJSONFormatter:
         assert parsed["exception"]["message"] == "Test exception"
         assert "traceback" in parsed["exception"]
 
-    def test_json_formatting_with_extra_fields(self):
+    def test_json_formatting_with_extra_fields(self) -> None:
         """Test JSON formatting includes extra fields."""
         extra_fields = {"service": "cognivault", "version": "1.0"}
         formatter = JSONFormatter(extra_fields=extra_fields)
@@ -199,11 +201,11 @@ class TestJSONFormatter:
 class TestCorrelatedFormatter:
     """Test CorrelatedFormatter functionality."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear observability context after each test."""
         clear_observability_context()
 
-    def test_basic_correlated_formatting(self):
+    def test_basic_correlated_formatting(self) -> None:
         """Test basic correlated log formatting."""
         formatter = CorrelatedFormatter()
 
@@ -226,7 +228,7 @@ class TestCorrelatedFormatter:
         assert "test.logger" in formatted
         assert "Test message" in formatted
 
-    def test_correlated_formatting_with_correlation_id(self):
+    def test_correlated_formatting_with_correlation_id(self) -> None:
         """Test correlated formatting includes correlation ID."""
         formatter = CorrelatedFormatter()
         set_correlation_id("test-correlation-123456789")
@@ -249,7 +251,7 @@ class TestCorrelatedFormatter:
         assert "[test-cor]" in formatted
         assert "Test message" in formatted
 
-    def test_correlated_formatting_with_context(self):
+    def test_correlated_formatting_with_context(self) -> None:
         """Test correlated formatting includes observability context."""
         formatter = CorrelatedFormatter(include_context=True)
         context = ObservabilityContext(agent_name="TestAgent", step_id="step-123")
@@ -272,7 +274,7 @@ class TestCorrelatedFormatter:
         assert "[TestAgent:step-123]" in formatted
         assert "Test message" in formatted
 
-    def test_correlated_formatting_without_context(self):
+    def test_correlated_formatting_without_context(self) -> None:
         """Test correlated formatting when context is disabled."""
         formatter = CorrelatedFormatter(include_context=False)
         context = ObservabilityContext(agent_name="TestAgent")
@@ -300,33 +302,33 @@ class TestCorrelatedFormatter:
 class TestFormatterHelpers:
     """Test formatter helper functions."""
 
-    def test_get_console_formatter_structured(self):
+    def test_get_console_formatter_structured(self) -> None:
         """Test getting structured console formatter."""
         formatter = get_console_formatter(structured=True, include_correlation=True)
 
         assert isinstance(formatter, JSONFormatter)
 
-    def test_get_console_formatter_human_readable(self):
+    def test_get_console_formatter_human_readable(self) -> None:
         """Test getting human-readable console formatter."""
         formatter = get_console_formatter(structured=False, include_correlation=True)
 
         assert isinstance(formatter, CorrelatedFormatter)
 
-    def test_get_file_formatter_structured(self):
+    def test_get_file_formatter_structured(self) -> None:
         """Test getting structured file formatter."""
         extra_fields = {"service": "test"}
         formatter = get_file_formatter(structured=True, extra_fields=extra_fields)
 
         assert isinstance(formatter, JSONFormatter)
 
-    def test_get_file_formatter_human_readable(self):
+    def test_get_file_formatter_human_readable(self) -> None:
         """Test getting human-readable file formatter."""
         formatter = get_file_formatter(structured=False)
 
         assert isinstance(formatter, CorrelatedFormatter)
 
     @patch("socket.gethostname")
-    def test_get_hostname_success(self, mock_gethostname):
+    def test_get_hostname_success(self, mock_gethostname: Any) -> None:
         """Test successful hostname retrieval."""
         mock_gethostname.return_value = "test-hostname"
 
@@ -335,7 +337,7 @@ class TestFormatterHelpers:
         assert hostname == "test-hostname"
 
     @patch("socket.gethostname")
-    def test_get_hostname_failure(self, mock_gethostname):
+    def test_get_hostname_failure(self, mock_gethostname: Any) -> None:
         """Test hostname retrieval failure."""
         mock_gethostname.side_effect = socket.error("Network error")
 
@@ -343,7 +345,7 @@ class TestFormatterHelpers:
 
         assert hostname == "unknown"
 
-    def test_get_process_id(self):
+    def test_get_process_id(self) -> None:
         """Test process ID retrieval."""
         import os
 
@@ -353,7 +355,7 @@ class TestFormatterHelpers:
         assert isinstance(pid, int)
         assert pid > 0
 
-    def test_get_python_version(self):
+    def test_get_python_version(self) -> None:
         """Test Python version retrieval."""
         version = get_python_version()
 
@@ -364,11 +366,11 @@ class TestFormatterHelpers:
 class TestFormatterIntegration:
     """Test formatter integration with actual logging."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear observability context after each test."""
         clear_observability_context()
 
-    def test_json_formatter_with_logger(self):
+    def test_json_formatter_with_logger(self) -> None:
         """Test JSON formatter integration with Python logger."""
         # Create string stream to capture output
         stream = StringIO()
@@ -403,7 +405,7 @@ class TestFormatterIntegration:
         finally:
             logger.removeHandler(handler)
 
-    def test_correlated_formatter_with_logger(self):
+    def test_correlated_formatter_with_logger(self) -> None:
         """Test correlated formatter integration with Python logger."""
         # Create string stream to capture output
         stream = StringIO()

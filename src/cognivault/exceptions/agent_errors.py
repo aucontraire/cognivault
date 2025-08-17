@@ -27,7 +27,7 @@ class AgentExecutionError(CogniVaultError):
         context: Optional[Dict[str, Any]] = None,
         step_id: Optional[str] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         context = context or {}
         context["agent_name"] = agent_name
 
@@ -60,7 +60,7 @@ class AgentDependencyMissingError(AgentExecutionError):
         message: Optional[str] = None,
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         deps_str = ", ".join(missing_dependencies)
         message = message or f"Agent '{agent_name}' requires output from: {deps_str}"
 
@@ -106,7 +106,7 @@ class AgentTimeoutError(AgentExecutionError):
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
         cause: Optional[Exception] = None,
-    ):
+    ) -> None:
         message = message or f"Agent '{agent_name}' timed out after {timeout_seconds}s"
 
         context = context or {}
@@ -147,7 +147,7 @@ class AgentConfigurationError(AgentExecutionError):
         message: Optional[str] = None,
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = message or f"Agent '{agent_name}' configuration error: {config_issue}"
 
         context = context or {}
@@ -188,7 +188,7 @@ class AgentResourceError(AgentExecutionError):
         message: Optional[str] = None,
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = (
             message
             or f"Agent '{agent_name}' cannot access {resource_type}: {resource_details}"
@@ -245,7 +245,7 @@ class AgentValidationError(AgentExecutionError):
         message: Optional[str] = None,
         step_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         message = (
             message
             or f"Agent '{agent_name}' validation failed for {validation_type}: {validation_details}"

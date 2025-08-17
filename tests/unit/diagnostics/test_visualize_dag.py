@@ -13,7 +13,7 @@ This module tests the DAG visualization functionality including:
 import pytest
 import tempfile
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from cognivault.diagnostics.visualize_dag import (
     DAGVisualizationConfig,
@@ -28,7 +28,7 @@ from cognivault.diagnostics.visualize_dag import (
 class TestDAGVisualizationConfig:
     """Test DAGVisualizationConfig dataclass."""
 
-    def test_config_default_values(self):
+    def test_config_default_values(self) -> None:
         """Test config has correct default values."""
         config = DAGVisualizationConfig()
 
@@ -37,7 +37,7 @@ class TestDAGVisualizationConfig:
         assert config.show_node_details is True
         assert config.include_metadata is True
 
-    def test_config_custom_values(self):
+    def test_config_custom_values(self) -> None:
         """Test config accepts custom values."""
         config = DAGVisualizationConfig(
             version="Phase 3.0",
@@ -51,7 +51,7 @@ class TestDAGVisualizationConfig:
         assert config.show_node_details is False
         assert config.include_metadata is False
 
-    def test_config_partial_overrides(self):
+    def test_config_partial_overrides(self) -> None:
         """Test config allows partial overrides."""
         config = DAGVisualizationConfig(version="Custom Version")
 
@@ -64,7 +64,7 @@ class TestDAGVisualizationConfig:
 class TestDAGVisualizer:
     """Test DAGVisualizer class functionality."""
 
-    def test_visualizer_initialization_default(self):
+    def test_visualizer_initialization_default(self) -> None:
         """Test visualizer initialization with default config."""
         visualizer = DAGVisualizer()
 
@@ -73,7 +73,7 @@ class TestDAGVisualizer:
         assert visualizer.config.show_node_details is True
         assert visualizer.config.include_metadata is True
 
-    def test_visualizer_initialization_custom_config(self):
+    def test_visualizer_initialization_custom_config(self) -> None:
         """Test visualizer initialization with custom config."""
         config = DAGVisualizationConfig(version="Test Version", show_state_flow=False)
         visualizer = DAGVisualizer(config)
@@ -81,7 +81,7 @@ class TestDAGVisualizer:
         assert visualizer.config.version == "Test Version"
         assert visualizer.config.show_state_flow is False
 
-    def test_get_node_label_known_agents(self):
+    def test_get_node_label_known_agents(self) -> None:
         """Test node label generation for known agents."""
         visualizer = DAGVisualizer()
 
@@ -98,7 +98,7 @@ class TestDAGVisualizer:
             == "📚 Historian<br/>Context Retrieval"
         )
 
-    def test_get_node_label_case_insensitive(self):
+    def test_get_node_label_case_insensitive(self) -> None:
         """Test node label generation is case insensitive."""
         visualizer = DAGVisualizer()
 
@@ -111,14 +111,14 @@ class TestDAGVisualizer:
             == "🔗 Synthesis<br/>Final Integration"
         )
 
-    def test_get_node_label_unknown_agent(self):
+    def test_get_node_label_unknown_agent(self) -> None:
         """Test node label generation for unknown agents."""
         visualizer = DAGVisualizer()
 
         assert visualizer._get_node_label("unknown") == "🤖 Unknown"
         assert visualizer._get_node_label("custom_agent") == "🤖 Custom_Agent"
 
-    def test_get_node_style_known_agents(self):
+    def test_get_node_style_known_agents(self) -> None:
         """Test node style generation for known agents."""
         visualizer = DAGVisualizer()
 
@@ -127,20 +127,20 @@ class TestDAGVisualizer:
         assert visualizer._get_node_style("synthesis") == "synthesis-node"
         assert visualizer._get_node_style("historian") == "historian-node"
 
-    def test_get_node_style_case_insensitive(self):
+    def test_get_node_style_case_insensitive(self) -> None:
         """Test node style generation is case insensitive."""
         visualizer = DAGVisualizer()
 
         assert visualizer._get_node_style("REFINER") == "refiner-node"
         assert visualizer._get_node_style("Critic") == "critic-node"
 
-    def test_get_node_style_unknown_agent(self):
+    def test_get_node_style_unknown_agent(self) -> None:
         """Test node style generation for unknown agents."""
         visualizer = DAGVisualizer()
 
         assert visualizer._get_node_style("unknown") == "default-node"
 
-    def test_generate_edges_simple_chain(self):
+    def test_generate_edges_simple_chain(self) -> None:
         """Test edge generation for simple chain dependency."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "critic", "synthesis"]
@@ -157,11 +157,11 @@ class TestDAGVisualizer:
         # Should have synthesis -> END (terminal)
         assert "SYNTHESIS --> END" in edges
 
-    def test_generate_edges_no_dependencies(self):
+    def test_generate_edges_no_dependencies(self) -> None:
         """Test edge generation when no dependencies exist."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "critic"]
-        dependencies = {}
+        dependencies: dict[str, list[str]] = {}
 
         edges = visualizer._generate_edges(agents, dependencies)
 
@@ -172,7 +172,7 @@ class TestDAGVisualizer:
         assert "REFINER --> END" in edges
         assert "CRITIC --> END" in edges
 
-    def test_generate_edges_complex_dag(self):
+    def test_generate_edges_complex_dag(self) -> None:
         """Test edge generation for complex DAG structure."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "historian", "critic", "synthesis"]
@@ -190,7 +190,7 @@ class TestDAGVisualizer:
         # Terminal node
         assert "SYNTHESIS --> END" in edges
 
-    def test_generate_state_flow_annotations(self):
+    def test_generate_state_flow_annotations(self) -> None:
         """Test state flow annotation generation."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "critic"]
@@ -204,7 +204,7 @@ class TestDAGVisualizer:
         assert '%% - Refiner adds RefinerOutput to state["refiner"]' in annotations
         assert '%% - Critic adds CriticOutput to state["critic"]' in annotations
 
-    def test_generate_node_styling(self):
+    def test_generate_node_styling(self) -> None:
         """Test node styling generation."""
         visualizer = DAGVisualizer()
 
@@ -232,7 +232,7 @@ class TestDAGVisualizer:
             in styling
         )
 
-    def test_generate_mermaid_diagram_basic(self):
+    def test_generate_mermaid_diagram_basic(self) -> None:
         """Test basic mermaid diagram generation."""
         visualizer = DAGVisualizer()
         agents = ["refiner", "critic"]
@@ -248,7 +248,7 @@ class TestDAGVisualizer:
         assert "START([🚀 START])" in diagram
         assert "END([🏁 END])" in diagram
 
-    def test_generate_mermaid_diagram_with_metadata(self):
+    def test_generate_mermaid_diagram_with_metadata(self) -> None:
         """Test mermaid diagram generation with metadata."""
         config = DAGVisualizationConfig(version="Test Version", include_metadata=True)
         visualizer = DAGVisualizer(config)
@@ -260,7 +260,7 @@ class TestDAGVisualizer:
         assert "%% Agents: refiner" in diagram
         assert "%% Generated:" in diagram
 
-    def test_generate_mermaid_diagram_without_metadata(self):
+    def test_generate_mermaid_diagram_without_metadata(self) -> None:
         """Test mermaid diagram generation without metadata."""
         config = DAGVisualizationConfig(include_metadata=False)
         visualizer = DAGVisualizer(config)
@@ -271,7 +271,7 @@ class TestDAGVisualizer:
         assert "%% DAG Version:" not in diagram
         assert "%% Generated:" not in diagram
 
-    def test_generate_mermaid_diagram_with_state_flow(self):
+    def test_generate_mermaid_diagram_with_state_flow(self) -> None:
         """Test mermaid diagram generation with state flow."""
         config = DAGVisualizationConfig(show_state_flow=True)
         visualizer = DAGVisualizer(config)
@@ -282,7 +282,7 @@ class TestDAGVisualizer:
         assert "%% Enhanced State Flow Information (Phase 2.2):" in diagram
         assert '%% - Refiner adds RefinerOutput to state["refiner"]' in diagram
 
-    def test_generate_mermaid_diagram_without_state_flow(self):
+    def test_generate_mermaid_diagram_without_state_flow(self) -> None:
         """Test mermaid diagram generation without state flow."""
         config = DAGVisualizationConfig(show_state_flow=False)
         visualizer = DAGVisualizer(config)
@@ -292,7 +292,7 @@ class TestDAGVisualizer:
 
         assert "%% State Flow Information:" not in diagram
 
-    def test_generate_mermaid_diagram_with_node_details(self):
+    def test_generate_mermaid_diagram_with_node_details(self) -> None:
         """Test mermaid diagram generation with node details."""
         config = DAGVisualizationConfig(show_node_details=True)
         visualizer = DAGVisualizer(config)
@@ -303,7 +303,7 @@ class TestDAGVisualizer:
         assert "classDef refiner-node" in diagram
         assert "class REFINER refiner-node" in diagram
 
-    def test_generate_mermaid_diagram_without_node_details(self):
+    def test_generate_mermaid_diagram_without_node_details(self) -> None:
         """Test mermaid diagram generation without node details."""
         config = DAGVisualizationConfig(show_node_details=False)
         visualizer = DAGVisualizer(config)
@@ -313,7 +313,7 @@ class TestDAGVisualizer:
 
         assert "classDef refiner-node" not in diagram
 
-    def test_output_to_stdout(self):
+    def test_output_to_stdout(self) -> None:
         """Test outputting diagram to stdout."""
         visualizer = DAGVisualizer()
         diagram = "test diagram content"
@@ -322,7 +322,7 @@ class TestDAGVisualizer:
             visualizer.output_to_stdout(diagram)
             mock_print.assert_called_once_with(diagram)
 
-    def test_output_to_file_success(self):
+    def test_output_to_file_success(self) -> None:
         """Test successful file output."""
         visualizer = DAGVisualizer()
         diagram = "test diagram content"
@@ -338,7 +338,7 @@ class TestDAGVisualizer:
                 content = f.read()
             assert content == diagram
 
-    def test_output_to_file_creates_directory(self):
+    def test_output_to_file_creates_directory(self) -> None:
         """Test file output creates directory if it doesn't exist."""
         visualizer = DAGVisualizer()
         diagram = "test diagram content"
@@ -354,7 +354,7 @@ class TestDAGVisualizer:
                 content = f.read()
             assert content == diagram
 
-    def test_output_to_file_no_directory(self):
+    def test_output_to_file_no_directory(self) -> None:
         """Test file output with no directory component."""
         visualizer = DAGVisualizer()
         diagram = "test diagram content"
@@ -375,7 +375,7 @@ class TestDAGVisualizer:
             finally:
                 os.chdir(original_cwd)
 
-    def test_output_to_file_error_handling(self):
+    def test_output_to_file_error_handling(self) -> None:
         """Test file output error handling."""
         visualizer = DAGVisualizer()
         diagram = "test diagram content"
@@ -384,14 +384,14 @@ class TestDAGVisualizer:
         with pytest.raises(Exception):
             visualizer.output_to_file(diagram, "/root/invalid/path/test.md")
 
-    def test_auto_detect_output_mode_stdout(self):
+    def test_auto_detect_output_mode_stdout(self) -> None:
         """Test auto-detection of stdout output mode."""
         visualizer = DAGVisualizer()
 
         assert visualizer.auto_detect_output_mode("stdout") == "stdout"
         assert visualizer.auto_detect_output_mode("STDOUT") == "stdout"
 
-    def test_auto_detect_output_mode_file(self):
+    def test_auto_detect_output_mode_file(self) -> None:
         """Test auto-detection of file output mode."""
         visualizer = DAGVisualizer()
 
@@ -399,14 +399,14 @@ class TestDAGVisualizer:
         assert visualizer.auto_detect_output_mode("path/to/file.mmd") == "file"
         assert visualizer.auto_detect_output_mode("file.txt") == "file"
 
-    def test_auto_detect_output_mode_unknown(self):
+    def test_auto_detect_output_mode_unknown(self) -> None:
         """Test auto-detection defaults to stdout for unknown specs."""
         visualizer = DAGVisualizer()
 
         assert visualizer.auto_detect_output_mode("unknown") == "stdout"
         assert visualizer.auto_detect_output_mode("") == "stdout"
 
-    def test_visualize_dag_stdout(self):
+    def test_visualize_dag_stdout(self) -> None:
         """Test complete DAG visualization to stdout."""
         visualizer = DAGVisualizer()
         agents = ["refiner"]
@@ -415,7 +415,7 @@ class TestDAGVisualizer:
             visualizer.visualize_dag(agents, "stdout")
             mock_stdout.assert_called_once()
 
-    def test_visualize_dag_file(self):
+    def test_visualize_dag_file(self) -> None:
         """Test complete DAG visualization to file."""
         visualizer = DAGVisualizer()
         agents = ["refiner"]
@@ -428,39 +428,39 @@ class TestDAGVisualizer:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_get_default_agents(self):
+    def test_get_default_agents(self) -> None:
         """Test getting default agent list."""
         agents = get_default_agents()
 
         assert agents == ["refiner", "critic", "historian", "synthesis"]
 
-    def test_validate_agents_all_supported(self):
+    def test_validate_agents_all_supported(self) -> None:
         """Test agent validation with all supported agents."""
         assert validate_agents(["refiner", "critic", "synthesis"]) is True
         assert validate_agents(["historian", "refiner"]) is True
         assert validate_agents(["synthesis"]) is True
 
-    def test_validate_agents_case_insensitive(self):
+    def test_validate_agents_case_insensitive(self) -> None:
         """Test agent validation is case insensitive."""
         assert validate_agents(["REFINER", "Critic", "SYNTHESIS"]) is True
 
-    def test_validate_agents_unsupported(self):
+    def test_validate_agents_unsupported(self) -> None:
         """Test agent validation with unsupported agents."""
         assert validate_agents(["refiner", "unknown"]) is False
         assert validate_agents(["invalid_agent"]) is False
 
-    def test_validate_agents_empty_list(self):
+    def test_validate_agents_empty_list(self) -> None:
         """Test agent validation with empty list."""
         assert validate_agents([]) is True
 
-    def test_create_dag_visualization_default(self):
+    def test_create_dag_visualization_default(self) -> None:
         """Test create_dag_visualization with default config."""
         agents = ["refiner"]
 
         with patch(
             "cognivault.diagnostics.visualize_dag.DAGVisualizer"
         ) as mock_visualizer_class:
-            mock_visualizer = MagicMock()
+            mock_visualizer: MagicMock = MagicMock()
             mock_visualizer_class.return_value = mock_visualizer
 
             create_dag_visualization(agents)
@@ -468,7 +468,7 @@ class TestUtilityFunctions:
             mock_visualizer_class.assert_called_once_with(None)
             mock_visualizer.visualize_dag.assert_called_once_with(agents, "stdout")
 
-    def test_create_dag_visualization_custom_config(self):
+    def test_create_dag_visualization_custom_config(self) -> None:
         """Test create_dag_visualization with custom config."""
         agents = ["refiner"]
         config = DAGVisualizationConfig(version="Test")
@@ -476,7 +476,7 @@ class TestUtilityFunctions:
         with patch(
             "cognivault.diagnostics.visualize_dag.DAGVisualizer"
         ) as mock_visualizer_class:
-            mock_visualizer = MagicMock()
+            mock_visualizer: MagicMock = MagicMock()
             mock_visualizer_class.return_value = mock_visualizer
 
             create_dag_visualization(agents, "file.md", config)
@@ -484,7 +484,7 @@ class TestUtilityFunctions:
             mock_visualizer_class.assert_called_once_with(config)
             mock_visualizer.visualize_dag.assert_called_once_with(agents, "file.md")
 
-    def test_cli_visualize_dag_default_agents(self):
+    def test_cli_visualize_dag_default_agents(self) -> None:
         """Test CLI visualization with default agents."""
         with patch(
             "cognivault.diagnostics.visualize_dag.create_dag_visualization"
@@ -500,7 +500,7 @@ class TestUtilityFunctions:
                 "synthesis",
             ]  # Default agents
 
-    def test_cli_visualize_dag_custom_agents(self):
+    def test_cli_visualize_dag_custom_agents(self) -> None:
         """Test CLI visualization with custom agents."""
         agents = ["refiner", "historian"]
 
@@ -513,7 +513,7 @@ class TestUtilityFunctions:
             args, kwargs = mock_create.call_args
             assert args[0] == agents
 
-    def test_cli_visualize_dag_custom_config(self):
+    def test_cli_visualize_dag_custom_config(self) -> None:
         """Test CLI visualization with custom configuration."""
         with patch(
             "cognivault.diagnostics.visualize_dag.create_dag_visualization"
@@ -534,7 +534,7 @@ class TestUtilityFunctions:
             assert config.show_state_flow is False
             assert config.show_node_details is False
 
-    def test_cli_visualize_dag_invalid_agents(self):
+    def test_cli_visualize_dag_invalid_agents(self) -> None:
         """Test CLI visualization with invalid agents."""
         with pytest.raises(ValueError, match="Unsupported agents found"):
             cli_visualize_dag(agents=["invalid_agent"])
@@ -543,7 +543,7 @@ class TestUtilityFunctions:
 class TestIntegration:
     """Integration tests for complete workflows."""
 
-    def test_complete_workflow_stdout(self):
+    def test_complete_workflow_stdout(self) -> None:
         """Test complete workflow outputting to stdout."""
         agents = ["refiner", "critic", "synthesis"]
 
@@ -560,7 +560,7 @@ class TestIntegration:
             assert "CRITIC[⚖️ Critic<br/>Critical Analysis<br/>🛡️]" in diagram
             assert "SYNTHESIS[🔗 Synthesis<br/>Final Integration<br/>🔄]" in diagram
 
-    def test_complete_workflow_file(self):
+    def test_complete_workflow_file(self) -> None:
         """Test complete workflow outputting to file."""
         agents = ["refiner", "critic"]
 
@@ -580,7 +580,7 @@ class TestIntegration:
             assert "REFINER[🔍 Refiner<br/>Query Refinement<br/>🔄]" in content
             assert "CRITIC[⚖️ Critic<br/>Critical Analysis<br/>🛡️]" in content
 
-    def test_complete_workflow_with_dependencies(self):
+    def test_complete_workflow_with_dependencies(self) -> None:
         """Test complete workflow with complex dependencies."""
         agents = ["refiner", "historian", "critic", "synthesis"]
 
@@ -595,7 +595,7 @@ class TestIntegration:
             assert "CRITIC[⚖️ Critic<br/>Critical Analysis<br/>🛡️]" in diagram
             assert "SYNTHESIS[🔗 Synthesis<br/>Final Integration<br/>🔄]" in diagram
 
-    def test_minimal_configuration(self):
+    def test_minimal_configuration(self) -> None:
         """Test with minimal configuration."""
         config = DAGVisualizationConfig(
             show_state_flow=False, show_node_details=False, include_metadata=False
@@ -615,7 +615,7 @@ class TestIntegration:
             assert "classDef refiner-node" not in diagram
             assert "%% DAG Version:" not in diagram
 
-    def test_error_handling_integration(self):
+    def test_error_handling_integration(self) -> None:
         """Test error handling in integration scenarios."""
         # Test with invalid file path
         with pytest.raises(Exception):

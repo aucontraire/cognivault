@@ -7,7 +7,7 @@ Provides health status, system diagnostics, and dependency checks.
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 
-from cognivault.api.base import HealthStatus
+from cognivault.api.base import APIHealthStatus
 from cognivault.api.factory import get_orchestration_api
 from cognivault.observability import get_logger
 

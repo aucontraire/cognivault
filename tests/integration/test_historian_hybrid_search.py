@@ -6,11 +6,16 @@ file-based and database search when hybrid search is enabled.
 """
 
 import pytest
+from typing import Any
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.agents.historian.search import SearchResult
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestHistorianHybridSearch:
@@ -18,7 +23,7 @@ class TestHistorianHybridSearch:
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_hybrid_search_enabled(self, mock_get_config):
+    async def test_hybrid_search_enabled(self, mock_get_config: Any) -> None:
         """Test that hybrid search combines file and database results when enabled."""
 
         # Configure hybrid search to be enabled
@@ -63,28 +68,34 @@ class TestHistorianHybridSearch:
         ]
 
         # Mock the individual search methods
-        agent._search_file_content = AsyncMock(return_value=file_results)
-        agent._search_database_content = AsyncMock(return_value=db_results)
+        with (
+            patch.object(
+                agent, "_search_file_content", new_callable=AsyncMock
+            ) as mock_file_search,
+            patch.object(
+                agent, "_search_database_content", new_callable=AsyncMock
+            ) as mock_db_search,
+        ):
+            mock_file_search.return_value = file_results
+            mock_db_search.return_value = db_results
 
-        # Execute hybrid search
-        context = AgentContext(query="test query")
-        results = await agent._search_historical_content("test query", context)
+            # Execute hybrid search
+            context = AgentContextPatterns.simple_query("test query")
+            results = await agent._search_historical_content("test query", context)
 
-        # Verify both search methods were called with correct limits
-        agent._search_file_content.assert_called_once_with("test query", 6)  # 60% of 10
-        agent._search_database_content.assert_called_once_with(
-            "test query", 4
-        )  # 40% of 10
+            # Verify both search methods were called with correct limits
+            mock_file_search.assert_called_once_with("test query", 6)  # 60% of 10
+            mock_db_search.assert_called_once_with("test query", 4)  # 40% of 10
 
-        # Verify results include both file and database results
-        assert len(results) == 2
-        result_sources = [r.metadata.get("source") for r in results]
-        assert "file" in result_sources
-        assert "database" in result_sources
+            # Verify results include both file and database results
+            assert len(results) == 2
+            result_sources = [r.metadata.get("source") for r in results]
+            assert "file" in result_sources
+            assert "database" in result_sources
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_hybrid_search_disabled_fallback(self, mock_get_config):
+    async def test_hybrid_search_disabled_fallback(self, mock_get_config: Any) -> None:
         """Test that hybrid search falls back to file-only when disabled."""
 
         # Configure hybrid search to be disabled explicitly
@@ -99,7 +110,9 @@ class TestHistorianHybridSearch:
 
         # Create agent with hybrid search disabled in config
         agent = HistorianAgent(llm=None)
-        agent.config.hybrid_search_enabled = False  # Ensure it's disabled at agent level too
+        agent.config.hybrid_search_enabled = (
+            False  # Ensure it's disabled at agent level too
+        )
 
         # Mock file search results
         file_results = [
@@ -116,24 +129,32 @@ class TestHistorianHybridSearch:
         ]
 
         # Mock the search methods
-        agent._search_file_content = AsyncMock(return_value=file_results)
-        agent._search_database_content = AsyncMock(return_value=[])
+        with (
+            patch.object(
+                agent, "_search_file_content", new_callable=AsyncMock
+            ) as mock_file_search,
+            patch.object(
+                agent, "_search_database_content", new_callable=AsyncMock
+            ) as mock_db_search,
+        ):
+            mock_file_search.return_value = file_results
+            mock_db_search.return_value = []
 
-        # Execute search
-        context = AgentContext(query="test query")
-        results = await agent._search_historical_content("test query", context)
+            # Execute search
+            context = AgentContextPatterns.simple_query("test query")
+            results = await agent._search_historical_content("test query", context)
 
-        # Verify only file search was called with full limit
-        agent._search_file_content.assert_called_once_with("test query", 10)
-        agent._search_database_content.assert_not_called()
+            # Verify only file search was called with full limit
+            mock_file_search.assert_called_once_with("test query", 10)
+            mock_db_search.assert_not_called()
 
-        # Verify results are only file results
-        assert len(results) == 1
-        assert results[0].metadata.get("source") == "file"
+            # Verify results are only file results
+            assert len(results) == 1
+            assert results[0].metadata.get("source") == "file"
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_hybrid_search_deduplication(self, mock_get_config):
+    async def test_hybrid_search_deduplication(self, mock_get_config: Any) -> None:
         """Test that hybrid search properly deduplicates results."""
 
         # Configure hybrid search to be enabled
@@ -165,20 +186,30 @@ class TestHistorianHybridSearch:
         db_results = [duplicate_result]  # Same content
 
         # Mock the search methods
-        agent._search_file_content = AsyncMock(return_value=file_results)
-        agent._search_database_content = AsyncMock(return_value=db_results)
+        with (
+            patch.object(
+                agent, "_search_file_content", new_callable=AsyncMock
+            ) as mock_file_search,
+            patch.object(
+                agent, "_search_database_content", new_callable=AsyncMock
+            ) as mock_db_search,
+        ):
+            mock_file_search.return_value = file_results
+            mock_db_search.return_value = db_results
 
-        # Execute hybrid search
-        context = AgentContext(query="test query")
-        results = await agent._search_historical_content("test query", context)
+            # Execute hybrid search
+            context = AgentContextPatterns.simple_query("test query")
+            results = await agent._search_historical_content("test query", context)
 
-        # Verify deduplication occurred - should only have 1 result, not 2
-        assert len(results) == 1
-        assert results[0].title == "Shared Content"
+            # Verify deduplication occurred - should only have 1 result, not 2
+            assert len(results) == 1
+            assert results[0].title == "Shared Content"
 
     @pytest.mark.asyncio
     @patch("cognivault.agents.historian.agent.get_config")
-    async def test_hybrid_search_database_failure_fallback(self, mock_get_config):
+    async def test_hybrid_search_database_failure_fallback(
+        self, mock_get_config: Any
+    ) -> None:
         """Test that hybrid search gracefully handles database failures."""
 
         # Configure hybrid search to be enabled
@@ -208,19 +239,25 @@ class TestHistorianHybridSearch:
             )
         ]
 
-        agent._search_file_content = AsyncMock(return_value=file_results)
-        agent._search_database_content = AsyncMock(
-            return_value=[]
-        )  # Database returns empty (failure)
+        with (
+            patch.object(
+                agent, "_search_file_content", new_callable=AsyncMock
+            ) as mock_file_search,
+            patch.object(
+                agent, "_search_database_content", new_callable=AsyncMock
+            ) as mock_db_search,
+        ):
+            mock_file_search.return_value = file_results
+            mock_db_search.return_value = []  # Database returns empty (failure)
 
-        # Execute hybrid search
-        context = AgentContext(query="test query")
-        results = await agent._search_historical_content("test query", context)
+            # Execute hybrid search
+            context = AgentContextPatterns.simple_query("test query")
+            results = await agent._search_historical_content("test query", context)
 
-        # Verify both methods were called
-        agent._search_file_content.assert_called_once()
-        agent._search_database_content.assert_called_once()
+            # Verify both methods were called
+            mock_file_search.assert_called_once()
+            mock_db_search.assert_called_once()
 
-        # Verify we still get file results even with database failure
-        assert len(results) == 1
-        assert results[0].metadata.get("source") == "file"
+            # Verify we still get file results even with database failure
+            assert len(results) == 1
+            assert results[0].metadata.get("source") == "file"

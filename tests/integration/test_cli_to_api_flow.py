@@ -7,6 +7,7 @@ the API layer to the underlying orchestrator.
 
 import pytest
 import asyncio
+from typing import Any, cast
 import os
 
 from cognivault.api.factory import (
@@ -14,13 +15,18 @@ from cognivault.api.factory import (
     initialize_api,
     shutdown_api,
     reset_api_cache,
-    temporary_api_mode,
+    TemporaryAPIMode,
 )
-from cognivault.api.models import WorkflowRequest, WorkflowResponse
+
+
+from cognivault.api.models import WorkflowResponse
+from tests.factories.api_model_factories import APIModelPatterns
 from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
 from cognivault.events import (
     get_global_event_emitter,
     InMemoryEventSink,
+    WorkflowStartedEvent,
+    WorkflowCompletedEvent,
 )
 from tests.fakes.mock_orchestration import MockOrchestrationAPI
 
@@ -28,43 +34,43 @@ from tests.fakes.mock_orchestration import MockOrchestrationAPI
 class TestAPIFactoryIntegration:
     """Test API factory integration and caching behavior."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset API cache before each test."""
         reset_api_cache()
         # Disable events for cleaner testing
         emitter = get_global_event_emitter()
         emitter.enabled = False
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up after each test."""
         reset_api_cache()
         # Disable events for cleaner testing
         emitter = get_global_event_emitter()
         emitter.enabled = False
 
-    def test_factory_singleton_caching(self):
+    def test_factory_singleton_caching(self) -> None:
         """Test that factory returns the same instance on multiple calls."""
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api1 = get_orchestration_api()
             api2 = get_orchestration_api()
 
             assert api1 is api2
             assert isinstance(api1, MockOrchestrationAPI)
 
-    def test_factory_mode_switching(self):
+    def test_factory_mode_switching(self) -> None:
         """Test switching between real and mock modes."""
         # Start with mock mode
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             mock_api = get_orchestration_api()
             assert isinstance(mock_api, MockOrchestrationAPI)
 
         # Switch to real mode
-        with temporary_api_mode("real"):
+        with TemporaryAPIMode("real"):
             real_api = get_orchestration_api()
             assert isinstance(real_api, LangGraphOrchestrationAPI)
-            assert real_api is not mock_api
+            # Different types by definition: LangGraphOrchestrationAPI vs MockOrchestrationAPI
 
-    def test_environment_variable_override(self):
+    def test_environment_variable_override(self) -> None:
         """Test that environment variables control API mode."""
         original_mode = os.getenv("COGNIVAULT_API_MODE")
 
@@ -93,14 +99,14 @@ class TestAPIFactoryIntegration:
 class TestEndToEndAPIFlow:
     """Test complete end-to-end API execution flow."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for each test."""
         reset_api_cache()
         # Disable events for cleaner testing
         emitter = get_global_event_emitter()
         emitter.enabled = False
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Cleanup after each test."""
         reset_api_cache()
         # Disable events for cleaner testing
@@ -108,14 +114,14 @@ class TestEndToEndAPIFlow:
         emitter.enabled = False
 
     @pytest.mark.asyncio
-    async def test_mock_api_workflow_execution(self):
+    async def test_mock_api_workflow_execution(self) -> None:
         """Test complete workflow execution using mock API."""
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = await initialize_api()
 
             try:
                 # Create test workflow request
-                request = WorkflowRequest(
+                request = APIModelPatterns.generate_valid_data(
                     query="What are the implications of quantum computing?",
                     agents=["refiner", "critic"],
                     correlation_id="test-123",
@@ -143,9 +149,9 @@ class TestEndToEndAPIFlow:
                 await shutdown_api()
 
     @pytest.mark.asyncio
-    async def test_api_error_handling(self):
+    async def test_api_error_handling(self) -> None:
         """Test API error handling and recovery."""
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = await initialize_api()
 
             try:
@@ -153,7 +159,7 @@ class TestEndToEndAPIFlow:
                 if hasattr(api, "set_failure_mode"):
                     api.set_failure_mode("execution_failure")
 
-                request = WorkflowRequest(
+                request = APIModelPatterns.generate_minimal_data(
                     query="Test failure scenario", agents=["refiner"]
                 )
 
@@ -169,9 +175,9 @@ class TestEndToEndAPIFlow:
                 await shutdown_api()
 
     @pytest.mark.asyncio
-    async def test_api_health_check_integration(self):
+    async def test_api_health_check_integration(self) -> None:
         """Test API health check functionality."""
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = await initialize_api()
 
             try:
@@ -191,13 +197,13 @@ class TestEndToEndAPIFlow:
                 await shutdown_api()
 
     @pytest.mark.asyncio
-    async def test_workflow_cancellation(self):
+    async def test_workflow_cancellation(self) -> None:
         """Test workflow cancellation functionality."""
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = await initialize_api()
 
             try:
-                request = WorkflowRequest(
+                request = APIModelPatterns.generate_valid_data(
                     query="Long running test query",
                     agents=["refiner", "critic", "historian", "synthesis"],
                 )
@@ -222,14 +228,14 @@ class TestEndToEndAPIFlow:
 class TestEventSystemIntegration:
     """Test event system integration with API layer."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for each test."""
         reset_api_cache()
         # Disable events for cleaner testing
         emitter = get_global_event_emitter()
         emitter.enabled = False
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Cleanup after each test."""
         reset_api_cache()
         # Disable events for cleaner testing
@@ -237,7 +243,7 @@ class TestEventSystemIntegration:
         emitter.enabled = False
 
     @pytest.mark.asyncio
-    async def test_event_emission_during_workflow(self):
+    async def test_event_emission_during_workflow(self) -> None:
         """Test that events are emitted during workflow execution."""
         # Enable events with in-memory sink
         emitter = get_global_event_emitter()
@@ -246,13 +252,13 @@ class TestEventSystemIntegration:
         emitter.add_sink(memory_sink)
 
         try:
-            with temporary_api_mode("mock"):
+            with TemporaryAPIMode("mock"):
                 api = await initialize_api()
 
                 # Clear any initialization events
                 memory_sink.clear_events()
 
-                request = WorkflowRequest(
+                request = APIModelPatterns.generate_valid_data(
                     query="Test event emission",
                     agents=["refiner", "critic"],
                     correlation_id="event-test-123",
@@ -278,12 +284,12 @@ class TestEventSystemIntegration:
                 assert len(started_events) >= 1
                 assert len(completed_events) >= 1
 
-                started_event = started_events[0]
+                started_event = cast(WorkflowStartedEvent, started_events[0])
                 assert started_event.workflow_id == response.workflow_id
                 assert started_event.correlation_id == "event-test-123"
                 assert started_event.query == "Test event emission"
 
-                completed_event = completed_events[0]
+                completed_event = cast(WorkflowCompletedEvent, completed_events[0])
                 assert completed_event.workflow_id == response.workflow_id
                 assert completed_event.status == "completed"
                 assert completed_event.execution_time_seconds > 0
@@ -298,14 +304,14 @@ class TestEventSystemIntegration:
 class TestCLIAPIIntegration:
     """Test CLI integration with API layer."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for each test."""
         reset_api_cache()
         # Disable events for cleaner testing
         emitter = get_global_event_emitter()
         emitter.enabled = False
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Cleanup after each test."""
         reset_api_cache()
         # Disable events for cleaner testing
@@ -313,14 +319,14 @@ class TestCLIAPIIntegration:
         emitter.enabled = False
 
     @pytest.mark.asyncio
-    async def test_cli_api_flag_integration(self):
+    async def test_cli_api_flag_integration(self) -> None:
         """Test CLI --use-api flag functionality."""
-        from cognivault.cli import _run_with_api
+        from cognivault.cli.main_commands import _run_with_api
         from rich.console import Console
 
         console = Console()
 
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             # Test API execution through CLI helper
             context = await _run_with_api(
                 query="Test CLI API integration",
@@ -340,9 +346,9 @@ class TestCLIAPIIntegration:
             assert context.metadata["api_mode"] == "mock"
 
     @pytest.mark.asyncio
-    async def test_cli_api_mode_override(self):
+    async def test_cli_api_mode_override(self) -> None:
         """Test CLI --api-mode flag functionality."""
-        from cognivault.cli import _run_with_api
+        from cognivault.cli.main_commands import _run_with_api
         from rich.console import Console
 
         console = Console()
@@ -360,7 +366,7 @@ class TestCLIAPIIntegration:
         assert context.metadata["api_mode"] == "mock"
 
     @pytest.mark.asyncio
-    async def test_environment_variable_cli_integration(self):
+    async def test_environment_variable_cli_integration(self) -> None:
         """Test CLI respects COGNIVAULT_USE_API environment variable."""
         # This would typically be tested by invoking the CLI process
         # For now, we test the environment variable logic
@@ -388,14 +394,14 @@ class TestCLIAPIIntegration:
 class TestPerformanceAndCompatibility:
     """Test performance and backward compatibility."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Setup for each test."""
         reset_api_cache()
         # Disable events for cleaner testing
         emitter = get_global_event_emitter()
         emitter.enabled = False
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Cleanup after each test."""
         reset_api_cache()
         # Disable events for cleaner testing
@@ -403,19 +409,21 @@ class TestPerformanceAndCompatibility:
         emitter.enabled = False
 
     @pytest.mark.asyncio
-    async def test_api_vs_direct_output_compatibility(self):
+    async def test_api_vs_direct_output_compatibility(self) -> None:
         """Test that API output is compatible with direct orchestrator output."""
         # This test ensures that both execution paths produce compatible results
 
         test_query = "What are the benefits of renewable energy?"
         test_agents = ["refiner", "critic"]
 
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = await initialize_api()
 
             try:
                 # Execute via API
-                request = WorkflowRequest(query=test_query, agents=test_agents)
+                request = APIModelPatterns.generate_valid_data(
+                    query=test_query, agents=test_agents
+                )
 
                 api_response = await api.execute_workflow(request)
 
@@ -437,15 +445,15 @@ class TestPerformanceAndCompatibility:
                 await shutdown_api()
 
     @pytest.mark.asyncio
-    async def test_api_execution_performance(self):
+    async def test_api_execution_performance(self) -> None:
         """Test API execution performance is reasonable."""
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = await initialize_api()
 
             try:
                 import time
 
-                request = WorkflowRequest(
+                request = APIModelPatterns.generate_minimal_data(
                     query="Performance test query", agents=["refiner"]
                 )
 
@@ -466,15 +474,15 @@ class TestPerformanceAndCompatibility:
                 await shutdown_api()
 
     @pytest.mark.asyncio
-    async def test_multiple_concurrent_workflows(self):
+    async def test_multiple_concurrent_workflows(self) -> None:
         """Test handling of multiple concurrent workflow requests."""
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = await initialize_api()
 
             try:
                 # Create multiple concurrent requests
                 requests = [
-                    WorkflowRequest(
+                    APIModelPatterns.generate_minimal_data(
                         query=f"Concurrent test query {i}",
                         agents=["refiner"],
                         correlation_id=f"concurrent-{i}",
@@ -503,8 +511,8 @@ class TestPerformanceAndCompatibility:
 
 
 # Pytest configuration and fixtures
-@pytest.fixture(scope="function")
-def clean_api_state():
+@pytest.fixture(scope="session")
+def clean_api_state() -> Any:
     """Ensure clean API state for each test."""
     reset_api_cache()
     emitter = get_global_event_emitter()
@@ -516,14 +524,14 @@ def clean_api_state():
 
 
 @pytest.fixture(scope="function")
-def mock_api_mode():
+def mock_api_mode() -> Any:
     """Force mock API mode for testing."""
-    with temporary_api_mode("mock"):
+    with TemporaryAPIMode("mock"):
         yield
 
 
-@pytest.fixture(scope="function")
-def event_tracking():
+@pytest.fixture(scope="session")
+def event_tracking() -> Any:
     """Enable event tracking for tests that need it."""
     emitter = get_global_event_emitter()
     emitter.enabled = True
@@ -541,17 +549,17 @@ if __name__ == "__main__":
     import sys
     import asyncio
 
-    async def run_basic_test():
+    async def run_basic_test() -> None:
         """Run a basic integration test."""
         print("Running basic API integration test...")
 
         reset_api_cache()
 
         try:
-            with temporary_api_mode("mock"):
+            with TemporaryAPIMode("mock"):
                 api = await initialize_api()
 
-                request = WorkflowRequest(
+                request = APIModelPatterns.generate_valid_data(
                     query="Basic integration test", agents=["refiner", "critic"]
                 )
 

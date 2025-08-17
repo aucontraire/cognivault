@@ -7,10 +7,10 @@ dynamic graph reconfiguration.
 """
 
 import importlib
+import importlib.util
 import inspect
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
@@ -275,7 +275,9 @@ class AgentDiscoverer(ABC):
 class FilesystemDiscoverer(AgentDiscoverer):
     """Discover agents by scanning the filesystem."""
 
-    def __init__(self, search_paths: List[Path], patterns: Optional[List[str]] = None):
+    def __init__(
+        self, search_paths: List[Path], patterns: Optional[List[str]] = None
+    ) -> None:
         self.search_paths = [Path(p) for p in search_paths]
         self.patterns = patterns or ["*agent*.py", "*_agent.py"]
         self._file_checksums: Dict[Path, str] = {}
@@ -379,7 +381,7 @@ class FilesystemDiscoverer(AgentDiscoverer):
 class RegistryDiscoverer(AgentDiscoverer):
     """Discover agents using the agent registry."""
 
-    def __init__(self, registry):
+    def __init__(self, registry: Any) -> None:
         self.registry = registry
 
     async def discover_agents(self) -> List[DiscoveredAgentInfo]:
@@ -413,7 +415,7 @@ class DynamicAgentComposer:
     composing execution graphs, and hot-swapping failed or outdated agents.
     """
 
-    def __init__(self, graph_engine: DependencyGraphEngine):
+    def __init__(self, graph_engine: DependencyGraphEngine) -> None:
         self.graph_engine = graph_engine
         self.discoverers: List[AgentDiscoverer] = []
         self.discovered_agents: Dict[str, DiscoveredAgentInfo] = {}
@@ -428,7 +430,9 @@ class DynamicAgentComposer:
 
         # Event tracking
         self.composition_events: List[Dict[str, Any]] = []
-        self.event_handlers: Dict[CompositionEvent, List[Callable]] = defaultdict(list)
+        self.event_handlers: Dict[
+            CompositionEvent, List[Callable[[Dict[str, Any]], None]]
+        ] = defaultdict(list)
 
         # Performance tracking
         self.discovery_stats = {
@@ -450,7 +454,9 @@ class DynamicAgentComposer:
         self.composition_rules.sort(key=lambda r: r.priority, reverse=True)
         logger.info(f"Added composition rule: {rule.name}")
 
-    def add_event_handler(self, event: CompositionEvent, handler: Callable) -> None:
+    def add_event_handler(
+        self, event: CompositionEvent, handler: Callable[[Dict[str, Any]], None]
+    ) -> None:
         """Add an event handler for composition events."""
         self.event_handlers[event].append(handler)
 
@@ -519,7 +525,7 @@ class DynamicAgentComposer:
             agent_class = getattr(module, class_name)
 
             # Create agent instance
-            agent = agent_class()
+            agent: BaseAgent = agent_class()
 
             # Update metadata
             metadata.load_count += 1
@@ -802,6 +808,7 @@ def create_version_upgrade_rule() -> CompositionRule:
         condition=condition,
         action=action,
         priority=10,
+        enabled=True,
         description="Swap agents when newer versions are discovered",
     )
 
@@ -823,5 +830,6 @@ def create_failure_recovery_rule() -> CompositionRule:
         condition=condition,
         action=action,
         priority=20,
+        enabled=True,
         description="Swap agents that have failed with alternatives",
     )

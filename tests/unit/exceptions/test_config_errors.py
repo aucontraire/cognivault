@@ -7,6 +7,7 @@ configuration validation failures.
 """
 
 import pytest
+from typing import Any, Dict
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -23,7 +24,7 @@ from cognivault.exceptions import (
 class TestConfigurationError:
     """Test ConfigurationError functionality."""
 
-    def test_configuration_error_creation(self):
+    def test_configuration_error_creation(self) -> None:
         """Test basic ConfigurationError creation."""
         error = ConfigurationError(
             message="Missing required field 'api_key'",
@@ -36,7 +37,7 @@ class TestConfigurationError:
         assert error.severity == ErrorSeverity.HIGH
         assert error.retry_policy == RetryPolicy.NEVER  # Config issues need manual fix
 
-    def test_configuration_error_with_all_params(self):
+    def test_configuration_error_with_all_params(self) -> None:
         """Test ConfigurationError with all parameters."""
         cause = ValueError("Invalid JSON format")
         context = {"config_file": "settings.yaml", "line_number": 25}
@@ -63,7 +64,7 @@ class TestConfigurationError:
         assert error.cause == cause
         assert error.context["config_file"] == "settings.yaml"
 
-    def test_configuration_context_injection(self):
+    def test_configuration_context_injection(self) -> None:
         """Test that configuration information is added to context."""
         error = ConfigurationError(
             message="Connection string invalid",
@@ -74,7 +75,7 @@ class TestConfigurationError:
         assert error.context["config_section"] == "database_config"
         assert error.context["section"] == "production"
 
-    def test_configuration_error_with_minimal_params(self):
+    def test_configuration_error_with_minimal_params(self) -> None:
         """Test ConfigurationError with minimal required parameters."""
         error = ConfigurationError(
             message="Basic validation failed",
@@ -83,7 +84,7 @@ class TestConfigurationError:
         assert error.message == "Basic validation failed"
         assert error.config_section is None
 
-    def test_configuration_error_inheritance(self):
+    def test_configuration_error_inheritance(self) -> None:
         """Test ConfigurationError inheritance hierarchy."""
         error = ConfigurationError(
             message="Test issue",
@@ -97,7 +98,7 @@ class TestConfigurationError:
 class TestConfigValidationError:
     """Test ConfigValidationError functionality."""
 
-    def test_validation_error_creation(self):
+    def test_validation_error_creation(self) -> None:
         """Test basic ConfigValidationError creation."""
         validation_errors = [
             "api_key is required",
@@ -120,7 +121,7 @@ class TestConfigValidationError:
         expected_msg = "Configuration validation failed in 'llm_validation' (3 errors)"
         assert error.message == expected_msg
 
-    def test_validation_error_with_all_params(self):
+    def test_validation_error_with_all_params(self) -> None:
         """Test ConfigValidationError with all parameters."""
         validation_errors = ["timeout must be positive", "retries must be integer"]
         context = {"schema_version": "1.2", "validator": "jsonschema"}
@@ -141,7 +142,7 @@ class TestConfigValidationError:
         assert error.agent_id == "ValidationAgent"
         assert error.context["schema_version"] == "1.2"
 
-    def test_validation_context_injection(self):
+    def test_validation_context_injection(self) -> None:
         """Test that validation information is added to context."""
         validation_errors = ["field1 invalid", "field2 missing"]
 
@@ -155,7 +156,7 @@ class TestConfigValidationError:
         assert error.context["error_count"] == 2
         assert error.context["validator_name"] == "custom_validator"
 
-    def test_validation_error_with_single_error(self):
+    def test_validation_error_with_single_error(self) -> None:
         """Test validation error with single validation error."""
         error = ConfigValidationError(
             config_section="single_error_test",
@@ -168,7 +169,7 @@ class TestConfigValidationError:
         assert error.message == expected_msg
         assert error.context["error_count"] == 1
 
-    def test_validation_error_with_empty_errors(self):
+    def test_validation_error_with_empty_errors(self) -> None:
         """Test validation error with empty validation errors list."""
         error = ConfigValidationError(
             config_section="empty_errors_test",
@@ -180,7 +181,7 @@ class TestConfigValidationError:
         assert error.context["error_count"] == 0
         assert error.message == "General schema validation failed"
 
-    def test_validation_error_user_message(self):
+    def test_validation_error_user_message(self) -> None:
         """Test user-friendly message for validation errors."""
         validation_errors = [
             "api_endpoint format invalid",
@@ -202,7 +203,7 @@ class TestConfigValidationError:
         assert "3. retries negative" in user_msg
         assert "💡 Tip: Fix configuration errors and restart." in user_msg
 
-    def test_validation_error_user_message_truncation(self):
+    def test_validation_error_user_message_truncation(self) -> None:
         """Test user message truncation for many validation errors."""
         validation_errors = [f"error_{i}" for i in range(5)]
 
@@ -217,7 +218,7 @@ class TestConfigValidationError:
         assert "3. error_2" in user_msg
         assert "... and 2 more errors" in user_msg
 
-    def test_validation_error_inheritance(self):
+    def test_validation_error_inheritance(self) -> None:
         """Test ConfigValidationError inheritance hierarchy."""
         error = ConfigValidationError(
             config_section="inheritance_test",
@@ -232,22 +233,22 @@ class TestConfigValidationError:
 class TestConfigurationErrorInheritance:
     """Test proper inheritance hierarchy for configuration errors."""
 
-    def test_validation_error_inherits_from_configuration_error(self):
+    def test_validation_error_inherits_from_configuration_error(self) -> None:
         """Test that ConfigValidationError inherits from ConfigurationError."""
         validation_error = ConfigValidationError("test", ["field"])
 
         assert isinstance(validation_error, ConfigurationError)
         assert isinstance(validation_error, CogniVaultError)
 
-    def test_configuration_error_inherits_from_base(self):
+    def test_configuration_error_inherits_from_base(self) -> None:
         """Test that ConfigurationError inherits from CogniVaultError."""
         config_error = ConfigurationError("test issue")
         assert isinstance(config_error, CogniVaultError)
 
-    def test_polymorphic_behavior(self):
+    def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of configuration errors."""
 
-        def handle_config_error(error: ConfigurationError) -> dict:
+        def handle_config_error(error: ConfigurationError) -> Dict[str, Any]:
             return {
                 "config_section": error.config_section,
                 "retryable": error.is_retryable(),
@@ -279,7 +280,7 @@ class TestConfigurationErrorInheritance:
 class TestConfigurationErrorIntegration:
     """Test integration aspects of configuration errors."""
 
-    def test_config_error_with_step_metadata(self):
+    def test_config_error_with_step_metadata(self) -> None:
         """Test configuration errors work properly with step metadata."""
         error = ConfigurationError(
             message="Invalid integration settings",
@@ -304,7 +305,7 @@ class TestConfigurationErrorIntegration:
         assert data["agent_id"] == "IntegrationAgent"
         assert "validation_stage" in data["context"]
 
-    def test_config_error_chaining_scenarios(self):
+    def test_config_error_chaining_scenarios(self) -> None:
         """Test various configuration error chaining scenarios."""
         # Original parsing error
         original = ValueError("Invalid YAML syntax")
@@ -331,7 +332,7 @@ class TestConfigurationErrorIntegration:
         config_data = config_error.to_dict()
         assert "Invalid YAML syntax" in config_data["cause"]
 
-    def test_exception_raising_and_catching(self):
+    def test_exception_raising_and_catching(self) -> None:
         """Test that configuration errors can be properly raised and caught."""
         # Test specific exception catching
         with pytest.raises(ConfigValidationError) as exc_info:
@@ -341,18 +342,18 @@ class TestConfigurationErrorIntegration:
         assert exc_info.value.validation_errors == ["test_field"]
 
         # Test catching as base type
-        with pytest.raises(ConfigurationError) as exc_info:
+        with pytest.raises(ConfigurationError) as config_exc_info:
             raise ConfigValidationError("validation", ["field"])
 
-        assert hasattr(exc_info.value, "validation_errors")
+        assert hasattr(config_exc_info.value, "validation_errors")
 
         # Test catching as CogniVaultError
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as base_exc_info:
             raise ConfigurationError("config issue")
 
-        assert exc_info.value.error_code == "config_error"
+        assert base_exc_info.value.error_code == "config_error"
 
-    def test_config_error_retry_semantics(self):
+    def test_config_error_retry_semantics(self) -> None:
         """Test retry semantics for configuration errors."""
         # Configuration errors should not be retryable
         config_error = ConfigurationError("test issue")
@@ -368,7 +369,7 @@ class TestConfigurationErrorIntegration:
         assert not config_error.should_use_circuit_breaker()
         assert not validation_error.should_use_circuit_breaker()
 
-    def test_config_error_scenarios(self):
+    def test_config_error_scenarios(self) -> None:
         """Test various configuration error scenarios."""
         scenarios = [
             {
@@ -386,14 +387,16 @@ class TestConfigurationErrorIntegration:
         ]
 
         for scenario in scenarios:
-            error = ConfigurationError(**scenario)
+            error = ConfigurationError(
+                message=scenario["message"], config_section=scenario["config_section"]
+            )
 
             # Verify all scenarios create valid errors
             assert isinstance(error, ConfigurationError)
             assert error.retry_policy == RetryPolicy.NEVER
             assert error.severity == ErrorSeverity.HIGH
 
-    def test_validation_error_scenarios(self):
+    def test_validation_error_scenarios(self) -> None:
         """Test validation errors with various scenarios."""
         error_scenarios = [
             (["single_field_error"], "Single field validation"),
@@ -411,7 +414,7 @@ class TestConfigurationErrorIntegration:
             assert error.validation_errors == errors
             assert error.context["error_count"] == len(errors)
 
-    def test_config_error_user_message_variations(self):
+    def test_config_error_user_message_variations(self) -> None:
         """Test user messages for various configuration error scenarios."""
         # Test basic configuration error (uses default user message from base class)
         config_error = ConfigurationError("Missing API key")
@@ -433,7 +436,7 @@ class TestConfigurationErrorIntegration:
 class TestEnvironmentError:
     """Test EnvironmentError functionality."""
 
-    def test_environment_error_creation(self):
+    def test_environment_error_creation(self) -> None:
         """Test basic EnvironmentError creation."""
         error = EnvironmentError(
             environment_issue="Missing required environment variables",
@@ -447,7 +450,7 @@ class TestEnvironmentError:
         assert error.severity == ErrorSeverity.HIGH
         assert error.retry_policy == RetryPolicy.NEVER
 
-    def test_environment_error_with_custom_message(self):
+    def test_environment_error_with_custom_message(self) -> None:
         """Test EnvironmentError with custom message."""
         error = EnvironmentError(
             environment_issue="Invalid path configuration",
@@ -460,7 +463,7 @@ class TestEnvironmentError:
         assert error.step_id == "env_step"
         assert error.agent_id == "EnvAgent"
 
-    def test_environment_error_without_required_vars(self):
+    def test_environment_error_without_required_vars(self) -> None:
         """Test EnvironmentError without required vars."""
         error = EnvironmentError(environment_issue="PATH variable not set correctly")
 
@@ -469,7 +472,7 @@ class TestEnvironmentError:
             "Environment setup error: PATH variable not set correctly" in error.message
         )
 
-    def test_environment_error_user_message_with_vars(self):
+    def test_environment_error_user_message_with_vars(self) -> None:
         """Test user message with required variables."""
         error = EnvironmentError(
             environment_issue="API keys missing",
@@ -483,7 +486,7 @@ class TestEnvironmentError:
             in user_msg
         )
 
-    def test_environment_error_user_message_without_vars(self):
+    def test_environment_error_user_message_without_vars(self) -> None:
         """Test user message without specific variables."""
         error = EnvironmentError(environment_issue="General environment issue")
 
@@ -495,7 +498,7 @@ class TestEnvironmentError:
 class TestAPIKeyMissingError:
     """Test APIKeyMissingError functionality."""
 
-    def test_api_key_missing_error_creation(self):
+    def test_api_key_missing_error_creation(self) -> None:
         """Test basic APIKeyMissingError creation."""
         error = APIKeyMissingError(
             service_name="OpenAI",
@@ -510,7 +513,7 @@ class TestAPIKeyMissingError:
         assert error.retry_policy == RetryPolicy.NEVER
         assert error.context["security_sensitive"] is True
 
-    def test_api_key_missing_error_with_custom_message(self):
+    def test_api_key_missing_error_with_custom_message(self) -> None:
         """Test APIKeyMissingError with custom message."""
         error = APIKeyMissingError(
             service_name="Anthropic",
@@ -524,7 +527,7 @@ class TestAPIKeyMissingError:
         assert error.step_id == "api_step"
         assert error.agent_id == "APIAgent"
 
-    def test_api_key_missing_error_user_message(self):
+    def test_api_key_missing_error_user_message(self) -> None:
         """Test user-friendly message for API key errors."""
         error = APIKeyMissingError(
             service_name="OpenAI",
@@ -541,7 +544,7 @@ class TestAPIKeyMissingError:
 class TestConfigFileError:
     """Test ConfigFileError functionality."""
 
-    def test_config_file_error_creation(self):
+    def test_config_file_error_creation(self) -> None:
         """Test basic ConfigFileError creation."""
         error = ConfigFileError(
             config_file_path="/path/to/config.yaml",
@@ -555,7 +558,7 @@ class TestConfigFileError:
         assert error.severity == ErrorSeverity.HIGH
         assert error.retry_policy == RetryPolicy.NEVER
 
-    def test_config_file_error_with_cause(self):
+    def test_config_file_error_with_cause(self) -> None:
         """Test ConfigFileError with cause exception."""
         cause = FileNotFoundError("No such file")
         error = ConfigFileError(
@@ -572,7 +575,7 @@ class TestConfigFileError:
         assert error.step_id == "file_step"
         assert error.agent_id == "FileAgent"
 
-    def test_config_file_error_user_message_not_found(self):
+    def test_config_file_error_user_message_not_found(self) -> None:
         """Test user message for file not found."""
         error = ConfigFileError(
             config_file_path="missing.yaml",
@@ -583,7 +586,7 @@ class TestConfigFileError:
         assert "❌ Configuration file not found: missing.yaml" in user_msg
         assert "💡 Tip: Create the configuration file or check the path." in user_msg
 
-    def test_config_file_error_user_message_permission(self):
+    def test_config_file_error_user_message_permission(self) -> None:
         """Test user message for permission issues."""
         error = ConfigFileError(
             config_file_path="readonly.yaml",
@@ -594,7 +597,7 @@ class TestConfigFileError:
         assert "❌ Cannot access configuration file: readonly.yaml" in user_msg
         assert "💡 Tip: Check file permissions." in user_msg
 
-    def test_config_file_error_user_message_generic(self):
+    def test_config_file_error_user_message_generic(self) -> None:
         """Test user message for generic file issues."""
         error = ConfigFileError(
             config_file_path="corrupt.yaml",
@@ -609,7 +612,7 @@ class TestConfigFileError:
 class TestModelConfigurationError:
     """Test ModelConfigurationError functionality."""
 
-    def test_model_configuration_error_creation(self):
+    def test_model_configuration_error_creation(self) -> None:
         """Test basic ModelConfigurationError creation."""
         error = ModelConfigurationError(
             model_name="gpt-4",
@@ -623,7 +626,7 @@ class TestModelConfigurationError:
         assert error.severity == ErrorSeverity.HIGH
         assert error.retry_policy == RetryPolicy.NEVER
 
-    def test_model_configuration_error_with_custom_message(self):
+    def test_model_configuration_error_with_custom_message(self) -> None:
         """Test ModelConfigurationError with custom message."""
         error = ModelConfigurationError(
             model_name="claude-3",
@@ -637,7 +640,7 @@ class TestModelConfigurationError:
         assert error.step_id == "model_step"
         assert error.agent_id == "ModelAgent"
 
-    def test_model_configuration_error_user_message(self):
+    def test_model_configuration_error_user_message(self) -> None:
         """Test user-friendly message for model configuration errors."""
         error = ModelConfigurationError(
             model_name="gpt-3.5-turbo",

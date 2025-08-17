@@ -10,10 +10,12 @@ import asyncio
 import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
+from pathlib import Path
 
 from cognivault.api.external import OrchestrationAPI
 from cognivault.api.models import WorkflowRequest, WorkflowResponse, StatusResponse
-from cognivault.api.base import HealthStatus, APIStatus
+from cognivault.api.base import APIHealthStatus
+from cognivault.diagnostics.health import HealthStatus
 from cognivault.api.decorators import ensure_initialized
 from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.observability import get_logger
@@ -78,7 +80,7 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
         self._initialized = False
         logger.info("LangGraphOrchestrationAPI shutdown complete")
 
-    async def health_check(self) -> HealthStatus:
+    async def health_check(self) -> APIHealthStatus:
         """Comprehensive health check including orchestrator status."""
         checks = {
             "initialized": self._initialized,
@@ -88,7 +90,7 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        status = APIStatus.HEALTHY
+        status = HealthStatus.HEALTHY
         details = f"LangGraph Orchestration API - {len(self._active_workflows)} active workflows"
 
         # Check orchestrator health if available and initialized
@@ -106,22 +108,22 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                         failure_rate = failed_executions / total_executions
                         checks["failure_rate"] = failure_rate
                         if failure_rate > 0.5:  # More than 50% failure rate
-                            status = APIStatus.DEGRADED
+                            status = HealthStatus.DEGRADED
                             details += f" (High failure rate: {failure_rate:.1%})"
 
             except Exception as e:
                 checks["orchestrator_error"] = str(e)
-                status = APIStatus.DEGRADED
+                status = HealthStatus.DEGRADED
                 details += f" (Orchestrator check failed: {e})"
         else:
             if not self._initialized:
-                status = APIStatus.UNHEALTHY
+                status = HealthStatus.UNHEALTHY
                 details = "API not initialized"
             else:
-                status = APIStatus.UNHEALTHY
+                status = HealthStatus.UNHEALTHY
                 details = "Orchestrator not available"
 
-        return HealthStatus(status=status, details=details, checks=checks)
+        return APIHealthStatus(status=status, details=details, checks=checks)
 
     async def get_metrics(self) -> Dict[str, Any]:
         """Get API performance and usage metrics."""
@@ -208,6 +210,79 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                 execution_time_seconds=execution_time,
                 correlation_id=request.correlation_id,
             )
+
+            # Handle markdown export if requested
+            if request.export_md:
+                try:
+                    from cognivault.store.wiki_adapter import MarkdownExporter
+                    from cognivault.store.topic_manager import TopicManager
+                    from cognivault.llm.openai import OpenAIChatLLM
+                    from cognivault.config.openai_config import OpenAIConfig
+
+                    logger.info(f"Exporting markdown for workflow {workflow_id}")
+
+                    # Create LLM instance for topic analysis (like CLI does)
+                    llm_config = OpenAIConfig.load()
+                    llm = OpenAIChatLLM(
+                        api_key=llm_config.api_key,
+                        model=llm_config.model,
+                        base_url=llm_config.base_url,
+                    )
+
+                    # Initialize topic manager for auto-tagging
+                    topic_manager = TopicManager(llm=llm)
+
+                    # Analyze and suggest topics
+                    try:
+                        topic_analysis = await topic_manager.analyze_and_suggest_topics(
+                            query=request.query,
+                            agent_outputs=result_context.agent_outputs,
+                        )
+                        suggested_topics = [
+                            s.topic for s in topic_analysis.suggested_topics
+                        ]
+                        suggested_domain = topic_analysis.suggested_domain
+                        logger.info(
+                            f"Topic analysis completed: {len(suggested_topics)} topics, domain: {suggested_domain}"
+                        )
+                    except Exception as topic_error:
+                        logger.warning(f"Topic analysis failed: {topic_error}")
+                        suggested_topics = []
+                        suggested_domain = None
+
+                    # Export with enhanced metadata
+                    exporter = MarkdownExporter()
+                    md_path = exporter.export(
+                        agent_outputs=result_context.agent_outputs,
+                        question=request.query,
+                        topics=suggested_topics,
+                        domain=suggested_domain,
+                    )
+
+                    # Convert to Path object for consistent handling
+                    md_path_obj = Path(md_path)
+
+                    response.markdown_export = {
+                        "file_path": str(md_path_obj.absolute()),
+                        "filename": md_path_obj.name,
+                        "export_timestamp": datetime.now(timezone.utc).isoformat(),
+                        "suggested_topics": (
+                            suggested_topics[:5] if suggested_topics else []
+                        ),
+                        "suggested_domain": suggested_domain,
+                    }
+
+                    logger.info(f"Markdown export successful: {md_path_obj.name}")
+
+                except Exception as md_error:
+                    logger.warning(
+                        f"Markdown export failed for workflow {workflow_id}: {md_error}"
+                    )
+                    response.markdown_export = {
+                        "error": "Export failed",
+                        "message": str(md_error),
+                        "export_timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
 
             # Update workflow tracking
             self._active_workflows[workflow_id].update(
@@ -394,5 +469,4 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             raise KeyError(f"No workflow found for correlation_id: {correlation_id}")
 
         # Use existing get_status method with workflow_id
-        status_response = await self.get_status(workflow_id)
-        return status_response
+        return await self.get_status(workflow_id)

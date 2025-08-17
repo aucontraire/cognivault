@@ -6,8 +6,9 @@ without breaking existing functionality or introducing regressions.
 """
 
 import pytest
+from typing import Any
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
@@ -20,7 +21,7 @@ from cognivault.events.sinks import ConsoleEventSink, InMemoryEventSink
 class TestWebSocketEventSystemIntegration:
     """Test WebSocket integration with existing event system."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures and clean event system state."""
         self.client = TestClient(app)
         self.correlation_id = "integration-test-123"
@@ -34,7 +35,7 @@ class TestWebSocketEventSystemIntegration:
         websocket_manager._connections.clear()
         websocket_manager._registered_sinks.clear()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up after each test."""
         # Clear global event emitter state and disable it
         emitter = get_global_event_emitter()
@@ -46,7 +47,7 @@ class TestWebSocketEventSystemIntegration:
         websocket_manager._registered_sinks.clear()
 
     @pytest.mark.asyncio
-    async def test_websocket_sink_coexists_with_existing_sinks(self):
+    async def test_websocket_sink_coexists_with_existing_sinks(self) -> None:
         """Test that WebSocketEventSink works alongside existing event sinks."""
         emitter = get_global_event_emitter()
 
@@ -57,7 +58,7 @@ class TestWebSocketEventSystemIntegration:
         emitter.add_sink(memory_sink)
 
         # Add WebSocket sink
-        mock_manager = Mock()
+        mock_manager: Mock = Mock()
         mock_manager.broadcast_event = AsyncMock()
         websocket_sink = WebSocketEventSink(mock_manager, self.correlation_id)
         emitter.add_sink(websocket_sink)
@@ -78,9 +79,9 @@ class TestWebSocketEventSystemIntegration:
         mock_manager.broadcast_event.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_websocket_sink_filters_by_correlation_id(self):
+    async def test_websocket_sink_filters_by_correlation_id(self) -> None:
         """Test that WebSocketEventSink only processes matching correlation IDs."""
-        mock_manager = Mock()
+        mock_manager: Mock = Mock()
         mock_manager.broadcast_event = AsyncMock()
 
         # Create sink for specific correlation ID
@@ -116,7 +117,7 @@ class TestWebSocketEventSystemIntegration:
         mock_manager.broadcast_event.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_existing_event_emission_unchanged(self):
+    async def test_existing_event_emission_unchanged(self) -> None:
         """Test that existing event emission patterns continue to work."""
         emitter = get_global_event_emitter()
         memory_sink = InMemoryEventSink()
@@ -173,14 +174,14 @@ class TestWebSocketEventSystemIntegration:
             assert event.correlation_id == correlation_id
 
     @pytest.mark.asyncio
-    async def test_websocket_manager_auto_registration(self):
+    async def test_websocket_manager_auto_registration(self) -> None:
         """Test that WebSocket subscription automatically registers event sink."""
         # Clear any existing sinks
         emitter = get_global_event_emitter()
         initial_sink_count = len(emitter.sinks)
 
         # Mock WebSocket
-        mock_websocket = Mock()
+        mock_websocket: Mock = Mock()
 
         # Subscribe to manager (should register event sink)
         await websocket_manager.subscribe(self.correlation_id, mock_websocket)
@@ -199,7 +200,7 @@ class TestWebSocketEventSystemIntegration:
         assert websocket_sink.target_correlation_id == self.correlation_id
 
     @pytest.mark.asyncio
-    async def test_websocket_sink_doesnt_interfere_with_existing_sinks(self):
+    async def test_websocket_sink_doesnt_interfere_with_existing_sinks(self) -> None:
         """Test that WebSocketEventSink errors don't affect other sinks."""
         emitter = get_global_event_emitter()
 
@@ -208,7 +209,7 @@ class TestWebSocketEventSystemIntegration:
         emitter.add_sink(memory_sink)
 
         # Add a WebSocket sink that will fail
-        mock_manager = Mock()
+        mock_manager: Mock = Mock()
         mock_manager.broadcast_event = AsyncMock(
             side_effect=Exception("Broadcast failed")
         )
@@ -231,7 +232,7 @@ class TestWebSocketEventSystemIntegration:
         assert len(memory_sink.events) == 1
         assert memory_sink.events[0].event_type == EventType.WORKFLOW_STARTED
 
-    def test_websocket_manager_isolation(self):
+    def test_websocket_manager_isolation(self) -> None:
         """Test that WebSocket manager doesn't interfere with global state."""
         # Get initial state
         initial_total_connections = websocket_manager.get_total_connections()
@@ -251,9 +252,9 @@ class TestWebSocketEventSystemIntegration:
         assert separate_manager.get_active_correlation_ids() == []
 
     @pytest.mark.asyncio
-    async def test_event_type_compatibility(self):
+    async def test_event_type_compatibility(self) -> None:
         """Test that WebSocketEventSink handles all existing event types."""
-        mock_manager = Mock()
+        mock_manager: Mock = Mock()
         mock_manager.broadcast_event = AsyncMock()
         websocket_sink = WebSocketEventSink(mock_manager, self.correlation_id)
 
@@ -299,9 +300,9 @@ class TestWebSocketEventSystemIntegration:
             mock_manager.broadcast_event.reset_mock()
 
     @pytest.mark.asyncio
-    async def test_websocket_event_sink_metadata_preservation(self):
+    async def test_websocket_event_sink_metadata_preservation(self) -> None:
         """Test that WebSocketEventSink preserves important event metadata."""
-        mock_manager = Mock()
+        mock_manager: Mock = Mock()
         mock_manager.broadcast_event = AsyncMock()
         websocket_sink = WebSocketEventSink(mock_manager, self.correlation_id)
 
@@ -350,9 +351,9 @@ class TestWebSocketEventSystemIntegration:
         assert "error_message" not in metadata or metadata.get("error_message") is None
 
     @pytest.mark.asyncio
-    async def test_websocket_events_include_category_field(self):
+    async def test_websocket_events_include_category_field(self) -> None:
         """Test that WebSocket events include the event category field for dual emission architecture."""
-        mock_manager = Mock()
+        mock_manager: Mock = Mock()
         mock_manager.broadcast_event = AsyncMock()
         websocket_sink = WebSocketEventSink(mock_manager, self.correlation_id)
 
@@ -398,12 +399,12 @@ class TestWebSocketEventSystemIntegration:
         assert event_data["type"] == "agent.execution.started"
 
     @pytest.mark.asyncio
-    async def test_websocket_dual_emission_architecture(self):
+    async def test_websocket_dual_emission_architecture(self) -> None:
         """Test WebSocket handling of dual event emission (orchestration vs execution)."""
-        mock_manager = Mock()
+        mock_manager: Mock = Mock()
         captured_events = []
 
-        async def capture_event(correlation_id, event_data):
+        async def capture_event(correlation_id: str, event_data: Any) -> None:
             captured_events.append(event_data)
 
         mock_manager.broadcast_event = AsyncMock(side_effect=capture_event)

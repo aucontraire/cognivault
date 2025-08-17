@@ -6,6 +6,8 @@ and stage management.
 """
 
 import pytest
+from typing import Any
+from unittest.mock import Mock
 import time
 
 from cognivault.context import AgentContext
@@ -35,7 +37,7 @@ class MockAgent(BaseAgent):
 
     def __init__(
         self, name: str, priority: ExecutionPriority = ExecutionPriority.NORMAL
-    ):
+    ) -> None:
         super().__init__(name=name)
         self.name = name
         self.priority = priority
@@ -46,7 +48,7 @@ class MockAgent(BaseAgent):
 
 
 @pytest.fixture
-def mock_agents():
+def mock_agents() -> Any:
     """Create mock agents with different priorities."""
     return {
         "critical_agent": MockAgent("critical_agent", ExecutionPriority.CRITICAL),
@@ -58,7 +60,7 @@ def mock_agents():
 
 
 @pytest.fixture
-def graph_engine_with_agents(mock_agents):
+def graph_engine_with_agents(mock_agents: Mock) -> Any:
     """Create a graph engine populated with test agents."""
     engine = DependencyGraphEngine()
 
@@ -72,7 +74,7 @@ def graph_engine_with_agents(mock_agents):
 
 
 @pytest.fixture
-def execution_planner():
+def execution_planner() -> Any:
     """Create an execution planner for testing."""
     return ExecutionPlanner()
 
@@ -80,7 +82,7 @@ def execution_planner():
 class TestParallelGroup:
     """Test ParallelGroup functionality."""
 
-    def test_parallel_group_creation(self):
+    def test_parallel_group_creation(self) -> None:
         """Test creating a parallel group."""
         group = ParallelGroup(
             agents=["agent_a", "agent_b"],
@@ -93,7 +95,7 @@ class TestParallelGroup:
         assert group.estimated_duration_ms == 5000.0
         assert group.dependencies_satisfied is True
 
-    def test_can_add_agent(self, mock_agents):
+    def test_can_add_agent(self, mock_agents: Mock) -> None:
         """Test checking if an agent can be added to a group."""
         group = ParallelGroup(agents=["agent_a"], max_concurrency=2)
 
@@ -122,7 +124,7 @@ class TestParallelGroup:
 class TestExecutionStage:
     """Test ExecutionStage functionality."""
 
-    def test_stage_creation(self):
+    def test_stage_creation(self) -> None:
         """Test creating an execution stage."""
         stage = ExecutionStage(
             stage_id="test_stage",
@@ -138,7 +140,7 @@ class TestExecutionStage:
         assert stage.estimated_duration_ms == 10000.0
         assert stage.max_retries == 3
 
-    def test_get_all_agents(self):
+    def test_get_all_agents(self) -> None:
         """Test getting all agents in a stage."""
         group1 = ParallelGroup(agents=["agent_a", "agent_b"])
         group2 = ParallelGroup(agents=["agent_c"])
@@ -153,7 +155,7 @@ class TestExecutionStage:
         all_agents = stage.get_all_agents()
         assert set(all_agents) == {"agent_a", "agent_b", "agent_c", "agent_d"}
 
-    def test_is_parallel(self):
+    def test_is_parallel(self) -> None:
         """Test parallel stage detection."""
         # Parallel type
         stage1 = ExecutionStage(stage_id="s1", stage_type=StageType.PARALLEL)
@@ -183,7 +185,7 @@ class TestExecutionStage:
 class TestExecutionPlan:
     """Test ExecutionPlan functionality."""
 
-    def test_plan_creation(self):
+    def test_plan_creation(self) -> None:
         """Test creating an execution plan."""
         stages = [
             ExecutionStage(
@@ -211,7 +213,7 @@ class TestExecutionPlan:
         assert plan.get_total_stages() == 2
         assert plan.parallelism_factor == 1.5
 
-    def test_plan_navigation(self):
+    def test_plan_navigation(self) -> None:
         """Test navigating through plan stages."""
         stages = [
             ExecutionStage(stage_id="stage1", stage_type=StageType.SEQUENTIAL),
@@ -228,14 +230,18 @@ class TestExecutionPlan:
 
         # Initially at stage 0
         assert plan.current_stage_index == 0
-        assert plan.get_current_stage().stage_id == "stage1"
+        current_stage = plan.get_current_stage()
+        assert current_stage is not None
+        assert current_stage.stage_id == "stage1"
         assert plan.get_completion_percentage() == 0.0
         assert not plan.is_completed()
 
         # Advance to next stage
         assert plan.advance_stage() is True
         assert plan.current_stage_index == 1
-        assert plan.get_current_stage().stage_id == "stage2"
+        current_stage = plan.get_current_stage()
+        assert current_stage is not None
+        assert current_stage.stage_id == "stage2"
         assert plan.get_completion_percentage() == pytest.approx(33.33, rel=1e-2)
 
         # Advance to final stage
@@ -253,7 +259,7 @@ class TestExecutionPlan:
         # Cannot advance beyond completion
         assert plan.advance_stage() is False
 
-    def test_execution_summary(self):
+    def test_execution_summary(self) -> None:
         """Test execution summary generation."""
         stages = [ExecutionStage(stage_id="stage1", stage_type=StageType.SEQUENTIAL)]
         plan = ExecutionPlan(
@@ -280,7 +286,7 @@ class TestExecutionPlan:
 class TestSequentialPlanBuilder:
     """Test SequentialPlanBuilder."""
 
-    def test_sequential_plan_creation(self, graph_engine_with_agents):
+    def test_sequential_plan_creation(self, graph_engine_with_agents: Mock) -> None:
         """Test creating a sequential execution plan."""
         builder = SequentialPlanBuilder()
         plan = builder.build_plan(graph_engine_with_agents)
@@ -294,7 +300,9 @@ class TestSequentialPlanBuilder:
             assert len(stage.agents) == 1
             assert stage.stage_type == StageType.SEQUENTIAL
 
-    def test_sequential_respects_dependencies(self, graph_engine_with_agents):
+    def test_sequential_respects_dependencies(
+        self, graph_engine_with_agents: Mock
+    ) -> None:
         """Test that sequential plan respects dependencies."""
         # Add dependency
         graph_engine_with_agents.add_dependency(
@@ -322,7 +330,7 @@ class TestSequentialPlanBuilder:
 class TestParallelBatchedPlanBuilder:
     """Test ParallelBatchedPlanBuilder."""
 
-    def test_parallel_plan_creation(self, graph_engine_with_agents):
+    def test_parallel_plan_creation(self, graph_engine_with_agents: Mock) -> None:
         """Test creating a parallel batched execution plan."""
         builder = ParallelBatchedPlanBuilder(max_batch_size=3)
         plan = builder.build_plan(graph_engine_with_agents)
@@ -340,7 +348,9 @@ class TestParallelBatchedPlanBuilder:
         )
         assert has_parallel_stage
 
-    def test_parallel_respects_dependencies(self, graph_engine_with_agents):
+    def test_parallel_respects_dependencies(
+        self, graph_engine_with_agents: Mock
+    ) -> None:
         """Test that parallel plan respects dependencies."""
         # Create dependency chain
         graph_engine_with_agents.add_dependency(
@@ -365,7 +375,7 @@ class TestParallelBatchedPlanBuilder:
         assert agent_stage_map["critical_agent"] < agent_stage_map["high_agent"]
         assert agent_stage_map["high_agent"] < agent_stage_map["normal_agent"]
 
-    def test_batch_size_limiting(self, graph_engine_with_agents):
+    def test_batch_size_limiting(self, graph_engine_with_agents: Mock) -> None:
         """Test that batch size is respected."""
         builder = ParallelBatchedPlanBuilder(max_batch_size=2)
         plan = builder.build_plan(graph_engine_with_agents)
@@ -379,7 +389,7 @@ class TestParallelBatchedPlanBuilder:
 class TestPriorityFirstPlanBuilder:
     """Test PriorityFirstPlanBuilder."""
 
-    def test_priority_ordering(self, graph_engine_with_agents):
+    def test_priority_ordering(self, graph_engine_with_agents: Mock) -> None:
         """Test that agents are ordered by priority."""
         builder = PriorityFirstPlanBuilder()
         plan = builder.build_plan(graph_engine_with_agents)
@@ -398,7 +408,9 @@ class TestPriorityFirstPlanBuilder:
         assert agent_stage_map["normal_agent"] <= agent_stage_map["low_agent"]
         assert agent_stage_map["low_agent"] <= agent_stage_map["background_agent"]
 
-    def test_parallel_within_priority_level(self, graph_engine_with_agents):
+    def test_parallel_within_priority_level(
+        self, graph_engine_with_agents: Mock
+    ) -> None:
         """Test that agents within same priority can run in parallel."""
         # Add another normal priority agent
         normal_agent2 = MockAgent("normal_agent2", ExecutionPriority.NORMAL)
@@ -431,7 +443,7 @@ class TestPriorityFirstPlanBuilder:
 class TestAdaptivePlanBuilder:
     """Test AdaptivePlanBuilder."""
 
-    def test_adaptive_strategy_selection(self, graph_engine_with_agents):
+    def test_adaptive_strategy_selection(self, graph_engine_with_agents: Mock) -> None:
         """Test that adaptive builder selects appropriate strategy."""
         builder = AdaptivePlanBuilder()
         plan = builder.build_plan(graph_engine_with_agents)
@@ -440,7 +452,7 @@ class TestAdaptivePlanBuilder:
         assert "base_strategy" in plan.metadata
         assert plan.metadata["base_strategy"] in ["sequential", "parallel_batched"]
 
-    def test_adaptive_with_parallelism(self, graph_engine_with_agents):
+    def test_adaptive_with_parallelism(self, graph_engine_with_agents: Mock) -> None:
         """Test adaptive builder with high parallelism opportunity."""
         # Create scenario with high parallelism (no dependencies)
         builder = AdaptivePlanBuilder()
@@ -451,7 +463,7 @@ class TestAdaptivePlanBuilder:
         assert plan.fallback_plan is not None
         assert plan.fallback_plan.strategy == ExecutionStrategy.SEQUENTIAL
 
-    def test_adaptive_with_dependencies(self, graph_engine_with_agents):
+    def test_adaptive_with_dependencies(self, graph_engine_with_agents: Mock) -> None:
         """Test adaptive builder with many dependencies."""
         # Create chain of dependencies to reduce parallelism
         agents = list(graph_engine_with_agents.nodes.keys())
@@ -470,7 +482,7 @@ class TestAdaptivePlanBuilder:
 class TestExecutionPlanner:
     """Test ExecutionPlanner main class."""
 
-    def test_planner_initialization(self, execution_planner):
+    def test_planner_initialization(self, execution_planner: Mock) -> None:
         """Test planner initialization."""
         assert ExecutionStrategy.SEQUENTIAL in execution_planner.builders
         assert ExecutionStrategy.PARALLEL_BATCHED in execution_planner.builders
@@ -479,8 +491,8 @@ class TestExecutionPlanner:
         assert execution_planner.default_strategy == ExecutionStrategy.ADAPTIVE
 
     def test_create_plan_with_strategy(
-        self, execution_planner, graph_engine_with_agents
-    ):
+        self, execution_planner: Mock, graph_engine_with_agents: Mock
+    ) -> None:
         """Test creating plans with different strategies."""
         strategies_to_test = [
             ExecutionStrategy.SEQUENTIAL,
@@ -496,15 +508,15 @@ class TestExecutionPlanner:
             assert plan.total_agents == len(graph_engine_with_agents.nodes)
 
     def test_create_plan_with_default_strategy(
-        self, execution_planner, graph_engine_with_agents
-    ):
+        self, execution_planner: Mock, graph_engine_with_agents: Mock
+    ) -> None:
         """Test creating plan with default strategy."""
         plan = execution_planner.create_plan(graph_engine_with_agents)
         assert plan.strategy == ExecutionStrategy.ADAPTIVE
 
     def test_create_plan_with_invalid_strategy(
-        self, execution_planner, graph_engine_with_agents
-    ):
+        self, execution_planner: Mock, graph_engine_with_agents: Mock
+    ) -> None:
         """Test creating plan with invalid strategy falls back to default."""
         # This would require modifying the enum, so we'll test the warning path
         plan = execution_planner.create_plan(
@@ -512,7 +524,9 @@ class TestExecutionPlanner:
         )
         assert plan is not None
 
-    def test_compare_strategies(self, execution_planner, graph_engine_with_agents):
+    def test_compare_strategies(
+        self, execution_planner: Mock, graph_engine_with_agents: Mock
+    ) -> None:
         """Test comparing multiple strategies."""
         strategies = [ExecutionStrategy.SEQUENTIAL, ExecutionStrategy.PARALLEL_BATCHED]
         plans = execution_planner.compare_strategies(
@@ -534,7 +548,9 @@ class TestExecutionPlanner:
         # Parallel should have higher parallelism factor
         assert par_plan.parallelism_factor >= 1.0
 
-    def test_recommend_strategy(self, execution_planner, graph_engine_with_agents):
+    def test_recommend_strategy(
+        self, execution_planner: Mock, graph_engine_with_agents: Mock
+    ) -> None:
         """Test strategy recommendation."""
         # Test different optimization goals
         speed_strategy = execution_planner.recommend_strategy(
@@ -563,7 +579,9 @@ class TestExecutionPlanner:
         )
         assert balanced_strategy == ExecutionStrategy.ADAPTIVE
 
-    def test_timing_estimates(self, execution_planner, graph_engine_with_agents):
+    def test_timing_estimates(
+        self, execution_planner: Mock, graph_engine_with_agents: Mock
+    ) -> None:
         """Test that timing estimates are added to plans."""
         plan = execution_planner.create_plan(graph_engine_with_agents)
 
@@ -580,7 +598,7 @@ class TestExecutionPlanner:
 class TestIntegration:
     """Integration tests for execution planner."""
 
-    def test_complex_dependency_planning(self, execution_planner):
+    def test_complex_dependency_planning(self, execution_planner: Mock) -> None:
         """Test planning with complex dependencies."""
         # Create complex graph
         engine = DependencyGraphEngine()
@@ -649,8 +667,8 @@ class TestIntegration:
                 assert plan.parallelism_factor > 1.0
 
     def test_plan_execution_simulation(
-        self, execution_planner, graph_engine_with_agents
-    ):
+        self, execution_planner: Mock, graph_engine_with_agents: Mock
+    ) -> None:
         """Test simulating plan execution."""
         # Create plan
         plan = execution_planner.create_plan(

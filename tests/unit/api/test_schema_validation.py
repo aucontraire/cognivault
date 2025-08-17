@@ -8,8 +8,8 @@ break our entire type-safe configuration architecture.
 
 import pytest
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
-from unittest.mock import patch, Mock
+from typing import Any, Dict, List, Optional
+from unittest.mock import patch
 
 from cognivault.api.schema_validation import SchemaValidator, SchemaMigrator
 
@@ -52,14 +52,14 @@ class SchemaWithoutVersion:
 class NonDataclassSchema:
     """Regular class that is not a dataclass."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
 
 
 class TestSchemaValidator:
     """Test the SchemaValidator class functionality."""
 
-    def test_validate_external_schema_success(self):
+    def test_validate_external_schema_success(self) -> None:
         """Test successful validation of data against schema."""
         data = {"name": "test", "value": 123}
 
@@ -67,7 +67,7 @@ class TestSchemaValidator:
 
         assert result is True
 
-    def test_validate_external_schema_with_optional_fields(self):
+    def test_validate_external_schema_with_optional_fields(self) -> None:
         """Test validation with optional fields present."""
         data = {
             "required_field": "test",
@@ -79,7 +79,7 @@ class TestSchemaValidator:
 
         assert result is True
 
-    def test_validate_external_schema_with_missing_optional_fields(self):
+    def test_validate_external_schema_with_missing_optional_fields(self) -> None:
         """Test validation with missing optional fields (should use defaults)."""
         data = {"required_field": "test"}
 
@@ -87,7 +87,7 @@ class TestSchemaValidator:
 
         assert result is True
 
-    def test_validate_external_schema_complex_types(self):
+    def test_validate_external_schema_complex_types(self) -> None:
         """Test validation with complex nested types."""
         data = {
             "id": "test-id",
@@ -100,7 +100,7 @@ class TestSchemaValidator:
 
         assert result is True
 
-    def test_validate_external_schema_minimal_complex_data(self):
+    def test_validate_external_schema_minimal_complex_data(self) -> None:
         """Test validation with minimal required data for complex schema."""
         data = {"id": "test-id", "metadata": {}}
 
@@ -108,7 +108,7 @@ class TestSchemaValidator:
 
         assert result is True
 
-    def test_validate_external_schema_missing_required_field(self):
+    def test_validate_external_schema_missing_required_field(self) -> None:
         """Test validation failure when required field is missing."""
         data = {"value": 123}  # Missing required 'name' field
 
@@ -116,7 +116,7 @@ class TestSchemaValidator:
 
         assert result is False
 
-    def test_validate_external_schema_wrong_type(self):
+    def test_validate_external_schema_wrong_type(self) -> None:
         """Test validation with wrong type (dataclasses don't enforce runtime types)."""
         data = {"name": "test", "value": "not_an_integer"}
 
@@ -125,7 +125,7 @@ class TestSchemaValidator:
         # Dataclasses don't enforce runtime type checking, so this passes
         assert result is True
 
-    def test_validate_external_schema_extra_fields(self):
+    def test_validate_external_schema_extra_fields(self) -> None:
         """Test validation with extra fields that schema doesn't define."""
         data = {"name": "test", "value": 123, "extra_field": "should_be_ignored"}
 
@@ -134,22 +134,22 @@ class TestSchemaValidator:
 
         assert result is False
 
-    def test_validate_external_schema_non_dataclass_raises_error(self):
+    def test_validate_external_schema_non_dataclass_raises_error(self) -> None:
         """Test that using non-dataclass schema raises ValueError."""
         data = {"name": "test"}
 
         with pytest.raises(ValueError, match="is not a dataclass schema"):
             SchemaValidator.validate_external_schema(data, NonDataclassSchema)
 
-    def test_validate_external_schema_empty_data(self):
+    def test_validate_external_schema_empty_data(self) -> None:
         """Test validation with empty data dictionary."""
-        data = {}
+        data: dict[str, Any] = {}
 
         result = SchemaValidator.validate_external_schema(data, SimpleTestSchema)
 
         assert result is False
 
-    def test_validate_external_schema_none_values(self):
+    def test_validate_external_schema_none_values(self) -> None:
         """Test validation with None values for required fields."""
         data = {"name": None, "value": 123}
 
@@ -158,7 +158,7 @@ class TestSchemaValidator:
         # Dataclasses allow None values even for non-Optional fields
         assert result is True
 
-    def test_validate_external_schema_logs_warning_on_failure(self):
+    def test_validate_external_schema_logs_warning_on_failure(self) -> None:
         """Test that validation failure logs appropriate warning."""
         data = {"name": "test"}  # Missing 'value' field
 
@@ -171,25 +171,25 @@ class TestSchemaValidator:
             warning_call = mock_logger.warning.call_args[0][0]
             assert "SimpleTestSchema" in warning_call
 
-    def test_get_schema_version_with_version(self):
+    def test_get_schema_version_with_version(self) -> None:
         """Test extracting version from schema docstring."""
         version = SchemaValidator.get_schema_version(SimpleTestSchema)
 
         assert version == "1.0.0"
 
-    def test_get_schema_version_complex_schema(self):
+    def test_get_schema_version_complex_schema(self) -> None:
         """Test extracting version from complex schema docstring."""
         version = SchemaValidator.get_schema_version(ComplexTestSchema)
 
         assert version == "2.0.0"
 
-    def test_get_schema_version_different_format(self):
+    def test_get_schema_version_different_format(self) -> None:
         """Test extracting version from differently formatted docstring."""
         version = SchemaValidator.get_schema_version(OptionalFieldsSchema)
 
         assert version == "1.1.0"
 
-    def test_get_schema_version_no_version(self):
+    def test_get_schema_version_no_version(self) -> None:
         """Test handling schema without version in docstring."""
         version = SchemaValidator.get_schema_version(SchemaWithoutVersion)
 
@@ -237,18 +237,18 @@ class TestSchemaValidator:
 class TestSchemaMigrator:
     """Test the SchemaMigrator class functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.migrator = SchemaMigrator()
 
-    def test_migrator_initialization(self):
+    def test_migrator_initialization(self) -> None:
         """Test that migrator initializes with empty migrations."""
         assert self.migrator.migrations == {}
 
-    def test_register_migration_new_path(self):
+    def test_register_migration_new_path(self) -> None:
         """Test registering a new migration path."""
 
-        def dummy_migration(data):
+        def dummy_migration(data: dict[str, Any]) -> dict[str, Any]:
             return data
 
         self.migrator.register_migration("1.0.0", "1.1.0", dummy_migration)
@@ -257,13 +257,13 @@ class TestSchemaMigrator:
         assert len(self.migrator.migrations["1.0.0->1.1.0"]) == 1
         assert self.migrator.migrations["1.0.0->1.1.0"][0] == dummy_migration
 
-    def test_register_migration_existing_path(self):
+    def test_register_migration_existing_path(self) -> None:
         """Test registering additional migration to existing path."""
 
-        def migration1(data):
+        def migration1(data: dict[str, Any]) -> dict[str, Any]:
             return data
 
-        def migration2(data):
+        def migration2(data: dict[str, Any]) -> dict[str, Any]:
             return data
 
         self.migrator.register_migration("1.0.0", "1.1.0", migration1)
@@ -273,13 +273,13 @@ class TestSchemaMigrator:
         assert migration1 in self.migrator.migrations["1.0.0->1.1.0"]
         assert migration2 in self.migrator.migrations["1.0.0->1.1.0"]
 
-    def test_register_multiple_migration_paths(self):
+    def test_register_multiple_migration_paths(self) -> None:
         """Test registering migrations for different version paths."""
 
-        def migration_1_to_2(data):
+        def migration_1_to_2(data: dict[str, Any]) -> dict[str, Any]:
             return data
 
-        def migration_2_to_3(data):
+        def migration_2_to_3(data: dict[str, Any]) -> dict[str, Any]:
             return data
 
         self.migrator.register_migration("1.0.0", "2.0.0", migration_1_to_2)
@@ -289,10 +289,10 @@ class TestSchemaMigrator:
         assert "2.0.0->3.0.0" in self.migrator.migrations
         assert len(self.migrator.migrations) == 2
 
-    def test_migrate_schema_success(self):
+    def test_migrate_schema_success(self) -> None:
         """Test successful schema migration."""
 
-        def add_new_field(data):
+        def add_new_field(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["new_field"] = "default_value"
             return data_copy
@@ -305,15 +305,15 @@ class TestSchemaMigrator:
         expected = {"name": "test", "value": 123, "new_field": "default_value"}
         assert migrated_data == expected
 
-    def test_migrate_schema_multiple_migrations(self):
+    def test_migrate_schema_multiple_migrations(self) -> None:
         """Test migration with multiple functions for same path."""
 
-        def add_field1(data):
+        def add_field1(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["field1"] = "value1"
             return data_copy
 
-        def add_field2(data):
+        def add_field2(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["field2"] = "value2"
             return data_copy
@@ -327,15 +327,15 @@ class TestSchemaMigrator:
         expected = {"original": "data", "field1": "value1", "field2": "value2"}
         assert migrated_data == expected
 
-    def test_migrate_schema_no_migration_path(self):
+    def test_migrate_schema_no_migration_path(self) -> None:
         """Test migration failure when no path exists."""
         with pytest.raises(ValueError, match="No migration path from 1.0.0 to 2.0.0"):
             self.migrator.migrate_schema({}, "1.0.0", "2.0.0")
 
-    def test_migrate_schema_preserves_original_data(self):
+    def test_migrate_schema_preserves_original_data(self) -> None:
         """Test that migration doesn't modify original data."""
 
-        def modify_data(data):
+        def modify_data(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["modified"] = True
             return data_copy
@@ -350,16 +350,16 @@ class TestSchemaMigrator:
         # Migrated should have changes
         assert migrated_data == {"name": "test", "modified": True}
 
-    def test_migrate_schema_complex_transformations(self):
+    def test_migrate_schema_complex_transformations(self) -> None:
         """Test migration with complex data transformations."""
 
-        def rename_field(data):
+        def rename_field(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             if "old_name" in data_copy:
                 data_copy["new_name"] = data_copy.pop("old_name")
             return data_copy
 
-        def update_structure(data):
+        def update_structure(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             if "config" in data_copy:
                 # Wrap config in nested structure
@@ -376,10 +376,10 @@ class TestSchemaMigrator:
         expected = {"new_name": "test_value", "settings": {"config": {"key": "value"}}}
         assert migrated_data == expected
 
-    def test_migrate_schema_empty_data(self):
+    def test_migrate_schema_empty_data(self) -> None:
         """Test migration with empty data dictionary."""
 
-        def add_defaults(data):
+        def add_defaults(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["default_field"] = "default_value"
             return data_copy
@@ -390,15 +390,15 @@ class TestSchemaMigrator:
 
         assert migrated_data == {"default_field": "default_value"}
 
-    def test_migrate_schema_chain_migrations(self):
+    def test_migrate_schema_chain_migrations(self) -> None:
         """Test that multiple migrations can be chained together."""
 
-        def v1_to_v2(data):
+        def v1_to_v2(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["v2_field"] = "added_in_v2"
             return data_copy
 
-        def v2_to_v3(data):
+        def v2_to_v3(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["v3_field"] = "added_in_v3"
             return data_copy
@@ -423,10 +423,10 @@ class TestSchemaMigrator:
         assert v2_data == expected_v2
         assert v3_data == expected_v3
 
-    def test_migration_function_exception_handling(self):
+    def test_migration_function_exception_handling(self) -> None:
         """Test that migration function exceptions are propagated."""
 
-        def failing_migration(data):
+        def failing_migration(data: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("Migration failed")
 
         self.migrator.register_migration("1.0.0", "1.1.0", failing_migration)
@@ -438,12 +438,12 @@ class TestSchemaMigrator:
 class TestSchemaValidationIntegration:
     """Test integration scenarios between validator and migrator."""
 
-    def test_validate_migrated_schema(self):
+    def test_validate_migrated_schema(self) -> None:
         """Test validating data after schema migration."""
         # Create a migrator to simulate upgrading old data format
         migrator = SchemaMigrator()
 
-        def add_default_value(data):
+        def add_default_value(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             if "value" not in data_copy:
                 data_copy["value"] = 0
@@ -490,7 +490,7 @@ class TestSchemaValidationIntegration:
         # Set up migration
         migrator = SchemaMigrator()
 
-        def add_required_field(data):
+        def add_required_field(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["required_field"] = "default_value"
             return data_copy
@@ -504,18 +504,18 @@ class TestSchemaValidationIntegration:
         expected = {"name": "test", "required_field": "default_value"}
         assert migrated_data == expected
 
-    def test_complex_migration_with_validation(self):
+    def test_complex_migration_with_validation(self) -> None:
         """Test complex multi-step migration with validation at each step."""
         migrator = SchemaMigrator()
 
         # Migration from v1 to v2: add optional field
-        def v1_to_v2(data):
+        def v1_to_v2(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["optional_field"] = None
             return data_copy
 
         # Migration from v2 to v3: restructure data
-        def v2_to_v3(data):
+        def v2_to_v3(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["default_value"] = 42
             return data_copy
@@ -577,17 +577,17 @@ class TestEdgeCasesAndErrorHandling:
         # Dataclasses don't perform deep type validation, so this passes
         assert result is True
 
-    def test_migration_with_circular_references(self):
+    def test_migration_with_circular_references(self) -> None:
         """Test that migrator handles circular data structures gracefully."""
         migrator = SchemaMigrator()
 
-        def identity_migration(data):
+        def identity_migration(data: dict[str, Any]) -> dict[str, Any]:
             return data.copy()
 
         migrator.register_migration("1.0.0", "1.1.0", identity_migration)
 
         # Create data with circular reference
-        circular_data = {"name": "test"}
+        circular_data: dict[str, Any] = {"name": "test"}
         circular_data["self_ref"] = circular_data
 
         # Migration should handle this gracefully (or at least not crash)
@@ -612,16 +612,16 @@ class TestEdgeCasesAndErrorHandling:
         result = SchemaValidator.validate_external_schema(large_data, LargeDataSchema)
         assert result is True
 
-    def test_migration_order_dependency(self):
+    def test_migration_order_dependency(self) -> None:
         """Test that migration functions are applied in registration order."""
         migrator = SchemaMigrator()
 
-        def first_migration(data):
+        def first_migration(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["step"] = "first"
             return data_copy
 
-        def second_migration(data):
+        def second_migration(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             data_copy["step"] = data_copy["step"] + "_second"
             return data_copy
@@ -634,11 +634,11 @@ class TestEdgeCasesAndErrorHandling:
         # Should show both migrations were applied in order
         assert result["step"] == "first_second"
 
-    def test_migration_with_none_data(self):
+    def test_migration_with_none_data(self) -> None:
         """Test migration behavior with None values in data."""
         migrator = SchemaMigrator()
 
-        def handle_none_values(data):
+        def handle_none_values(data: dict[str, Any]) -> dict[str, Any]:
             data_copy = data.copy()
             for key, value in data_copy.items():
                 if value is None:

@@ -5,6 +5,7 @@ Topic repository with semantic search and hierarchical operations.
 from uuid import UUID
 
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from cognivault.database.models import Topic
@@ -23,7 +24,7 @@ class TopicRepository(BaseRepository[Topic]):
     hierarchical relationship management, and embedding operations.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, Topic)
 
     async def create_topic(

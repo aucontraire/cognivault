@@ -15,7 +15,7 @@ from cognivault.agents.historian.search import SearchFactory, SearchResult
 
 # Configuration system imports
 from cognivault.config.agent_configs import HistorianConfig
-from cognivault.workflows.prompt_composer import PromptComposer
+from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
 # Database repository imports
 from cognivault.database.session_factory import DatabaseSessionFactory
@@ -55,13 +55,14 @@ class HistorianAgent(BaseAgent):
         llm: Optional[Union[LLMInterface, str]] = "default",
         search_type: str = "hybrid",
         config: Optional[HistorianConfig] = None,
-    ):
+    ) -> None:
         super().__init__("historian")
 
         # Configuration system - backward compatible
+        # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else HistorianConfig()
         self._prompt_composer = PromptComposer()
-        self._composed_prompt = None
+        self._composed_prompt: Optional[ComposedPrompt]
 
         # Use sentinel value to distinguish between None (explicit) and default
         if llm == "default":
@@ -101,7 +102,7 @@ class HistorianAgent(BaseAgent):
             logger.warning(f"Failed to create OpenAI LLM: {e}. Using mock LLM.")
             return None
 
-    def _update_composed_prompt(self):
+    def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
         try:
             self._composed_prompt = self._prompt_composer.compose_historian_prompt(
@@ -137,7 +138,7 @@ class HistorianAgent(BaseAgent):
             # Fallback to basic embedded prompt
             return """As a historian agent, analyze queries and provide relevant historical context using available search results and historical information."""
 
-    def update_config(self, config: HistorianConfig):
+    def update_config(self, config: HistorianConfig) -> None:
         """
         Update the agent configuration and recompose prompts.
 
@@ -162,7 +163,6 @@ class HistorianAgent(BaseAgent):
             self._db_session_factory = DatabaseSessionFactory()
 
             # Add timeout for database initialization
-            import asyncio
 
             await asyncio.wait_for(
                 self._db_session_factory.initialize(),
@@ -262,6 +262,9 @@ class HistorianAgent(BaseAgent):
     ) -> List[SearchResult]:
         """Search for relevant historical content using hybrid file + database search."""
         all_results: List[SearchResult] = []
+
+        # Initialize search_limit with default value for exception handler
+        search_limit = 10
 
         try:
             # Use configured search limit
@@ -406,12 +409,14 @@ class HistorianAgent(BaseAgent):
                     }
 
                     # Create SearchResult compatible with existing code
+                    # Ensure content is not None before indexing or measuring length
+                    content_text = doc.content or ""
                     search_result = SearchResult(
                         title=doc.title,
                         excerpt=(
-                            doc.content[:200] + "..."
-                            if len(doc.content) > 200
-                            else doc.content
+                            content_text[:200] + "..."
+                            if len(content_text) > 200
+                            else content_text
                         ),
                         filepath=doc.source_path or f"db_doc_{doc.id}",
                         filename=f"document_{doc.id}",

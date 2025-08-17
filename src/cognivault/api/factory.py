@@ -5,7 +5,7 @@ Provides singleton caching and environment-driven API selection.
 """
 
 import os
-from typing import Optional
+from typing import Optional, Any, Dict
 
 from cognivault.api.external import OrchestrationAPI
 from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
@@ -143,7 +143,7 @@ def is_mock_mode() -> bool:
     return get_api_mode() == "mock"
 
 
-def get_cached_api_info() -> Optional[dict]:
+def get_cached_api_info() -> Optional[Dict[str, Any]]:
     """
     Get information about the currently cached API instance.
 
@@ -164,30 +164,30 @@ def get_cached_api_info() -> Optional[dict]:
 
 
 # Context manager for temporary API mode changes
-class temporary_api_mode:
+class TemporaryAPIMode:
     """
     Context manager for temporarily changing API mode.
 
     Usage:
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             api = get_orchestration_api()
             # api will be MockOrchestrationAPI
     """
 
-    def __init__(self, mode: str):
+    def __init__(self, mode: str) -> None:
         self.new_mode = mode.lower()
         self.original_mode = get_api_mode()
 
         if self.new_mode not in ["real", "mock"]:
             raise ValueError(f"Invalid API mode: {mode}. Must be 'real' or 'mock'")
 
-    def __enter__(self):
+    def __enter__(self) -> "TemporaryAPIMode":
         if self.new_mode != self.original_mode:
             set_api_mode(self.new_mode)
             reset_api_cache()  # Force re-creation with new mode
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self.new_mode != self.original_mode:
             set_api_mode(self.original_mode)
             reset_api_cache()  # Restore original state

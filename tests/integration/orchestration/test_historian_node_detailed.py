@@ -13,8 +13,8 @@ function with focus on:
 import pytest
 import asyncio
 import time
-from typing import List
-from unittest.mock import patch, Mock
+from typing import Any, List, Generator, Dict
+from unittest.mock import MagicMock, Mock, patch
 
 from cognivault.context import AgentContext
 from cognivault.agents.base_agent import BaseAgent
@@ -41,7 +41,7 @@ def create_test_runtime(
     enable_checkpoints: bool = False,
 ) -> Mock:
     """Create a mock runtime for testing with CogniVaultContext."""
-    mock_runtime = Mock()
+    mock_runtime: Mock = Mock()
     mock_runtime.context = CogniVaultContext(
         thread_id=thread_id,
         execution_id=execution_id,
@@ -53,7 +53,7 @@ def create_test_runtime(
 
 
 @pytest.fixture(autouse=True)
-def reset_circuit_breaker():
+def reset_circuit_breaker() -> Generator[None, None, None]:
     """Reset the circuit breaker state before each test."""
     # Reset the global historian_node circuit breaker state
     if hasattr(historian_node, "_failure_count"):
@@ -75,12 +75,12 @@ def reset_circuit_breaker():
 class ControlledHistorianAgent(BaseAgent):
     """Historian agent with controlled behavior for testing."""
 
-    def __init__(self, name: str = "historian", behavior: str = "success"):
+    def __init__(self, name: str = "historian", behavior: str = "success") -> None:
         # Disable retries for controlled failure testing
-        from cognivault.agents.base_agent import RetryConfig
+        from cognivault.agents.base_agent import AgentRetryConfig
 
         retry_config = (
-            RetryConfig(max_retries=0)
+            AgentRetryConfig(max_retries=0)
             if behavior in ["failure", "timeout_error", "memory_error"]
             else None
         )
@@ -167,7 +167,9 @@ class TestHistorianNodeCircuitBreaker:
         return set_agent_output(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_opens_after_failures(self, initial_state):
+    async def test_circuit_breaker_opens_after_failures(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test that circuit breaker opens after multiple failures."""
         failing_agent = ControlledHistorianAgent(behavior="failure")
 
@@ -194,7 +196,9 @@ class TestHistorianNodeCircuitBreaker:
                 await historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_reset_after_timeout(self, initial_state):
+    async def test_circuit_breaker_reset_after_timeout(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test circuit breaker reset after timeout."""
         failing_agent = ControlledHistorianAgent(behavior="failure")
 
@@ -204,8 +208,19 @@ class TestHistorianNodeCircuitBreaker:
         # Create a version with shorter timeout
         @circuit_breaker(max_failures=2, reset_timeout=0.1)
         @node_metrics
-        async def test_historian_node(state, runtime):
-            return await original_historian_node.__wrapped__.__wrapped__(state, runtime)
+        async def test_historian_node(
+            state: CogniVaultState, runtime: Any
+        ) -> Dict[str, Any]:
+            # Get the unwrapped function properly
+            if hasattr(original_historian_node, "__wrapped__"):
+                if hasattr(original_historian_node.__wrapped__, "__wrapped__"):
+                    unwrapped_func = original_historian_node.__wrapped__.__wrapped__
+                else:
+                    unwrapped_func = original_historian_node.__wrapped__
+            else:
+                unwrapped_func = original_historian_node
+            result = await unwrapped_func(state, runtime)
+            return result  # type: ignore[no-any-return]
 
         with patch(
             "cognivault.orchestration.node_wrappers.create_agent_with_llm",
@@ -232,16 +247,18 @@ class TestHistorianNodeCircuitBreaker:
                 await test_historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_success_resets_count(self, initial_state):
+    async def test_circuit_breaker_success_resets_count(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test that successful execution resets failure count."""
 
         # Create agent that fails first, then succeeds (disable retries for circuit breaker testing)
         class FailThenSucceedAgent(BaseAgent):
-            def __init__(self, name: str = "historian"):
-                from cognivault.agents.base_agent import RetryConfig
+            def __init__(self, name: str = "historian") -> None:
+                from cognivault.agents.base_agent import AgentRetryConfig
 
                 super().__init__(
-                    name, retry_config=RetryConfig(max_retries=0)
+                    name, retry_config=AgentRetryConfig(max_retries=0)
                 )  # No retries
                 self.call_count = 0
 
@@ -308,7 +325,9 @@ class TestHistorianNodeMetrics:
         return set_agent_output(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
-    async def test_metrics_collection_success(self, initial_state):
+    async def test_metrics_collection_success(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test metrics collection for successful execution."""
         success_agent = ControlledHistorianAgent(behavior="success")
 
@@ -336,7 +355,9 @@ class TestHistorianNodeMetrics:
                 assert len(completion_calls) > 0
 
     @pytest.mark.asyncio
-    async def test_metrics_collection_failure(self, initial_state):
+    async def test_metrics_collection_failure(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test metrics collection for failed execution."""
         failing_agent = ControlledHistorianAgent(behavior="failure")
 
@@ -370,7 +391,9 @@ class TestHistorianNodeMetrics:
                 assert len(failure_calls) > 0
 
     @pytest.mark.asyncio
-    async def test_metrics_timing_accuracy(self, initial_state):
+    async def test_metrics_timing_accuracy(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test that metrics timing is accurate."""
         slow_agent = ControlledHistorianAgent(behavior="slow")
 
@@ -409,7 +432,7 @@ class TestHistorianNodeErrorHandling:
         return set_agent_output(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
-    async def test_memory_error_handling(self, initial_state):
+    async def test_memory_error_handling(self, initial_state: CogniVaultState) -> None:
         """Test handling of memory errors."""
         memory_error_agent = ControlledHistorianAgent(behavior="memory_error")
 
@@ -422,7 +445,7 @@ class TestHistorianNodeErrorHandling:
                 await historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
-    async def test_timeout_error_handling(self, initial_state):
+    async def test_timeout_error_handling(self, initial_state: CogniVaultState) -> None:
         """Test handling of timeout errors."""
         timeout_agent = ControlledHistorianAgent(behavior="timeout_error")
 
@@ -435,7 +458,9 @@ class TestHistorianNodeErrorHandling:
                 await historian_node(initial_state, runtime)
 
     @pytest.mark.asyncio
-    async def test_partial_failure_handling(self, initial_state):
+    async def test_partial_failure_handling(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test handling of partial failures."""
         partial_failure_agent = ControlledHistorianAgent(behavior="partial_failure")
 
@@ -464,7 +489,7 @@ class TestHistorianNodeErrorHandling:
             )
 
     @pytest.mark.asyncio
-    async def test_error_state_recording(self, initial_state):
+    async def test_error_state_recording(self, initial_state: CogniVaultState) -> None:
         """Test that errors are properly recorded in state."""
         failing_agent = ControlledHistorianAgent(behavior="failure")
 
@@ -503,7 +528,7 @@ class TestHistorianNodeEdgeCases:
         return set_agent_output(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
-    async def test_minimal_query_handling(self, initial_state):
+    async def test_minimal_query_handling(self, initial_state: CogniVaultState) -> None:
         """Test handling of minimal but valid queries."""
         # Modify state to have minimal valid query (empty queries are now rejected by validation)
         initial_state["query"] = "?"
@@ -525,7 +550,9 @@ class TestHistorianNodeEdgeCases:
             )
 
     @pytest.mark.asyncio
-    async def test_very_long_query_handling(self, initial_state):
+    async def test_very_long_query_handling(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test handling of very long queries."""
         # Create a very long query
         long_query = "What is artificial intelligence" + " and machine learning" * 100
@@ -545,7 +572,9 @@ class TestHistorianNodeEdgeCases:
             assert long_query in result_state["historian"]["historical_summary"]
 
     @pytest.mark.asyncio
-    async def test_no_llm_fallback_behavior(self, initial_state):
+    async def test_no_llm_fallback_behavior(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test behavior when LLM is not available (fallback mode)."""
         no_llm_agent = ControlledHistorianAgent(behavior="no_llm")
 
@@ -567,11 +596,13 @@ class TestHistorianNodeEdgeCases:
             assert result_state["historian"]["metadata"]["fallback_used"] is True
 
     @pytest.mark.asyncio
-    async def test_zero_confidence_handling(self, initial_state):
+    async def test_zero_confidence_handling(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test handling of zero confidence results."""
 
         class ZeroConfidenceAgent(BaseAgent):
-            def __init__(self, name: str = "historian"):
+            def __init__(self, name: str = "historian") -> None:
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -605,11 +636,13 @@ class TestHistorianNodeEdgeCases:
             assert result_state["historian"]["metadata"]["low_confidence"] is True
 
     @pytest.mark.asyncio
-    async def test_maximum_results_handling(self, initial_state):
+    async def test_maximum_results_handling(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test handling of maximum search results."""
 
         class MaxResultsAgent(BaseAgent):
-            def __init__(self, name: str = "historian"):
+            def __init__(self, name: str = "historian") -> None:
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:
@@ -647,7 +680,9 @@ class TestHistorianNodeEdgeCases:
             assert len(result_state["historian"]["topics_found"]) == 50
 
     @pytest.mark.asyncio
-    async def test_state_mutation_prevention(self, initial_state):
+    async def test_state_mutation_prevention(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test that historian node doesn't mutate original state."""
         original_state = initial_state.copy()
         success_agent = ControlledHistorianAgent(behavior="success")
@@ -671,7 +706,9 @@ class TestHistorianNodeEdgeCases:
             # The original state is not mutated and full state is preserved by LangGraph
 
     @pytest.mark.asyncio
-    async def test_concurrent_execution_safety(self, initial_state):
+    async def test_concurrent_execution_safety(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test that concurrent historian node executions are safe."""
         success_agent = ControlledHistorianAgent(behavior="success")
 
@@ -721,7 +758,7 @@ class TestHistorianNodePerformance:
         return set_agent_output(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
-    async def test_performance_under_load(self, initial_state):
+    async def test_performance_under_load(self, initial_state: CogniVaultState) -> None:
         """Test historian node performance under load."""
         fast_agent = ControlledHistorianAgent(behavior="success")
 
@@ -752,7 +789,7 @@ class TestHistorianNodePerformance:
             assert fast_agent.execution_count >= 10
 
     @pytest.mark.asyncio
-    async def test_memory_usage_stability(self, initial_state):
+    async def test_memory_usage_stability(self, initial_state: CogniVaultState) -> None:
         """Test that historian node doesn't have memory leaks."""
         success_agent = ControlledHistorianAgent(behavior="success")
 
@@ -774,12 +811,14 @@ class TestHistorianNodePerformance:
             assert success_agent.execution_count >= 100
 
     @pytest.mark.asyncio
-    async def test_timeout_handling_performance(self, initial_state):
+    async def test_timeout_handling_performance(
+        self, initial_state: CogniVaultState
+    ) -> None:
         """Test that timeout handling doesn't impact performance."""
 
         # Create agent with very short execution time
         class FastAgent(BaseAgent):
-            def __init__(self, name: str = "historian"):
+            def __init__(self, name: str = "historian") -> None:
                 super().__init__(name)
 
             async def run(self, context: AgentContext) -> AgentContext:

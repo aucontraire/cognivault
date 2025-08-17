@@ -9,6 +9,7 @@ This module tests the convenience functions for event emission including:
 """
 
 import pytest
+from typing import Any
 import asyncio
 from datetime import datetime, timezone
 from unittest.mock import patch, AsyncMock
@@ -27,7 +28,7 @@ class TestEmitHealthCheckPerformed:
     """Test emit_health_check_performed convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_health_check_performed_basic(self):
+    async def test_emit_health_check_performed_basic(self) -> None:
         """Test basic health check event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -53,7 +54,7 @@ class TestEmitHealthCheckPerformed:
             assert emitted_event.metadata["component_type"] == "system"
 
     @pytest.mark.asyncio
-    async def test_emit_health_check_performed_with_all_params(self):
+    async def test_emit_health_check_performed_with_all_params(self) -> None:
         """Test health check event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -91,7 +92,7 @@ class TestEmitHealthCheckPerformed:
             assert emitted_event.metadata["component_type"] == "system"
 
     @pytest.mark.asyncio
-    async def test_emit_health_check_performed_workflow_id_generation(self):
+    async def test_emit_health_check_performed_workflow_id_generation(self) -> None:
         """Test that health check events generate unique workflow IDs."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -118,7 +119,7 @@ class TestEmitHealthCheckPerformed:
             assert len(second_event.workflow_id.split("_")[2]) == 8  # 8 character hex
 
     @pytest.mark.asyncio
-    async def test_emit_health_check_performed_with_correlation_fallback(self):
+    async def test_emit_health_check_performed_with_correlation_fallback(self) -> None:
         """Test health check event emission with correlation ID fallback."""
         with (
             patch(
@@ -143,7 +144,7 @@ class TestEmitHealthCheckPerformed:
             assert emitted_event.correlation_id == "fallback-correlation-456"
 
     @pytest.mark.asyncio
-    async def test_emit_health_check_performed_timestamp_generation(self):
+    async def test_emit_health_check_performed_timestamp_generation(self) -> None:
         """Test that health check events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -164,7 +165,7 @@ class TestEmitHealthCheckPerformed:
             assert emitted_event.timestamp.tzinfo == timezone.utc
 
     @pytest.mark.asyncio
-    async def test_emit_health_check_performed_empty_details_handling(self):
+    async def test_emit_health_check_performed_empty_details_handling(self) -> None:
         """Test health check event emission with None details."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -183,7 +184,7 @@ class TestEmitHealthCheckPerformed:
             assert emitted_event.data["details"] == {}
 
     @pytest.mark.asyncio
-    async def test_emit_health_check_performed_metadata_merging(self):
+    async def test_emit_health_check_performed_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -219,7 +220,7 @@ class TestEmitApiRequestReceived:
     """Test emit_api_request_received convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_api_request_received_basic(self):
+    async def test_emit_api_request_received_basic(self) -> None:
         """Test basic API request received event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -248,7 +249,7 @@ class TestEmitApiRequestReceived:
             assert emitted_event.metadata["component_type"] == "api_gateway"
 
     @pytest.mark.asyncio
-    async def test_emit_api_request_received_with_all_params(self):
+    async def test_emit_api_request_received_with_all_params(self) -> None:
         """Test API request received event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -296,7 +297,7 @@ class TestEmitApiRequestReceived:
             assert emitted_event.metadata["component_type"] == "api_gateway"
 
     @pytest.mark.asyncio
-    async def test_emit_api_request_received_with_correlation_fallback(self):
+    async def test_emit_api_request_received_with_correlation_fallback(self) -> None:
         """Test API request received event emission with correlation ID fallback."""
         with (
             patch(
@@ -321,7 +322,7 @@ class TestEmitApiRequestReceived:
             assert emitted_event.correlation_id == "fallback-correlation-999"
 
     @pytest.mark.asyncio
-    async def test_emit_api_request_received_none_handling(self):
+    async def test_emit_api_request_received_none_handling(self) -> None:
         """Test API request received event emission with None values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -344,7 +345,7 @@ class TestEmitApiRequestReceived:
             assert emitted_event.data["request_data"] == {}
 
     @pytest.mark.asyncio
-    async def test_emit_api_request_received_metadata_merging(self):
+    async def test_emit_api_request_received_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -378,7 +379,7 @@ class TestEmitApiRequestReceived:
             )  # Default preserved
 
     @pytest.mark.asyncio
-    async def test_emit_api_request_received_timestamp_generation(self):
+    async def test_emit_api_request_received_timestamp_generation(self) -> None:
         """Test that API request received events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -403,7 +404,7 @@ class TestEmitApiResponseSent:
     """Test emit_api_response_sent convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_api_response_sent_basic(self):
+    async def test_emit_api_response_sent_basic(self) -> None:
         """Test basic API response sent event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -431,7 +432,7 @@ class TestEmitApiResponseSent:
             assert emitted_event.metadata["component_type"] == "api_gateway"
 
     @pytest.mark.asyncio
-    async def test_emit_api_response_sent_with_all_params(self):
+    async def test_emit_api_response_sent_with_all_params(self) -> None:
         """Test API response sent event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -478,7 +479,7 @@ class TestEmitApiResponseSent:
             assert emitted_event.metadata["component_type"] == "api_gateway"
 
     @pytest.mark.asyncio
-    async def test_emit_api_response_sent_with_correlation_fallback(self):
+    async def test_emit_api_response_sent_with_correlation_fallback(self) -> None:
         """Test API response sent event emission with correlation ID fallback."""
         with (
             patch(
@@ -501,7 +502,7 @@ class TestEmitApiResponseSent:
             assert emitted_event.correlation_id == "fallback-correlation-888"
 
     @pytest.mark.asyncio
-    async def test_emit_api_response_sent_none_handling(self):
+    async def test_emit_api_response_sent_none_handling(self) -> None:
         """Test API response sent event emission with None values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -520,7 +521,7 @@ class TestEmitApiResponseSent:
             assert emitted_event.data["response_data"] == {}
 
     @pytest.mark.asyncio
-    async def test_emit_api_response_sent_execution_time_consistency(self):
+    async def test_emit_api_response_sent_execution_time_consistency(self) -> None:
         """Test that execution_time_ms is set consistently in data and event object."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -544,7 +545,7 @@ class TestEmitApiResponseSent:
             assert emitted_event.execution_time_ms == execution_time
 
     @pytest.mark.asyncio
-    async def test_emit_api_response_sent_metadata_merging(self):
+    async def test_emit_api_response_sent_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -576,7 +577,7 @@ class TestEmitApiResponseSent:
             )  # Default preserved
 
     @pytest.mark.asyncio
-    async def test_emit_api_response_sent_timestamp_generation(self):
+    async def test_emit_api_response_sent_timestamp_generation(self) -> None:
         """Test that API response sent events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -601,7 +602,7 @@ class TestEmitServiceBoundaryCrossed:
     """Test emit_service_boundary_crossed convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_basic(self):
+    async def test_emit_service_boundary_crossed_basic(self) -> None:
         """Test basic service boundary crossed event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -635,7 +636,7 @@ class TestEmitServiceBoundaryCrossed:
             assert emitted_event.metadata["component_type"] == "boundary"
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_with_all_params(self):
+    async def test_emit_service_boundary_crossed_with_all_params(self) -> None:
         """Test service boundary crossed event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -684,7 +685,9 @@ class TestEmitServiceBoundaryCrossed:
             assert emitted_event.metadata["component_type"] == "boundary"
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_with_correlation_fallback(self):
+    async def test_emit_service_boundary_crossed_with_correlation_fallback(
+        self,
+    ) -> None:
         """Test service boundary crossed event emission with correlation ID fallback."""
         with (
             patch(
@@ -712,7 +715,7 @@ class TestEmitServiceBoundaryCrossed:
             assert emitted_event.correlation_id == "fallback-correlation-666"
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_boundary_types(self):
+    async def test_emit_service_boundary_crossed_boundary_types(self) -> None:
         """Test service boundary crossed event emission with different boundary types."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -736,7 +739,7 @@ class TestEmitServiceBoundaryCrossed:
             assert emitted_event.data["boundary_type"] == "microservice"
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_none_handling(self):
+    async def test_emit_service_boundary_crossed_none_handling(self) -> None:
         """Test service boundary crossed event emission with None values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -759,7 +762,7 @@ class TestEmitServiceBoundaryCrossed:
             assert emitted_event.data["operation_data"] == {}
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_metadata_merging(self):
+    async def test_emit_service_boundary_crossed_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -795,7 +798,7 @@ class TestEmitServiceBoundaryCrossed:
             )  # Default preserved
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_timestamp_generation(self):
+    async def test_emit_service_boundary_crossed_timestamp_generation(self) -> None:
         """Test that service boundary crossed events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -818,7 +821,7 @@ class TestEmitServiceBoundaryCrossed:
             assert emitted_event.timestamp.tzinfo == timezone.utc
 
     @pytest.mark.asyncio
-    async def test_emit_service_boundary_crossed_comprehensive_data(self):
+    async def test_emit_service_boundary_crossed_comprehensive_data(self) -> None:
         """Test service boundary crossed event with comprehensive data for service architecture."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"

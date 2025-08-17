@@ -6,8 +6,14 @@ for conditional execution in LangGraph DAGs.
 """
 
 import pytest
+from typing import Any, Dict, List, Callable
+from unittest.mock import Mock
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.orchestration.routing import (
     ConditionalRouter,
     SuccessFailureRouter,
@@ -25,26 +31,26 @@ from cognivault.orchestration.routing import (
 
 
 @pytest.fixture
-def sample_context():
+def sample_context() -> Any:
     """Create a sample agent context for testing."""
-    context = AgentContext(query="Test query for routing")
+    context = AgentContextPatterns.simple_query("Test query for routing")
     context.add_agent_output("TestAgent", "Sample output content")
     return context
 
 
 @pytest.fixture
-def success_context():
+def success_context() -> Any:
     """Create a context representing successful execution."""
-    context = AgentContext(query="Success test")
+    context = AgentContextPatterns.simple_query("Success test")
     context.execution_state["last_agent_success"] = True
     context.successful_agents.add("TestAgent")
     return context
 
 
 @pytest.fixture
-def failure_context():
+def failure_context() -> Any:
     """Create a context representing failed execution."""
-    context = AgentContext(query="Failure test")
+    context = AgentContextPatterns.simple_query("Failure test")
     context.execution_state["last_agent_success"] = False
     context.failed_agents.add("TestAgent")
     return context
@@ -53,7 +59,7 @@ def failure_context():
 class TestConditionalRouter:
     """Test cases for ConditionalRouter."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test conditional router initialization."""
         conditions = [(lambda ctx: True, "target1"), (lambda ctx: False, "target2")]
         router = ConditionalRouter(conditions, "default")
@@ -61,7 +67,7 @@ class TestConditionalRouter:
         assert router.conditions == conditions
         assert router.default == "default"
 
-    def test_first_matching_condition(self, sample_context):
+    def test_first_matching_condition(self, sample_context: Mock) -> None:
         """Test that first matching condition is used."""
         conditions = [
             (lambda ctx: True, "first_match"),
@@ -72,7 +78,7 @@ class TestConditionalRouter:
         result = router(sample_context)
         assert result == "first_match"
 
-    def test_no_matching_condition(self, sample_context):
+    def test_no_matching_condition(self, sample_context: Mock) -> None:
         """Test fallback to default when no conditions match."""
         conditions = [(lambda ctx: False, "target1"), (lambda ctx: False, "target2")]
         router = ConditionalRouter(conditions, "default")
@@ -80,19 +86,21 @@ class TestConditionalRouter:
         result = router(sample_context)
         assert result == "default"
 
-    def test_condition_evaluation(self, sample_context):
+    def test_condition_evaluation(self, sample_context: Mock) -> None:
         """Test condition evaluation with context."""
 
-        def check_query_content(ctx):
+        def check_query_content(ctx: AgentContext) -> bool:
             return "Test" in ctx.query
 
-        conditions = [(check_query_content, "test_target")]
+        conditions: List[tuple[Callable[[AgentContext], bool], str]] = [
+            (check_query_content, "test_target")
+        ]
         router = ConditionalRouter(conditions, "default")
 
         result = router(sample_context)
         assert result == "test_target"
 
-    def test_get_possible_targets(self):
+    def test_get_possible_targets(self) -> None:
         """Test getting all possible target nodes."""
         conditions = [
             (lambda ctx: True, "target1"),
@@ -108,28 +116,28 @@ class TestConditionalRouter:
 class TestSuccessFailureRouter:
     """Test cases for SuccessFailureRouter."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test success/failure router initialization."""
         router = SuccessFailureRouter("success_node", "failure_node")
 
         assert router.success_target == "success_node"
         assert router.failure_target == "failure_node"
 
-    def test_success_routing(self, success_context):
+    def test_success_routing(self, success_context: Mock) -> None:
         """Test routing on successful execution."""
         router = SuccessFailureRouter("success_node", "failure_node")
 
         result = router(success_context)
         assert result == "success_node"
 
-    def test_failure_routing(self, failure_context):
+    def test_failure_routing(self, failure_context: Mock) -> None:
         """Test routing on failed execution."""
         router = SuccessFailureRouter("success_node", "failure_node")
 
         result = router(failure_context)
         assert result == "failure_node"
 
-    def test_default_success_routing(self, sample_context):
+    def test_default_success_routing(self, sample_context: Mock) -> None:
         """Test default routing when success state is not set."""
         # Default should be success if last_agent_success is not set
         router = SuccessFailureRouter("success_node", "failure_node")
@@ -137,7 +145,7 @@ class TestSuccessFailureRouter:
         result = router(sample_context)
         assert result == "success_node"
 
-    def test_get_possible_targets(self):
+    def test_get_possible_targets(self) -> None:
         """Test getting possible targets."""
         router = SuccessFailureRouter("success_node", "failure_node")
 
@@ -148,7 +156,7 @@ class TestSuccessFailureRouter:
 class TestOutputBasedRouter:
     """Test cases for OutputBasedRouter."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test output-based router initialization."""
         patterns = {"error": "error_handler", "success": "success_handler"}
         router = OutputBasedRouter(patterns, "default")
@@ -156,7 +164,7 @@ class TestOutputBasedRouter:
         assert router.output_patterns == patterns
         assert router.default == "default"
 
-    def test_pattern_matching(self, sample_context):
+    def test_pattern_matching(self, sample_context: Mock) -> None:
         """Test routing based on output pattern matching."""
         patterns = {"sample": "sample_handler", "test": "test_handler"}
         router = OutputBasedRouter(patterns, "default")
@@ -164,7 +172,7 @@ class TestOutputBasedRouter:
         result = router(sample_context)
         assert result == "sample_handler"  # "Sample" should match "sample"
 
-    def test_case_insensitive_matching(self, sample_context):
+    def test_case_insensitive_matching(self, sample_context: Mock) -> None:
         """Test case-insensitive pattern matching."""
         patterns = {"SAMPLE": "upper_handler"}
         router = OutputBasedRouter(patterns, "default")
@@ -172,7 +180,7 @@ class TestOutputBasedRouter:
         result = router(sample_context)
         assert result == "upper_handler"
 
-    def test_no_pattern_match(self, sample_context):
+    def test_no_pattern_match(self, sample_context: Mock) -> None:
         """Test fallback to default when no patterns match."""
         patterns = {"nonexistent": "handler"}
         router = OutputBasedRouter(patterns, "default")
@@ -180,16 +188,16 @@ class TestOutputBasedRouter:
         result = router(sample_context)
         assert result == "default"
 
-    def test_empty_agent_outputs(self):
+    def test_empty_agent_outputs(self) -> None:
         """Test handling of empty agent outputs."""
-        context = AgentContext(query="Empty test")
+        context = AgentContextPatterns.simple_query("Empty test")
         patterns = {"test": "test_handler"}
         router = OutputBasedRouter(patterns, "default")
 
         result = router(context)
         assert result == "default"
 
-    def test_get_possible_targets(self):
+    def test_get_possible_targets(self) -> None:
         """Test getting all possible targets."""
         patterns = {"pattern1": "target1", "pattern2": "target2", "pattern3": "target1"}
         router = OutputBasedRouter(patterns, "default")
@@ -201,7 +209,7 @@ class TestOutputBasedRouter:
 class TestFailureHandlingRouter:
     """Test cases for FailureHandlingRouter."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test failure handling router initialization."""
         router = FailureHandlingRouter("success", "failure", "retry", max_failures=3)
 
@@ -212,7 +220,7 @@ class TestFailureHandlingRouter:
         assert router.failure_count == 0
         assert router.circuit_open is False
 
-    def test_success_routing_resets_failures(self, success_context):
+    def test_success_routing_resets_failures(self, success_context: Mock) -> None:
         """Test that success resets failure count."""
         router = FailureHandlingRouter("success", "failure")
         router.failure_count = 2  # Set some failures
@@ -223,7 +231,7 @@ class TestFailureHandlingRouter:
         assert router.failure_count == 0
         assert router.circuit_open is False
 
-    def test_failure_increments_count(self, failure_context):
+    def test_failure_increments_count(self, failure_context: Mock) -> None:
         """Test that failure increments failure count."""
         router = FailureHandlingRouter("success", "failure", max_failures=3)
 
@@ -232,7 +240,7 @@ class TestFailureHandlingRouter:
         assert router.failure_count == 1
         assert result in ["failure", "retry"]  # Depends on retry logic
 
-    def test_circuit_breaker_activation(self, failure_context):
+    def test_circuit_breaker_activation(self, failure_context: Mock) -> None:
         """Test circuit breaker activation after max failures."""
         router = FailureHandlingRouter("success", "failure", max_failures=2)
 
@@ -247,7 +255,7 @@ class TestFailureHandlingRouter:
         result = router(failure_context)
         assert result == "failure"
 
-    def test_retry_logic(self, failure_context):
+    def test_retry_logic(self, failure_context: Mock) -> None:
         """Test retry logic before circuit breaking."""
         router = FailureHandlingRouter("success", "failure", "retry", max_failures=3)
         failure_context.execution_state["retry_count"] = 0
@@ -258,7 +266,7 @@ class TestFailureHandlingRouter:
         assert result == "retry"
         assert failure_context.execution_state["retry_count"] == 1
 
-    def test_max_retries_exceeded(self, failure_context):
+    def test_max_retries_exceeded(self, failure_context: Mock) -> None:
         """Test behavior when max retries are exceeded."""
         router = FailureHandlingRouter("success", "failure", "retry", max_failures=2)
         failure_context.execution_state["retry_count"] = 2  # Already at max
@@ -267,7 +275,7 @@ class TestFailureHandlingRouter:
 
         assert result == "failure"
 
-    def test_reset_failure_state(self):
+    def test_reset_failure_state(self) -> None:
         """Test resetting failure state."""
         router = FailureHandlingRouter("success", "failure")
         router.failure_count = 5
@@ -278,14 +286,14 @@ class TestFailureHandlingRouter:
         assert router.failure_count == 0
         assert router.circuit_open is False
 
-    def test_get_possible_targets(self):
+    def test_get_possible_targets(self) -> None:
         """Test getting possible targets."""
         router = FailureHandlingRouter("success", "failure", "retry")
 
         targets = router.get_possible_targets()
         assert set(targets) == {"success", "failure", "retry"}
 
-    def test_get_possible_targets_no_retry(self):
+    def test_get_possible_targets_no_retry(self) -> None:
         """Test getting possible targets when retry is same as failure."""
         router = FailureHandlingRouter(
             "success", "failure"
@@ -298,7 +306,7 @@ class TestFailureHandlingRouter:
 class TestAgentDependencyRouter:
     """Test cases for AgentDependencyRouter."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test dependency router initialization."""
         deps = {"target": ["dep1", "dep2"]}
         router = AgentDependencyRouter(deps, "target", "wait", "error")
@@ -308,53 +316,53 @@ class TestAgentDependencyRouter:
         assert router.wait_target == "wait"
         assert router.failure_target == "error"
 
-    def test_dependencies_satisfied(self):
+    def test_dependencies_satisfied(self) -> None:
         """Test routing when all dependencies are satisfied."""
         deps = {"target": ["dep1", "dep2"]}
         router = AgentDependencyRouter(deps, "target", "wait", "error")
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.successful_agents.add("dep1")
         context.successful_agents.add("dep2")
 
         result = router(context)
         assert result == "target"
 
-    def test_dependencies_pending(self):
+    def test_dependencies_pending(self) -> None:
         """Test routing when dependencies are pending."""
         deps = {"target": ["dep1", "dep2"]}
         router = AgentDependencyRouter(deps, "target", "wait", "error")
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.successful_agents.add("dep1")
         # dep2 is neither successful nor failed (pending)
 
         result = router(context)
         assert result == "wait"
 
-    def test_dependencies_failed(self):
+    def test_dependencies_failed(self) -> None:
         """Test routing when dependencies have failed."""
         deps = {"target": ["dep1", "dep2"]}
         router = AgentDependencyRouter(deps, "target", "wait", "error")
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.successful_agents.add("dep1")
         context.failed_agents.add("dep2")  # dep2 failed
 
         result = router(context)
         assert result == "error"
 
-    def test_no_dependencies(self):
+    def test_no_dependencies(self) -> None:
         """Test routing when target has no dependencies."""
-        deps = {"target": []}
+        deps: Dict[str, List[str]] = {"target": []}
         router = AgentDependencyRouter(deps, "target", "wait", "error")
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         result = router(context)
         assert result == "target"
 
-    def test_get_possible_targets(self):
+    def test_get_possible_targets(self) -> None:
         """Test getting possible targets."""
         deps = {"target": ["dep1"]}
         router = AgentDependencyRouter(deps, "target", "wait", "error")
@@ -366,7 +374,7 @@ class TestAgentDependencyRouter:
 class TestPipelineStageRouter:
     """Test cases for PipelineStageRouter."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test pipeline stage router initialization."""
         stages = {"stage1": "target1", "stage2": "target2"}
         router = PipelineStageRouter(stages, "default")
@@ -374,40 +382,40 @@ class TestPipelineStageRouter:
         assert router.stage_map == stages
         assert router.default_target == "default"
 
-    def test_stage_routing(self):
+    def test_stage_routing(self) -> None:
         """Test routing based on pipeline stage."""
         stages = {"preparation": "prep_node", "execution": "exec_node"}
         router = PipelineStageRouter(stages, "default")
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.execution_state["pipeline_stage"] = "execution"
 
         result = router(context)
         assert result == "exec_node"
 
-    def test_unknown_stage(self):
+    def test_unknown_stage(self) -> None:
         """Test routing for unknown stage."""
         stages = {"known_stage": "known_target"}
         router = PipelineStageRouter(stages, "default")
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.execution_state["pipeline_stage"] = "unknown_stage"
 
         result = router(context)
         assert result == "default"
 
-    def test_no_stage_set(self):
+    def test_no_stage_set(self) -> None:
         """Test routing when no stage is set (uses 'initial')."""
         stages = {"initial": "initial_target", "other": "other_target"}
         router = PipelineStageRouter(stages, "default")
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         # No pipeline_stage set - should default to "initial"
 
         result = router(context)
         assert result == "initial_target"
 
-    def test_get_possible_targets(self):
+    def test_get_possible_targets(self) -> None:
         """Test getting possible targets."""
         stages = {"stage1": "target1", "stage2": "target2", "stage3": "target1"}
         router = PipelineStageRouter(stages, "default")
@@ -419,7 +427,7 @@ class TestPipelineStageRouter:
 class TestFactoryFunctions:
     """Test cases for routing factory functions."""
 
-    def test_always_continue_to(self, sample_context):
+    def test_always_continue_to(self, sample_context: Mock) -> None:
         """Test always_continue_to factory function."""
         router = always_continue_to("fixed_target")
 
@@ -429,7 +437,7 @@ class TestFactoryFunctions:
         targets = router.get_possible_targets()
         assert targets == ["fixed_target"]
 
-    def test_route_on_query_type(self, sample_context):
+    def test_route_on_query_type(self, sample_context: Mock) -> None:
         """Test route_on_query_type factory function."""
         patterns = {"test": "test_handler"}
         router = route_on_query_type(patterns, "default")
@@ -440,7 +448,7 @@ class TestFactoryFunctions:
         result = router(sample_context)
         assert result == "default"
 
-    def test_route_on_success_failure_factory(self, success_context):
+    def test_route_on_success_failure_factory(self, success_context: Mock) -> None:
         """Test route_on_success_failure factory function."""
         router = route_on_success_failure("success", "failure")
 
@@ -448,7 +456,7 @@ class TestFactoryFunctions:
         result = router(success_context)
         assert result == "success"
 
-    def test_route_with_failure_handling_factory(self, failure_context):
+    def test_route_with_failure_handling_factory(self, failure_context: Mock) -> None:
         """Test route_with_failure_handling factory function."""
         router = route_with_failure_handling(
             "success", "failure", "retry", max_failures=2
@@ -458,7 +466,7 @@ class TestFactoryFunctions:
         assert router.max_failures == 2
         assert router.retry_target == "retry"
 
-    def test_route_with_dependencies_factory(self):
+    def test_route_with_dependencies_factory(self) -> None:
         """Test route_with_dependencies factory function."""
         deps = {"target": ["dep1", "dep2"]}
         router = route_with_dependencies(deps, "target")
@@ -469,7 +477,7 @@ class TestFactoryFunctions:
         assert router.wait_target == "wait"  # default
         assert router.failure_target == "error"  # default
 
-    def test_route_by_pipeline_stage_factory(self):
+    def test_route_by_pipeline_stage_factory(self) -> None:
         """Test route_by_pipeline_stage factory function."""
         stages = {"stage1": "target1"}
         router = route_by_pipeline_stage(stages, "custom_default")
@@ -478,21 +486,23 @@ class TestFactoryFunctions:
         assert router.stage_map == stages
         assert router.default_target == "custom_default"
 
-    def test_route_by_pipeline_stage_default_params(self):
+    def test_route_by_pipeline_stage_default_params(self) -> None:
         """Test route_by_pipeline_stage with default parameters."""
         stages = {"stage1": "target1"}
         router = route_by_pipeline_stage(stages)
 
+        # Cast to PipelineStageRouter to access specific attribute
+        assert isinstance(router, PipelineStageRouter)
         assert router.default_target == "end"
 
 
 class TestRoutingIntegration:
     """Integration tests for routing functionality."""
 
-    def test_complex_routing_scenario(self):
+    def test_complex_routing_scenario(self) -> None:
         """Test complex routing scenario with multiple conditions."""
         # Create a complex routing scenario
-        context = AgentContext(query="test complex routing")
+        context = AgentContextPatterns.simple_query("test complex routing")
 
         # Set up context state
         context.execution_state["last_agent_success"] = False
@@ -517,7 +527,7 @@ class TestRoutingIntegration:
         stage_result = stage_router(context)
         assert stage_result == "recovery_node"
 
-    def test_router_chaining(self, sample_context):
+    def test_router_chaining(self, sample_context: Mock) -> None:
         """Test chaining multiple routers together."""
         # First router - check for errors
         error_patterns = {"error": "error_handler", "fail": "fail_handler"}
@@ -535,9 +545,9 @@ class TestRoutingIntegration:
             second_result = success_router(sample_context)
             assert second_result == "success_handler"  # Default success state
 
-    def test_router_state_modification(self):
+    def test_router_state_modification(self) -> None:
         """Test that routers can modify context state."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.execution_state["retry_count"] = 0
 
         router = FailureHandlingRouter("success", "failure", "retry")

@@ -6,6 +6,8 @@ and semantic relationship tracking.
 """
 
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 from uuid import UUID as UUID_TYPE
 
 from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
@@ -22,6 +24,7 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
@@ -42,20 +45,26 @@ class Topic(Base):
     __tablename__ = "topics"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(255), nullable=False)
-    description = Column(Text)
+    id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
 
     # Hierarchical topic organization (GraphRAG prep)
-    parent_topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=True)
+    parent_topic_id: Mapped[Optional[UUID_TYPE]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topics.id"), nullable=True
+    )
     parent = relationship("Topic", remote_side=[id], backref="children")
 
     # Vector embedding for semantic similarity (text-embedding-3-large)
-    embedding = Column(Vector(1536), nullable=True)
+    embedding: Mapped[Optional[Vector]] = mapped_column(Vector(1536), nullable=True)
 
     # Metadata and timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
@@ -83,29 +92,45 @@ class Question(Base):
     __tablename__ = "questions"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    query = Column(Text, nullable=False)
+    id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    query: Mapped[Optional[str]] = mapped_column(Text, nullable=False)
 
     # Topic and semantic relationships
-    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=True)
+    topic_id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topics.id"), nullable=True
+    )
     topic = relationship("Topic", backref="questions")
 
     # Future GraphRAG edge: IS_SIMILAR_TO relationship
-    similar_to = Column(UUID(as_uuid=True), ForeignKey("questions.id"), nullable=True)
+    similar_to: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("questions.id"), nullable=True
+    )
     similar_question = relationship(
         "Question", remote_side=[id], backref="similar_questions"
     )
 
     # Workflow execution tracking
-    correlation_id = Column(String(255), unique=True, nullable=True)
-    execution_id = Column(String(255), nullable=True)  # For efficient filtering
-    nodes_executed = Column(ARRAY(String), nullable=True)  # type: ignore  # DAG execution path
+    correlation_id: Mapped[Optional[str]] = mapped_column(
+        String(255), unique=True, nullable=True
+    )
+    execution_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )  # For efficient filtering
+    nodes_executed: Mapped[Optional[List[str]]] = mapped_column(
+        ARRAY(String), nullable=True
+    )  # DAG execution path
 
     # Rich metadata storage (workflow results, agent outputs, performance)
-    execution_metadata = Column(JSONB, nullable=True)
+    execution_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True
+    )
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     # Performance indexes
     __table_args__ = (
@@ -133,17 +158,23 @@ class WikiEntry(Base):
     __tablename__ = "wiki_entries"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
 
     # Topic and source relationships
-    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id"), nullable=False)
+    topic_id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topics.id"), nullable=False
+    )
     topic = relationship("Topic", backref="wiki_entries")
 
-    question_id = Column(UUID(as_uuid=True), ForeignKey("questions.id"), nullable=True)
+    question_id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("questions.id"), nullable=True
+    )
     source_question = relationship("Question", backref="wiki_entries")
 
     # Content and versioning
-    content = Column(Text, nullable=False)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=False)
     version = Column(Integer, default=1)
 
     # Knowledge evolution tracking
@@ -159,7 +190,9 @@ class WikiEntry(Base):
     related_topics = Column(ARRAY(UUID), nullable=True)  # type: ignore  # Multi-topic relationships
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     # Performance indexes
     __table_args__ = (
@@ -181,12 +214,14 @@ class APIKey(Base):
     __tablename__ = "api_keys"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    key_hash = Column(String(255), nullable=False, unique=True)
+    id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    key_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
 
     # Metadata
-    name = Column(String(255), nullable=True)
-    description = Column(Text, nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Usage control
     rate_limit = Column(Integer, default=100)  # requests per minute
@@ -194,10 +229,14 @@ class APIKey(Base):
     usage_count = Column(Integer, default=0)
 
     # Status and lifecycle
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    expires_at = Column(DateTime(timezone=True), nullable=True)
-    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Performance indexes
     __table_args__ = (
@@ -222,17 +261,21 @@ class SemanticLink(Base):
     __tablename__ = "semantic_links"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
 
     # Source entity
     from_entity_type = Column(
         String(50), nullable=False
     )  # 'topic', 'question', 'wiki_entry'
-    from_entity_id = Column(UUID(as_uuid=True), nullable=False)
+    from_entity_id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
 
     # Target entity
-    to_entity_type = Column(String(50), nullable=False)
-    to_entity_id = Column(UUID(as_uuid=True), nullable=False)
+    to_entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    to_entity_id: Mapped[UUID_TYPE] = mapped_column(UUID(as_uuid=True), nullable=False)
 
     # Relationship metadata
     relation = Column(
@@ -241,7 +284,9 @@ class SemanticLink(Base):
     weight = Column(Float, default=1.0)  # Relationship strength
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     # Performance indexes for graph traversal
     __table_args__ = (
@@ -263,12 +308,18 @@ class HistorianDocument(Base):
     __tablename__ = "historian_documents"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title = Column(String(500), nullable=False)  # Max 500 chars for search validation
-    content = Column(Text, nullable=False)
+    id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    title: Mapped[str] = mapped_column(
+        String(500), nullable=False
+    )  # Max 500 chars for search validation
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=False)
 
     # Document metadata and organization
-    source_path = Column(String(1000), nullable=True)  # Original file path or URL
+    source_path: Mapped[str] = mapped_column(
+        String(1000), nullable=True
+    )  # Original file path or URL
     content_hash = Column(
         String(64), nullable=False, unique=True
     )  # SHA-256 for deduplication
@@ -281,11 +332,15 @@ class HistorianDocument(Base):
     document_metadata = Column("metadata", JSONB, nullable=False, default=dict)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    last_accessed_at = Column(DateTime(timezone=True), nullable=True)
+    last_accessed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Performance indexes
     __table_args__ = (
@@ -313,24 +368,32 @@ class HistorianSearchAnalytics(Base):
     __tablename__ = "historian_search_analytics"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID_TYPE] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
 
     # Search query details
-    search_query = Column(Text, nullable=False)  # Original search query
-    search_type = Column(String(50), nullable=False)  # fulltext, semantic, hybrid
+    search_query: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=False
+    )  # Original search query
+    search_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # fulltext, semantic, hybrid
 
     # Performance and results tracking
     results_count = Column(Integer, nullable=False, default=0)
     execution_time_ms = Column(Integer, nullable=True)  # Query execution time
 
     # User and session tracking
-    user_session_id = Column(String(100), nullable=True)
+    user_session_id: Mapped[str] = mapped_column(String(100), nullable=True)
 
     # Flexible search metadata (using custom attribute name to avoid SQLAlchemy conflict)
     search_metadata = Column("search_metadata", JSONB, nullable=False, default=dict)
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     # Performance indexes for analytics queries
     __table_args__ = (

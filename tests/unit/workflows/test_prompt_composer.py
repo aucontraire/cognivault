@@ -6,6 +6,7 @@ agent behavior through runtime prompt modification.
 """
 
 import pytest
+from typing import Any
 from unittest.mock import patch, MagicMock
 
 from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
@@ -19,11 +20,18 @@ from cognivault.config.agent_configs import (
     OutputConfig,
 )
 
+from tests.factories import (
+    RefinerConfigFactory,
+    CriticConfigFactory,
+    SynthesisConfigFactory,
+    HistorianConfigFactory,
+)
+
 
 class TestComposedPrompt:
     """Test ComposedPrompt container class."""
 
-    def test_composed_prompt_creation(self):
+    def test_composed_prompt_creation(self) -> None:
         """Test ComposedPrompt creation and basic functionality."""
         prompt = ComposedPrompt(
             system_prompt="Test system prompt",
@@ -37,7 +45,7 @@ class TestComposedPrompt:
         assert prompt.variables["name"] == "Claude"
         assert prompt.metadata["agent_type"] == "test"
 
-    def test_get_template(self):
+    def test_get_template(self) -> None:
         """Test template retrieval."""
         prompt = ComposedPrompt(
             system_prompt="Test",
@@ -50,7 +58,7 @@ class TestComposedPrompt:
         assert prompt.get_template("farewell") == "Goodbye {name}"
         assert prompt.get_template("nonexistent") is None
 
-    def test_substitute_variables(self):
+    def test_substitute_variables(self) -> None:
         """Test variable substitution in templates."""
         prompt = ComposedPrompt(
             system_prompt="Test",
@@ -71,11 +79,11 @@ class TestComposedPrompt:
 class TestPromptComposer:
     """Test PromptComposer class functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_composer_initialization(self):
+    def test_composer_initialization(self) -> None:
         """Test PromptComposer initialization."""
         assert isinstance(self.composer.default_prompts, dict)
         assert "refiner" in self.composer.default_prompts
@@ -87,7 +95,7 @@ class TestPromptComposer:
         assert "refinement_level" in self.composer.behavioral_templates
         assert "analysis_depth" in self.composer.behavioral_templates
 
-    def test_get_default_prompt(self):
+    def test_get_default_prompt(self) -> None:
         """Test default prompt retrieval."""
         refiner_prompt = self.composer.get_default_prompt("refiner")
         assert isinstance(refiner_prompt, str)
@@ -100,13 +108,14 @@ class TestPromptComposer:
 class TestRefinerPromptComposition:
     """Test refiner agent prompt composition."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_compose_refiner_prompt_defaults(self):
+    def test_compose_refiner_prompt_defaults(self) -> None:
         """Test refiner prompt composition with default configuration."""
-        config = RefinerConfig()
+        # # Using factory for refiner configuration
+        config = RefinerConfigFactory.generate_minimal_data()
         composed = self.composer.compose_refiner_prompt(config)
 
         assert isinstance(composed, ComposedPrompt)
@@ -116,17 +125,15 @@ class TestRefinerPromptComposition:
         assert composed.variables["behavioral_mode"] == "adaptive"
         assert composed.variables["output_format"] == "structured"
 
-    def test_compose_refiner_prompt_custom_values(self):
+    def test_compose_refiner_prompt_custom_values(self) -> None:
         """Test refiner prompt composition with custom configuration."""
-        config = RefinerConfig(
+        # # Using factory with custom constraints
+        config = RefinerConfigFactory.with_custom_constraints(
+            ["preserve_tone", "maintain_clarity"],
             refinement_level="comprehensive",
             behavioral_mode="active",
             output_format="prefixed",
         )
-        config.behavioral_config.custom_constraints = [
-            "preserve_tone",
-            "maintain_clarity",
-        ]
 
         composed = self.composer.compose_refiner_prompt(config)
 
@@ -136,7 +143,7 @@ class TestRefinerPromptComposition:
         assert "maintain_clarity" in composed.system_prompt
         assert composed.variables["refinement_level"] == "comprehensive"
 
-    def test_compose_refiner_prompt_custom_system_prompt(self):
+    def test_compose_refiner_prompt_custom_system_prompt(self) -> None:
         """Test refiner prompt composition with custom system prompt."""
         config = RefinerConfig()
         config.prompt_config.custom_system_prompt = "Custom refiner system prompt"
@@ -145,7 +152,7 @@ class TestRefinerPromptComposition:
 
         assert composed.system_prompt.startswith("Custom refiner system prompt")
 
-    def test_compose_refiner_prompt_custom_templates(self):
+    def test_compose_refiner_prompt_custom_templates(self) -> None:
         """Test refiner prompt composition with custom templates."""
         config = RefinerConfig()
         config.prompt_config.custom_templates = {
@@ -165,11 +172,11 @@ class TestRefinerPromptComposition:
 class TestCriticPromptComposition:
     """Test critic agent prompt composition."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_compose_critic_prompt_defaults(self):
+    def test_compose_critic_prompt_defaults(self) -> None:
         """Test critic prompt composition with default configuration."""
         config = CriticConfig()
         composed = self.composer.compose_critic_prompt(config)
@@ -180,7 +187,7 @@ class TestCriticPromptComposition:
         assert composed.variables["confidence_reporting"] == "True"
         assert composed.variables["bias_detection"] == "True"
 
-    def test_compose_critic_prompt_analysis_depth(self):
+    def test_compose_critic_prompt_analysis_depth(self) -> None:
         """Test critic prompt composition with different analysis depths."""
         config = CriticConfig(analysis_depth="deep")
         composed = self.composer.compose_critic_prompt(config)
@@ -188,7 +195,7 @@ class TestCriticPromptComposition:
         assert "deep" in composed.system_prompt.lower()
         assert composed.variables["analysis_depth"] == "deep"
 
-    def test_compose_critic_prompt_confidence_and_bias(self):
+    def test_compose_critic_prompt_confidence_and_bias(self) -> None:
         """Test critic prompt composition with confidence and bias settings."""
         config = CriticConfig(confidence_reporting=False, bias_detection=True)
         composed = self.composer.compose_critic_prompt(config)
@@ -200,7 +207,7 @@ class TestCriticPromptComposition:
         assert composed.variables["confidence_reporting"] == "False"
         assert composed.variables["bias_detection"] == "True"
 
-    def test_compose_critic_prompt_scoring_criteria(self):
+    def test_compose_critic_prompt_scoring_criteria(self) -> None:
         """Test critic prompt composition with custom scoring criteria."""
         config = CriticConfig(scoring_criteria=["accuracy", "depth", "novelty"])
         composed = self.composer.compose_critic_prompt(config)
@@ -218,11 +225,11 @@ class TestCriticPromptComposition:
 class TestHistorianPromptComposition:
     """Test historian agent prompt composition."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_compose_historian_prompt_defaults(self):
+    def test_compose_historian_prompt_defaults(self) -> None:
         """Test historian prompt composition with default configuration."""
         config = HistorianConfig()
         composed = self.composer.compose_historian_prompt(config)
@@ -234,7 +241,7 @@ class TestHistorianPromptComposition:
         assert composed.variables["context_expansion"] == "True"
         assert composed.variables["memory_scope"] == "recent"
 
-    def test_compose_historian_prompt_search_settings(self):
+    def test_compose_historian_prompt_search_settings(self) -> None:
         """Test historian prompt composition with custom search settings."""
         config = HistorianConfig(
             search_depth="exhaustive",
@@ -251,7 +258,7 @@ class TestHistorianPromptComposition:
         assert composed.variables["context_expansion"] == "False"
         assert composed.variables["memory_scope"] == "full"
 
-    def test_compose_historian_prompt_metadata(self):
+    def test_compose_historian_prompt_metadata(self) -> None:
         """Test historian prompt composition metadata."""
         config = HistorianConfig(search_depth="deep", relevance_threshold=0.7)
         composed = self.composer.compose_historian_prompt(config)
@@ -266,11 +273,11 @@ class TestHistorianPromptComposition:
 class TestSynthesisPromptComposition:
     """Test synthesis agent prompt composition."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_compose_synthesis_prompt_defaults(self):
+    def test_compose_synthesis_prompt_defaults(self) -> None:
         """Test synthesis prompt composition with default configuration."""
         config = SynthesisConfig()
         composed = self.composer.compose_synthesis_prompt(config)
@@ -282,7 +289,7 @@ class TestSynthesisPromptComposition:
         assert composed.variables["meta_analysis"] == "True"
         assert composed.variables["integration_mode"] == "adaptive"
 
-    def test_compose_synthesis_prompt_strategy_and_focus(self):
+    def test_compose_synthesis_prompt_strategy_and_focus(self) -> None:
         """Test synthesis prompt composition with strategy and thematic focus."""
         config = SynthesisConfig(
             synthesis_strategy="creative",
@@ -297,7 +304,7 @@ class TestSynthesisPromptComposition:
         assert composed.variables["thematic_focus"] == "innovation"
         assert composed.variables["meta_analysis"] == "False"
 
-    def test_compose_synthesis_prompt_integration_mode(self):
+    def test_compose_synthesis_prompt_integration_mode(self) -> None:
         """Test synthesis prompt composition with different integration modes."""
         config = SynthesisConfig(integration_mode="hierarchical")
         composed = self.composer.compose_synthesis_prompt(config)
@@ -305,7 +312,7 @@ class TestSynthesisPromptComposition:
         assert "hierarchical" in composed.system_prompt.lower()
         assert composed.variables["integration_mode"] == "hierarchical"
 
-    def test_compose_synthesis_prompt_metadata(self):
+    def test_compose_synthesis_prompt_metadata(self) -> None:
         """Test synthesis prompt composition metadata."""
         config = SynthesisConfig(
             synthesis_strategy="focused",
@@ -325,11 +332,11 @@ class TestSynthesisPromptComposition:
 class TestUniversalComposition:
     """Test universal prompt composition interface."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_compose_prompt_refiner(self):
+    def test_compose_prompt_refiner(self) -> None:
         """Test universal compose_prompt method with refiner config."""
         config = RefinerConfig(refinement_level="detailed")
         composed = self.composer.compose_prompt("refiner", config)
@@ -338,7 +345,7 @@ class TestUniversalComposition:
         assert composed.metadata["agent_type"] == "refiner"
         assert composed.variables["refinement_level"] == "detailed"
 
-    def test_compose_prompt_critic(self):
+    def test_compose_prompt_critic(self) -> None:
         """Test universal compose_prompt method with critic config."""
         config = CriticConfig(analysis_depth="comprehensive")
         composed = self.composer.compose_prompt("critic", config)
@@ -346,7 +353,7 @@ class TestUniversalComposition:
         assert composed.metadata["agent_type"] == "critic"
         assert composed.variables["analysis_depth"] == "comprehensive"
 
-    def test_compose_prompt_historian(self):
+    def test_compose_prompt_historian(self) -> None:
         """Test universal compose_prompt method with historian config."""
         config = HistorianConfig(search_depth="deep")
         composed = self.composer.compose_prompt("historian", config)
@@ -354,7 +361,7 @@ class TestUniversalComposition:
         assert composed.metadata["agent_type"] == "historian"
         assert composed.variables["search_depth"] == "deep"
 
-    def test_compose_prompt_synthesis(self):
+    def test_compose_prompt_synthesis(self) -> None:
         """Test universal compose_prompt method with synthesis config."""
         config = SynthesisConfig(synthesis_strategy="comprehensive")
         composed = self.composer.compose_prompt("synthesis", config)
@@ -362,7 +369,7 @@ class TestUniversalComposition:
         assert composed.metadata["agent_type"] == "synthesis"
         assert composed.variables["synthesis_strategy"] == "comprehensive"
 
-    def test_compose_prompt_invalid_agent_type(self):
+    def test_compose_prompt_invalid_agent_type(self) -> None:
         """Test universal compose_prompt method with invalid agent type."""
         config = RefinerConfig()
 
@@ -373,11 +380,11 @@ class TestUniversalComposition:
 class TestPromptValidation:
     """Test prompt validation functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_validate_composition_valid_prompt(self):
+    def test_validate_composition_valid_prompt(self) -> None:
         """Test validation of valid composed prompt."""
         prompt = ComposedPrompt(
             system_prompt="Valid system prompt",
@@ -388,7 +395,7 @@ class TestPromptValidation:
 
         assert self.composer.validate_composition(prompt) is True
 
-    def test_validate_composition_empty_system_prompt(self):
+    def test_validate_composition_empty_system_prompt(self) -> None:
         """Test validation fails for empty system prompt."""
         # Pydantic validation now prevents creating ComposedPrompt with empty system_prompt
         import pytest
@@ -399,7 +406,7 @@ class TestPromptValidation:
 
         assert "system_prompt cannot be empty" in str(exc_info.value)
 
-    def test_validate_composition_invalid_template(self):
+    def test_validate_composition_invalid_template(self) -> None:
         """Test validation fails for template with missing variables."""
         prompt = ComposedPrompt(
             system_prompt="Valid prompt",
@@ -410,7 +417,7 @@ class TestPromptValidation:
 
         assert self.composer.validate_composition(prompt) is False
 
-    def test_validate_composition_valid_template_with_variables(self):
+    def test_validate_composition_valid_template_with_variables(self) -> None:
         """Test validation passes for template with all required variables."""
         prompt = ComposedPrompt(
             system_prompt="Valid prompt",
@@ -425,11 +432,11 @@ class TestPromptValidation:
 class TestBehavioralModifications:
     """Test behavioral modification patterns in prompt composition."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.composer = PromptComposer()
 
-    def test_output_format_instructions(self):
+    def test_output_format_instructions(self) -> None:
         """Test output format instruction generation."""
         # Test direct format specification
         instructions = self.composer._get_output_format_instructions(
@@ -443,7 +450,7 @@ class TestBehavioralModifications:
         )
         assert "markdown" in instructions.lower()
 
-    def test_behavioral_template_integration(self):
+    def test_behavioral_template_integration(self) -> None:
         """Test that behavioral templates are properly integrated."""
         config = RefinerConfig(
             refinement_level="comprehensive", behavioral_mode="active"
@@ -465,7 +472,7 @@ class TestBehavioralModifications:
             self.composer.default_prompts["refiner"]
         )
 
-    def test_custom_constraints_integration(self):
+    def test_custom_constraints_integration(self) -> None:
         """Test that custom constraints are properly integrated."""
         config = RefinerConfig()
         config.behavioral_config.custom_constraints = [

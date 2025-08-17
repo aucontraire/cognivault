@@ -1,3 +1,5 @@
+from typing import Any
+
 #!/usr/bin/env python3
 """
 Configuration parsing and validation round-trip testing.
@@ -17,7 +19,7 @@ from pathlib import Path
 from cognivault.workflows.definition import WorkflowDefinition
 
 
-def test_yaml_to_json_roundtrip():
+def test_yaml_to_json_roundtrip() -> None:
     """Test YAML -> WorkflowDefinition -> JSON -> WorkflowDefinition -> YAML consistency."""
 
     print("🔄 Testing YAML to JSON Round-trip Conversion")
@@ -146,10 +148,10 @@ def test_yaml_to_json_roundtrip():
         print(f"{status} {Path(yaml_file).name}")
 
     print(f"\n🎯 Overall Result: {passed}/{total} round-trip tests passed")
-    return passed == total
+    assert passed == total, f"Round-trip tests failed: {passed}/{total} passed"
 
 
-def test_configuration_parameter_preservation():
+def test_configuration_parameter_preservation() -> None:
     """Test that complex configuration parameters are preserved through round-trips."""
 
     print("\n🔍 Testing Configuration Parameter Preservation")
@@ -241,14 +243,16 @@ def test_configuration_parameter_preservation():
         if config_preserved:
             print("      ✅ All validator configurations preserved correctly")
 
-        return config_preserved
+        assert config_preserved, (
+            "Configuration parameters were not preserved during round-trip"
+        )
 
     except Exception as e:
         print(f"   💥 Configuration preservation test ERROR: {e}")
-        return False
+        assert False, f"Configuration preservation test failed with error: {e}"
 
 
-def test_format_specific_features():
+def test_format_specific_features() -> None:
     """Test format-specific features and edge cases."""
 
     print("\n⚙️  Testing Format-Specific Features")
@@ -293,7 +297,7 @@ def test_format_specific_features():
         try:
             workflow.export("xml")  # Should raise ValueError
             print("      ❌ Unsupported format should have raised error")
-            return False
+            assert False, "Unsupported format should have raised error"
         except ValueError:
             print("      ✅ Unsupported format correctly rejected")
 
@@ -324,67 +328,47 @@ def test_format_specific_features():
                 f"      {'✅' if file_io_consistent else '❌'} File I/O round-trip: {'Consistent' if file_io_consistent else 'Inconsistent'}"
             )
 
-            return file_io_consistent
+            assert file_io_consistent, "File I/O round-trip was inconsistent"
 
     except Exception as e:
         print(f"   💥 Format-specific features test ERROR: {e}")
-        return False
+        assert False, f"Format-specific features test failed with error: {e}"
 
 
-def main():
+def main() -> None:
     """Run all configuration parsing and validation tests."""
 
     print("🚀 Starting Configuration Parsing and Validation Testing")
     print("=" * 70)
 
-    test_results = []
-
     # Test YAML/JSON round-trip
-    roundtrip_success = test_yaml_to_json_roundtrip()
-    test_results.append(("YAML/JSON Round-trip", roundtrip_success))
+    test_yaml_to_json_roundtrip()
+    print("✅ PASS YAML/JSON Round-trip")
 
     # Test configuration parameter preservation
-    preservation_success = test_configuration_parameter_preservation()
-    test_results.append(("Configuration Parameter Preservation", preservation_success))
+    test_configuration_parameter_preservation()
+    print("✅ PASS Configuration Parameter Preservation")
 
     # Test format-specific features
-    format_success = test_format_specific_features()
-    test_results.append(("Format-Specific Features", format_success))
+    test_format_specific_features()
+    print("✅ PASS Format-Specific Features")
 
-    # Final summary
+    # Final summary - if we reach here, all tests passed (assertions didn't fail)
     print("\n" + "=" * 70)
     print("🏁 CONFIGURATION TESTING RESULTS")
     print("=" * 70)
-
-    passed_tests = 0
-    for test_name, success in test_results:
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status} {test_name}")
-        if success:
-            passed_tests += 1
-
-    total_tests = len(test_results)
-    print(
-        f"\n🎯 Overall Result: {passed_tests}/{total_tests} configuration tests passed"
-    )
-
-    if passed_tests == total_tests:
-        print("\n🎉 ALL CONFIGURATION TESTS PASSED!")
-        print("✅ YAML/JSON round-trip conversion is working correctly")
-        print("✅ Complex configuration parameters are preserved")
-        print("✅ Format-specific features are functioning properly")
-        print("✅ File I/O operations are consistent")
-        return True
-    else:
-        print("\n❌ SOME CONFIGURATION TESTS FAILED!")
-        print("⚠️  Check the detailed output above for specific failure information")
-        return False
+    print("🎯 Overall Result: 3/3 configuration tests passed")
+    print("\n🎉 ALL CONFIGURATION TESTS PASSED!")
+    print("✅ YAML/JSON round-trip conversion is working correctly")
+    print("✅ Complex configuration parameters are preserved")
+    print("✅ Format-specific features are functioning properly")
+    print("✅ File I/O operations are consistent")
 
 
 if __name__ == "__main__":
     try:
-        success = main()
-        sys.exit(0 if success else 1)
+        main()
+        sys.exit(0)
     except Exception as e:
         print(f"\n💥 Configuration testing failed with error: {e}")
         import traceback

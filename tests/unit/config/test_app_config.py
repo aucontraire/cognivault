@@ -6,6 +6,7 @@ import tempfile
 from unittest.mock import patch
 
 import pytest
+from typing import Any
 
 from cognivault.config.app_config import (
     ApplicationConfig,
@@ -25,7 +26,7 @@ from cognivault.config.app_config import (
 class TestExecutionConfig:
     """Test suite for AppExecutionConfig."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test that AppExecutionConfig has correct default values."""
         config = AppExecutionConfig()
 
@@ -41,7 +42,7 @@ class TestExecutionConfig:
 class TestFileConfig:
     """Test suite for FileConfig."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test that FileConfig has correct default values."""
         config = FileConfig()
 
@@ -57,7 +58,7 @@ class TestFileConfig:
 class TestModelConfig:
     """Test suite for ModelConfig."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test that ModelConfig has correct default values."""
         config = ModelConfig()
 
@@ -72,7 +73,7 @@ class TestModelConfig:
 class TestDevelopmentConfig:
     """Test suite for DevelopmentConfig."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test that DevelopmentConfig has correct default values."""
         config = DevelopmentConfig()
 
@@ -87,7 +88,7 @@ class TestDevelopmentConfig:
 class TestApplicationConfig:
     """Test suite for ApplicationConfig."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test that ApplicationConfig has correct default values."""
         config = ApplicationConfig()
 
@@ -99,7 +100,7 @@ class TestApplicationConfig:
         assert isinstance(config.models, ModelConfig)
         assert isinstance(config.testing, DevelopmentConfig)
 
-    def test_from_env_basic(self):
+    def test_from_env_basic(self) -> None:
         """Test creating configuration from environment variables."""
         with patch.dict(
             os.environ,
@@ -119,7 +120,7 @@ class TestApplicationConfig:
             assert config.execution.max_retries == 5
             assert config.execution.timeout_seconds == 20
 
-    def test_from_env_file_config(self):
+    def test_from_env_file_config(self) -> None:
         """Test environment variables for file configuration."""
         with patch.dict(
             os.environ,
@@ -139,7 +140,7 @@ class TestApplicationConfig:
             assert config.files.hash_length == 8
             assert config.files.max_file_size == 20 * 1024 * 1024
 
-    def test_from_env_model_config(self):
+    def test_from_env_model_config(self) -> None:
         """Test environment variables for model configuration."""
         with patch.dict(
             os.environ,
@@ -157,7 +158,7 @@ class TestApplicationConfig:
             assert config.models.max_tokens_per_request == 2048
             assert config.models.temperature == 0.9
 
-    def test_from_env_execution_config(self):
+    def test_from_env_execution_config(self) -> None:
         """Test environment variables for execution configuration."""
         with patch.dict(
             os.environ,
@@ -175,7 +176,7 @@ class TestApplicationConfig:
             assert config.execution.retry_delay_seconds == 2.0
             assert config.execution.critic_enabled is False
 
-    def test_from_env_invalid_values(self):
+    def test_from_env_invalid_values(self) -> None:
         """Test that invalid environment values fall back to defaults."""
         with patch.dict(
             os.environ,
@@ -190,7 +191,7 @@ class TestApplicationConfig:
             assert config.environment == Environment.DEVELOPMENT
             assert config.log_level == LogLevel.INFO
 
-    def test_from_file(self):
+    def test_from_file(self) -> None:
         """Test loading configuration from a JSON file."""
         config_data = {
             "environment": "testing",
@@ -241,12 +242,12 @@ class TestApplicationConfig:
         finally:
             os.unlink(config_file)
 
-    def test_from_file_not_found(self):
+    def test_from_file_not_found(self) -> None:
         """Test that from_file raises FileNotFoundError for missing files."""
         with pytest.raises(FileNotFoundError):
             ApplicationConfig.from_file("/nonexistent/config.json")
 
-    def test_from_file_invalid_json(self):
+    def test_from_file_invalid_json(self) -> None:
         """Test that from_file raises JSONDecodeError for invalid JSON."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content")
@@ -258,7 +259,7 @@ class TestApplicationConfig:
         finally:
             os.unlink(config_file)
 
-    def test_save_to_file(self):
+    def test_save_to_file(self) -> None:
         """Test saving configuration to a JSON file."""
         config = ApplicationConfig()
         config.environment = Environment.TESTING
@@ -285,7 +286,7 @@ class TestApplicationConfig:
         finally:
             os.unlink(config_file)
 
-    def test_get_timeout_for_environment(self):
+    def test_get_timeout_for_environment(self) -> None:
         """Test timeout adjustment for different environments."""
         config = ApplicationConfig()
         config.execution.timeout_seconds = 10
@@ -303,7 +304,7 @@ class TestApplicationConfig:
         config.environment = Environment.TESTING
         assert config.get_timeout_for_environment() == 20
 
-    def test_ensure_directories_exist(self):
+    def test_ensure_directories_exist(self) -> None:
         """Test that ensure_directories_exist creates necessary directories."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = ApplicationConfig()
@@ -321,13 +322,13 @@ class TestApplicationConfig:
             assert os.path.exists(config.files.notes_directory)
             assert os.path.exists(config.files.logs_directory)
 
-    def test_validate_valid_config(self):
+    def test_validate_valid_config(self) -> None:
         """Test validation of a valid configuration."""
         config = ApplicationConfig()
         errors = config.validate_configuration()
         assert errors == []
 
-    def test_validate_invalid_execution_config(self):
+    def test_validate_invalid_execution_config(self) -> None:
         """Test validation of invalid execution configuration."""
         config = ApplicationConfig()
         config.execution.max_retries = -1
@@ -341,7 +342,7 @@ class TestApplicationConfig:
         assert "retry_delay_seconds must be non-negative" in errors
         assert "simulation_delay_seconds must be non-negative" in errors
 
-    def test_validate_invalid_file_config(self):
+    def test_validate_invalid_file_config(self) -> None:
         """Test validation of invalid file configuration."""
         config = ApplicationConfig()
         config.files.question_truncate_length = 0
@@ -355,7 +356,7 @@ class TestApplicationConfig:
         assert "max_file_size must be positive" in errors
         assert "max_note_files must be positive" in errors
 
-    def test_validate_invalid_model_config(self):
+    def test_validate_invalid_model_config(self) -> None:
         """Test validation of invalid model configuration."""
         config = ApplicationConfig()
         config.models.max_tokens_per_request = 0
@@ -370,7 +371,7 @@ class TestApplicationConfig:
         errors = config.validate_configuration()
         assert "temperature must be between 0 and 2" in errors
 
-    def test_validate_invalid_testing_config(self):
+    def test_validate_invalid_testing_config(self) -> None:
         """Test validation of invalid testing configuration."""
         config = ApplicationConfig()
         config.testing.test_timeout_multiplier = 0
@@ -390,27 +391,27 @@ class TestApplicationConfig:
 class TestGlobalConfiguration:
     """Test suite for global configuration functions."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset global configuration before each test."""
         reset_config()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Reset global configuration after each test."""
         reset_config()
 
-    def test_get_config_default(self):
+    def test_get_config_default(self) -> None:
         """Test that get_config returns a default configuration."""
         config = get_config()
         assert isinstance(config, ApplicationConfig)
         assert config.environment == Environment.DEVELOPMENT
 
-    def test_get_config_singleton(self):
+    def test_get_config_singleton(self) -> None:
         """Test that get_config returns the same instance."""
         config1 = get_config()
         config2 = get_config()
         assert config1 is config2
 
-    def test_set_config(self):
+    def test_set_config(self) -> None:
         """Test setting a custom global configuration."""
         custom_config = ApplicationConfig()
         custom_config.environment = Environment.PRODUCTION
@@ -423,7 +424,7 @@ class TestGlobalConfiguration:
         assert retrieved_config.environment == Environment.PRODUCTION
         assert retrieved_config.debug_mode is True
 
-    def test_reset_config(self):
+    def test_reset_config(self) -> None:
         """Test resetting the global configuration."""
         # Set a custom config
         custom_config = ApplicationConfig()
@@ -439,7 +440,7 @@ class TestGlobalConfiguration:
         assert new_config is not custom_config
         assert new_config.environment == Environment.DEVELOPMENT
 
-    def test_load_config_from_file(self):
+    def test_load_config_from_file(self) -> None:
         """Test loading configuration from file and setting as global."""
         config_data = {
             "environment": "production",
@@ -471,7 +472,7 @@ class TestGlobalConfiguration:
 class TestConfigurationIntegration:
     """Integration tests for configuration system."""
 
-    def test_environment_based_configuration(self):
+    def test_environment_based_configuration(self) -> None:
         """Test that configuration adapts correctly to different environments."""
         config = ApplicationConfig()
 
@@ -489,7 +490,7 @@ class TestConfigurationIntegration:
         config.environment = Environment.PRODUCTION
         assert config.get_timeout_for_environment() == 10
 
-    def test_configuration_persistence_roundtrip(self):
+    def test_configuration_persistence_roundtrip(self) -> None:
         """Test that configuration can be saved and loaded without data loss."""
         original_config = ApplicationConfig()
         original_config.environment = Environment.TESTING
@@ -519,7 +520,7 @@ class TestConfigurationIntegration:
         finally:
             os.unlink(config_file)
 
-    def test_environment_variable_precedence(self):
+    def test_environment_variable_precedence(self) -> None:
         """Test that environment variables take precedence over defaults."""
         # Test with environment variables set
         with patch.dict(

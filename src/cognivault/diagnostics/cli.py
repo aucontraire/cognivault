@@ -24,7 +24,7 @@ from .formatters import get_formatter
 class DiagnosticsCLI:
     """CLI interface for CogniVault diagnostics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.console = Console()
         self.stderr_console = Console(stderr=True)
         self.diagnostics = DiagnosticsManager()
@@ -66,7 +66,7 @@ class DiagnosticsCLI:
         quiet: bool = typer.Option(
             False, "--quiet", "-q", help="Quiet mode - only exit code"
         ),
-    ):
+    ) -> None:
         """Run system health checks."""
         if quiet and output_format == "console":
             # Run health check and exit with appropriate code
@@ -80,14 +80,19 @@ class DiagnosticsCLI:
             else:  # unhealthy or unknown
                 raise typer.Exit(2)
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task("Running health checks...", total=None)
+        # Only show progress spinner for console output to avoid interfering with JSON/other formats
+        if output_format == "console":
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task("Running health checks...", total=None)
+                health_data = asyncio.run(self.diagnostics.quick_health_check())
+                progress.remove_task(task)
+        else:
+            # For non-console output, run health check without progress spinner
             health_data = asyncio.run(self.diagnostics.quick_health_check())
-            progress.remove_task(task)
 
         # Handle non-console output formats
         if output_format != "console":
@@ -107,7 +112,8 @@ class DiagnosticsCLI:
                     else:
                         output = json.dumps(health_data, indent=2)
 
-                self.console.print(output)
+                # Use plain print for JSON/structured output to avoid Rich formatting
+                print(output)
 
                 # Set exit code based on health
                 status = health_data["status"]
@@ -158,20 +164,23 @@ class DiagnosticsCLI:
         window: Optional[int] = typer.Option(
             None, "--window", "-w", help="Metrics window in minutes"
         ),
-    ):
+    ) -> None:
         """Show detailed system status."""
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task("Gathering system status...", total=None)
-            diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
-            progress.remove_task(task)
-
+        # Only show progress spinner for console output to avoid interfering with JSON
         if json_output:
-            self.console.print(json.dumps(diagnostics.to_dict(), indent=2))
+            diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
+            # Use plain print for JSON output to avoid Rich formatting
+            print(json.dumps(diagnostics.to_dict(), indent=2))
             return
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task("Gathering system status...", total=None)
+                diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
+                progress.remove_task(task)
 
         # Rich output
         self.console.print("\n[bold]CogniVault System Status[/bold]")
@@ -217,7 +226,7 @@ class DiagnosticsCLI:
         agents_only: bool = typer.Option(
             False, "--agents", help="Show only agent-specific metrics"
         ),
-    ):
+    ) -> None:
         """Show performance metrics and statistics."""
         metrics_data = self.diagnostics.get_performance_summary(window)
 
@@ -247,7 +256,8 @@ class DiagnosticsCLI:
                 else:
                     output = json.dumps(metrics_data, indent=2)
 
-                self.console.print(output)
+                # Use plain print for JSON/structured output to avoid Rich formatting
+                print(output)
                 return
 
             except ValueError as e:
@@ -309,7 +319,7 @@ class DiagnosticsCLI:
         agent: Optional[str] = typer.Option(
             None, "--agent", "-a", help="Show specific agent only"
         ),
-    ):
+    ) -> None:
         """Show agent status and statistics."""
         agent_data = self.diagnostics.get_agent_status()
 
@@ -317,12 +327,14 @@ class DiagnosticsCLI:
             if agent:
                 agent_info = agent_data["agents"].get(agent)
                 if agent_info:
-                    self.console.print(json.dumps(agent_info, indent=2))
+                    # Use plain print for JSON output to avoid Rich formatting
+                    print(json.dumps(agent_info, indent=2))
                 else:
                     self.stderr_console.print(f"[red]Agent '{agent}' not found[/red]")
                     sys.exit(1)
             else:
-                self.console.print(json.dumps(agent_data, indent=2))
+                # Use plain print for JSON output to avoid Rich formatting
+                print(json.dumps(agent_data, indent=2))
             return
 
         # Rich output
@@ -348,12 +360,13 @@ class DiagnosticsCLI:
         validate_only: bool = typer.Option(
             False, "--validate", help="Only show validation results"
         ),
-    ):
+    ) -> None:
         """Show configuration report and validation."""
         config_data = self.diagnostics.get_configuration_report()
 
         if json_output:
-            self.console.print(json.dumps(config_data, indent=2))
+            # Use plain print for JSON output to avoid Rich formatting
+            print(json.dumps(config_data, indent=2))
             return
 
         # Rich output
@@ -420,16 +433,21 @@ class DiagnosticsCLI:
         output_file: Optional[str] = typer.Option(
             None, "--output", "-o", help="Save to file"
         ),
-    ):
+    ) -> None:
         """Run complete system diagnostics."""
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-        ) as progress:
-            task = progress.add_task("Running full diagnostics...", total=None)
+        # Only show progress spinner for console output to avoid interfering with JSON/other formats
+        if output_format == "console":
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+            ) as progress:
+                task = progress.add_task("Running full diagnostics...", total=None)
+                diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
+                progress.remove_task(task)
+        else:
+            # For non-console output, run diagnostics without progress spinner
             diagnostics = asyncio.run(self.diagnostics.run_full_diagnostics(window))
-            progress.remove_task(task)
 
         # Format output data
         if output_format == "console":
@@ -456,7 +474,8 @@ class DiagnosticsCLI:
                         f.write(output)
                     self.console.print(f"Diagnostics saved to: {output_file}")
                 else:
-                    self.console.print(output)
+                    # Use plain print for JSON/structured output to avoid Rich formatting
+                    print(output)
 
                 return
 
@@ -520,7 +539,7 @@ class DiagnosticsCLI:
         }
         return status_colors.get(status.lower(), "white")
 
-    def _display_component_health(self, component_healths):
+    def _display_component_health(self, component_healths: Dict[str, Any]) -> None:
         """Display component health in a tree structure."""
         tree = Tree("Component Health")
 
@@ -541,7 +560,7 @@ class DiagnosticsCLI:
 
         self.console.print(tree)
 
-    def _transform_metrics_for_display(self, metrics) -> Dict[str, Any]:
+    def _transform_metrics_for_display(self, metrics: Any) -> Dict[str, Any]:
         """Transform PerformanceMetrics into display-friendly format."""
         from .metrics import PerformanceMetrics
 
@@ -582,7 +601,7 @@ class DiagnosticsCLI:
             "pipeline_duration": metrics.average_execution_time_ms * 4,
         }
 
-    def _display_performance_summary(self, metrics):
+    def _display_performance_summary(self, metrics: Any) -> None:
         """Display performance metrics summary."""
         # Transform the data for display
         display_metrics = self._transform_metrics_for_display(metrics)
@@ -624,7 +643,7 @@ class DiagnosticsCLI:
 
         self.console.print(perf_table)
 
-    def _display_agent_metrics(self, agents):
+    def _display_agent_metrics(self, agents: Dict[str, Any]) -> None:
         """Display agent-specific metrics."""
         agent_table = Table(title="Agent Metrics")
         agent_table.add_column("Agent", style="bold")
@@ -644,7 +663,7 @@ class DiagnosticsCLI:
 
         self.console.print(agent_table)
 
-    def _display_error_breakdown(self, error_breakdown):
+    def _display_error_breakdown(self, error_breakdown: Dict[str, Any]) -> None:
         """Display error breakdown."""
         error_table = Table(title="Error Breakdown")
         error_table.add_column("Error Type", style="bold")
@@ -655,7 +674,9 @@ class DiagnosticsCLI:
 
         self.console.print(error_table)
 
-    def _display_single_agent(self, agent_name, agent_info):
+    def _display_single_agent(
+        self, agent_name: str, agent_info: Dict[str, Any]
+    ) -> None:
         """Display detailed information for a single agent."""
         self.console.print(f"\n[bold]{agent_name} Agent Details[/bold]")
 
@@ -698,7 +719,7 @@ class DiagnosticsCLI:
         else:
             self.console.print("[dim]No execution metrics available[/dim]")
 
-    def _display_all_agents(self, agents):
+    def _display_all_agents(self, agents: Dict[str, Any]) -> None:
         """Display summary of all agents."""
         agent_table = Table(title="All Agents")
         agent_table.add_column("Agent", style="bold")
@@ -746,7 +767,7 @@ class DiagnosticsCLI:
         try:
             import langgraph
 
-            langgraph_health["version"] = getattr(langgraph, "__version__", "0.5.1")
+            langgraph_health["version"] = getattr(langgraph, "__version__", "0.6.4")
             langgraph_health["status"] = "installed"
 
             # Test StateGraph functionality
@@ -755,14 +776,16 @@ class DiagnosticsCLI:
                 from langgraph.checkpoint.memory import MemorySaver
                 from typing import TypedDict
 
-                class TestState(TypedDict):
+                class LangGraphHealthCheckState(TypedDict):
                     test: str
 
-                def test_node(state: TestState) -> TestState:
+                def test_node(
+                    state: LangGraphHealthCheckState,
+                ) -> LangGraphHealthCheckState:
                     return {"test": "working"}
 
                 # Test basic StateGraph creation
-                graph = StateGraph(TestState)
+                graph = StateGraph(LangGraphHealthCheckState)
                 graph.add_node("test", test_node)
                 graph.add_edge("test", END)
                 graph.set_entry_point("test")
@@ -857,9 +880,9 @@ class DiagnosticsCLI:
             try:
                 import langgraph
 
-                suggested_version = getattr(langgraph, "__version__", "0.5.3")
+                suggested_version = getattr(langgraph, "__version__", "0.6.4")
             except ImportError:
-                suggested_version = "0.5.3"
+                suggested_version = "0.6.4"
 
             self.console.print(
                 f"[red]❌ LangGraph is not installed. Run: pip install langgraph=={suggested_version}[/red]"

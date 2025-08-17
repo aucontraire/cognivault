@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, select, Integer, Float, cast
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from cognivault.database.models import Question
@@ -24,7 +25,7 @@ class QuestionRepository(BaseRepository[Question]):
     execution metadata queries, and topic association management.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, Question)
 
     async def create_question(

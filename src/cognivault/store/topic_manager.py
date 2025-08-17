@@ -131,7 +131,7 @@ class TopicAnalysis(BaseModel):
 class KeywordExtractor:
     """Extract meaningful keywords and phrases from text."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Extended stop words for better keyword extraction
         self.stop_words = {
             "the",
@@ -285,9 +285,9 @@ class KeywordExtractor:
         # Sort by frequency
         return sorted(all_terms, key=lambda x: x[1], reverse=True)
 
-    def _extract_phrases(self, text: str) -> Counter:
+    def _extract_phrases(self, text: str) -> Counter[str]:
         """Extract meaningful 2-3 word phrases."""
-        phrases: Counter = Counter()
+        phrases: Counter[str] = Counter()
         words = text.split()
 
         # 2-word phrases
@@ -323,7 +323,7 @@ class KeywordExtractor:
 class TopicMapper:
     """Map extracted terms to structured topics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.domain_keywords = {
             "technology": {
                 "programming",
@@ -507,7 +507,7 @@ class TopicMapper:
     ) -> List[TopicSuggestion]:
         """Map extracted terms to topic suggestions."""
         suggestions = []
-        domain_scores: Counter = Counter()
+        domain_scores: Counter[str] = Counter()
 
         for term, frequency in terms[:20]:  # Focus on top 20 terms
             # Check domain mapping
@@ -558,7 +558,7 @@ class TopicMapper:
 class LLMTopicAnalyzer:
     """Use LLM for sophisticated topic analysis."""
 
-    def __init__(self, llm: Optional[LLMInterface] = None):
+    def __init__(self, llm: Optional[LLMInterface] = None) -> None:
         self.llm = llm
 
     async def analyze_topics(
@@ -671,7 +671,7 @@ YOUR TOPIC SUGGESTIONS:"""
 class TopicManager:
     """Main topic management and auto-tagging pipeline."""
 
-    def __init__(self, llm: Optional[LLMInterface] = None):
+    def __init__(self, llm: Optional[LLMInterface] = None) -> None:
         self.keyword_extractor = KeywordExtractor()
         self.topic_mapper = TopicMapper()
         self.llm_analyzer = LLMTopicAnalyzer(llm)

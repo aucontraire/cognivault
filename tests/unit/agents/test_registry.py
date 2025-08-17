@@ -1,56 +1,63 @@
 """Tests for the Agent Registry system."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
+from cognivault.agents.base_agent import BaseAgent
+from cognivault.agents.metadata import AgentMetadata
 from cognivault.agents.registry import (
     AgentRegistry,
+    create_agent,
     get_agent_registry,
     register_agent,
-    create_agent,
 )
-from cognivault.agents.base_agent import BaseAgent
-from cognivault.llm.llm_interface import LLMInterface, LLMResponse
 from cognivault.context import AgentContext
+from cognivault.llm.llm_interface import LLMInterface
+from tests.factories.mock_llm_factories import MockLLMFactory
+
+# Expected number of core agents
+CORE_AGENT_COUNT = 4
 
 
 class MockAgentWithLLM(BaseAgent):
     """Mock agent that requires LLM for testing."""
 
-    def __init__(self, llm: LLMInterface):
+    def __init__(self, llm: LLMInterface) -> None:
+        """Initialize mock agent with LLM interface."""
         super().__init__("MockLLM")
         self.llm = llm
 
     async def run(self, context: AgentContext) -> AgentContext:
+        """Run the mock agent, returning context unchanged."""
         return context
 
 
 class MockAgentWithoutLLM(BaseAgent):
     """Mock agent that doesn't require LLM for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize mock agent without LLM interface."""
         super().__init__("MockNoLLM")
 
     async def run(self, context: AgentContext) -> AgentContext:
+        """Run the mock agent, returning context unchanged."""
         return context
 
 
 def create_mock_llm() -> MagicMock:
     """Create a mock LLM interface for testing."""
-    mock_llm = MagicMock()
-    mock_response = LLMResponse(
-        text="Mock response",
+    return MockLLMFactory.with_response(
+        "Mock response",
         tokens_used=10,
         model_name="test-model",
-        finish_reason="stop",
     )
-    mock_llm.generate.return_value = mock_response
-    return mock_llm
 
 
 class TestAgentRegistry:
     """Test suite for AgentRegistry class."""
 
-    def test_registry_initialization(self):
+    def test_registry_initialization(self) -> None:
         """Test that registry initializes with core agents."""
         registry = AgentRegistry()
 
@@ -62,9 +69,9 @@ class TestAgentRegistry:
         assert "synthesis" in available_agents
 
         # Should have exactly the core agents
-        assert len(available_agents) == 4
+        assert len(available_agents) == CORE_AGENT_COUNT
 
-    def test_register_new_agent(self):
+    def test_register_new_agent(self) -> None:
         """Test registering a new agent."""
         registry = AgentRegistry()
 
@@ -87,7 +94,7 @@ class TestAgentRegistry:
         assert metadata.requires_llm is False
         assert metadata.description == "Test agent for unit tests"
 
-    def test_register_duplicate_agent_raises_error(self):
+    def test_register_duplicate_agent_raises_error(self) -> None:
         """Test that registering duplicate agent name raises error."""
         registry = AgentRegistry()
 
@@ -95,7 +102,7 @@ class TestAgentRegistry:
         with pytest.raises(ValueError, match="Agent 'refiner' is already registered"):
             registry.register("refiner", MockAgentWithoutLLM)
 
-    def test_create_agent_without_llm(self):
+    def test_create_agent_without_llm(self) -> None:
         """Test creating agent that doesn't require LLM."""
         registry = AgentRegistry()
 
@@ -105,37 +112,38 @@ class TestAgentRegistry:
         assert agent is not None
         assert agent.name == "historian"
 
-    def test_create_agent_with_llm(self):
+    def test_create_agent_with_llm(self) -> None:
         """Test creating agent that requires LLM."""
         registry = AgentRegistry()
-        mock_llm = create_mock_llm()
+        mock_llm: MagicMock = create_mock_llm()
 
-        # Create refiner agent (requires LLM)
-        agent = registry.create_agent("refiner", llm=mock_llm)
+        # Create refiner agent (requires LLM) using the LLM-aware method
+        agent = registry.create_agent_with_llm("refiner", llm=mock_llm)
 
         assert agent is not None
         assert agent.name == "refiner"
         assert hasattr(agent, "llm")
         assert agent.llm == mock_llm
 
-    def test_create_agent_llm_required_but_not_provided(self):
+    def test_create_agent_llm_required_but_not_provided(self) -> None:
         """Test error when LLM required but not provided."""
         registry = AgentRegistry()
 
         # Try to create refiner without LLM
         with pytest.raises(
-            ValueError, match="Agent 'refiner' requires an LLM interface"
+            ValueError,
+            match="Agent 'refiner' requires an LLM interface",
         ):
             registry.create_agent("refiner")
 
-    def test_create_unknown_agent_raises_error(self):
+    def test_create_unknown_agent_raises_error(self) -> None:
         """Test error when trying to create unknown agent."""
         registry = AgentRegistry()
 
         with pytest.raises(ValueError, match="Unknown agent: 'nonexistent'"):
             registry.create_agent("nonexistent")
 
-    def test_get_agents_requiring_llm(self):
+    def test_get_agents_requiring_llm(self) -> None:
         """Test getting list of agents that require LLM."""
         registry = AgentRegistry()
 
@@ -149,30 +157,30 @@ class TestAgentRegistry:
         assert "historian" not in llm_agents
         assert "synthesis" not in llm_agents
 
-    def test_validate_pipeline_valid_agents(self):
+    def test_validate_pipeline_valid_agents(self) -> None:
         """Test pipeline validation with valid agents."""
         registry = AgentRegistry()
 
         # Valid pipeline
-        valid_pipeline = ["refiner", "critic", "historian"]
+        valid_pipeline: list[str] = ["refiner", "critic", "historian"]
         assert registry.validate_pipeline(valid_pipeline) is True
 
-    def test_validate_pipeline_invalid_agent(self):
+    def test_validate_pipeline_invalid_agent(self) -> None:
         """Test pipeline validation with invalid agent."""
         registry = AgentRegistry()
 
         # Invalid pipeline (contains unknown agent)
-        invalid_pipeline = ["refiner", "unknown_agent", "historian"]
+        invalid_pipeline: list[str] = ["refiner", "unknown_agent", "historian"]
         assert registry.validate_pipeline(invalid_pipeline) is False
 
-    def test_get_agent_info_unknown_agent(self):
+    def test_get_agent_info_unknown_agent(self) -> None:
         """Test getting info for unknown agent raises error."""
         registry = AgentRegistry()
 
         with pytest.raises(ValueError, match="Unknown agent: 'unknown'"):
             registry.get_agent_info("unknown")
 
-    def test_custom_agent_with_dependencies(self):
+    def test_custom_agent_with_dependencies(self) -> None:
         """Test registering agent with dependencies."""
         registry = AgentRegistry()
 
@@ -186,46 +194,49 @@ class TestAgentRegistry:
         metadata = registry.get_agent_info("custom_agent")
         assert metadata.dependencies == ["refiner", "critic"]
 
-    def test_agent_creation_with_kwargs(self):
+    def test_agent_creation_with_kwargs(self) -> None:
         """Test agent creation with additional kwargs."""
         registry = AgentRegistry()
 
         # Register mock agent that accepts additional parameters
         registry.register("mock_with_llm", MockAgentWithLLM, requires_llm=True)
 
-        mock_llm = create_mock_llm()
-        agent = registry.create_agent("mock_with_llm", llm=mock_llm)
+        mock_llm: MagicMock = create_mock_llm()
+        agent = registry.create_agent_with_llm("mock_with_llm", llm=mock_llm)
 
         assert agent is not None
         assert agent.name == "MockLLM"
         assert agent.llm == mock_llm
 
-    def test_agent_metadata_dependencies_post_init(self):
+    def test_agent_metadata_dependencies_post_init(self) -> None:
         """Test AgentMetadata.__post_init__ sets empty list when dependencies is None."""
-        from cognivault.agents.registry import AgentMetadata
-
         # Create metadata without explicit dependencies (should be None initially)
-        metadata = AgentMetadata(
+        # Use factory method to avoid parameter unfilled warnings
+        metadata = AgentMetadata.create_for_registry(
             name="test",
             agent_class=MockAgentWithoutLLM,
             requires_llm=False,
             description="Test agent",
-            # dependencies not specified, will be None
+            # dependencies not specified, will be None - factory method handles this properly
         )
 
         # __post_init__ should have converted None to empty list
         assert metadata.dependencies == []
 
-    def test_agent_creation_failure_exception_handling(self):
+    def test_agent_creation_failure_exception_handling(self) -> None:
         """Test exception handling when agent creation fails."""
 
         class FailingAgent(BaseAgent):
             """Mock agent that fails during initialization."""
 
-            def __init__(self):
-                raise RuntimeError("Initialization failed")
+            def __init__(self) -> None:
+                """Initialize failing agent (raises RuntimeError)."""
+                super().__init__("failing")
+                msg = "Initialization failed"
+                raise RuntimeError(msg)
 
-            async def run(self, context):
+            async def run(self, context: AgentContext) -> AgentContext:
+                """Run method (never reached due to init failure)."""
                 return context
 
         registry = AgentRegistry()
@@ -242,7 +253,7 @@ class TestAgentRegistry:
 class TestGlobalRegistry:
     """Test suite for global registry functions."""
 
-    def test_get_agent_registry_singleton(self):
+    def test_get_agent_registry_singleton(self) -> None:
         """Test that get_agent_registry returns singleton."""
         registry1 = get_agent_registry()
         registry2 = get_agent_registry()
@@ -250,11 +261,13 @@ class TestGlobalRegistry:
         # Should be the same instance
         assert registry1 is registry2
 
-    def test_register_agent_global_function(self):
+    def test_register_agent_global_function(self) -> None:
         """Test global register_agent function."""
         # Register using global function
         register_agent(
-            "global_test", MockAgentWithoutLLM, description="Global test agent"
+            "global_test",
+            MockAgentWithoutLLM,
+            description="Global test agent",
         )
 
         # Verify it's in the global registry
@@ -264,9 +277,9 @@ class TestGlobalRegistry:
         metadata = registry.get_agent_info("global_test")
         assert metadata.description == "Global test agent"
 
-    def test_create_agent_global_function(self):
+    def test_create_agent_global_function(self) -> None:
         """Test global create_agent function."""
-        mock_llm = create_mock_llm()
+        mock_llm: MagicMock = create_mock_llm()
 
         # Create agent using global function
         agent = create_agent("refiner", llm=mock_llm)
@@ -278,7 +291,7 @@ class TestGlobalRegistry:
 class TestRegistryWithOrchestrator:
     """Test registry integration with orchestrator patterns."""
 
-    def test_core_agents_metadata(self):
+    def test_core_agents_metadata(self) -> None:
         """Test that core agents have proper metadata."""
         registry = AgentRegistry()
 
@@ -304,10 +317,10 @@ class TestRegistryWithOrchestrator:
         assert synthesis_meta.requires_llm is False
         assert "synthesizes" in synthesis_meta.description.lower()
 
-    def test_all_core_agents_can_be_created(self):
+    def test_all_core_agents_can_be_created(self) -> None:
         """Test that all core agents can be successfully created."""
         registry = AgentRegistry()
-        mock_llm = create_mock_llm()
+        mock_llm: MagicMock = create_mock_llm()
 
         # Test each core agent
         for agent_name in ["refiner", "critic", "historian", "synthesis"]:

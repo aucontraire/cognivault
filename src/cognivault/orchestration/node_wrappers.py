@@ -19,7 +19,19 @@ Design Principles:
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import (
+    Dict,
+    Any,
+    Optional,
+    List,
+    Callable,
+    Coroutine,
+    TypeVar,
+    Union,
+    cast,
+    Protocol,
+    Generator,
+)
 from functools import wraps
 
 from langgraph.runtime import Runtime
@@ -57,12 +69,12 @@ logger = get_logger(__name__)
 _TIMING_REGISTRY: Dict[str, Dict[str, float]] = {}
 
 
-def get_timing_registry():
+def get_timing_registry() -> Dict[str, Dict[str, float]]:
     """Get the current timing registry."""
     return _TIMING_REGISTRY.copy()
 
 
-def clear_timing_registry():
+def clear_timing_registry() -> None:
     """Clear the timing registry for a new workflow execution."""
     global _TIMING_REGISTRY
     _TIMING_REGISTRY.clear()
@@ -70,7 +82,7 @@ def clear_timing_registry():
 
 def register_node_timing(
     execution_id: str, node_name: str, execution_time_seconds: float
-):
+) -> None:
     """Register node execution timing data."""
     global _TIMING_REGISTRY
     if execution_id not in _TIMING_REGISTRY:
@@ -84,7 +96,28 @@ class NodeExecutionError(Exception):
     pass
 
 
-def circuit_breaker(max_failures: int = 3, reset_timeout: float = 300.0):
+F = TypeVar("F", bound=Callable[..., Coroutine[Any, Any, Any]])
+
+
+class CircuitBreakerFunction(Protocol):
+    """Protocol for functions decorated with @circuit_breaker.
+
+    This protocol defines the attributes that are dynamically added
+    by the circuit_breaker decorator, making them visible to type checkers.
+    """
+
+    _failure_count: int
+    _circuit_open: bool
+    _last_failure_time: Optional[float]
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[Any, Any, Any]:
+        """Function call signature for circuit breaker decorated functions."""
+        ...
+
+
+def circuit_breaker(
+    max_failures: int = 3, reset_timeout: float = 300.0
+) -> Callable[[F], F]:
     """
     Circuit breaker decorator for node functions.
 
@@ -98,29 +131,32 @@ def circuit_breaker(max_failures: int = 3, reset_timeout: float = 300.0):
         Time in seconds before circuit can be retried
     """
 
-    def decorator(func):
+    def decorator(func: F) -> F:
         # Store state in a dictionary to avoid attribute issues
-        circuit_state = {
+        circuit_state: Dict[str, Union[int, float, bool, None]] = {
             "failure_count": 0,
             "last_failure_time": None,
             "circuit_open": False,
         }
 
-        def _sync_state():
+        def _sync_state() -> None:
             """Sync internal state with exposed attributes"""
-            wrapper._failure_count = circuit_state["failure_count"]
-            wrapper._last_failure_time = circuit_state["last_failure_time"]
-            wrapper._circuit_open = circuit_state["circuit_open"]
+            # Set attributes directly on the function object for testing access
+            setattr(wrapper, "_failure_count", circuit_state["failure_count"])
+            setattr(wrapper, "_last_failure_time", circuit_state["last_failure_time"])
+            setattr(wrapper, "_circuit_open", circuit_state["circuit_open"])
 
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Sync state from external attributes if they were manually set
             if hasattr(wrapper, "_failure_count"):
-                circuit_state["failure_count"] = wrapper._failure_count
+                circuit_state["failure_count"] = getattr(wrapper, "_failure_count")
             if hasattr(wrapper, "_last_failure_time"):
-                circuit_state["last_failure_time"] = wrapper._last_failure_time
+                circuit_state["last_failure_time"] = getattr(
+                    wrapper, "_last_failure_time"
+                )
             if hasattr(wrapper, "_circuit_open"):
-                circuit_state["circuit_open"] = wrapper._circuit_open
+                circuit_state["circuit_open"] = getattr(wrapper, "_circuit_open")
 
             # Check if circuit is open
             if circuit_state["circuit_open"]:
@@ -148,10 +184,12 @@ def circuit_breaker(max_failures: int = 3, reset_timeout: float = 300.0):
                 return result
 
             except Exception:
-                circuit_state["failure_count"] += 1
+                # Type-safe increment of failure count
+                current_count = cast(int, circuit_state["failure_count"])
+                circuit_state["failure_count"] = current_count + 1
                 circuit_state["last_failure_time"] = time.time()
 
-                if circuit_state["failure_count"] >= max_failures:
+                if cast(int, circuit_state["failure_count"]) >= max_failures:
                     circuit_state["circuit_open"] = True
                     logger.error(
                         f"Circuit breaker opened for {func.__name__} "
@@ -162,22 +200,22 @@ def circuit_breaker(max_failures: int = 3, reset_timeout: float = 300.0):
                 raise
 
         # Initialize attributes on wrapper before returning
-        wrapper._failure_count = 0
-        wrapper._last_failure_time = None
-        wrapper._circuit_open = False
+        setattr(wrapper, "_failure_count", 0)
+        setattr(wrapper, "_last_failure_time", None)
+        setattr(wrapper, "_circuit_open", False)
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 
 
-def node_metrics(func):
+def node_metrics(func: F) -> F:
     """
     Decorator to add metrics collection to node functions.
     """
 
     @wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         start_time = time.time()
         node_name = func.__name__.replace("_node", "")
 
@@ -250,7 +288,7 @@ def node_metrics(func):
             )
             raise
 
-    return wrapper
+    return cast(F, wrapper)
 
 
 async def create_agent_with_llm(agent_name: str) -> BaseAgent:
@@ -422,7 +460,7 @@ async def refiner_node(
     CogniVaultState
         Updated state with RefinerOutput
     """
-    # ✅ Type-safe context access (LangGraph 0.6.0 Runtime API)
+    # ✅ Type-safe context access (LangGraph 0.6.x Runtime API)
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -616,14 +654,14 @@ async def critic_node(
     state : CogniVaultState
         Current LangGraph state (must contain refiner output)
     runtime : Runtime[CogniVaultContext]
-        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
+        LangGraph 0.6.x runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with CriticOutput
     """
-    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -662,7 +700,7 @@ async def critic_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -717,7 +755,7 @@ async def critic_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -751,7 +789,7 @@ async def critic_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -777,14 +815,14 @@ async def historian_node(
     state : CogniVaultState
         Current LangGraph state (must contain refiner output)
     runtime : Runtime[CogniVaultContext]
-        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
+        LangGraph 0.6.x runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with HistorianOutput
     """
-    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -823,7 +861,7 @@ async def historian_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -898,7 +936,7 @@ async def historian_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -932,7 +970,7 @@ async def historian_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -958,14 +996,14 @@ async def synthesis_node(
     state : CogniVaultState
         Current LangGraph state (must contain refiner, critic, and historian outputs)
     runtime : Runtime[CogniVaultContext]
-        LangGraph 0.6.0 runtime context providing type-safe access to execution metadata
+        LangGraph 0.6.x runtime context providing type-safe access to execution metadata
 
     Returns
     -------
     CogniVaultState
         Updated state with SynthesisOutput
     """
-    # Extract context data from LangGraph 0.6.0 Runtime Context API
+    # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
     execution_id = runtime.context.execution_id
     original_query = runtime.context.query
@@ -1008,7 +1046,7 @@ async def synthesis_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -1076,7 +1114,7 @@ async def synthesis_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -1110,7 +1148,7 @@ async def synthesis_node(
             metadata={
                 "node_execution": True,
                 "orchestrator_type": "langgraph-real",
-                "runtime_api_version": "0.6.0",
+                "runtime_api_version": "0.6.4",
                 "thread_id": thread_id,
                 "checkpoint_enabled": checkpoint_enabled,
             },
@@ -1120,7 +1158,9 @@ async def synthesis_node(
         raise NodeExecutionError(f"Synthesis execution failed: {e}") from e
 
 
-async def handle_node_timeout(coro, timeout_seconds: float = 30.0):
+async def handle_node_timeout(
+    coro: Coroutine[Any, Any, Any], timeout_seconds: float = 30.0
+) -> Any:
     """
     Handle node execution with timeout.
 
@@ -1206,4 +1246,5 @@ __all__ = [
     "validate_node_input",
     "create_agent_with_llm",
     "convert_state_to_context",
+    "CircuitBreakerFunction",
 ]

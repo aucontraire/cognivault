@@ -8,7 +8,7 @@ structured data, and performance metrics integration.
 import logging
 import time
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Any, List
 
 from .context import (
     get_observability_context,
@@ -26,7 +26,7 @@ class StructuredLogger:
     correlation ID injection and performance tracking.
     """
 
-    def __init__(self, name: str, enable_file_logging: bool = True):
+    def __init__(self, name: str, enable_file_logging: bool = True) -> None:
         """
         Initialize structured logger.
 
@@ -74,27 +74,27 @@ class StructuredLogger:
         # Set level
         self.logger.setLevel(config.log_level.value)
 
-    def debug(self, message: str, **kwargs) -> None:
+    def debug(self, message: str, **kwargs: Any) -> None:
         """Log debug message with structured data."""
         self._log(logging.DEBUG, message, **kwargs)
 
-    def info(self, message: str, **kwargs) -> None:
+    def info(self, message: str, **kwargs: Any) -> None:
         """Log info message with structured data."""
         self._log(logging.INFO, message, **kwargs)
 
-    def warning(self, message: str, **kwargs) -> None:
+    def warning(self, message: str, **kwargs: Any) -> None:
         """Log warning message with structured data."""
         self._log(logging.WARNING, message, **kwargs)
 
-    def error(self, message: str, **kwargs) -> None:
+    def error(self, message: str, **kwargs: Any) -> None:
         """Log error message with structured data."""
         self._log(logging.ERROR, message, **kwargs)
 
-    def critical(self, message: str, **kwargs) -> None:
+    def critical(self, message: str, **kwargs: Any) -> None:
         """Log critical message with structured data."""
         self._log(logging.CRITICAL, message, **kwargs)
 
-    def _log(self, level: int, message: str, **kwargs) -> None:
+    def _log(self, level: int, message: str, **kwargs: Any) -> None:
         """Log message with structured data."""
         # Create log record with extra fields
         extra = {}
@@ -127,7 +127,7 @@ class StructuredLogger:
         self.logger.log(level, message, extra=extra)
 
     def log_agent_start(
-        self, agent_name: str, step_id: Optional[str] = None, **metadata
+        self, agent_name: str, step_id: Optional[str] = None, **metadata: Any
     ) -> None:
         """Log agent execution start."""
         self.info(
@@ -139,7 +139,7 @@ class StructuredLogger:
         )
 
     def log_agent_end(
-        self, agent_name: str, success: bool, duration_ms: float, **metadata
+        self, agent_name: str, success: bool, duration_ms: float, **metadata: Any
     ) -> None:
         """Log agent execution end."""
         status = "success" if success else "failure"
@@ -152,7 +152,9 @@ class StructuredLogger:
             **metadata,
         )
 
-    def log_pipeline_start(self, pipeline_id: str, agents: list, **metadata) -> None:
+    def log_pipeline_start(
+        self, pipeline_id: str, agents: List[str], **metadata: Any
+    ) -> None:
         """Log pipeline execution start."""
         self.info(
             f"Pipeline {pipeline_id} starting with agents: {', '.join(agents)}",
@@ -163,7 +165,7 @@ class StructuredLogger:
         )
 
     def log_pipeline_end(
-        self, pipeline_id: str, success: bool, duration_ms: float, **metadata
+        self, pipeline_id: str, success: bool, duration_ms: float, **metadata: Any
     ) -> None:
         """Log pipeline execution end."""
         status = "success" if success else "failure"
@@ -177,7 +179,7 @@ class StructuredLogger:
         )
 
     def log_llm_call(
-        self, model: str, tokens_used: int, duration_ms: float, **metadata
+        self, model: str, tokens_used: int, duration_ms: float, **metadata: Any
     ) -> None:
         """Log LLM API call."""
         self.debug(
@@ -190,7 +192,7 @@ class StructuredLogger:
         )
 
     def log_error(
-        self, error: Exception, context: Optional[str] = None, **metadata
+        self, error: Exception, context: Optional[str] = None, **metadata: Any
     ) -> None:
         """Log error with full context."""
         error_context = context or "Unknown context"
@@ -237,7 +239,11 @@ class StructuredLogger:
         )
 
     def log_performance_metric(
-        self, metric_name: str, value: Union[int, float], unit: str = "", **metadata
+        self,
+        metric_name: str,
+        value: Union[int, float],
+        unit: str = "",
+        **metadata: Any,
     ) -> None:
         """Log performance metric."""
         self.info(
@@ -249,7 +255,7 @@ class StructuredLogger:
             **metadata,
         )
 
-    def timed_operation(self, operation_name: str, **metadata):
+    def timed_operation(self, operation_name: str, **metadata: Any) -> "TimedOperation":
         """Context manager for timed operations."""
         return TimedOperation(self, operation_name, **metadata)
 
@@ -257,7 +263,9 @@ class StructuredLogger:
 class TimedOperation:
     """Context manager for timed operations with automatic logging."""
 
-    def __init__(self, logger: StructuredLogger, operation_name: str, **metadata):
+    def __init__(
+        self, logger: StructuredLogger, operation_name: str, **metadata: Any
+    ) -> None:
         """
         Initialize timed operation.
 
@@ -273,9 +281,9 @@ class TimedOperation:
         self.logger = logger
         self.operation_name = operation_name
         self.metadata = metadata
-        self.start_time = None
+        self.start_time: Optional[float] = None
 
-    def __enter__(self):
+    def __enter__(self) -> "TimedOperation":
         """Start timing."""
         self.start_time = time.time()
         self.logger.debug(
@@ -286,7 +294,7 @@ class TimedOperation:
         )
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """End timing and log result."""
         if self.start_time is not None:
             duration_ms = (time.time() - self.start_time) * 1000

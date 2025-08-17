@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Tests for metrics collection functionality.
 
@@ -19,11 +21,11 @@ from cognivault.diagnostics.metrics import (
 class TestMetricsCollector:
     """Test MetricsCollector functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test environment."""
         self.metrics = MetricsCollector()
 
-    def test_counter_operations(self):
+    def test_counter_operations(self) -> None:
         """Test counter increment and retrieval."""
         # Test basic increment
         self.metrics.increment_counter("test_counter")
@@ -45,7 +47,7 @@ class TestMetricsCollector:
         )
         assert self.metrics.get_counter("labeled_counter", labels={"type": "test"}) == 2
 
-    def test_gauge_operations(self):
+    def test_gauge_operations(self) -> None:
         """Test gauge set and retrieval."""
         # Test basic gauge setting
         self.metrics.set_gauge("test_gauge", 42.5)
@@ -62,7 +64,7 @@ class TestMetricsCollector:
         assert self.metrics.get_gauge("labeled_gauge", labels={"service": "api"}) == 10
         assert self.metrics.get_gauge("labeled_gauge", labels={"service": "db"}) == 20
 
-    def test_histogram_operations(self):
+    def test_histogram_operations(self) -> None:
         """Test histogram recording and retrieval."""
         # Record some values
         values = [10, 20, 30, 40, 50]
@@ -92,7 +94,7 @@ class TestMetricsCollector:
         assert get_histogram == [100]
         assert post_histogram == [200]
 
-    def test_timing_operations(self):
+    def test_timing_operations(self) -> None:
         """Test timing recording and retrieval."""
         # Record some timings
         timings = [10.5, 20.0, 15.2]
@@ -120,7 +122,7 @@ class TestMetricsCollector:
         assert read_timings == [50.0]
         assert write_timings == [75.0]
 
-    def test_nonexistent_metrics(self):
+    def test_nonexistent_metrics(self) -> None:
         """Test retrieving nonexistent metrics."""
         # Should return 0 for counters
         assert self.metrics.get_counter("nonexistent") == 0
@@ -132,7 +134,7 @@ class TestMetricsCollector:
         assert self.metrics.get_histogram("nonexistent") == []
         assert self.metrics.get_timing("nonexistent") == []
 
-    def test_agent_execution_recording(self):
+    def test_agent_execution_recording(self) -> None:
         """Test agent execution recording."""
         # Record successful execution
         self.metrics.record_agent_execution("refiner", True, 150.5, tokens_used=100)
@@ -203,7 +205,7 @@ class TestMetricsCollector:
             == 1
         )
 
-    def test_llm_call_recording(self):
+    def test_llm_call_recording(self) -> None:
         """Test LLM call recording."""
         # Record LLM call
         self.metrics.record_llm_call(
@@ -263,7 +265,7 @@ class TestMetricsCollector:
             == 1
         )
 
-    def test_pipeline_recording(self):
+    def test_pipeline_recording(self) -> None:
         """Test pipeline execution recording."""
         # Record pipeline execution
         self.metrics.record_pipeline_execution(
@@ -292,11 +294,11 @@ class TestMetricsCollector:
         assert self.metrics._get_counter_value("pipeline_executions_successful") == 1
         assert self.metrics._get_counter_value("pipeline_executions_failed") == 1
 
-    def test_thread_safety(self):
+    def test_thread_safety(self) -> None:
         """Test that metrics collection is thread-safe."""
         results = []
 
-        def worker(worker_id):
+        def worker(worker_id: int) -> None:
             """Worker function that increments counters."""
             for i in range(100):
                 self.metrics.increment_counter("thread_test_counter")
@@ -324,7 +326,7 @@ class TestMetricsCollector:
         timings = self.metrics.get_timing("thread_test_timing")
         assert len(timings) == 500
 
-    def test_get_all_metrics(self):
+    def test_get_all_metrics(self) -> None:
         """Test retrieving all metrics."""
         # Add some metrics
         self.metrics.increment_counter("test_counter", 5)
@@ -345,7 +347,7 @@ class TestMetricsCollector:
         assert all_metrics["histogram_test_histogram"][0]["value"] == 10
         assert all_metrics["timer_test_timing"][0]["value"] == 15.5
 
-    def test_clear_metrics(self):
+    def test_clear_metrics(self) -> None:
         """Test clearing all metrics."""
         # Add some metrics
         self.metrics.increment_counter("test_counter", 5)
@@ -370,7 +372,7 @@ class TestMetricsCollector:
 class TestPerformanceMetrics:
     """Test PerformanceMetrics dataclass."""
 
-    def test_performance_metrics_creation(self):
+    def test_performance_metrics_creation(self) -> None:
         """Test creating PerformanceMetrics."""
         metrics = PerformanceMetrics(
             total_executions=4,
@@ -381,7 +383,7 @@ class TestPerformanceMetrics:
         assert metrics.successful_executions == 3
         assert metrics.failed_executions == 1
 
-    def test_performance_metrics_to_dict(self):
+    def test_performance_metrics_to_dict(self) -> None:
         """Test PerformanceMetrics to_dict method."""
         start_time = datetime.now()
         end_time = start_time + timedelta(seconds=30)
@@ -402,7 +404,7 @@ class TestPerformanceMetrics:
         assert result["collection_period"]["start"] == start_time.isoformat()
         assert result["collection_period"]["end"] == end_time.isoformat()
 
-    def test_performance_metrics_calculate_from_collector(self):
+    def test_performance_metrics_calculate_from_collector(self) -> None:
         """Test calculating performance metrics from collector."""
         collector = MetricsCollector()
 
@@ -450,11 +452,11 @@ class TestPerformanceMetrics:
 class TestMetricsCollectorSingleton:
     """Test global metrics collector functionality."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Reset metrics collector after each test."""
         reset_metrics_collector()
 
-    def test_get_metrics_collector_singleton(self):
+    def test_get_metrics_collector_singleton(self) -> None:
         """Test that get_metrics_collector returns the same instance."""
         collector1 = get_metrics_collector()
         collector2 = get_metrics_collector()
@@ -462,7 +464,7 @@ class TestMetricsCollectorSingleton:
         assert collector1 is collector2
         assert isinstance(collector1, MetricsCollector)
 
-    def test_metrics_collector_persistence(self):
+    def test_metrics_collector_persistence(self) -> None:
         """Test that metrics persist across calls."""
         collector1 = get_metrics_collector()
         collector1.increment_counter("test_counter", 5)
@@ -470,7 +472,7 @@ class TestMetricsCollectorSingleton:
         collector2 = get_metrics_collector()
         assert collector2.get_counter("test_counter") == 5
 
-    def test_reset_metrics_collector(self):
+    def test_reset_metrics_collector(self) -> None:
         """Test resetting the global metrics collector."""
         collector1 = get_metrics_collector()
         collector1.increment_counter("test_counter", 5)
@@ -485,11 +487,11 @@ class TestMetricsCollectorSingleton:
         # Should be a new instance
         assert collector1 is not collector2
 
-    def test_metrics_collector_thread_safety_global(self):
+    def test_metrics_collector_thread_safety_global(self) -> None:
         """Test global metrics collector thread safety."""
         results = []
 
-        def worker(worker_id):
+        def worker(worker_id: int) -> None:
             """Worker function that uses global collector."""
             collector = get_metrics_collector()
             for i in range(50):

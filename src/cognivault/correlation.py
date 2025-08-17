@@ -81,8 +81,7 @@ class CorrelationContext(BaseModel):
         extra="forbid",
         validate_assignment=True,
         str_strip_whitespace=True,
-        # Allow timezone-aware datetime objects
-        json_encoders={datetime: lambda dt: dt.isoformat()},
+        # Datetime serialization handled by model_dump(mode='json') in to_dict()
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -333,7 +332,7 @@ def get_correlation_headers() -> Dict[str, str]:
     return headers
 
 
-async def propagate_correlation(func, *args, **kwargs):
+async def propagate_correlation(func: Any, *args: Any, **kwargs: Any) -> Any:
     """
     Decorator-like function to ensure correlation context propagates to async functions.
 
@@ -358,8 +357,12 @@ async def propagate_correlation(func, *args, **kwargs):
 
 # Convenience functions for common patterns
 async def with_correlation(
-    correlation_id: str, workflow_id: Optional[str] = None, func=None, *args, **kwargs
-):
+    correlation_id: str,
+    workflow_id: Optional[str] = None,
+    func: Any = None,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
     """
     Execute a function with explicit correlation context.
 

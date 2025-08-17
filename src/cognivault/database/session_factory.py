@@ -9,11 +9,13 @@ import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import (
+    Any,
+    Dict,
     TypeVar,
 )
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from cognivault.observability import get_logger
 
@@ -33,8 +35,8 @@ class DatabaseSessionFactory:
     and resource cleanup for database operations.
     """
 
-    def __init__(self):
-        self._session_factory = None
+    def __init__(self) -> None:
+        self._session_factory: async_sessionmaker[AsyncSession] | None = None
         self._is_initialized = False
 
     async def initialize(self) -> None:
@@ -53,6 +55,8 @@ class DatabaseSessionFactory:
             self._session_factory = get_session_factory()
 
             # Test the connection
+            if self._session_factory is None:
+                raise RuntimeError("Session factory creation failed")
             async with self._session_factory() as session:
                 await session.execute(text("SELECT 1"))
 
@@ -99,6 +103,11 @@ class DatabaseSessionFactory:
                 "Session factory not initialized. Call initialize() first."
             )
 
+        if self._session_factory is None:
+            raise RuntimeError(
+                "Session factory is None despite being initialized. This indicates a critical error."
+            )
+
         session = self._session_factory()
         try:
             yield session
@@ -125,7 +134,7 @@ class DatabaseSessionFactory:
             yield factory
 
     async def execute_with_session(
-        self, operation: Callable[..., Awaitable[T]], *args, **kwargs
+        self, operation: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
     ) -> T:
         """
         Execute an operation with a managed database session.
@@ -145,7 +154,7 @@ class DatabaseSessionFactory:
             return await operation(session, *args, **kwargs)
 
     async def execute_with_repositories(
-        self, operation: Callable[..., Awaitable[T]], *args, **kwargs
+        self, operation: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
     ) -> T:
         """
         Execute an operation with managed repositories.
@@ -169,7 +178,7 @@ class DatabaseSessionFactory:
         """Check if the session factory is initialized."""
         return self._is_initialized
 
-    async def health_check(self) -> dict:
+    async def health_check(self) -> Dict[str, Any]:
         """
         Perform a health check on the session factory.
 

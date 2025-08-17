@@ -5,8 +5,10 @@ This module creates the FastAPI app instance and mounts all route modules.
 Leverages the existing sophisticated API architecture in this package.
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from typing import AsyncGenerator, Dict
 
 # Import route modules
 from cognivault.api.routes import health, query, topics, workflows, websockets
@@ -15,6 +17,24 @@ from cognivault.observability import get_logger
 
 logger = get_logger(__name__)
 
+
+# Application lifecycle events
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage application lifespan events."""
+    # Startup
+    logger.info("Starting CogniVault API...")
+    await initialize_api()
+    logger.info("CogniVault API startup complete")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down CogniVault API...")
+    await shutdown_api()
+    logger.info("CogniVault API shutdown complete")
+
+
 # Create FastAPI application
 app = FastAPI(
     title="CogniVault API",
@@ -22,16 +42,14 @@ app = FastAPI(
     description="Multi-agent workflow orchestration platform with intelligent routing",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Add CORS middleware for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:8080",
-    ],  # Frontend origins
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for development/testing
+    allow_credentials=False,  # Set to False when allowing all origins
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,26 +62,9 @@ app.include_router(workflows.router, prefix="/api", tags=["Workflows"])
 app.include_router(websockets.router, tags=["WebSockets"])
 
 
-# Application lifecycle events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize the orchestration API on startup."""
-    logger.info("Starting CogniVault API...")
-    await initialize_api()
-    logger.info("CogniVault API startup complete")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean shutdown of orchestration API."""
-    logger.info("Shutting down CogniVault API...")
-    await shutdown_api()
-    logger.info("CogniVault API shutdown complete")
-
-
 # Root endpoint
 @app.get("/")
-async def root():
+async def root() -> Dict[str, str]:
     """Root endpoint providing API information."""
     return {
         "message": "CogniVault API",

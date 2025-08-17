@@ -1,7 +1,7 @@
 import asyncio
 import argparse
 import sys
-from typing import Optional
+from typing import Optional, Dict, Any
 from cognivault.config.logging_config import setup_logging
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.context import AgentContext
@@ -11,7 +11,9 @@ from cognivault.config.openai_config import OpenAIConfig
 setup_logging()
 
 
-async def run_refiner(query: str, debug: bool = False) -> tuple[str, Optional[dict]]:
+async def run_refiner(
+    query: str, debug: bool = False
+) -> tuple[str, Optional[Dict[str, Any]]]:
     """
     Run the RefinerAgent asynchronously with the given query.
 
@@ -24,7 +26,7 @@ async def run_refiner(query: str, debug: bool = False) -> tuple[str, Optional[di
 
     Returns
     -------
-    tuple[str, Optional[dict]]
+    tuple[str, Optional[Dict[str, Any]]]
         The refined output from the RefinerAgent and optional debug info.
     """
     # Create LLM using factory (respects COGNIVAULT_LLM env var)

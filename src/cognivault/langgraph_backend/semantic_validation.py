@@ -92,11 +92,11 @@ class SemanticValidationResult:
             self.is_valid = False
 
 
-class SemanticValidator(ABC):
+class WorkflowSemanticValidator(ABC):
     """
     Abstract base class for semantic validation of agent workflows.
 
-    Semantic validators check whether agent combinations and patterns
+    Workflow semantic validators check whether agent combinations and patterns
     create meaningful and valid workflows according to domain rules.
     """
 
@@ -177,7 +177,7 @@ class SemanticValidator(ABC):
         return result
 
 
-class CogniVaultValidator(SemanticValidator):
+class CogniVaultValidator(WorkflowSemanticValidator):
     """
     Domain-specific semantic validator for CogniVault workflows.
 
@@ -185,7 +185,7 @@ class CogniVaultValidator(SemanticValidator):
     relationships, execution order, and meaningful workflow composition.
     """
 
-    def __init__(self, strict_mode: bool = False):
+    def __init__(self, strict_mode: bool = False) -> None:
         """
         Initialize the CogniVault validator.
 
@@ -395,7 +395,9 @@ class CogniVaultValidator(SemanticValidator):
 class ValidationError(Exception):
     """Raised when semantic validation fails with errors."""
 
-    def __init__(self, message: str, validation_result: SemanticValidationResult):
+    def __init__(
+        self, message: str, validation_result: SemanticValidationResult
+    ) -> None:
         super().__init__(message)
         self.validation_result = validation_result
 

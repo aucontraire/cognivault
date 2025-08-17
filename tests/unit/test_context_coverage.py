@@ -8,27 +8,30 @@ import pytest
 from datetime import datetime
 from unittest.mock import patch
 
-from cognivault.context import AgentContext
 from cognivault.exceptions import StateTransitionError
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestAgentContextEdgeCases:
     """Test AgentContext edge cases and error scenarios."""
 
-    def test_context_with_large_agent_outputs(self):
+    def test_context_with_large_agent_outputs(self) -> None:
         """Test context with very large agent outputs."""
         large_output = "x" * 10000  # 10KB of data
 
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="Test query", agent_outputs={"large_agent": large_output}
         )
 
         assert "large_agent" in context.agent_outputs
         assert len(context.agent_outputs["large_agent"]) == 10000
 
-    def test_context_size_calculation_error(self):
+    def test_context_size_calculation_error(self) -> None:
         """Test context size calculation with problematic data."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Mock compression manager to raise exception during fallback
         with patch.object(
@@ -44,9 +47,9 @@ class TestAgentContextEdgeCases:
                 # If it fails, that's also expected behavior for this edge case
                 pass
 
-    def test_context_compression_with_edge_cases(self):
+    def test_context_compression_with_edge_cases(self) -> None:
         """Test context compression with edge cases."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Test with no agent outputs
         context._compress_context(target_size=100)
@@ -59,9 +62,9 @@ class TestAgentContextEdgeCases:
         context.agent_trace = {"agent1": []}
         context._compress_context(target_size=100)
 
-    def test_context_check_field_isolation_edge_cases(self):
+    def test_context_check_field_isolation_edge_cases(self) -> None:
         """Test field isolation checking edge cases."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Test with locked field
         context.lock_field("test_field")
@@ -78,9 +81,9 @@ class TestAgentContextEdgeCases:
         result = context._check_field_isolation("agent1", "test_field")
         assert result is True
 
-    def test_context_snapshot_restore_edge_cases(self):
+    def test_context_snapshot_restore_edge_cases(self) -> None:
         """Test snapshot restoration edge cases."""
-        context = AgentContext(query="Original query")
+        context = AgentContextPatterns.simple_query("Original query")
 
         # Create snapshot
         snapshot_id = context.create_snapshot()
@@ -98,17 +101,17 @@ class TestAgentContextEdgeCases:
         assert result is True
         assert context.query == "Original query"
 
-    def test_context_agent_dependencies_edge_cases(self):
+    def test_context_agent_dependencies_edge_cases(self) -> None:
         """Test agent dependencies edge cases."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Test checking dependencies for agent with no dependencies
-        result = context.check_agent_dependencies("orphan_agent")
-        assert result == {}
+        result_check_dep = context.check_agent_dependencies("orphan_agent")
+        assert result_check_dep == {}
 
         # Test can_execute for agent with no dependencies
-        result = context.can_agent_execute("orphan_agent")
-        assert result is True
+        result_can_execute = context.can_agent_execute("orphan_agent")
+        assert result_can_execute is True
 
         # Test with circular dependencies (not prevented by current implementation)
         context.set_agent_dependencies("agent1", ["agent2"])
@@ -118,9 +121,9 @@ class TestAgentContextEdgeCases:
         assert context.can_agent_execute("agent1") is False
         assert context.can_agent_execute("agent2") is False
 
-    def test_context_execution_summary_empty(self):
+    def test_context_execution_summary_empty(self) -> None:
         """Test execution summary with no agents."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         summary = context.get_execution_summary()
 
@@ -131,9 +134,9 @@ class TestAgentContextEdgeCases:
         assert summary["pending_agents"] == []
         assert summary["overall_success"] is True
 
-    def test_context_memory_optimization_edge_cases(self):
+    def test_context_memory_optimization_edge_cases(self) -> None:
         """Test memory optimization edge cases."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Test optimization with no snapshots
         stats = context.optimize_memory()
@@ -148,9 +151,9 @@ class TestAgentContextEdgeCases:
         assert stats["snapshots_removed"] == 5
         assert len(context.snapshots) == 5
 
-    def test_context_clone_with_complex_data(self):
+    def test_context_clone_with_complex_data(self) -> None:
         """Test cloning context with complex nested data."""
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="Complex test",
             agent_outputs={
                 "agent1": {"nested": {"data": [1, 2, 3]}},
@@ -174,9 +177,9 @@ class TestAgentContextEdgeCases:
         context.agent_outputs["agent1"]["nested"]["data"].append(4)
         assert cloned.agent_outputs["agent1"]["nested"]["data"] == [1, 2, 3]
 
-    def test_context_add_execution_edge_metadata(self):
+    def test_context_add_execution_edge_metadata(self) -> None:
         """Test adding execution edges with complex metadata."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         complex_metadata = {
             "performance": {"time": 1.5, "memory": 1024},
@@ -196,9 +199,9 @@ class TestAgentContextEdgeCases:
         edge = context.execution_edges[0]
         assert edge["metadata"] == complex_metadata
 
-    def test_context_conditional_routing_multiple_decisions(self):
+    def test_context_conditional_routing_multiple_decisions(self) -> None:
         """Test conditional routing with multiple decisions at same point."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Record multiple routing decisions at same decision point
         context.record_conditional_routing(
@@ -217,9 +220,9 @@ class TestAgentContextEdgeCases:
 
         assert len(context.conditional_routing["agent_selection"]) == 2
 
-    def test_context_get_execution_graph_complex(self):
+    def test_context_get_execution_graph_complex(self) -> None:
         """Test getting execution graph with complex scenario."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Set up complex execution scenario
         context.agent_outputs = {
@@ -259,9 +262,9 @@ class TestAgentContextEdgeCases:
 class TestAgentContextStateTransitionErrors:
     """Test AgentContext with StateTransitionError scenarios."""
 
-    def test_create_execution_snapshot_failure(self):
+    def test_create_execution_snapshot_failure(self) -> None:
         """Test execution snapshot creation failure."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Mock snapshot creation to fail
         with patch("cognivault.context.ContextSnapshot") as mock_snapshot_class:
@@ -274,9 +277,9 @@ class TestAgentContextStateTransitionErrors:
             assert error.transition_type == "snapshot_creation_failed"
             assert error.agent_id == "context_manager"
 
-    def test_restore_execution_snapshot_failure(self):
+    def test_restore_execution_snapshot_failure(self) -> None:
         """Test execution snapshot restoration failure."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Create a valid snapshot first
         snapshot_id = context.create_execution_snapshot()
@@ -293,9 +296,9 @@ class TestAgentContextStateTransitionErrors:
             assert error.transition_type == "snapshot_restore_failed"
             assert error.to_state == snapshot_id
 
-    def test_get_rollback_options_with_execution_data(self):
+    def test_get_rollback_options_with_execution_data(self) -> None:
         """Test getting rollback options with execution data."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Create execution snapshot
         snapshot_id = context.create_execution_snapshot()
@@ -320,10 +323,10 @@ class TestAgentContextStateTransitionErrors:
         assert option["failed_agents"] == ["agent3"]
         assert option["overall_success"] is False
 
-    def test_context_with_psutil_unavailable(self):
+    def test_context_with_psutil_unavailable(self) -> None:
         """Test context behavior when psutil is not available."""
         # This mainly tests import handling, but we can test some behavior
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Basic operations should still work
         context.add_agent_output("test_agent", "test output")
@@ -332,9 +335,9 @@ class TestAgentContextStateTransitionErrors:
         memory_usage = context.get_memory_usage()
         assert "total_size_bytes" in memory_usage
 
-    def test_context_isolated_output_failure(self):
+    def test_context_isolated_output_failure(self) -> None:
         """Test isolated agent output addition failure."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Lock the agent output field
         context.lock_field("agent_outputs.test_agent")
@@ -344,9 +347,9 @@ class TestAgentContextStateTransitionErrors:
         assert result is False
         assert "test_agent" not in context.agent_outputs
 
-    def test_context_isolated_output_conflict(self):
+    def test_context_isolated_output_conflict(self) -> None:
         """Test isolated agent output with another agent's mutation."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Agent1 adds its output first
         result1 = context.add_agent_output_isolated("agent1", "output1")
@@ -357,9 +360,9 @@ class TestAgentContextStateTransitionErrors:
         # This should succeed since it's agent2's own output
         assert result2 is True
 
-    def test_context_mutation_history_tracking(self):
+    def test_context_mutation_history_tracking(self) -> None:
         """Test mutation history tracking."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Add outputs from different agents
         context.add_agent_output_isolated("agent1", "output1")
@@ -372,9 +375,9 @@ class TestAgentContextStateTransitionErrors:
         assert "agent_outputs.agent1" in history["agent1"]
         assert "agent_outputs.agent2" in history["agent2"]
 
-    def test_context_path_metadata_operations(self):
+    def test_context_path_metadata_operations(self) -> None:
         """Test path metadata operations."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Set various types of metadata
         context.set_path_metadata("execution_start", datetime.now())
@@ -390,9 +393,9 @@ class TestAgentContextStateTransitionErrors:
         assert context.path_metadata["user_id"] == "user123"
         assert context.path_metadata["config"] == {"key": "value"}
 
-    def test_context_compression_with_no_outputs(self):
+    def test_context_compression_with_no_outputs(self) -> None:
         """Test context compression when there are no agent outputs."""
-        context = AgentContext(query="Test with no outputs")
+        context = AgentContextPatterns.simple_query("Test with no outputs")
 
         # Force compression with no outputs
         context._compress_context(target_size=100)
@@ -400,9 +403,9 @@ class TestAgentContextStateTransitionErrors:
         # Should not raise an exception
         assert len(context.agent_outputs) == 0
 
-    def test_context_trace_logging_with_complex_data(self):
+    def test_context_trace_logging_with_complex_data(self) -> None:
         """Test trace logging with complex input/output data."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         complex_input = {
             "nested": {"data": [1, 2, 3]},
@@ -426,9 +429,9 @@ class TestAgentContextStateTransitionErrors:
         assert trace_entry["output"] == complex_output
         assert "timestamp" in trace_entry
 
-    def test_context_user_config_edge_cases(self):
+    def test_context_user_config_edge_cases(self) -> None:
         """Test user config edge cases."""
-        context = AgentContext(query="Test")
+        context = AgentContextPatterns.simple_query("Test")
 
         # Test with None values
         context.update_user_config({"null_value": None})

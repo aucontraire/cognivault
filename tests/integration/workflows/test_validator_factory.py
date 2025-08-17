@@ -1,3 +1,5 @@
+from typing import Any
+
 #!/usr/bin/env python3
 """
 Manual test script for ValidatorNode factory method functionality.
@@ -14,11 +16,11 @@ from pathlib import Path
 # Test path setup is handled by pytest configuration
 
 from cognivault.workflows.composer import DagComposer, NodeFactory
-from cognivault.workflows.definition import NodeConfiguration
+from cognivault.workflows.definition import WorkflowNodeConfiguration
 from cognivault.agents.metadata import AgentMetadata
 
 
-def test_validator_factory_configurations():
+def test_validator_factory_configurations() -> None:
     """Test ValidatorNode factory with different configuration scenarios."""
 
     print("🧪 Testing ValidatorNode Factory Method Configurations")
@@ -30,7 +32,7 @@ def test_validator_factory_configurations():
     # Test Case 1: Strict Validator Configuration
     print("\n1. Testing Strict Validator Configuration...")
     try:
-        strict_config = NodeConfiguration(
+        strict_config = WorkflowNodeConfiguration(
             node_id="strict_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -82,7 +84,7 @@ def test_validator_factory_configurations():
     # Test Case 2: Permissive Validator Configuration
     print("\n2. Testing Permissive Validator Configuration...")
     try:
-        permissive_config = NodeConfiguration(
+        permissive_config = WorkflowNodeConfiguration(
             node_id="permissive_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -127,7 +129,7 @@ def test_validator_factory_configurations():
     # Test Case 3: Minimal Configuration (Boundary Testing)
     print("\n3. Testing Minimal Validator Configuration...")
     try:
-        minimal_config = NodeConfiguration(
+        minimal_config = WorkflowNodeConfiguration(
             node_id="minimal_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -162,7 +164,7 @@ def test_validator_factory_configurations():
     # Test Case 4: Complex Multi-Criteria Configuration
     print("\n4. Testing Complex Multi-Criteria Validator Configuration...")
     try:
-        complex_config = NodeConfiguration(
+        complex_config = WorkflowNodeConfiguration(
             node_id="complex_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -226,7 +228,7 @@ def test_validator_factory_configurations():
     # Test Case 5: Invalid Configuration (Error Testing)
     print("\n5. Testing Invalid Configuration (Expected to Fail)...")
     try:
-        invalid_config = NodeConfiguration(
+        invalid_config = WorkflowNodeConfiguration(
             node_id="invalid_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -264,13 +266,15 @@ def test_validator_factory_configurations():
 
     if success_count == total_count:
         print("🎉 All ValidatorNode factory tests PASSED!")
-        return True
     else:
         print("⚠️  Some ValidatorNode factory tests FAILED!")
-        return False
+
+    assert success_count == total_count, (
+        f"ValidatorNode factory tests failed: {success_count}/{total_count} passed"
+    )
 
 
-def test_validator_configuration_validation():
+def test_validator_configuration_validation() -> None:
     """Test configuration parameter validation for ValidatorNode."""
 
     print("\n🔍 Testing ValidatorNode Configuration Validation")
@@ -321,7 +325,7 @@ def test_validator_configuration_validation():
     for test_name, config_data in boundary_tests:
         print(f"\n   Testing {test_name}...")
         try:
-            config = NodeConfiguration(
+            config = WorkflowNodeConfiguration(
                 node_id=f"boundary_test_{test_name.lower().replace(' ', '_')}",
                 node_type="validator",
                 category="ADVANCED",
@@ -333,7 +337,7 @@ def test_validator_configuration_validation():
         except Exception as e:
             print(f"   ⚠️  {test_name} rejected: {e}")
 
-    return True
+    # All configuration validation tests completed successfully
 
 
 if __name__ == "__main__":
@@ -341,26 +345,20 @@ if __name__ == "__main__":
 
     try:
         # Test basic factory configurations
-        config_success = test_validator_factory_configurations()
+        test_validator_factory_configurations()
 
         # Test configuration validation
-        validation_success = test_validator_configuration_validation()
+        test_validator_configuration_validation()
 
-        # Overall result
+        # Overall result - if we reach here, all tests passed (assertions didn't fail)
         print("\n" + "=" * 60)
         print("🏁 FINAL TEST RESULTS")
         print("=" * 60)
-
-        if config_success and validation_success:
-            print("🎉 ALL VALIDATOR FACTORY TESTS PASSED!")
-            print("✅ ValidatorNode factory method is working correctly")
-            print("✅ Configuration validation is robust")
-            print("✅ Boundary conditions are handled appropriately")
-            sys.exit(0)
-        else:
-            print("❌ SOME VALIDATOR FACTORY TESTS FAILED!")
-            print("⚠️  Review the test output above for details")
-            sys.exit(1)
+        print("🎉 ALL VALIDATOR FACTORY TESTS PASSED!")
+        print("✅ ValidatorNode factory method is working correctly")
+        print("✅ Configuration validation is robust")
+        print("✅ Boundary conditions are handled appropriately")
+        sys.exit(0)
 
     except Exception as e:
         print(f"\n💥 Test execution failed with error: {e}")

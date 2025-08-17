@@ -6,6 +6,7 @@ and thread-local storage functionality.
 """
 
 import pytest
+from typing import Any
 import threading
 import time
 import uuid
@@ -25,7 +26,7 @@ from cognivault.observability.context import (
 class TestObservabilityContext:
     """Test ObservabilityContext dataclass functionality."""
 
-    def test_default_context_creation(self):
+    def test_default_context_creation(self) -> None:
         """Test creating context with default values."""
         context = ObservabilityContext()
 
@@ -37,7 +38,7 @@ class TestObservabilityContext:
         assert context.execution_phase is None
         assert context.metadata == {}
 
-    def test_context_creation_with_values(self):
+    def test_context_creation_with_values(self) -> None:
         """Test creating context with explicit values."""
         correlation_id = str(uuid.uuid4())
         metadata = {"key": "value", "count": 42}
@@ -58,7 +59,7 @@ class TestObservabilityContext:
         assert context.execution_phase == "testing"
         assert context.metadata == metadata
 
-    def test_with_agent_method(self):
+    def test_with_agent_method(self) -> None:
         """Test creating new context with agent information."""
         original = ObservabilityContext(
             agent_name="OriginalAgent",
@@ -81,7 +82,7 @@ class TestObservabilityContext:
         assert new_context.metadata == original.metadata
         assert new_context.metadata is not original.metadata  # Different object
 
-    def test_with_step_method(self):
+    def test_with_step_method(self) -> None:
         """Test creating new context with step information."""
         original = ObservabilityContext(agent_name="TestAgent", step_id="old_step")
 
@@ -91,7 +92,7 @@ class TestObservabilityContext:
         assert new_context.agent_name == original.agent_name
         assert new_context.step_id == "new_step"
 
-    def test_with_phase_method(self):
+    def test_with_phase_method(self) -> None:
         """Test creating new context with execution phase."""
         original = ObservabilityContext(execution_phase="old_phase")
 
@@ -100,7 +101,7 @@ class TestObservabilityContext:
         assert new_context.correlation_id == original.correlation_id
         assert new_context.execution_phase == "new_phase"
 
-    def test_with_metadata_method(self):
+    def test_with_metadata_method(self) -> None:
         """Test creating new context with additional metadata."""
         original = ObservabilityContext(metadata={"existing": "value"})
 
@@ -118,16 +119,16 @@ class TestObservabilityContext:
 class TestContextStorage:
     """Test thread-local context storage functionality."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear context after each test."""
         clear_observability_context()
 
-    def test_get_context_when_none_set(self):
+    def test_get_context_when_none_set(self) -> None:
         """Test getting context when none is set."""
         context = get_observability_context()
         assert context is None
 
-    def test_set_and_get_context(self):
+    def test_set_and_get_context(self) -> None:
         """Test setting and getting context."""
         original_context = ObservabilityContext(agent_name="TestAgent")
 
@@ -137,7 +138,7 @@ class TestContextStorage:
         assert retrieved_context is original_context
         assert retrieved_context.agent_name == "TestAgent"
 
-    def test_clear_context(self):
+    def test_clear_context(self) -> None:
         """Test clearing context."""
         context = ObservabilityContext(agent_name="TestAgent")
         set_observability_context(context)
@@ -148,11 +149,11 @@ class TestContextStorage:
 
         assert get_observability_context() is None
 
-    def test_thread_isolation(self):
+    def test_thread_isolation(self) -> None:
         """Test that context is isolated between threads."""
         results = {}
 
-        def thread_worker(thread_id):
+        def thread_worker(thread_id: Any) -> None:
             # Set different context in each thread
             context = ObservabilityContext(agent_name=f"Agent{thread_id}")
             set_observability_context(context)
@@ -184,16 +185,16 @@ class TestContextStorage:
 class TestCorrelationIdHelpers:
     """Test correlation ID helper functions."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear context after each test."""
         clear_correlation_id()
 
-    def test_get_correlation_id_when_no_context(self):
+    def test_get_correlation_id_when_no_context(self) -> None:
         """Test getting correlation ID when no context is set."""
         correlation_id = get_correlation_id()
         assert correlation_id is None
 
-    def test_get_correlation_id_with_context(self):
+    def test_get_correlation_id_with_context(self) -> None:
         """Test getting correlation ID when context exists."""
         context = ObservabilityContext(correlation_id="test-correlation-id")
         set_observability_context(context)
@@ -201,7 +202,7 @@ class TestCorrelationIdHelpers:
         correlation_id = get_correlation_id()
         assert correlation_id == "test-correlation-id"
 
-    def test_set_correlation_id_with_existing_context(self):
+    def test_set_correlation_id_with_existing_context(self) -> None:
         """Test setting correlation ID when context exists."""
         context = ObservabilityContext(correlation_id="old-id", agent_name="TestAgent")
         set_observability_context(context)
@@ -209,10 +210,11 @@ class TestCorrelationIdHelpers:
         set_correlation_id("new-correlation-id")
 
         updated_context = get_observability_context()
+        assert updated_context is not None
         assert updated_context.correlation_id == "new-correlation-id"
         assert updated_context.agent_name == "TestAgent"  # Other fields preserved
 
-    def test_set_correlation_id_without_existing_context(self):
+    def test_set_correlation_id_without_existing_context(self) -> None:
         """Test setting correlation ID when no context exists."""
         set_correlation_id("new-correlation-id")
 
@@ -221,7 +223,7 @@ class TestCorrelationIdHelpers:
         assert context.correlation_id == "new-correlation-id"
         assert context.agent_name is None
 
-    def test_clear_correlation_id(self):
+    def test_clear_correlation_id(self) -> None:
         """Test clearing correlation ID."""
         context = ObservabilityContext(correlation_id="test-id")
         set_observability_context(context)
@@ -237,11 +239,11 @@ class TestCorrelationIdHelpers:
 class TestObservabilityContextManager:
     """Test ObservabilityContextManager functionality."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear context after each test."""
         clear_observability_context()
 
-    def test_context_manager_basic_usage(self):
+    def test_context_manager_basic_usage(self) -> None:
         """Test basic context manager usage."""
         test_context = ObservabilityContext(agent_name="TestAgent")
 
@@ -253,7 +255,7 @@ class TestObservabilityContextManager:
 
         assert get_observability_context() is None
 
-    def test_context_manager_with_existing_context(self):
+    def test_context_manager_with_existing_context(self) -> None:
         """Test context manager when context already exists."""
         original_context = ObservabilityContext(agent_name="OriginalAgent")
         new_context = ObservabilityContext(agent_name="NewAgent")
@@ -266,7 +268,7 @@ class TestObservabilityContextManager:
         # Should restore original context
         assert get_observability_context() is original_context
 
-    def test_context_manager_with_exception(self):
+    def test_context_manager_with_exception(self) -> None:
         """Test context manager behavior when exception occurs."""
         original_context = ObservabilityContext(agent_name="OriginalAgent")
         new_context = ObservabilityContext(agent_name="NewAgent")
@@ -285,11 +287,11 @@ class TestObservabilityContextManager:
 class TestObservabilityContextFunction:
     """Test observability_context convenience function."""
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clear context after each test."""
         clear_observability_context()
 
-    def test_observability_context_with_all_parameters(self):
+    def test_observability_context_with_all_parameters(self) -> None:
         """Test observability_context function with all parameters."""
         with observability_context(
             correlation_id="test-correlation",
@@ -309,21 +311,27 @@ class TestObservabilityContextFunction:
             # Should be set in thread-local storage
             assert get_observability_context() is ctx
 
-    def test_observability_context_generates_correlation_id(self):
+    def test_observability_context_generates_correlation_id(self) -> None:
         """Test that observability_context generates correlation ID if not provided."""
         with observability_context(agent_name="TestAgent") as ctx:
             assert ctx.correlation_id is not None
             assert len(ctx.correlation_id) == 36  # UUID format
             assert ctx.agent_name == "TestAgent"
 
-    def test_observability_context_nested(self):
+    def test_observability_context_nested(self) -> None:
         """Test nested observability contexts."""
         with observability_context(agent_name="OuterAgent") as outer_ctx:
-            assert get_observability_context().agent_name == "OuterAgent"
+            outer_observability_context = get_observability_context()
+            assert outer_observability_context is not None
+            assert outer_observability_context.agent_name == "OuterAgent"
 
             with observability_context(agent_name="InnerAgent") as inner_ctx:
-                assert get_observability_context().agent_name == "InnerAgent"
+                inner_observability_context = get_observability_context()
+                assert inner_observability_context is not None
+                assert inner_observability_context.agent_name == "InnerAgent"
                 assert inner_ctx.agent_name == "InnerAgent"
 
             # Should restore outer context
-            assert get_observability_context().agent_name == "OuterAgent"
+            outer_observability_ctx = get_observability_context()
+            assert outer_observability_ctx is not None
+            assert outer_observability_ctx.agent_name == "OuterAgent"

@@ -1,4 +1,4 @@
-.PHONY: install test run run-safe lint format clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore db-test-start db-test-stop db-test-status test-integration test-pydantic-ai
+.PHONY: install test run run-safe lint format typecheck typecheck-strict typecheck-tests typecheck-tests-strict check check-strict clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore db-test-start db-test-stop db-test-status test-integration test-pydantic-ai
 
 install:
 	bash scripts/setup.sh
@@ -37,9 +37,22 @@ format:
 typecheck:
 	poetry run mypy src/ tests/
 
+typecheck-strict:
+	poetry run mypy src/ tests/ --strict --show-error-codes
+
+typecheck-tests:
+	poetry run mypy tests/ --show-error-codes
+
+typecheck-tests-strict:
+	poetry run mypy tests/ --strict --show-error-codes
+
 check:
 	$(MAKE) format
 	$(MAKE) typecheck
+
+check-strict:
+	$(MAKE) format
+	$(MAKE) typecheck-strict
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -r {} +

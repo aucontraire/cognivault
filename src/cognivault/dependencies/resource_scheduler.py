@@ -258,8 +258,7 @@ class ResourcePool(BaseModel):
     # Optional fields with defaults
     available_capacity: Optional[float] = Field(
         None,
-        description="Currently available capacity (computed if None)",
-        ge=0.0,
+        description="Currently available capacity (computed if None, can be negative with oversubscription)",
         json_schema_extra={"example": 12.5},
     )
     allocated_capacity: float = Field(
@@ -312,7 +311,7 @@ class ResourcePool(BaseModel):
         use_enum_values=False,  # Keep enum objects
     )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         """Post-initialization to set computed fields."""
         if self.available_capacity is None:
             self.available_capacity = float(self.total_capacity)
@@ -433,7 +432,7 @@ class ResourcePool(BaseModel):
 class PriorityQueue:
     """Priority queue for resource requests."""
 
-    def __init__(self, policy: SchedulingPolicy = SchedulingPolicy.PRIORITY):
+    def __init__(self, policy: SchedulingPolicy = SchedulingPolicy.PRIORITY) -> None:
         self.policy = policy
         self.requests: List[ResourceRequest] = []
         self._request_index = 0  # For FIFO ordering within same priority
@@ -536,7 +535,9 @@ class ResourceScheduler:
     comprehensive resource allocation and monitoring capabilities.
     """
 
-    def __init__(self, scheduling_policy: SchedulingPolicy = SchedulingPolicy.PRIORITY):
+    def __init__(
+        self, scheduling_policy: SchedulingPolicy = SchedulingPolicy.PRIORITY
+    ) -> None:
         self.scheduling_policy = scheduling_policy
         self.resource_pools: Dict[ResourceType, ResourcePool] = {}
         self.request_queues: Dict[ResourceType, PriorityQueue] = {}
@@ -574,8 +575,14 @@ class ResourceScheduler:
             resource_type=ResourceType.CPU,
             total_capacity=100.0,
             units="percentage",
+            available_capacity=None,
+            allocated_capacity=0.0,
+            reserved_capacity=0.0,
+            active_allocations={},
+            allocation_history=[],
             allow_oversubscription=True,
             oversubscription_factor=1.5,
+            min_available_threshold=0.1,
         )
         self.add_resource_pool(cpu_pool)
 
@@ -584,7 +591,14 @@ class ResourceScheduler:
             resource_type=ResourceType.MEMORY,
             total_capacity=8192.0,  # 8GB in MB
             units="MB",
+            available_capacity=None,
+            allocated_capacity=0.0,
+            reserved_capacity=0.0,
+            active_allocations={},
+            allocation_history=[],
             allow_oversubscription=False,
+            oversubscription_factor=1.2,
+            min_available_threshold=0.1,
         )
         self.add_resource_pool(memory_pool)
 
@@ -593,7 +607,14 @@ class ResourceScheduler:
             resource_type=ResourceType.LLM_TOKENS,
             total_capacity=100000.0,
             units="tokens",
+            available_capacity=None,
+            allocated_capacity=0.0,
+            reserved_capacity=0.0,
+            active_allocations={},
+            allocation_history=[],
             allow_oversubscription=False,
+            oversubscription_factor=1.2,
+            min_available_threshold=0.1,
         )
         self.add_resource_pool(llm_pool)
 
@@ -647,8 +668,13 @@ class ResourceScheduler:
                     units=constraint.units,
                     priority=priority,
                     estimated_duration_ms=estimated_duration_ms,
+                    max_wait_time_ms=None,
                     exclusive=not constraint.shared,
+                    shareable=constraint.shared,
                     deadline=deadline,
+                    granted_at=None,
+                    released_at=None,
+                    queue_index=0,
                 )
 
                 self.total_requests += 1

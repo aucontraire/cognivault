@@ -7,6 +7,7 @@ and retry policies.
 """
 
 import pytest
+from typing import Any
 from datetime import datetime
 from cognivault.exceptions import (
     CogniVaultError,
@@ -18,14 +19,14 @@ from cognivault.exceptions import (
 class TestErrorSeverityEnum:
     """Test ErrorSeverity enum functionality."""
 
-    def test_severity_values(self):
+    def test_severity_values(self) -> None:
         """Test that severity enum has correct values."""
         assert ErrorSeverity.LOW.value == "low"
         assert ErrorSeverity.MEDIUM.value == "medium"
         assert ErrorSeverity.HIGH.value == "high"
         assert ErrorSeverity.CRITICAL.value == "critical"
 
-    def test_severity_comparison(self):
+    def test_severity_comparison(self) -> None:
         """Test severity enum ordering if needed."""
         severities = [
             ErrorSeverity.LOW,
@@ -39,14 +40,14 @@ class TestErrorSeverityEnum:
 class TestRetryPolicyEnum:
     """Test RetryPolicy enum functionality."""
 
-    def test_retry_policy_values(self):
+    def test_retry_policy_values(self) -> None:
         """Test that retry policy enum has correct values."""
         assert RetryPolicy.NEVER.value == "never"
         assert RetryPolicy.IMMEDIATE.value == "immediate"
         assert RetryPolicy.BACKOFF.value == "backoff"
         assert RetryPolicy.CIRCUIT_BREAKER.value == "circuit_breaker"
 
-    def test_retry_policy_classification(self):
+    def test_retry_policy_classification(self) -> None:
         """Test retry policy semantic grouping."""
         retryable_policies = [
             RetryPolicy.IMMEDIATE,
@@ -62,7 +63,7 @@ class TestRetryPolicyEnum:
 class TestCogniVaultErrorBase:
     """Test the base CogniVaultError class functionality."""
 
-    def test_minimal_error_creation(self):
+    def test_minimal_error_creation(self) -> None:
         """Test basic error creation with only required parameters."""
         error = CogniVaultError(
             message="Test error",
@@ -79,7 +80,7 @@ class TestCogniVaultErrorBase:
         assert error.cause is None
         assert isinstance(error.context, dict)
 
-    def test_error_with_all_parameters(self):
+    def test_error_with_all_parameters(self) -> None:
         """Test error creation with all optional parameters."""
         cause_exception = ValueError("Original error")
         context = {"key": "value", "count": 42}
@@ -115,7 +116,7 @@ class TestCogniVaultErrorBase:
         assert error.context["severity"] == "high"
         assert error.context["retry_policy"] == "backoff"
 
-    def test_error_context_isolation(self):
+    def test_error_context_isolation(self) -> None:
         """Test that context modifications don't affect original dict."""
         original_context = {"shared": "data"}
 
@@ -129,7 +130,7 @@ class TestCogniVaultErrorBase:
         assert "shared" in error.context
         assert original_context["shared"] == "data"
 
-    def test_to_dict_serialization(self):
+    def test_to_dict_serialization(self) -> None:
         """Test error serialization to dictionary."""
         error = CogniVaultError(
             message="Serialization test",
@@ -166,7 +167,7 @@ class TestCogniVaultErrorBase:
         assert data["exception_type"] == "CogniVaultError"
         assert data["cause"] is None
 
-    def test_to_dict_with_cause(self):
+    def test_to_dict_with_cause(self) -> None:
         """Test serialization with cause exception."""
         cause = RuntimeError("Original problem")
         error = CogniVaultError(
@@ -176,7 +177,7 @@ class TestCogniVaultErrorBase:
         data = error.to_dict()
         assert data["cause"] == "Original problem"
 
-    def test_is_retryable_logic(self):
+    def test_is_retryable_logic(self) -> None:
         """Test retry policy checking logic."""
         # Non-retryable error
         error1 = CogniVaultError(
@@ -199,7 +200,7 @@ class TestCogniVaultErrorBase:
             )
             assert error.is_retryable(), f"Policy {policy.value} should be retryable"
 
-    def test_should_use_circuit_breaker_logic(self):
+    def test_should_use_circuit_breaker_logic(self) -> None:
         """Test circuit breaker policy checking."""
         # Circuit breaker policy
         error1 = CogniVaultError(
@@ -226,7 +227,7 @@ class TestCogniVaultErrorBase:
                 f"Policy {policy.value} should not use circuit breaker"
             )
 
-    def test_get_user_message_default(self):
+    def test_get_user_message_default(self) -> None:
         """Test default user-friendly error message."""
         error = CogniVaultError(
             message="Generic error", error_code="generic_error", agent_id="GenericAgent"
@@ -235,14 +236,14 @@ class TestCogniVaultErrorBase:
         user_msg = error.get_user_message()
         assert "❌ GenericAgent failed: Generic error" in user_msg
 
-    def test_get_user_message_no_agent(self):
+    def test_get_user_message_no_agent(self) -> None:
         """Test user message when no agent is specified."""
         error = CogniVaultError(message="System error", error_code="system_error")
 
         user_msg = error.get_user_message()
         assert "❌ System failed: System error" in user_msg
 
-    def test_get_user_message_with_tips(self):
+    def test_get_user_message_with_tips(self) -> None:
         """Test user messages with specific error code tips."""
         # Test LLM quota error tip
         error1 = CogniVaultError(
@@ -271,7 +272,7 @@ class TestCogniVaultErrorBase:
         user_msg3 = error3.get_user_message()
         assert "💡 Tip: Check your configuration file for errors." in user_msg3
 
-    def test_string_representation(self):
+    def test_string_representation(self) -> None:
         """Test __str__ method output."""
         error = CogniVaultError(
             message="String test",
@@ -285,14 +286,14 @@ class TestCogniVaultErrorBase:
         assert "(agent: StringAgent)" in str_repr
         assert "(step: str_step)" in str_repr
 
-    def test_string_representation_minimal(self):
+    def test_string_representation_minimal(self) -> None:
         """Test __str__ method with minimal information."""
         error = CogniVaultError(message="Minimal test", error_code="minimal_test")
 
         str_repr = str(error)
         assert str_repr == "CogniVaultError: Minimal test"
 
-    def test_repr_representation(self):
+    def test_repr_representation(self) -> None:
         """Test __repr__ method output."""
         error = CogniVaultError(
             message="Repr test",
@@ -310,7 +311,7 @@ class TestCogniVaultErrorBase:
         assert "agent_id='ReprAgent'" in repr_str
         assert "step_id='repr_step'" in repr_str
 
-    def test_exception_inheritance(self):
+    def test_exception_inheritance(self) -> None:
         """Test that CogniVaultError inherits from Exception properly."""
         error = CogniVaultError(
             message="Inheritance test", error_code="inheritance_test"
@@ -330,7 +331,7 @@ class TestCogniVaultErrorBase:
 class TestErrorContextIntegration:
     """Test error context integration with trace metadata."""
 
-    def test_trace_metadata_injection(self):
+    def test_trace_metadata_injection(self) -> None:
         """Test that trace metadata is automatically injected into context."""
         error = CogniVaultError(
             message="Trace test",
@@ -349,7 +350,7 @@ class TestErrorContextIntegration:
         assert error.context["retry_policy"] == "backoff"
         assert "timestamp" in error.context
 
-    def test_context_merge_with_trace_metadata(self):
+    def test_context_merge_with_trace_metadata(self) -> None:
         """Test that custom context merges with trace metadata."""
         custom_context = {
             "execution_attempt": 3,
@@ -375,14 +376,14 @@ class TestErrorContextIntegration:
         assert error.context["agent_id"] == "MergeAgent"
         assert error.context["error_code"] == "context_merge"
 
-    def test_timestamp_consistency(self):
+    def test_timestamp_consistency(self) -> None:
         """Test that timestamp is consistent between error and context."""
         error = CogniVaultError(message="Timestamp test", error_code="timestamp_test")
 
         # Timestamp should be the same in both places
         assert error.timestamp.isoformat() == error.context["timestamp"]
 
-    def test_error_chaining_preservation(self):
+    def test_error_chaining_preservation(self) -> None:
         """Test that error chaining is properly preserved."""
         original_error = ValueError("Original problem")
 

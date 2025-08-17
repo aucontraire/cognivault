@@ -7,6 +7,7 @@ errors for DAG-based execution flow.
 """
 
 import pytest
+from typing import Any, Dict, List
 from cognivault.exceptions import (
     CogniVaultError,
     ErrorSeverity,
@@ -22,7 +23,7 @@ from cognivault.exceptions import (
 class TestOrchestrationErrorBase:
     """Test base OrchestrationError functionality."""
 
-    def test_orchestration_error_creation(self):
+    def test_orchestration_error_creation(self) -> None:
         """Test basic OrchestrationError creation."""
         error = OrchestrationError(
             message="Orchestration failed",
@@ -37,7 +38,7 @@ class TestOrchestrationErrorBase:
         assert error.context["pipeline_stage"] == "execution"
         assert isinstance(error, CogniVaultError)
 
-    def test_orchestration_error_with_all_params(self):
+    def test_orchestration_error_with_all_params(self) -> None:
         """Test OrchestrationError with all parameters."""
         cause_exception = ValueError("Original error")
         context = {"workflow_id": "wf_123", "node_count": 5}
@@ -69,7 +70,7 @@ class TestOrchestrationErrorBase:
 class TestPipelineExecutionError:
     """Test PipelineExecutionError functionality."""
 
-    def test_pipeline_execution_error_creation(self):
+    def test_pipeline_execution_error_creation(self) -> None:
         """Test basic PipelineExecutionError creation."""
         failed_agents = ["agent1", "agent2"]
         successful_agents = ["agent3", "agent4", "agent5"]
@@ -106,10 +107,10 @@ class TestPipelineExecutionError:
         )
         assert error.message == expected_msg
 
-    def test_pipeline_execution_error_complete_failure(self):
+    def test_pipeline_execution_error_complete_failure(self) -> None:
         """Test pipeline execution error with complete failure."""
         failed_agents = ["agent1", "agent2", "agent3"]
-        successful_agents = []
+        successful_agents: List[str] = []
 
         error = PipelineExecutionError(
             failed_agents=failed_agents,
@@ -121,7 +122,7 @@ class TestPipelineExecutionError:
         assert error.context["partial_failure"] is False
         assert error.retry_policy == RetryPolicy.NEVER  # non-timeout failure
 
-    def test_pipeline_execution_user_message(self):
+    def test_pipeline_execution_user_message(self) -> None:
         """Test user-friendly pipeline execution error message."""
         error = PipelineExecutionError(
             failed_agents=["refiner", "critic"],
@@ -141,7 +142,7 @@ class TestPipelineExecutionError:
 class TestDependencyResolutionError:
     """Test DependencyResolutionError functionality."""
 
-    def test_dependency_resolution_error_creation(self):
+    def test_dependency_resolution_error_creation(self) -> None:
         """Test basic DependencyResolutionError creation."""
         affected_agents = ["agent2", "agent3", "agent4"]
         dependency_graph = {
@@ -176,7 +177,7 @@ class TestDependencyResolutionError:
         expected_msg = "Dependency resolution failed: circular dependency detected"
         assert error.message == expected_msg
 
-    def test_dependency_resolution_user_message(self):
+    def test_dependency_resolution_user_message(self) -> None:
         """Test user-friendly dependency resolution error message."""
         error = DependencyResolutionError(
             dependency_issue="missing required dependency",
@@ -192,7 +193,7 @@ class TestDependencyResolutionError:
 class TestWorkflowTimeoutError:
     """Test WorkflowTimeoutError functionality."""
 
-    def test_workflow_timeout_error_creation(self):
+    def test_workflow_timeout_error_creation(self) -> None:
         """Test basic WorkflowTimeoutError creation."""
         completed_agents = ["agent1", "agent2"]
         pending_agents = ["agent3", "agent4", "agent5"]
@@ -227,7 +228,7 @@ class TestWorkflowTimeoutError:
         )
         assert error.message == expected_msg
 
-    def test_workflow_timeout_user_message(self):
+    def test_workflow_timeout_user_message(self) -> None:
         """Test user-friendly workflow timeout error message."""
         error = WorkflowTimeoutError(
             timeout_seconds=120.0,
@@ -246,7 +247,7 @@ class TestWorkflowTimeoutError:
 class TestStateTransitionError:
     """Test StateTransitionError functionality."""
 
-    def test_state_transition_error_creation(self):
+    def test_state_transition_error_creation(self) -> None:
         """Test basic StateTransitionError creation."""
         error = StateTransitionError(
             transition_type="agent_to_agent",
@@ -266,7 +267,7 @@ class TestStateTransitionError:
         expected_msg = "State transition failed: agent_to_agent (refiner_completed → critic_starting)"
         assert error.message == expected_msg
 
-    def test_state_transition_error_with_all_params(self):
+    def test_state_transition_error_with_all_params(self) -> None:
         """Test StateTransitionError with all parameters."""
         cause = ValueError("Invalid state data")
         context = {"execution_id": "exec_123", "node_count": 5}
@@ -293,7 +294,7 @@ class TestStateTransitionError:
         assert error.cause == cause
         assert error.context["execution_id"] == "exec_123"
 
-    def test_state_transition_context_injection(self):
+    def test_state_transition_context_injection(self) -> None:
         """Test that state transition information is added to context."""
         error = StateTransitionError(
             transition_type="conditional_branch",
@@ -308,7 +309,7 @@ class TestStateTransitionError:
         assert error.context["state_details"] == "Condition evaluation failed"
         assert error.context["rollback_required"] is False
 
-    def test_state_transition_with_minimal_params(self):
+    def test_state_transition_with_minimal_params(self) -> None:
         """Test StateTransitionError with minimal required parameters."""
         error = StateTransitionError(transition_type="initialization_failed")
 
@@ -321,7 +322,7 @@ class TestStateTransitionError:
         expected_msg = "State transition failed: initialization_failed"
         assert error.message == expected_msg
 
-    def test_state_transition_rollback_scenarios(self):
+    def test_state_transition_rollback_scenarios(self) -> None:
         """Test state transition errors that require rollback."""
         # Test snapshot_failed
         snapshot_error = StateTransitionError(
@@ -337,7 +338,7 @@ class TestStateTransitionError:
         )
         assert rollback_error.context["rollback_required"] is True
 
-    def test_state_transition_user_message(self):
+    def test_state_transition_user_message(self) -> None:
         """Test user-friendly message for state transition errors."""
         # Test snapshot failure
         snapshot_error = StateTransitionError(
@@ -367,7 +368,7 @@ class TestStateTransitionError:
         user_msg = generic_error.get_user_message()
         assert "💡 Tip: State management error. Check system resources" in user_msg
 
-    def test_state_transition_inheritance(self):
+    def test_state_transition_inheritance(self) -> None:
         """Test StateTransitionError inheritance hierarchy."""
         error = StateTransitionError(
             transition_type="test_transition",
@@ -379,7 +380,7 @@ class TestStateTransitionError:
         assert isinstance(error, CogniVaultError)
         assert isinstance(error, StateTransitionError)
 
-    def test_state_transition_serialization(self):
+    def test_state_transition_serialization(self) -> None:
         """Test StateTransitionError serialization."""
         error = StateTransitionError(
             transition_type="serialization_test",
@@ -409,7 +410,7 @@ class TestStateTransitionError:
 class TestOrchestrationErrorInheritance:
     """Test proper inheritance hierarchy for orchestration errors."""
 
-    def test_all_orchestration_errors_inherit_properly(self):
+    def test_all_orchestration_errors_inherit_properly(self) -> None:
         """Test that specialized orchestration errors inherit from OrchestrationError."""
         errors = [
             PipelineExecutionError(["agent1"], ["agent2"], "test", "timeout"),
@@ -422,15 +423,15 @@ class TestOrchestrationErrorInheritance:
             assert isinstance(error, OrchestrationError)
             assert isinstance(error, CogniVaultError)
 
-    def test_orchestration_error_inherits_from_base(self):
+    def test_orchestration_error_inherits_from_base(self) -> None:
         """Test that OrchestrationError inherits from CogniVaultError."""
         error = OrchestrationError("Test", "test_stage")
         assert isinstance(error, CogniVaultError)
 
-    def test_polymorphic_behavior(self):
+    def test_polymorphic_behavior(self) -> None:
         """Test polymorphic behavior of orchestration errors."""
 
-        def handle_orchestration_error(error: OrchestrationError) -> dict:
+        def handle_orchestration_error(error: OrchestrationError) -> Dict[str, Any]:
             return {
                 "stage": error.pipeline_stage,
                 "retryable": error.is_retryable(),
@@ -459,7 +460,7 @@ class TestOrchestrationErrorInheritance:
 class TestOrchestrationErrorIntegration:
     """Test integration aspects of orchestration errors."""
 
-    def test_orchestration_error_with_pipeline_metadata(self):
+    def test_orchestration_error_with_pipeline_metadata(self) -> None:
         """Test orchestration errors work with pipeline execution metadata."""
         error = PipelineExecutionError(
             failed_agents=["researcher", "critic"],
@@ -486,7 +487,7 @@ class TestOrchestrationErrorIntegration:
         assert data["agent_id"] == "pipeline_content_analysis"
         assert "pipeline_id" in data["context"]
 
-    def test_orchestration_error_chaining_scenarios(self):
+    def test_orchestration_error_chaining_scenarios(self) -> None:
         """Test various orchestration error chaining scenarios."""
         # Original timeout error
         original = TimeoutError("Agent execution timeout")
@@ -522,7 +523,7 @@ class TestOrchestrationErrorIntegration:
         assert "State transition failed" in pipeline_data["cause"]
         assert "Agent execution timeout" in state_data["cause"]
 
-    def test_exception_raising_and_catching(self):
+    def test_exception_raising_and_catching(self) -> None:
         """Test that orchestration errors can be properly raised and caught."""
         # Test specific exception catching
         with pytest.raises(StateTransitionError) as exc_info:
@@ -532,18 +533,18 @@ class TestOrchestrationErrorIntegration:
         assert exc_info.value.from_state == "from"
 
         # Test catching as base orchestration error
-        with pytest.raises(OrchestrationError) as exc_info:
+        with pytest.raises(OrchestrationError) as orch_exc_info:
             raise PipelineExecutionError(["failed"], ["success"], "test", "reason")
 
-        assert exc_info.value.pipeline_stage == "test"
+        assert orch_exc_info.value.pipeline_stage == "test"
 
         # Test catching as CogniVaultError
-        with pytest.raises(CogniVaultError) as exc_info:
+        with pytest.raises(CogniVaultError) as base_exc_info:
             raise DependencyResolutionError("circular", ["agent1"])
 
-        assert exc_info.value.error_code == "dependency_resolution_failed"
+        assert base_exc_info.value.error_code == "dependency_resolution_failed"
 
-    def test_orchestration_error_retry_semantics(self):
+    def test_orchestration_error_retry_semantics(self) -> None:
         """Test retry semantics for orchestration operations."""
         # Timeout-based failures should be retryable
         timeout_error = PipelineExecutionError(

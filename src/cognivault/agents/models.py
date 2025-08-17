@@ -7,7 +7,7 @@ in the execution_metadata JSONB field while maintaining agent swapping flexibili
 """
 
 from enum import Enum
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, cast
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -360,7 +360,7 @@ AgentOutputType = Union[RefinerOutput, CriticOutput, HistorianOutput, SynthesisO
 
 
 # Factory function for creating agent outputs
-def create_agent_output(agent_name: str, **kwargs) -> AgentOutputType:
+def create_agent_output(agent_name: str, **kwargs: Any) -> AgentOutputType:
     """
     Factory function to create the appropriate agent output based on agent name.
 
@@ -387,4 +387,4 @@ def create_agent_output(agent_name: str, **kwargs) -> AgentOutputType:
         )
 
     output_class = output_classes[agent_name]
-    return output_class(agent_name=agent_name, **kwargs)
+    return cast(AgentOutputType, output_class(agent_name=agent_name, **kwargs))

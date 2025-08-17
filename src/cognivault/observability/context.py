@@ -104,7 +104,7 @@ class ObservabilityContext(BaseModel):
             metadata=self.metadata.copy(),
         )
 
-    def with_metadata(self, **metadata) -> "ObservabilityContext":
+    def with_metadata(self, **metadata: Any) -> "ObservabilityContext":
         """Create new context with additional metadata."""
         new_metadata = self.metadata.copy()
         new_metadata.update(metadata)
@@ -196,7 +196,7 @@ class ObservabilityContextManager:
     within a specific scope.
     """
 
-    def __init__(self, context: ObservabilityContext):
+    def __init__(self, context: ObservabilityContext) -> None:
         """
         Initialize context manager.
 
@@ -214,7 +214,7 @@ class ObservabilityContextManager:
         set_observability_context(self.context)
         return self.context
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit context scope."""
         if self.previous_context:
             set_observability_context(self.previous_context)
@@ -228,7 +228,7 @@ def observability_context(
     step_id: Optional[str] = None,
     pipeline_id: Optional[str] = None,
     execution_phase: Optional[str] = None,
-    **metadata,
+    **metadata: Any,
 ) -> ObservabilityContextManager:
     """
     Create observability context manager.

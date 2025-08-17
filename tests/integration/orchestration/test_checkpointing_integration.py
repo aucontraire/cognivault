@@ -7,8 +7,9 @@ LangGraph orchestration in various scenarios.
 """
 
 import pytest
+from typing import Any
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.orchestration.memory_manager import (
     CogniVaultMemoryManager,
@@ -26,7 +27,7 @@ class TestMemoryManagerIntegration:
     """Test memory manager integration with real orchestrator."""
 
     @pytest.fixture
-    def enabled_memory_manager(self):
+    def enabled_memory_manager(self) -> Any:
         """Fixture for enabled memory manager."""
         config = CheckpointConfig(
             enabled=True,
@@ -41,13 +42,13 @@ class TestMemoryManagerIntegration:
             yield CogniVaultMemoryManager(config)
 
     @pytest.fixture
-    def disabled_memory_manager(self):
+    def disabled_memory_manager(self) -> Any:
         """Fixture for disabled memory manager."""
         config = CheckpointConfig(enabled=False)
         return CogniVaultMemoryManager(config)
 
     @pytest.fixture
-    def mock_orchestrator_with_checkpoints(self, enabled_memory_manager):
+    def mock_orchestrator_with_checkpoints(self, enabled_memory_manager: Mock) -> Any:
         """Fixture for orchestrator with checkpointing enabled."""
         with patch.multiple(
             "cognivault.orchestration.orchestrator",
@@ -63,12 +64,14 @@ class TestMemoryManagerIntegration:
 
             # Mock the compiled graph
             mock_compiled_graph = AsyncMock()
-            orchestrator._compiled_graph = mock_compiled_graph
+            orchestrator._compiled_graph = mock_compiled_graph  # type: ignore[assignment]
 
             yield orchestrator, mock_compiled_graph
 
     @pytest.fixture
-    def mock_orchestrator_without_checkpoints(self, disabled_memory_manager):
+    def mock_orchestrator_without_checkpoints(
+        self, disabled_memory_manager: Mock
+    ) -> Any:
         """Fixture for orchestrator with checkpointing disabled."""
         with patch.multiple(
             "cognivault.orchestration.orchestrator",
@@ -83,14 +86,14 @@ class TestMemoryManagerIntegration:
 
             # Mock the compiled graph
             mock_compiled_graph = AsyncMock()
-            orchestrator._compiled_graph = mock_compiled_graph
+            orchestrator._compiled_graph = mock_compiled_graph  # type: ignore[assignment]
 
             yield orchestrator, mock_compiled_graph
 
     @pytest.mark.asyncio
     async def test_orchestrator_checkpoints_enabled_flow(
-        self, mock_orchestrator_with_checkpoints
-    ):
+        self, mock_orchestrator_with_checkpoints: Mock
+    ) -> None:
         """Test orchestrator execution flow with checkpoints enabled."""
         orchestrator, mock_compiled_graph = mock_orchestrator_with_checkpoints
 
@@ -142,8 +145,8 @@ class TestMemoryManagerIntegration:
 
     @pytest.mark.asyncio
     async def test_orchestrator_checkpoints_disabled_flow(
-        self, mock_orchestrator_without_checkpoints
-    ):
+        self, mock_orchestrator_without_checkpoints: Mock
+    ) -> None:
         """Test orchestrator execution flow with checkpoints disabled."""
         orchestrator, mock_compiled_graph = mock_orchestrator_without_checkpoints
 
@@ -183,8 +186,8 @@ class TestMemoryManagerIntegration:
 
     @pytest.mark.asyncio
     async def test_checkpoint_creation_during_execution(
-        self, mock_orchestrator_with_checkpoints
-    ):
+        self, mock_orchestrator_with_checkpoints: Mock
+    ) -> None:
         """Test that checkpoints are created during execution."""
         orchestrator, mock_compiled_graph = mock_orchestrator_with_checkpoints
 
@@ -229,7 +232,9 @@ class TestMemoryManagerIntegration:
         assert "completion" in checkpoint_steps
 
     @pytest.mark.asyncio
-    async def test_rollback_functionality(self, mock_orchestrator_with_checkpoints):
+    async def test_rollback_functionality(
+        self, mock_orchestrator_with_checkpoints: Mock
+    ) -> None:
         """Test rollback functionality in orchestrator."""
         orchestrator, mock_compiled_graph = mock_orchestrator_with_checkpoints
 
@@ -240,7 +245,7 @@ class TestMemoryManagerIntegration:
         )
 
         # Mock MemorySaver to return the state
-        mock_checkpoint_tuple = Mock()
+        mock_checkpoint_tuple: Mock = Mock()
         mock_checkpoint_tuple.checkpoint = {"channel_values": test_state}
         orchestrator.memory_manager.memory_saver.get_tuple.return_value = (
             mock_checkpoint_tuple
@@ -255,8 +260,8 @@ class TestMemoryManagerIntegration:
 
     @pytest.mark.asyncio
     async def test_rollback_with_no_checkpoints(
-        self, mock_orchestrator_with_checkpoints
-    ):
+        self, mock_orchestrator_with_checkpoints: Mock
+    ) -> None:
         """Test rollback when no checkpoints exist."""
         orchestrator, _ = mock_orchestrator_with_checkpoints
 
@@ -267,7 +272,9 @@ class TestMemoryManagerIntegration:
 
         assert result is None
 
-    def test_checkpoint_history_retrieval(self, mock_orchestrator_with_checkpoints):
+    def test_checkpoint_history_retrieval(
+        self, mock_orchestrator_with_checkpoints: Mock
+    ) -> None:
         """Test checkpoint history retrieval."""
         orchestrator, _ = mock_orchestrator_with_checkpoints
 
@@ -286,7 +293,9 @@ class TestMemoryManagerIntegration:
         assert all("timestamp" in item for item in history)
         assert all("agent_step" in item for item in history)
 
-    def test_memory_statistics_collection(self, mock_orchestrator_with_checkpoints):
+    def test_memory_statistics_collection(
+        self, mock_orchestrator_with_checkpoints: Mock
+    ) -> None:
         """Test memory statistics collection."""
         orchestrator, _ = mock_orchestrator_with_checkpoints
 
@@ -309,7 +318,9 @@ class TestMemoryManagerIntegration:
         assert stats["checkpointing_enabled"] is True
         assert stats["total_checkpoints"] >= 1
 
-    def test_cleanup_expired_checkpoints(self, mock_orchestrator_with_checkpoints):
+    def test_cleanup_expired_checkpoints(
+        self, mock_orchestrator_with_checkpoints: Mock
+    ) -> None:
         """Test cleanup of expired checkpoints."""
         orchestrator, _ = mock_orchestrator_with_checkpoints
 
@@ -330,16 +341,16 @@ class TestErrorPolicyIntegration:
     """Test error policy integration with memory management."""
 
     @pytest.fixture
-    def policy_manager(self):
+    def policy_manager(self) -> Any:
         """Fixture for error policy manager."""
         return get_error_policy_manager()
 
-    def test_error_policy_manager_singleton(self, policy_manager):
+    def test_error_policy_manager_singleton(self, policy_manager: Mock) -> None:
         """Test that error policy manager is singleton."""
         manager2 = get_error_policy_manager()
         assert policy_manager is manager2
 
-    def test_circuit_breaker_state_persistence(self, policy_manager):
+    def test_circuit_breaker_state_persistence(self, policy_manager: Mock) -> None:
         """Test circuit breaker state persistence across calls."""
         # Get circuit breaker for historian
         circuit_breaker = policy_manager.get_circuit_breaker("historian")
@@ -357,7 +368,7 @@ class TestErrorPolicyIntegration:
             assert circuit_breaker is circuit_breaker2
             assert circuit_breaker2.failure_count == initial_failure_count + 1
 
-    def test_error_statistics_integration(self, policy_manager):
+    def test_error_statistics_integration(self, policy_manager: Mock) -> None:
         """Test error statistics integration."""
         from cognivault.orchestration.error_policies import get_error_statistics
 
@@ -373,11 +384,11 @@ class TestErrorPolicyIntegration:
             assert "failure_count" in historian_stats
 
     @patch("cognivault.orchestration.error_policies.get_error_policy_manager")
-    def test_custom_error_policy_in_orchestrator(self, mock_get_manager):
+    def test_custom_error_policy_in_orchestrator(self, mock_get_manager: Mock) -> None:
         """Test custom error policy usage in orchestrator context."""
         # Create mock policy manager with custom policies
-        mock_manager = Mock()
-        mock_policy = Mock()
+        mock_manager: Mock = Mock()
+        mock_policy: Mock = Mock()
         mock_policy.timeout_seconds = 5.0
         mock_manager.get_policy.return_value = mock_policy
         mock_get_manager.return_value = mock_manager
@@ -387,7 +398,7 @@ class TestErrorPolicyIntegration:
 
         # The decorator should use our mocked manager
         @timeout_policy("test_node")
-        async def test_func():
+        async def test_func() -> str:
             return "success"
 
         # Execute the decorated function to trigger policy manager call
@@ -402,7 +413,7 @@ class TestEndToEndIntegration:
     """End-to-end integration tests."""
 
     @pytest.fixture
-    def full_orchestrator_setup(self):
+    def full_orchestrator_setup(self) -> Any:
         """Fixture for full orchestrator setup with mocked dependencies."""
         with (
             patch.multiple(
@@ -425,12 +436,14 @@ class TestEndToEndIntegration:
 
             # Mock compiled graph
             mock_compiled_graph = AsyncMock()
-            orchestrator._compiled_graph = mock_compiled_graph
+            orchestrator._compiled_graph = mock_compiled_graph  # type: ignore[assignment]
 
             yield orchestrator, mock_compiled_graph
 
     @pytest.mark.asyncio
-    async def test_full_execution_with_checkpointing(self, full_orchestrator_setup):
+    async def test_full_execution_with_checkpointing(
+        self, full_orchestrator_setup: Mock
+    ) -> None:
         """Test full execution flow with checkpointing and error handling."""
         orchestrator, mock_compiled_graph = full_orchestrator_setup
 
@@ -504,7 +517,9 @@ class TestEndToEndIntegration:
         assert "completion" in checkpoint_steps
 
     @pytest.mark.asyncio
-    async def test_execution_with_partial_failure(self, full_orchestrator_setup):
+    async def test_execution_with_partial_failure(
+        self, full_orchestrator_setup: Mock
+    ) -> None:
         """Test execution with partial agent failure."""
         orchestrator, mock_compiled_graph = full_orchestrator_setup
 
@@ -557,7 +572,9 @@ class TestEndToEndIntegration:
         assert len(checkpoints) >= 1
 
     @pytest.mark.asyncio
-    async def test_execution_statistics_tracking(self, full_orchestrator_setup):
+    async def test_execution_statistics_tracking(
+        self, full_orchestrator_setup: Mock
+    ) -> None:
         """Test that execution statistics are properly tracked."""
         orchestrator, mock_compiled_graph = full_orchestrator_setup
 
@@ -598,7 +615,9 @@ class TestEndToEndIntegration:
             == "phase2_production_with_graph_factory"
         )
 
-    def test_memory_and_error_policy_interaction(self, full_orchestrator_setup):
+    def test_memory_and_error_policy_interaction(
+        self, full_orchestrator_setup: Mock
+    ) -> None:
         """Test interaction between memory management and error policies."""
         orchestrator, _ = full_orchestrator_setup
 

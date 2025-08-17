@@ -13,19 +13,23 @@ This test suite covers all aspects of the enhanced Pydantic-based AgentContext:
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import patch, Mock
-from typing import Dict, Any
+from unittest.mock import MagicMock, Mock, patch
+from typing import Any, Dict
 
 from pydantic import ValidationError
 
 from cognivault.context import AgentContext, ContextSnapshot, ContextCompressionManager
 from cognivault.exceptions import StateTransitionError
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestContextSnapshotPydanticValidation:
     """Test ContextSnapshot Pydantic validation."""
 
-    def test_context_snapshot_valid_creation(self):
+    def test_context_snapshot_valid_creation(self) -> None:
         """Test creating valid ContextSnapshot."""
         snapshot = ContextSnapshot(
             context_id="test_123",
@@ -47,7 +51,7 @@ class TestContextSnapshotPydanticValidation:
         assert snapshot.size_bytes == 1024
         assert not snapshot.compressed
 
-    def test_context_snapshot_invalid_timestamp(self):
+    def test_context_snapshot_invalid_timestamp(self) -> None:
         """Test ContextSnapshot with invalid timestamp format."""
         with pytest.raises(ValidationError, match="Invalid timestamp format"):
             ContextSnapshot(
@@ -60,7 +64,7 @@ class TestContextSnapshotPydanticValidation:
                 size_bytes=100,
             )
 
-    def test_context_snapshot_negative_size_bytes(self):
+    def test_context_snapshot_negative_size_bytes(self) -> None:
         """Test ContextSnapshot with negative size_bytes."""
         with pytest.raises(ValidationError, match="greater than or equal to 0"):
             ContextSnapshot(
@@ -73,7 +77,7 @@ class TestContextSnapshotPydanticValidation:
                 size_bytes=-100,
             )
 
-    def test_context_snapshot_empty_context_id(self):
+    def test_context_snapshot_empty_context_id(self) -> None:
         """Test ContextSnapshot with empty context_id."""
         with pytest.raises(ValidationError, match="at least 1 character"):
             ContextSnapshot(
@@ -86,7 +90,7 @@ class TestContextSnapshotPydanticValidation:
                 size_bytes=100,
             )
 
-    def test_context_snapshot_to_dict(self):
+    def test_context_snapshot_to_dict(self) -> None:
         """Test ContextSnapshot to_dict method."""
         snapshot = ContextSnapshot(
             context_id="test_123",
@@ -108,7 +112,7 @@ class TestContextSnapshotPydanticValidation:
         assert data["retrieved_notes"] is None
         assert data["final_synthesis"] is None
 
-    def test_context_snapshot_from_dict(self):
+    def test_context_snapshot_from_dict(self) -> None:
         """Test ContextSnapshot from_dict class method."""
         data = {
             "context_id": "test_123",
@@ -133,9 +137,9 @@ class TestContextSnapshotPydanticValidation:
 class TestAgentContextPydanticValidation:
     """Test AgentContext Pydantic validation."""
 
-    def test_agent_context_valid_creation(self):
+    def test_agent_context_valid_creation(self) -> None:
         """Test creating valid AgentContext."""
-        context = AgentContext(query="What is AI?")
+        context = AgentContextPatterns.simple_query("What is AI?")
 
         assert context.query == "What is AI?"
         assert context.agent_outputs == {}
@@ -146,40 +150,42 @@ class TestAgentContextPydanticValidation:
         assert context.current_size >= 0
         assert context.success is True
 
-    def test_agent_context_empty_query_validation(self):
+    def test_agent_context_empty_query_validation(self) -> None:
         """Test AgentContext with empty query."""
         with pytest.raises(
             ValidationError, match="Query cannot be empty or just whitespace"
         ):
             AgentContext(query="")
 
-    def test_agent_context_whitespace_query_validation(self):
+    def test_agent_context_whitespace_query_validation(self) -> None:
         """Test AgentContext with whitespace-only query."""
         with pytest.raises(
             ValidationError, match="Query cannot be empty or just whitespace"
         ):
             AgentContext(query="   \n\t  ")
 
-    def test_agent_context_query_trimming(self):
+    def test_agent_context_query_trimming(self) -> None:
         """Test AgentContext trims whitespace from query."""
-        context = AgentContext(query="  What is AI?  ")
+        context = AgentContext(
+            query="  What is AI?  "
+        )  # Keep direct constructor for whitespace test
         assert context.query == "What is AI?"
 
-    def test_agent_context_negative_current_size(self):
+    def test_agent_context_negative_current_size(self) -> None:
         """Test AgentContext with negative current_size."""
         with pytest.raises(ValidationError, match="greater than or equal to 0"):
             AgentContext(query="test", current_size=-100)
 
-    def test_agent_context_invalid_agent_status(self):
+    def test_agent_context_invalid_agent_status(self) -> None:
         """Test AgentContext with invalid agent execution status."""
         with pytest.raises(ValidationError, match="Invalid agent status"):
             AgentContext(
                 query="test", agent_execution_status={"refiner": "invalid_status"}
             )
 
-    def test_agent_context_valid_agent_statuses(self):
+    def test_agent_context_valid_agent_statuses(self) -> None:
         """Test AgentContext with valid agent execution statuses."""
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="test",
             agent_execution_status={
                 "refiner": "pending",
@@ -194,7 +200,7 @@ class TestAgentContextPydanticValidation:
         assert context.agent_execution_status["historian"] == "completed"
         assert context.agent_execution_status["synthesis"] == "failed"
 
-    def test_agent_context_overlapping_success_failure_sets(self):
+    def test_agent_context_overlapping_success_failure_sets(self) -> None:
         """Test AgentContext model validator for overlapping success/failure sets."""
         with pytest.raises(
             ValidationError, match="Agents cannot be both successful and failed"
@@ -205,7 +211,7 @@ class TestAgentContextPydanticValidation:
                 failed_agents={"critic", "historian"},
             )
 
-    def test_agent_context_inconsistent_status_and_success_set(self):
+    def test_agent_context_inconsistent_status_and_success_set(self) -> None:
         """Test AgentContext model validator for inconsistent status and success set."""
         with pytest.raises(
             ValidationError, match="is in successful_agents but has status"
@@ -216,7 +222,7 @@ class TestAgentContextPydanticValidation:
                 successful_agents={"refiner"},
             )
 
-    def test_agent_context_inconsistent_status_and_failure_set(self):
+    def test_agent_context_inconsistent_status_and_failure_set(self) -> None:
         """Test AgentContext model validator for inconsistent status and failure set."""
         with pytest.raises(ValidationError, match="is in failed_agents but has status"):
             AgentContext(
@@ -225,9 +231,9 @@ class TestAgentContextPydanticValidation:
                 failed_agents={"refiner"},
             )
 
-    def test_agent_context_consistent_execution_state(self):
+    def test_agent_context_consistent_execution_state(self) -> None:
         """Test AgentContext with consistent execution state."""
-        context = AgentContext(
+        context = AgentContextFactory.basic(
             query="test",
             agent_execution_status={
                 "refiner": "completed",
@@ -243,7 +249,7 @@ class TestAgentContextPydanticValidation:
         assert "historian" not in context.successful_agents
         assert "historian" not in context.failed_agents
 
-    def test_agent_context_long_context_id_validation(self):
+    def test_agent_context_long_context_id_validation(self) -> None:
         """Test AgentContext context_id length constraint."""
         with pytest.raises(ValidationError, match="at most 50 characters"):
             AgentContext(
@@ -251,9 +257,9 @@ class TestAgentContextPydanticValidation:
                 context_id="a" * 51,  # 51 characters, exceeds max_length=50
             )
 
-    def test_agent_context_field_descriptions(self):
+    def test_agent_context_field_descriptions(self) -> None:
         """Test that all fields have proper descriptions."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Check that field descriptions exist (this tests that our Field() definitions are correct)
         schema = AgentContext.model_json_schema()
@@ -271,44 +277,44 @@ class TestAgentContextPydanticValidation:
 class TestAgentContextBasicFunctionality:
     """Test basic AgentContext functionality with Pydantic."""
 
-    def test_add_agent_output(self):
+    def test_add_agent_output(self) -> None:
         """Test adding agent output."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.add_agent_output("refiner", "refined output")
 
         assert context.agent_outputs["refiner"] == "refined output"
         assert context.current_size > 0
 
-    def test_get_agent_output(self):
+    def test_get_agent_output(self) -> None:
         """Test getting agent output."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.add_agent_output("refiner", "refined output")
 
         output = context.get_output("refiner")
 
         assert output == "refined output"
 
-    def test_get_nonexistent_agent_output(self):
+    def test_get_nonexistent_agent_output(self) -> None:
         """Test getting output for non-existent agent."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         output = context.get_output("nonexistent")
 
         assert output is None
 
-    def test_update_user_config(self):
+    def test_update_user_config(self) -> None:
         """Test updating user configuration."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.update_user_config({"key1": "value1", "key2": "value2"})
 
         assert context.user_config["key1"] == "value1"
         assert context.user_config["key2"] == "value2"
 
-    def test_get_user_config_with_default(self):
+    def test_get_user_config_with_default(self) -> None:
         """Test getting user config with default value."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.update_user_config({"existing_key": "existing_value"})
 
         existing_value = context.get_user_config("existing_key")
@@ -317,18 +323,18 @@ class TestAgentContextBasicFunctionality:
         assert existing_value == "existing_value"
         assert default_value == "default"
 
-    def test_set_and_get_final_synthesis(self):
+    def test_set_and_get_final_synthesis(self) -> None:
         """Test setting and getting final synthesis."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.set_final_synthesis("This is the final synthesis")
 
         assert context.get_final_synthesis() == "This is the final synthesis"
         assert context.final_synthesis == "This is the final synthesis"
 
-    def test_log_trace(self):
+    def test_log_trace(self) -> None:
         """Test logging agent trace."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.log_trace("refiner", "input data", "output data")
 
@@ -339,18 +345,18 @@ class TestAgentContextBasicFunctionality:
         assert trace_entry["output"] == "output data"
         assert "timestamp" in trace_entry
 
-    def test_context_id_generation(self):
+    def test_context_id_generation(self) -> None:
         """Test that context_id is automatically generated."""
-        context1 = AgentContext(query="test1")
-        context2 = AgentContext(query="test2")
+        context1 = AgentContextPatterns.simple_query("test1")
+        context2 = AgentContextPatterns.simple_query("test2")
 
         assert len(context1.context_id) == 8
         assert len(context2.context_id) == 8
         assert context1.context_id != context2.context_id
 
-    def test_clone_context(self):
+    def test_clone_context(self) -> None:
         """Test cloning context."""
-        original = AgentContext(query="original query")
+        original = AgentContextPatterns.simple_query("original query")
         original.add_agent_output("refiner", "original output")
         original.update_user_config({"key": "value"})
 
@@ -366,9 +372,9 @@ class TestAgentContextBasicFunctionality:
 class TestAgentContextExecutionStateManagement:
     """Test AgentContext execution state management features."""
 
-    def test_start_agent_execution(self):
+    def test_start_agent_execution(self) -> None:
         """Test starting agent execution."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.start_agent_execution("refiner", "step_123")
 
@@ -376,9 +382,9 @@ class TestAgentContextExecutionStateManagement:
         assert context.execution_state["refiner_step_id"] == "step_123"
         assert "refiner_start_time" in context.execution_state
 
-    def test_complete_agent_execution_success(self):
+    def test_complete_agent_execution_success(self) -> None:
         """Test completing agent execution successfully."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.start_agent_execution("refiner")
 
         context.complete_agent_execution("refiner", success=True)
@@ -389,9 +395,9 @@ class TestAgentContextExecutionStateManagement:
         assert context.success is True
         assert "refiner_end_time" in context.execution_state
 
-    def test_complete_agent_execution_failure(self):
+    def test_complete_agent_execution_failure(self) -> None:
         """Test completing agent execution with failure."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.start_agent_execution("refiner")
 
         context.complete_agent_execution("refiner", success=False)
@@ -401,18 +407,18 @@ class TestAgentContextExecutionStateManagement:
         assert "refiner" not in context.successful_agents
         assert context.success is False
 
-    def test_set_and_check_agent_dependencies(self):
+    def test_set_and_check_agent_dependencies(self) -> None:
         """Test setting and checking agent dependencies."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.set_agent_dependencies("critic", ["refiner", "historian"])
 
         dependencies = context.agent_dependencies["critic"]
         assert dependencies == ["refiner", "historian"]
 
-    def test_can_agent_execute_with_satisfied_dependencies(self):
+    def test_can_agent_execute_with_satisfied_dependencies(self) -> None:
         """Test checking if agent can execute with satisfied dependencies."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.set_agent_dependencies("critic", ["refiner"])
         context.complete_agent_execution("refiner", success=True)
 
@@ -420,9 +426,9 @@ class TestAgentContextExecutionStateManagement:
 
         assert can_execute is True
 
-    def test_can_agent_execute_with_unsatisfied_dependencies(self):
+    def test_can_agent_execute_with_unsatisfied_dependencies(self) -> None:
         """Test checking if agent can execute with unsatisfied dependencies."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.set_agent_dependencies("critic", ["refiner", "historian"])
         context.complete_agent_execution("refiner", success=True)
         # historian hasn't completed successfully
@@ -431,9 +437,9 @@ class TestAgentContextExecutionStateManagement:
 
         assert can_execute is False
 
-    def test_get_execution_summary(self):
+    def test_get_execution_summary(self) -> None:
         """Test getting execution summary."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.start_agent_execution("refiner")
         context.complete_agent_execution("refiner", success=True)
         context.start_agent_execution("critic")
@@ -453,9 +459,9 @@ class TestAgentContextExecutionStateManagement:
 class TestAgentContextSnapshotFunctionality:
     """Test AgentContext snapshot and rollback functionality."""
 
-    def test_create_snapshot(self):
+    def test_create_snapshot(self) -> None:
         """Test creating context snapshot."""
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.add_agent_output("refiner", "output")
 
         snapshot_id = context.create_snapshot("test_label")
@@ -466,9 +472,9 @@ class TestAgentContextSnapshotFunctionality:
         assert snapshot.agent_outputs["refiner"] == "output"
         assert snapshot.context_id == context.context_id
 
-    def test_restore_snapshot(self):
+    def test_restore_snapshot(self) -> None:
         """Test restoring from snapshot."""
-        context = AgentContext(query="original query")
+        context = AgentContextPatterns.simple_query("original query")
         context.add_agent_output("refiner", "original output")
 
         # Create snapshot
@@ -485,17 +491,17 @@ class TestAgentContextSnapshotFunctionality:
         assert context.query == "original query"
         assert context.agent_outputs["refiner"] == "original output"
 
-    def test_restore_nonexistent_snapshot(self):
+    def test_restore_nonexistent_snapshot(self) -> None:
         """Test restoring from non-existent snapshot."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         success = context.restore_snapshot("nonexistent_snapshot_id")
 
         assert success is False
 
-    def test_list_snapshots(self):
+    def test_list_snapshots(self) -> None:
         """Test listing snapshots."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.add_agent_output("refiner", "output")
 
         context.create_snapshot()
@@ -510,9 +516,9 @@ class TestAgentContextSnapshotFunctionality:
             assert "compressed" in snapshot_info
             assert "agents_present" in snapshot_info
 
-    def test_clear_snapshots(self):
+    def test_clear_snapshots(self) -> None:
         """Test clearing all snapshots."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.create_snapshot()
         context.create_snapshot()
 
@@ -522,9 +528,9 @@ class TestAgentContextSnapshotFunctionality:
 
         assert len(context.snapshots) == 0
 
-    def test_create_execution_snapshot(self):
+    def test_create_execution_snapshot(self) -> None:
         """Test creating execution snapshot with extended state."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.start_agent_execution("refiner")
         context.complete_agent_execution("refiner", success=True)
 
@@ -535,9 +541,9 @@ class TestAgentContextSnapshotFunctionality:
         execution_data_key = f"snapshot_{snapshot_id}_execution_data"
         assert execution_data_key in context.execution_state
 
-    def test_restore_execution_snapshot(self):
+    def test_restore_execution_snapshot(self) -> None:
         """Test restoring execution snapshot."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.start_agent_execution("refiner")
         context.complete_agent_execution("refiner", success=True)
 
@@ -560,9 +566,9 @@ class TestAgentContextSnapshotFunctionality:
 class TestAgentContextAgentIsolation:
     """Test AgentContext agent isolation features."""
 
-    def test_lock_and_unlock_field(self):
+    def test_lock_and_unlock_field(self) -> None:
         """Test locking and unlocking fields."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.lock_field("test_field")
         assert "test_field" in context.locked_fields
@@ -570,9 +576,9 @@ class TestAgentContextAgentIsolation:
         context.unlock_field("test_field")
         assert "test_field" not in context.locked_fields
 
-    def test_add_agent_output_isolated_success(self):
+    def test_add_agent_output_isolated_success(self) -> None:
         """Test adding agent output with isolation - success case."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         success = context.add_agent_output_isolated("refiner", "output")
 
@@ -580,9 +586,9 @@ class TestAgentContextAgentIsolation:
         assert context.agent_outputs["refiner"] == "output"
         assert "agent_outputs.refiner" in context.agent_mutations["refiner"]
 
-    def test_add_agent_output_isolated_locked_field(self):
+    def test_add_agent_output_isolated_locked_field(self) -> None:
         """Test adding agent output with isolation - locked field."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.lock_field("agent_outputs.refiner")
 
         success = context.add_agent_output_isolated("refiner", "output")
@@ -590,9 +596,9 @@ class TestAgentContextAgentIsolation:
         assert success is False
         assert "refiner" not in context.agent_outputs
 
-    def test_add_agent_output_isolated_already_modified(self):
+    def test_add_agent_output_isolated_already_modified(self) -> None:
         """Test adding agent output with isolation - field already modified by another agent."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # First agent modifies the field
         success1 = context.add_agent_output_isolated("refiner", "output1")
@@ -604,9 +610,9 @@ class TestAgentContextAgentIsolation:
         assert success2 is False
         assert context.agent_outputs["refiner"] == "output1"  # Should remain unchanged
 
-    def test_get_agent_mutation_history(self):
+    def test_get_agent_mutation_history(self) -> None:
         """Test getting agent mutation history."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.add_agent_output_isolated("refiner", "output1")
         context.add_agent_output_isolated("critic", "output2")
 
@@ -621,9 +627,9 @@ class TestAgentContextAgentIsolation:
 class TestAgentContextMemoryManagement:
     """Test AgentContext memory management and compression."""
 
-    def test_get_memory_usage(self):
+    def test_get_memory_usage(self) -> None:
         """Test getting memory usage information."""
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.add_agent_output("refiner", "some output")
         context.log_trace("refiner", "input", "output")
 
@@ -638,9 +644,9 @@ class TestAgentContextMemoryManagement:
         assert "context_id" in memory_usage
         assert memory_usage["context_id"] == context.context_id
 
-    def test_optimize_memory(self):
+    def test_optimize_memory(self) -> None:
         """Test memory optimization."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Create many snapshots
         for i in range(10):
@@ -657,14 +663,14 @@ class TestAgentContextMemoryManagement:
         assert "size_after" in stats
 
     @patch("cognivault.context.get_config")
-    def test_size_limit_enforcement(self, mock_get_config):
+    def test_size_limit_enforcement(self, mock_get_config: MagicMock) -> None:
         """Test that size limits are enforced."""
         # Mock config to return small size limit
-        mock_config = Mock()
+        mock_config: Mock = Mock()
         mock_config.testing.max_context_size_bytes = 100  # Very small limit
         mock_get_config.return_value = mock_config
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Add large output that should trigger compression
         large_output = "x" * 1000  # 1000 characters
@@ -677,9 +683,9 @@ class TestAgentContextMemoryManagement:
 class TestAgentContextLangGraphCompatibility:
     """Test AgentContext LangGraph compatibility features."""
 
-    def test_add_execution_edge(self):
+    def test_add_execution_edge(self) -> None:
         """Test adding execution edge."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.add_execution_edge(
             "refiner", "critic", "conditional", "confidence > 0.8", {"meta": "data"}
@@ -693,9 +699,9 @@ class TestAgentContextLangGraphCompatibility:
         assert edge["condition"] == "confidence > 0.8"
         assert edge["metadata"]["meta"] == "data"
 
-    def test_record_conditional_routing(self):
+    def test_record_conditional_routing(self) -> None:
         """Test recording conditional routing decision."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.record_conditional_routing(
             "decision_point_1",
@@ -712,9 +718,9 @@ class TestAgentContextLangGraphCompatibility:
         assert routing["alternative_paths"] == ["historian", "synthesis"]
         assert routing["metadata"]["decision_meta"] == "value"
 
-    def test_set_path_metadata(self):
+    def test_set_path_metadata(self) -> None:
         """Test setting execution path metadata."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         context.set_path_metadata("execution_mode", "parallel")
         context.set_path_metadata("branch_factor", 3)
@@ -722,9 +728,9 @@ class TestAgentContextLangGraphCompatibility:
         assert context.path_metadata["execution_mode"] == "parallel"
         assert context.path_metadata["branch_factor"] == 3
 
-    def test_get_execution_graph(self):
+    def test_get_execution_graph(self) -> None:
         """Test getting execution graph representation."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.add_agent_output("refiner", "output1")
         context.add_agent_output("critic", "output2")
         context.complete_agent_execution("refiner", success=True)
@@ -757,9 +763,9 @@ class TestAgentContextLangGraphCompatibility:
 class TestAgentContextErrorHandling:
     """Test AgentContext error handling."""
 
-    def test_state_transition_error_on_snapshot_failure(self):
+    def test_state_transition_error_on_snapshot_failure(self) -> None:
         """Test StateTransitionError on snapshot creation failure."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Mock the ContextSnapshot to raise an exception
         with patch(
@@ -769,9 +775,9 @@ class TestAgentContextErrorHandling:
             with pytest.raises(StateTransitionError, match="snapshot_creation_failed"):
                 context.create_execution_snapshot()
 
-    def test_state_transition_error_on_restore_failure(self):
+    def test_state_transition_error_on_restore_failure(self) -> None:
         """Test StateTransitionError on snapshot restore failure."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         snapshot_id = context.create_execution_snapshot()
 
         # Corrupt the execution state to cause restore failure
@@ -789,7 +795,7 @@ class TestAgentContextErrorHandling:
 class TestContextCompressionManager:
     """Test ContextCompressionManager functionality."""
 
-    def test_calculate_size(self):
+    def test_calculate_size(self) -> None:
         """Test calculating data size."""
         data = {"key": "value", "number": 123}
 
@@ -798,7 +804,7 @@ class TestContextCompressionManager:
         assert size > 0
         assert isinstance(size, int)
 
-    def test_compress_and_decompress_data(self):
+    def test_compress_and_decompress_data(self) -> None:
         """Test data compression and decompression."""
         original_data = {"key": "value", "list": [1, 2, 3], "nested": {"inner": "data"}}
 
@@ -808,7 +814,7 @@ class TestContextCompressionManager:
         assert isinstance(compressed, bytes)
         assert decompressed == original_data
 
-    def test_truncate_large_outputs(self):
+    def test_truncate_large_outputs(self) -> None:
         """Test truncating large outputs."""
         outputs = {"short": "short text", "long": "x" * 1000, "number": 123}
         max_size = 50
@@ -824,7 +830,7 @@ class TestContextCompressionManager:
 class TestAgentContextPydanticIntegration:
     """Test AgentContext integration with Pydantic features."""
 
-    def test_model_json_schema(self):
+    def test_model_json_schema(self) -> None:
         """Test that AgentContext generates proper JSON schema."""
         schema = AgentContext.model_json_schema()
 
@@ -843,9 +849,9 @@ class TestAgentContextPydanticIntegration:
             == "Unique identifier for this context instance"
         )
 
-    def test_model_dump(self):
+    def test_model_dump(self) -> None:
         """Test Pydantic model_dump functionality."""
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
         context.add_agent_output("refiner", "output")
 
         data = context.model_dump()
@@ -855,9 +861,9 @@ class TestAgentContextPydanticIntegration:
         assert "context_id" in data
         assert "current_size" in data
 
-    def test_model_dump_exclude(self):
+    def test_model_dump_exclude(self) -> None:
         """Test Pydantic model_dump with field exclusion."""
-        context = AgentContext(query="test query")
+        context = AgentContextPatterns.simple_query("test query")
 
         data = context.model_dump(exclude={"snapshots", "execution_state"})
 
@@ -865,7 +871,7 @@ class TestAgentContextPydanticIntegration:
         assert "snapshots" not in data
         assert "execution_state" not in data
 
-    def test_model_validate(self):
+    def test_model_validate(self) -> None:
         """Test Pydantic model validation from dict."""
         data = {
             "query": "test query",
@@ -881,9 +887,9 @@ class TestAgentContextPydanticIntegration:
         assert context.current_size > 0  # Will be auto-calculated
         assert context.success is True
 
-    def test_model_copy(self):
+    def test_model_copy(self) -> None:
         """Test Pydantic model_copy functionality."""
-        original = AgentContext(query="original")
+        original = AgentContextPatterns.simple_query("original")
         original.add_agent_output("refiner", "output")
 
         copy = original.model_copy(update={"query": "updated query"})
@@ -892,7 +898,7 @@ class TestAgentContextPydanticIntegration:
         assert copy.agent_outputs["refiner"] == "output"
         assert copy.context_id != original.context_id  # Should be different instances
 
-    def test_field_info_access(self):
+    def test_field_info_access(self) -> None:
         """Test accessing Pydantic field information."""
         field_info = AgentContext.model_fields
 

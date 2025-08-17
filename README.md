@@ -251,6 +251,11 @@ CogniVault provides sophisticated multi-agent orchestration with comprehensive o
 - **Manual Testing Guide**: [Complete API testing documentation](src/cognivault/docs/API_MANUAL_TESTING_GUIDE.md) for all endpoints and WebSocket scenarios
 - **External Integration**: Platform ready for external consumer integration
 
+**Developer Testing Tools**
+- **Visual WebSocket Interface**: `tools/test_websocket_events.html` - Professional Bootstrap interface for real-time event monitoring
+- **WebSocket Event Streams**: Comprehensive event documentation and usage patterns for integration
+- **API Testing Workflows**: Complete testing scenarios for development and integration validation
+
 **Technical Implementation**
 - **Zero Breaking Changes**: All existing functionality preserved during API service implementation
 - **Type-Safe Implementation**: Pydantic validation throughout API layer
@@ -1229,7 +1234,7 @@ CogniVault supports multiple execution modes with comprehensive performance comp
 
 #### Execution Modes
 
-**LangGraph Mode (default)**: Uses production `LangGraphOrchestrator` with real LangGraph 0.5.1 StateGraph integration
+**LangGraph Mode (default)**: Uses production `LangGraphOrchestrator` with real LangGraph 0.6.4 StateGraph integration
 ```bash
 # Default execution - no flag needed
 make run QUESTION="Your question"
@@ -1379,7 +1384,7 @@ The implementation provides:
 
 #### Memory Manager Features
 
-- **LangGraph MemorySaver Integration**: Native checkpointing with LangGraph 0.5.1
+- **LangGraph MemorySaver Integration**: Native checkpointing with LangGraph 0.6.4
 - **Thread-Scoped Memory**: Conversation isolation with unique thread IDs
 - **Checkpoint Lifecycle Management**: Creation, cleanup, and TTL-based expiration
 - **Rollback Mechanisms**: Failed execution recovery with state restoration

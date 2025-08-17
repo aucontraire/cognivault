@@ -10,11 +10,8 @@ This test suite validates the Pydantic migration of ConfigMapper including:
 """
 
 import pytest
-import logging
-from typing import Dict, Any
-from unittest.mock import patch, MagicMock
-
-from pydantic import ValidationError
+from typing import Any, Dict
+from unittest.mock import patch
 
 from cognivault.config.config_mapper import ConfigMapper
 from cognivault.config.agent_configs import (
@@ -28,7 +25,7 @@ from cognivault.config.agent_configs import (
 class TestConfigMapperPydanticIntegration:
     """Test Pydantic integration features of ConfigMapper."""
 
-    def test_model_validate_config_nested_format(self):
+    def test_model_validate_config_nested_format(self) -> None:
         """Test model_validate_config with nested format (direct Pydantic validation)."""
         # Arrange - nested format that matches Pydantic schema
         nested_config = {
@@ -72,7 +69,7 @@ class TestConfigMapperPydanticIntegration:
         assert result.output_config.confidence_threshold == 0.8
         assert result.execution_config.timeout_seconds == 45
 
-    def test_model_validate_config_flat_format(self):
+    def test_model_validate_config_flat_format(self) -> None:
         """Test model_validate_config with flat format (fallback mapping)."""
         # Arrange - flat format that requires mapping
         flat_config = {
@@ -105,7 +102,7 @@ class TestConfigMapperPydanticIntegration:
         assert result.output_config.include_metadata is False
         assert result.execution_config.timeout_seconds == 60
 
-    def test_model_validate_config_all_agent_types(self):
+    def test_model_validate_config_all_agent_types(self) -> None:
         """Test model_validate_config works for all supported agent types."""
         # Test configurations for each agent type
         test_configs = {
@@ -138,13 +135,15 @@ class TestConfigMapperPydanticIntegration:
 
         for agent_type, config in test_configs.items():
             # Act
-            result = ConfigMapper.model_validate_config(config, agent_type)
+            assert isinstance(config, dict)
+            typed_config: Dict[str, Any] = config
+            result = ConfigMapper.model_validate_config(typed_config, agent_type)
 
             # Assert
             assert result is not None, f"Failed to create config for {agent_type}"
             assert isinstance(result, expected_classes[agent_type])
 
-    def test_model_validate_config_invalid_agent_type(self):
+    def test_model_validate_config_invalid_agent_type(self) -> None:
         """Test model_validate_config with invalid agent type."""
         # Arrange
         config = {"some_field": "some_value"}
@@ -155,7 +154,7 @@ class TestConfigMapperPydanticIntegration:
         # Assert
         assert result is None
 
-    def test_model_validate_config_empty_config(self):
+    def test_model_validate_config_empty_config(self) -> None:
         """Test model_validate_config with empty configuration."""
         # Act
         result = ConfigMapper.model_validate_config({}, "refiner")
@@ -163,7 +162,7 @@ class TestConfigMapperPydanticIntegration:
         # Assert
         assert result is None
 
-    def test_model_validate_config_none_config(self):
+    def test_model_validate_config_none_config(self) -> None:
         """Test model_validate_config with None configuration."""
         # Act
         result = ConfigMapper.model_validate_config(None, "refiner")
@@ -172,7 +171,7 @@ class TestConfigMapperPydanticIntegration:
         assert result is None
 
     @patch("cognivault.config.config_mapper.logger")
-    def test_model_validate_config_logging(self, mock_logger):
+    def test_model_validate_config_logging(self, mock_logger: Any) -> None:
         """Test that model_validate_config produces appropriate log messages."""
         # Test case 1: Empty config
         ConfigMapper.model_validate_config({}, "refiner")
@@ -198,7 +197,7 @@ class TestConfigMapperPydanticIntegration:
 class TestConfigMapperValueTransformation:
     """Test value transformation features of ConfigMapper."""
 
-    def test_transform_value_historian_search_depth(self):
+    def test_transform_value_historian_search_depth(self) -> None:
         """Test value transformation for historian search_depth field."""
         # Test mapping from chart values to schema values
         test_cases = [
@@ -217,7 +216,7 @@ class TestConfigMapperValueTransformation:
             # Assert
             assert result == expected_output
 
-    def test_transform_value_historian_context_expansion(self):
+    def test_transform_value_historian_context_expansion(self) -> None:
         """Test value transformation for historian context_expansion field."""
         # Test mapping from string to boolean
         test_cases = [
@@ -236,7 +235,7 @@ class TestConfigMapperValueTransformation:
             # Assert
             assert result == expected_output
 
-    def test_transform_value_synthesis_strategy(self):
+    def test_transform_value_synthesis_strategy(self) -> None:
         """Test value transformation for synthesis strategy field."""
         # Test mapping from long names to schema values
         test_cases = [
@@ -255,7 +254,7 @@ class TestConfigMapperValueTransformation:
             # Assert
             assert result == expected_output
 
-    def test_transform_value_boolean_strings(self):
+    def test_transform_value_boolean_strings(self) -> None:
         """Test transformation of boolean strings."""
         # Test boolean string conversion
         test_cases = [
@@ -276,7 +275,7 @@ class TestConfigMapperValueTransformation:
             # Assert
             assert result == expected_output
 
-    def test_transform_value_no_transformation(self):
+    def test_transform_value_no_transformation(self) -> None:
         """Test that values without transformation mappings are returned unchanged."""
         # Test various value types
         test_values = [
@@ -299,7 +298,7 @@ class TestConfigMapperValueTransformation:
 class TestConfigMapperFlatToNestedMapping:
     """Test flat-to-nested configuration mapping."""
 
-    def test_map_flat_to_nested_refiner_comprehensive(self):
+    def test_map_flat_to_nested_refiner_comprehensive(self) -> None:
         """Test comprehensive flat-to-nested mapping for refiner."""
         # Arrange
         flat_config = {
@@ -353,7 +352,7 @@ class TestConfigMapperFlatToNestedMapping:
         assert result["execution_config"]["max_retries"] == 3
         assert result["execution_config"]["enable_caching"] is True
 
-    def test_map_flat_to_nested_unknown_fields(self):
+    def test_map_flat_to_nested_unknown_fields(self) -> None:
         """Test that unknown fields are preserved in nested structure."""
         # Arrange
         flat_config = {
@@ -370,7 +369,7 @@ class TestConfigMapperFlatToNestedMapping:
         assert result["unknown_field"] == "unknown_value"
         assert result["another_unknown"] == {"nested": "data"}
 
-    def test_map_flat_to_nested_special_fields_ignored(self):
+    def test_map_flat_to_nested_special_fields_ignored(self) -> None:
         """Test that special fields are properly ignored."""
         # Arrange
         flat_config = {
@@ -388,7 +387,7 @@ class TestConfigMapperFlatToNestedMapping:
         assert "agent_type" not in result
         assert result["prompt_config"]["custom_system_prompt"] == "Special prompt"
 
-    def test_map_flat_to_nested_all_agent_types(self):
+    def test_map_flat_to_nested_all_agent_types(self) -> None:
         """Test flat-to-nested mapping for all agent types."""
         test_configs = {
             "refiner": {"refinement_level": "standard"},
@@ -412,7 +411,7 @@ class TestConfigMapperFlatToNestedMapping:
 class TestConfigMapperBackwardCompatibility:
     """Test backward compatibility of ConfigMapper."""
 
-    def test_validate_and_create_config_delegates_to_model_validate(self):
+    def test_validate_and_create_config_delegates_to_model_validate(self) -> None:
         """Test that validate_and_create_config delegates to model_validate_config."""
         # Arrange
         config = {"refinement_level": "standard"}
@@ -427,7 +426,7 @@ class TestConfigMapperBackwardCompatibility:
             mock_validate.assert_called_once_with(config, "refiner")
             assert result is not None
 
-    def test_create_agent_config_still_works(self):
+    def test_create_agent_config_still_works(self) -> None:
         """Test that create_agent_config method still works as before."""
         # Arrange
         flat_config = {
@@ -446,10 +445,10 @@ class TestConfigMapperBackwardCompatibility:
         assert result.behavioral_config.custom_constraints == ["constraint1"]
         assert result.execution_config.timeout_seconds == 45
 
-    def test_create_agent_config_error_handling(self):
+    def test_create_agent_config_error_handling(self) -> None:
         """Test error handling in create_agent_config."""
         # Test with unsupported agent type
-        with pytest.raises(ValueError, match="Unsupported agent type: invalid"):
+        with pytest.raises(ValueError, match="Unknown agent type: invalid"):
             ConfigMapper.create_agent_config({}, "invalid")
 
         # Test with invalid configuration that causes Pydantic validation error
@@ -465,7 +464,7 @@ class TestConfigMapperBackwardCompatibility:
 class TestConfigMapperHelperMethods:
     """Test helper methods of ConfigMapper."""
 
-    def test_get_config_class(self):
+    def test_get_config_class(self) -> None:
         """Test _get_config_class helper method."""
         # Test valid agent types
         assert ConfigMapper._get_config_class("refiner") == RefinerConfig
@@ -476,7 +475,7 @@ class TestConfigMapperHelperMethods:
         # Test invalid agent type
         assert ConfigMapper._get_config_class("invalid") is None
 
-    def test_get_field_mapping(self):
+    def test_get_field_mapping(self) -> None:
         """Test _get_field_mapping helper method."""
         # Test valid agent types
         refiner_mapping = ConfigMapper._get_field_mapping("refiner")
@@ -492,10 +491,10 @@ class TestConfigMapperHelperMethods:
         invalid_mapping = ConfigMapper._get_field_mapping("invalid")
         assert invalid_mapping == {}
 
-    def test_set_nested_value(self):
+    def test_set_nested_value(self) -> None:
         """Test _set_nested_value helper method."""
         # Test direct field setting
-        config = {}
+        config: Dict[str, Any] = {}
         ConfigMapper._set_nested_value(config, "direct_field", "direct_value")
         assert config["direct_field"] == "direct_value"
 
@@ -519,7 +518,7 @@ class TestConfigMapperHelperMethods:
 class TestConfigMapperEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_model_validate_config_validation_errors(self):
+    def test_model_validate_config_validation_errors(self) -> None:
         """Test handling of Pydantic validation errors with graceful fallback."""
         # Invalid configuration that will fail both direct and mapped validation
         invalid_config = {
@@ -548,7 +547,7 @@ class TestConfigMapperEdgeCases:
             ]
             assert len(debug_calls) > 0
 
-    def test_complex_nested_config_structures(self):
+    def test_complex_nested_config_structures(self) -> None:
         """Test handling of complex nested configuration structures."""
         # Complex but valid configuration with deep nesting
         complex_config = {
@@ -601,7 +600,7 @@ class TestConfigMapperEdgeCases:
         assert len(result.behavioral_config.custom_constraints) == 4
         assert "🚀" in result.behavioral_config.custom_constraints[3]
 
-    def test_large_configuration_data(self):
+    def test_large_configuration_data(self) -> None:
         """Test handling of large configuration data."""
         # Create a large configuration
         large_config = {
@@ -622,7 +621,7 @@ class TestConfigMapperEdgeCases:
         assert len(result.behavioral_config.custom_constraints) == 100
         assert len(result.prompt_config.template_variables) == 50
 
-    def test_unicode_and_special_characters(self):
+    def test_unicode_and_special_characters(self) -> None:
         """Test handling of Unicode and special characters in configuration."""
         # Configuration with Unicode and special characters
         unicode_config = {
@@ -648,6 +647,8 @@ class TestConfigMapperEdgeCases:
 
         # Assert
         assert result is not None
-        assert "🚀" in result.prompt_config.custom_system_prompt
-        assert "spëcial" in result.prompt_config.template_variables["unicode_key"]
+        prompt_config = result.prompt_config
+        assert prompt_config.custom_system_prompt is not None
+        assert "🚀" in prompt_config.custom_system_prompt
+        assert "spëcial" in prompt_config.template_variables["unicode_key"]
         assert "中文" in result.behavioral_config.custom_constraints[1]

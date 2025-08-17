@@ -11,7 +11,7 @@ import json
 import io
 import time
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 
 from .diagnostics import SystemDiagnostics
 from .health import ComponentHealth, HealthStatus
@@ -29,7 +29,7 @@ class DiagnosticFormatter:
         """Format health check data."""
         raise NotImplementedError
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics data."""
         raise NotImplementedError
 
@@ -37,11 +37,22 @@ class DiagnosticFormatter:
         """Format agent-specific metrics data."""
         raise NotImplementedError
 
+    # Aliases for backward compatibility with tests
+    def format_health_results(self, health_results: Dict[str, ComponentHealth]) -> str:
+        """Alias for format_health_data for backward compatibility."""
+        raise NotImplementedError
 
-class JSONFormatter(DiagnosticFormatter):
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
+        """Alias for format_metrics_data for backward compatibility."""
+        raise NotImplementedError
+
+
+class DiagnosticJSONFormatter(DiagnosticFormatter):
     """JSON formatter for diagnostic data."""
 
-    def __init__(self, indent: Optional[int] = 2, include_metadata: bool = True):
+    def __init__(
+        self, indent: Optional[int] = 2, include_metadata: bool = True
+    ) -> None:
         """
         Initialize JSON formatter.
 
@@ -77,7 +88,7 @@ class JSONFormatter(DiagnosticFormatter):
 
         return json.dumps(data, indent=self.indent, default=str)
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as JSON."""
         if metrics is None:
             return json.dumps({}, indent=self.indent)
@@ -98,7 +109,7 @@ class JSONFormatter(DiagnosticFormatter):
         data = {name: health.to_dict() for name, health in health_results.items()}
         return json.dumps(data, indent=self.indent, default=str)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 
@@ -106,7 +117,7 @@ class JSONFormatter(DiagnosticFormatter):
 class CSVFormatter(DiagnosticFormatter):
     """CSV formatter for diagnostic data."""
 
-    def __init__(self, include_headers: bool = True):
+    def __init__(self, include_headers: bool = True) -> None:
         """
         Initialize CSV formatter.
 
@@ -131,6 +142,7 @@ class CSVFormatter(DiagnosticFormatter):
                     "healthy_components",
                     "degraded_components",
                     "unhealthy_components",
+                    "maintenance_components",
                     "total_executions",
                     "success_rate",
                     "avg_duration_ms",
@@ -139,7 +151,13 @@ class CSVFormatter(DiagnosticFormatter):
             )
 
         # Count component health statuses
-        health_counts = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0}
+        health_counts = {
+            "healthy": 0,
+            "degraded": 0,
+            "unhealthy": 0,
+            "maintenance": 0,
+            "unknown": 0,
+        }
         for health in diagnostics.component_healths.values():
             health_counts[health.status.value] += 1
 
@@ -151,6 +169,7 @@ class CSVFormatter(DiagnosticFormatter):
                 health_counts["healthy"],
                 health_counts["degraded"],
                 health_counts["unhealthy"],
+                health_counts["maintenance"],
                 diagnostics.performance_metrics.total_executions,
                 f"{diagnostics.performance_metrics.success_rate:.4f}",
                 f"{diagnostics.performance_metrics.average_execution_time_ms:.2f}",
@@ -189,7 +208,7 @@ class CSVFormatter(DiagnosticFormatter):
 
         return output.getvalue().strip()
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as CSV."""
         if metrics is None:
             return ""
@@ -297,7 +316,7 @@ class CSVFormatter(DiagnosticFormatter):
         """Alias for format_health_data."""
         return self.format_health_data(health_results)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 
@@ -315,6 +334,7 @@ class PrometheusFormatter(DiagnosticFormatter):
             "healthy": 1,
             "degraded": 0.5,
             "unhealthy": 0,
+            "maintenance": 0.3,
             "unknown": -1,
         }
         overall_health_value = health_status_map.get(
@@ -390,6 +410,7 @@ class PrometheusFormatter(DiagnosticFormatter):
             "healthy": 1,
             "degraded": 0.5,
             "unhealthy": 0,
+            "maintenance": 0.3,
             "unknown": -1,
         }
 
@@ -416,7 +437,7 @@ class PrometheusFormatter(DiagnosticFormatter):
 
         return "\n".join(lines)
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as Prometheus format."""
         if metrics is None:
             return ""
@@ -516,6 +537,7 @@ class PrometheusFormatter(DiagnosticFormatter):
             HealthStatus.HEALTHY: 1.0,
             HealthStatus.DEGRADED: 0.5,
             HealthStatus.UNHEALTHY: 0.0,
+            HealthStatus.MAINTENANCE: 0.3,  # Between degraded and unhealthy
             HealthStatus.UNKNOWN: -1.0,
         }
         return status_map.get(status, -1.0)
@@ -525,7 +547,7 @@ class PrometheusFormatter(DiagnosticFormatter):
         """Alias for format_health_data."""
         return self.format_health_data(health_results)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 
@@ -539,7 +561,13 @@ class InfluxDBFormatter(DiagnosticFormatter):
         timestamp_ns = int(diagnostics.timestamp.timestamp() * 1_000_000_000)
 
         # System health
-        health_numeric = {"healthy": 1, "degraded": 0.5, "unhealthy": 0, "unknown": -1}
+        health_numeric = {
+            "healthy": 1,
+            "degraded": 0.5,
+            "unhealthy": 0,
+            "maintenance": 0.3,
+            "unknown": -1,
+        }
         overall_health = health_numeric.get(diagnostics.overall_health.value, -1)
 
         lines.append(f"cognivault_system_health value={overall_health} {timestamp_ns}")
@@ -588,6 +616,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
             "healthy": 1.0,
             "degraded": 0.5,
             "unhealthy": 0.0,
+            "maintenance": 0.3,
             "unknown": -1.0,
         }
 
@@ -601,7 +630,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
 
         return "\n".join(lines)
 
-    def format_metrics_data(self, metrics: PerformanceMetrics) -> str:
+    def format_metrics_data(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Format performance metrics as InfluxDB line protocol."""
         if metrics is None:
             return ""
@@ -684,6 +713,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
             HealthStatus.HEALTHY: 1.0,
             HealthStatus.DEGRADED: 0.5,
             HealthStatus.UNHEALTHY: 0.0,
+            HealthStatus.MAINTENANCE: 0.3,  # Between degraded and unhealthy
             HealthStatus.UNKNOWN: -1.0,
         }
         return status_map.get(status, -1.0)
@@ -693,12 +723,12 @@ class InfluxDBFormatter(DiagnosticFormatter):
         """Alias for format_health_data."""
         return self.format_health_data(health_results)
 
-    def format_performance_metrics(self, metrics: PerformanceMetrics) -> str:
+    def format_performance_metrics(self, metrics: Optional[PerformanceMetrics]) -> str:
         """Alias for format_metrics_data."""
         return self.format_metrics_data(metrics)
 
 
-def get_formatter(format_type: str, **kwargs) -> DiagnosticFormatter:
+def get_formatter(format_type: str, **kwargs: Any) -> DiagnosticFormatter:
     """
     Get formatter instance by type.
 
@@ -715,7 +745,7 @@ def get_formatter(format_type: str, **kwargs) -> DiagnosticFormatter:
         Configured formatter instance
     """
     formatters = {
-        "json": JSONFormatter,
+        "json": DiagnosticJSONFormatter,
         "csv": CSVFormatter,
         "prometheus": PrometheusFormatter,
         "influxdb": InfluxDBFormatter,
@@ -727,4 +757,4 @@ def get_formatter(format_type: str, **kwargs) -> DiagnosticFormatter:
             f"Unknown format type: {format_type}. Available: {list(formatters.keys())}"
         )
 
-    return formatter_class(**kwargs)
+    return cast(DiagnosticFormatter, formatter_class(**kwargs))

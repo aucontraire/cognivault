@@ -69,7 +69,7 @@ class NodeExecutionResult(BaseModel):
     )
 
 
-class NodeConfiguration(BaseModel):
+class ExecutionNodeConfiguration(BaseModel):
     """
     Configuration for node execution.
 
@@ -115,7 +115,7 @@ class LangGraphNodeAdapter(ABC):
     transitions, error propagation, and execution metadata.
     """
 
-    def __init__(self, agent: BaseAgent, node_id: Optional[str] = None):
+    def __init__(self, agent: BaseAgent, node_id: Optional[str] = None) -> None:
         """
         Initialize the node adapter.
 
@@ -156,7 +156,7 @@ class LangGraphNodeAdapter(ABC):
         return (self.successful_executions / self.total_executions) * 100
 
     async def __call__(
-        self, state: AgentContext, config: Optional[NodeConfiguration] = None
+        self, state: AgentContext, config: Optional[ExecutionNodeConfiguration] = None
     ) -> AgentContext:
         """
         Execute the node with the given state and configuration.
@@ -167,7 +167,7 @@ class LangGraphNodeAdapter(ABC):
         ----------
         state : AgentContext
             Current graph state
-        config : NodeConfiguration, optional
+        config : ExecutionNodeConfiguration, optional
             Node execution configuration
 
         Returns
@@ -181,7 +181,7 @@ class LangGraphNodeAdapter(ABC):
         return result.context
 
     async def execute(
-        self, state: AgentContext, config: Optional[NodeConfiguration] = None
+        self, state: AgentContext, config: Optional[ExecutionNodeConfiguration] = None
     ) -> NodeExecutionResult:
         """
         Execute the adapted agent and return detailed results.
@@ -190,7 +190,7 @@ class LangGraphNodeAdapter(ABC):
         ----------
         state : AgentContext
             Current execution state
-        config : NodeConfiguration, optional
+        config : ExecutionNodeConfiguration, optional
             Execution configuration
 
         Returns
@@ -198,7 +198,7 @@ class LangGraphNodeAdapter(ABC):
         NodeExecutionResult
             Detailed execution result with metadata
         """
-        config = config or NodeConfiguration()
+        config = config or ExecutionNodeConfiguration()
         start_time = time.time()
 
         self.logger.debug(f"Executing node {self.node_id}")
@@ -284,7 +284,7 @@ class LangGraphNodeAdapter(ABC):
             )
 
     async def _prepare_execution_context(
-        self, state: AgentContext, config: NodeConfiguration
+        self, state: AgentContext, config: ExecutionNodeConfiguration
     ) -> AgentContext:
         """
         Prepare the execution context for the agent.
@@ -301,7 +301,7 @@ class LangGraphNodeAdapter(ABC):
         return state
 
     async def _execute_agent(
-        self, context: AgentContext, config: NodeConfiguration
+        self, context: AgentContext, config: ExecutionNodeConfiguration
     ) -> AgentContext:
         """Execute the underlying agent."""
         # Build agent config from node configuration
@@ -316,7 +316,7 @@ class LangGraphNodeAdapter(ABC):
         return await self.agent.invoke(context, agent_config)
 
     async def _post_process_results(
-        self, context: AgentContext, config: NodeConfiguration
+        self, context: AgentContext, config: ExecutionNodeConfiguration
     ) -> AgentContext:
         """
         Post-process execution results.
@@ -337,7 +337,7 @@ class LangGraphNodeAdapter(ABC):
         return context
 
     def _get_execution_metadata(
-        self, context: AgentContext, config: NodeConfiguration
+        self, context: AgentContext, config: ExecutionNodeConfiguration
     ) -> Dict[str, Any]:
         """Get execution metadata for the result."""
         return {
@@ -384,7 +384,7 @@ class StandardNodeAdapter(LangGraphNodeAdapter):
         node_id: Optional[str] = None,
         enable_state_validation: bool = True,
         enable_rollback: bool = True,
-    ):
+    ) -> None:
         """
         Initialize the standard node adapter.
 
@@ -404,7 +404,7 @@ class StandardNodeAdapter(LangGraphNodeAdapter):
         self.enable_rollback = enable_rollback
 
     async def _prepare_execution_context(
-        self, state: AgentContext, config: NodeConfiguration
+        self, state: AgentContext, config: ExecutionNodeConfiguration
     ) -> AgentContext:
         """Enhanced context preparation with validation and rollback setup."""
         context = await super()._prepare_execution_context(state, config)
@@ -414,7 +414,7 @@ class StandardNodeAdapter(LangGraphNodeAdapter):
         return context
 
     async def _post_process_results(
-        self, context: AgentContext, config: NodeConfiguration
+        self, context: AgentContext, config: ExecutionNodeConfiguration
     ) -> AgentContext:
         """Enhanced post-processing with state validation."""
         result_context = await super()._post_process_results(context, config)
@@ -442,7 +442,7 @@ class ConditionalNodeAdapter(LangGraphNodeAdapter):
         agent: BaseAgent,
         routing_function: Callable[[AgentContext], List[str]],
         node_id: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Initialize the conditional node adapter.
 
@@ -459,7 +459,7 @@ class ConditionalNodeAdapter(LangGraphNodeAdapter):
         self.routing_function = routing_function
 
     async def _post_process_results(
-        self, context: AgentContext, config: NodeConfiguration
+        self, context: AgentContext, config: ExecutionNodeConfiguration
     ) -> AgentContext:
         """Post-processing with conditional routing."""
         result_context = await super()._post_process_results(context, config)
@@ -505,7 +505,7 @@ class ConditionalNodeAdapter(LangGraphNodeAdapter):
 
 
 def create_node_adapter(
-    agent: BaseAgent, adapter_type: str = "standard", **kwargs
+    agent: BaseAgent, adapter_type: str = "standard", **kwargs: Any
 ) -> LangGraphNodeAdapter:
     """
     Factory function to create appropriate node adapter for an agent.

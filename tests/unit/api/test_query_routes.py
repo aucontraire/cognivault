@@ -5,7 +5,8 @@ Tests the web layer query endpoints using existing API models and factory patter
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock, Mock
+from typing import Any, TypedDict, cast
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
@@ -18,15 +19,44 @@ from cognivault.api.models import (
 )
 
 
+# JSON Response Type Definitions for API Testing
+class StatusResponseJSON(TypedDict):
+    """Type-safe JSON structure for StatusResponse API responses."""
+
+    workflow_id: str
+    status: str
+    progress_percentage: float
+    current_agent: str | None
+    estimated_completion_seconds: float | None
+
+
+class WorkflowResponseJSON(TypedDict):
+    """Type-safe JSON structure for WorkflowResponse API responses."""
+
+    workflow_id: str
+    status: str
+    agent_outputs: dict[str, str]
+    execution_time_seconds: float
+    correlation_id: str | None
+    error_message: str | None
+
+
+class StatusTestCase(TypedDict):
+    """Type-safe structure for status test case data."""
+
+    correlation_id: str
+    status: StatusResponse
+
+
 class TestQueryRoutes:
     """Test suite for query execution endpoints."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client for each test."""
         self.client = TestClient(app)
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_execute_query_success(self, mock_get_api):
+    def test_execute_query_success(self, mock_get_api: MagicMock) -> None:
         """Test successful query execution through FastAPI endpoint."""
         # Setup mock orchestration API response
         mock_api = AsyncMock()
@@ -57,16 +87,18 @@ class TestQueryRoutes:
         assert response.status_code == 200
         data = response.json()
 
-        # Verify response structure matches WorkflowResponse
-        assert data["workflow_id"] == "550e8400-e29b-41d4-a716-446655440000"
-        assert data["status"] == "completed"
-        assert data["correlation_id"] == "test-correlation-123"
-        assert data["execution_time_seconds"] == 15.5
-        assert "agent_outputs" in data
-        assert len(data["agent_outputs"]) == 4
+        # Verify response structure matches WorkflowResponse with Pydantic validation
+        workflow_response = WorkflowResponse(**data)
+        assert workflow_response.workflow_id == "550e8400-e29b-41d4-a716-446655440000"
+        assert workflow_response.status == "completed"
+        assert workflow_response.correlation_id == "test-correlation-123"
+        assert workflow_response.execution_time_seconds == 15.5
+        assert len(workflow_response.agent_outputs) == 4
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    async def test_execute_query_orchestration_failure(self, mock_get_api):
+    async def test_execute_query_orchestration_failure(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query execution when orchestration API fails."""
         # Setup mock to raise exception
         mock_get_api.side_effect = Exception(
@@ -92,7 +124,9 @@ class TestQueryRoutes:
         assert detail["type"] == "Exception"
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    async def test_execute_query_with_minimal_request(self, mock_get_api):
+    async def test_execute_query_with_minimal_request(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query execution with minimal required fields."""
         mock_api = AsyncMock()
         mock_response = WorkflowResponse(
@@ -115,7 +149,7 @@ class TestQueryRoutes:
         assert data["workflow_id"] == "550e8400-e29b-41d4-a716-446655441111"
         assert data["correlation_id"] == "minimal-test-123"
 
-    def test_execute_query_invalid_request(self):
+    def test_execute_query_invalid_request(self) -> None:
         """Test query execution with invalid request data."""
         # Missing required 'query' field
         request_data = {"agents": ["refiner"], "execution_config": {}}
@@ -126,7 +160,7 @@ class TestQueryRoutes:
         data = response.json()
         assert "detail" in data
 
-    def test_execute_query_empty_query(self):
+    def test_execute_query_empty_query(self) -> None:
         """Test query execution with empty query string."""
         request_data = {"query": ""}
 
@@ -137,7 +171,9 @@ class TestQueryRoutes:
 
     @patch("cognivault.api.routes.query.logger")
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    async def test_execute_query_logs_appropriately(self, mock_get_api, mock_logger):
+    async def test_execute_query_logs_appropriately(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that query execution logs appropriately."""
         mock_api = AsyncMock()
         mock_response = WorkflowResponse(
@@ -169,7 +205,7 @@ class TestQueryRoutes:
         assert "log-test-123" in completion_log
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_success(self, mock_get_api):
+    def test_get_query_status_success(self, mock_get_api: MagicMock) -> None:
         """Test successful query status retrieval by correlation_id."""
         # Setup mock orchestration API with status data
         mock_api = AsyncMock()
@@ -187,7 +223,7 @@ class TestQueryRoutes:
         response = self.client.get(f"/api/query/status/{correlation_id}")
 
         assert response.status_code == 200
-        data = response.json()
+        data: StatusResponseJSON = response.json()
 
         # Verify response structure matches StatusResponse
         assert data["workflow_id"] == "550e8400-e29b-41d4-a716-446655440001"
@@ -200,7 +236,7 @@ class TestQueryRoutes:
         mock_api.get_status_by_correlation_id.assert_called_once_with(correlation_id)
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_completed_workflow(self, mock_get_api):
+    def test_get_query_status_completed_workflow(self, mock_get_api: MagicMock) -> None:
         """Test query status for completed workflow."""
         mock_api = AsyncMock()
         mock_status = StatusResponse(
@@ -226,7 +262,7 @@ class TestQueryRoutes:
         assert data["estimated_completion_seconds"] is None
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_failed_workflow(self, mock_get_api):
+    def test_get_query_status_failed_workflow(self, mock_get_api: MagicMock) -> None:
         """Test query status for failed workflow."""
         mock_api = AsyncMock()
         mock_status = StatusResponse(
@@ -250,7 +286,9 @@ class TestQueryRoutes:
         assert data["current_agent"] is None
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_correlation_id_not_found(self, mock_get_api):
+    def test_get_query_status_correlation_id_not_found(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query status when correlation_id is not found."""
         mock_api = AsyncMock()
         mock_api.get_status_by_correlation_id.side_effect = KeyError(
@@ -272,7 +310,9 @@ class TestQueryRoutes:
         assert "No workflow found" in detail["message"]
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_orchestration_api_failure(self, mock_get_api):
+    def test_get_query_status_orchestration_api_failure(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query status when orchestration API fails."""
         mock_get_api.side_effect = Exception("Orchestration API unavailable")
 
@@ -290,7 +330,7 @@ class TestQueryRoutes:
         assert detail["type"] == "Exception"
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_api_method_failure(self, mock_get_api):
+    def test_get_query_status_api_method_failure(self, mock_get_api: MagicMock) -> None:
         """Test query status when get_status_by_correlation_id method fails."""
         mock_api = AsyncMock()
         mock_api.get_status_by_correlation_id.side_effect = RuntimeError(
@@ -311,7 +351,9 @@ class TestQueryRoutes:
 
     @patch("cognivault.api.routes.query.logger")
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_logging(self, mock_get_api, mock_logger):
+    def test_get_query_status_logging(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that query status retrieval logs appropriately."""
         mock_api = AsyncMock()
         mock_status = StatusResponse(
@@ -346,7 +388,9 @@ class TestQueryRoutes:
 
     @patch("cognivault.api.routes.query.logger")
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_error_logging(self, mock_get_api, mock_logger):
+    def test_get_query_status_error_logging(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that query status errors are logged properly."""
         error_message = "Workflow execution interrupted"
         mock_api = AsyncMock()
@@ -366,7 +410,9 @@ class TestQueryRoutes:
 
     @patch("cognivault.api.routes.query.logger")
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_not_found_logging(self, mock_get_api, mock_logger):
+    def test_get_query_status_not_found_logging(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that correlation ID not found cases are logged as warnings."""
         mock_api = AsyncMock()
         mock_api.get_status_by_correlation_id.side_effect = KeyError(
@@ -386,13 +432,13 @@ class TestQueryRoutes:
         assert correlation_id in logged_message
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_status_multiple_statuses(self, mock_get_api):
+    def test_get_query_status_multiple_statuses(self, mock_get_api: MagicMock) -> None:
         """Test query status endpoint with various workflow statuses."""
         mock_api = AsyncMock()
         mock_get_api.return_value = mock_api
 
-        # Test different status scenarios
-        test_cases = [
+        # Test different status scenarios with proper typing
+        test_cases: list[StatusTestCase] = [
             {
                 "correlation_id": "running-workflow",
                 "status": StatusResponse(
@@ -423,7 +469,7 @@ class TestQueryRoutes:
             )
 
             assert response.status_code == 200
-            data = response.json()
+            data: StatusResponseJSON = response.json()
             assert data["status"] == test_case["status"].status
             assert data["workflow_id"] == test_case["status"].workflow_id
             assert (
@@ -431,10 +477,10 @@ class TestQueryRoutes:
             )
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_success(self, mock_get_api):
+    def test_get_query_history_success(self, mock_get_api: MagicMock) -> None:
         """Test successful query history retrieval."""
         # Setup mock orchestration API with history data
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -491,10 +537,12 @@ class TestQueryRoutes:
         assert "climate change" in second["query"]
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_with_custom_parameters(self, mock_get_api):
+    def test_get_query_history_with_custom_parameters(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query history endpoint with custom limit and offset."""
         # Setup mock with more data to test pagination
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": f"550e8400-e29b-41d4-a716-44665544{i:04d}",
@@ -526,9 +574,11 @@ class TestQueryRoutes:
         assert len(workflows) == 5
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_with_pagination_has_more(self, mock_get_api):
+    def test_get_query_history_with_pagination_has_more(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query history pagination with has_more=True."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         # Create 25 workflows, return first 20 for limit=10, offset=5
         mock_history = [
             {
@@ -558,9 +608,9 @@ class TestQueryRoutes:
         assert len(workflows) == 10
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_empty_results(self, mock_get_api):
+    def test_get_query_history_empty_results(self, mock_get_api: MagicMock) -> None:
         """Test query history with no workflows."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_api.get_workflow_history.return_value = []
         mock_get_api.return_value = mock_api
 
@@ -576,7 +626,9 @@ class TestQueryRoutes:
         assert data["has_more"] is False
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_orchestration_failure(self, mock_get_api):
+    def test_get_query_history_orchestration_failure(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query history when orchestration API fails."""
         mock_get_api.side_effect = Exception("Orchestration API unavailable")
 
@@ -593,9 +645,11 @@ class TestQueryRoutes:
         assert detail["type"] == "Exception"
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_with_invalid_workflow_data(self, mock_get_api):
+    def test_get_query_history_with_invalid_workflow_data(
+        self, mock_get_api: MagicMock
+    ) -> None:
         """Test query history with malformed workflow data."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         # Include one valid and one invalid workflow
         mock_history = [
             {
@@ -633,7 +687,7 @@ class TestQueryRoutes:
         assert workflows[0]["workflow_id"] == "550e8400-e29b-41d4-a716-446655440001"
         assert workflows[1]["workflow_id"] == "550e8400-e29b-41d4-a716-446655440003"
 
-    def test_get_query_history_parameter_validation(self):
+    def test_get_query_history_parameter_validation(self) -> None:
         """Test query history parameter validation."""
         # Test invalid limit (too high)
         response = self.client.get("/api/query/history?limit=101")
@@ -656,9 +710,11 @@ class TestQueryRoutes:
 
     @patch("cognivault.api.routes.query.logger")
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_logging(self, mock_get_api, mock_logger):
+    def test_get_query_history_logging(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that query history retrieval logs appropriately."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -692,9 +748,9 @@ class TestQueryRoutes:
         assert "total=1" in completion_log
 
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    def test_get_query_history_status_variations(self, mock_get_api):
+    def test_get_query_history_status_variations(self, mock_get_api: MagicMock) -> None:
         """Test query history with different workflow statuses."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -745,7 +801,9 @@ class TestQueryRoutes:
 
     @patch("cognivault.api.routes.query.logger")
     @patch("cognivault.api.routes.query.get_orchestration_api")
-    async def test_execute_query_error_logging(self, mock_get_api, mock_logger):
+    async def test_execute_query_error_logging(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that query execution errors are logged properly."""
         error_message = "Database connection timeout"
         mock_get_api.side_effect = Exception(error_message)
@@ -762,7 +820,7 @@ class TestQueryRoutes:
         assert "Query execution failed" in logged_message
         assert error_message in str(logged_message)
 
-    def test_query_endpoint_response_schema(self):
+    def test_query_endpoint_response_schema(self) -> None:
         """Test that query endpoint responses match expected schema."""
         # Test with invalid request to get 422 response
         response = self.client.post("/api/query", json={})

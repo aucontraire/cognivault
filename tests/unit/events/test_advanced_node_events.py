@@ -1,6 +1,7 @@
 """Tests for advanced node event emission functions."""
 
 import pytest
+from typing import Any
 from datetime import datetime, timezone
 from unittest.mock import patch, AsyncMock
 
@@ -17,7 +18,7 @@ class TestEmitDecisionMade:
     """Test emit_decision_made convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_decision_made_basic(self):
+    async def test_emit_decision_made_basic(self) -> None:
         """Test basic decision made event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -54,7 +55,7 @@ class TestEmitDecisionMade:
             assert emitted_event.metadata["execution_pattern"] == "decision"
 
     @pytest.mark.asyncio
-    async def test_emit_decision_made_with_all_params(self):
+    async def test_emit_decision_made_with_all_params(self) -> None:
         """Test decision made event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -107,7 +108,7 @@ class TestEmitDecisionMade:
             assert emitted_event.metadata["execution_pattern"] == "decision"
 
     @pytest.mark.asyncio
-    async def test_emit_decision_made_with_correlation_fallback(self):
+    async def test_emit_decision_made_with_correlation_fallback(self) -> None:
         """Test decision made event emission with correlation ID fallback."""
         with (
             patch(
@@ -135,7 +136,7 @@ class TestEmitDecisionMade:
             assert emitted_event.correlation_id == "fallback-correlation-123"
 
     @pytest.mark.asyncio
-    async def test_emit_decision_made_none_handling(self):
+    async def test_emit_decision_made_none_handling(self) -> None:
         """Test decision made event emission with None values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -160,7 +161,7 @@ class TestEmitDecisionMade:
             assert emitted_event.data["reasoning"] == {}
 
     @pytest.mark.asyncio
-    async def test_emit_decision_made_metadata_merging(self):
+    async def test_emit_decision_made_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -199,7 +200,7 @@ class TestEmitDecisionMade:
             )  # Default preserved
 
     @pytest.mark.asyncio
-    async def test_emit_decision_made_timestamp_generation(self):
+    async def test_emit_decision_made_timestamp_generation(self) -> None:
         """Test that decision made events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -225,7 +226,7 @@ class TestEmitDecisionMade:
             assert emitted_event.timestamp.tzinfo == timezone.utc
 
     @pytest.mark.asyncio
-    async def test_emit_decision_made_confidence_score_values(self):
+    async def test_emit_decision_made_confidence_score_values(self) -> None:
         """Test decision made event with various confidence score values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -256,7 +257,7 @@ class TestEmitAggregationCompleted:
     """Test emit_aggregation_completed convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_aggregation_completed_basic(self):
+    async def test_emit_aggregation_completed_basic(self) -> None:
         """Test basic aggregation completed event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -291,7 +292,7 @@ class TestEmitAggregationCompleted:
             assert emitted_event.metadata["execution_pattern"] == "aggregator"
 
     @pytest.mark.asyncio
-    async def test_emit_aggregation_completed_with_all_params(self):
+    async def test_emit_aggregation_completed_with_all_params(self) -> None:
         """Test aggregation completed event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -336,7 +337,7 @@ class TestEmitAggregationCompleted:
             assert emitted_event.metadata["execution_pattern"] == "aggregator"
 
     @pytest.mark.asyncio
-    async def test_emit_aggregation_completed_with_correlation_fallback(self):
+    async def test_emit_aggregation_completed_with_correlation_fallback(self) -> None:
         """Test aggregation completed event emission with correlation ID fallback."""
         with (
             patch(
@@ -364,7 +365,7 @@ class TestEmitAggregationCompleted:
             assert emitted_event.correlation_id == "fallback-agg-correlation-123"
 
     @pytest.mark.asyncio
-    async def test_emit_aggregation_completed_strategy_types(self):
+    async def test_emit_aggregation_completed_strategy_types(self) -> None:
         """Test aggregation completed event with various strategy types."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -397,7 +398,7 @@ class TestEmitAggregationCompleted:
                 assert emitted_event.data["aggregation_strategy"] == strategy
 
     @pytest.mark.asyncio
-    async def test_emit_aggregation_completed_metadata_merging(self):
+    async def test_emit_aggregation_completed_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -436,7 +437,7 @@ class TestEmitAggregationCompleted:
             )  # Default preserved
 
     @pytest.mark.asyncio
-    async def test_emit_aggregation_completed_timestamp_generation(self):
+    async def test_emit_aggregation_completed_timestamp_generation(self) -> None:
         """Test that aggregation completed events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -462,7 +463,9 @@ class TestEmitAggregationCompleted:
             assert emitted_event.timestamp.tzinfo == timezone.utc
 
     @pytest.mark.asyncio
-    async def test_emit_aggregation_completed_conflict_resolution_tracking(self):
+    async def test_emit_aggregation_completed_conflict_resolution_tracking(
+        self,
+    ) -> None:
         """Test aggregation completed event tracks conflict resolution properly."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -494,7 +497,7 @@ class TestEmitValidationCompleted:
     """Test emit_validation_completed convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_basic(self):
+    async def test_emit_validation_completed_basic(self) -> None:
         """Test basic validation completed event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -532,7 +535,7 @@ class TestEmitValidationCompleted:
             assert emitted_event.metadata["execution_pattern"] == "validator"
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_with_all_params(self):
+    async def test_emit_validation_completed_with_all_params(self) -> None:
         """Test validation completed event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -587,7 +590,7 @@ class TestEmitValidationCompleted:
             assert emitted_event.metadata["execution_pattern"] == "validator"
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_with_correlation_fallback(self):
+    async def test_emit_validation_completed_with_correlation_fallback(self) -> None:
         """Test validation completed event emission with correlation ID fallback."""
         with (
             patch(
@@ -615,7 +618,7 @@ class TestEmitValidationCompleted:
             assert emitted_event.correlation_id == "fallback-val-correlation-123"
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_result_types(self):
+    async def test_emit_validation_completed_result_types(self) -> None:
         """Test validation completed event with various result types."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -642,7 +645,7 @@ class TestEmitValidationCompleted:
                 assert emitted_event.data["validation_result"] == result
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_none_handling(self):
+    async def test_emit_validation_completed_none_handling(self) -> None:
         """Test validation completed event emission with None values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -668,7 +671,7 @@ class TestEmitValidationCompleted:
             assert emitted_event.execution_time_ms is None
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_metadata_merging(self):
+    async def test_emit_validation_completed_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -707,7 +710,7 @@ class TestEmitValidationCompleted:
             )  # Default preserved
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_timestamp_generation(self):
+    async def test_emit_validation_completed_timestamp_generation(self) -> None:
         """Test that validation completed events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -733,7 +736,7 @@ class TestEmitValidationCompleted:
             assert emitted_event.timestamp.tzinfo == timezone.utc
 
     @pytest.mark.asyncio
-    async def test_emit_validation_completed_quality_score_range(self):
+    async def test_emit_validation_completed_quality_score_range(self) -> None:
         """Test validation completed event with various quality score values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -764,7 +767,7 @@ class TestEmitTerminationTriggered:
     """Test emit_termination_triggered convenience function."""
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_basic(self):
+    async def test_emit_termination_triggered_basic(self) -> None:
         """Test basic termination triggered event emission."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -797,7 +800,7 @@ class TestEmitTerminationTriggered:
             assert emitted_event.metadata["execution_pattern"] == "terminator"
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_with_all_params(self):
+    async def test_emit_termination_triggered_with_all_params(self) -> None:
         """Test termination triggered event emission with all parameters."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -844,7 +847,7 @@ class TestEmitTerminationTriggered:
             assert emitted_event.metadata["execution_pattern"] == "terminator"
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_with_correlation_fallback(self):
+    async def test_emit_termination_triggered_with_correlation_fallback(self) -> None:
         """Test termination triggered event emission with correlation ID fallback."""
         with (
             patch(
@@ -870,7 +873,7 @@ class TestEmitTerminationTriggered:
             assert emitted_event.correlation_id == "fallback-term-correlation-123"
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_reason_types(self):
+    async def test_emit_termination_triggered_reason_types(self) -> None:
         """Test termination triggered event with various reason types."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -902,7 +905,7 @@ class TestEmitTerminationTriggered:
                 assert emitted_event.data["termination_reason"] == reason
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_none_handling(self):
+    async def test_emit_termination_triggered_none_handling(self) -> None:
         """Test termination triggered event emission with None values."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -927,7 +930,7 @@ class TestEmitTerminationTriggered:
             assert emitted_event.data["resources_saved"] == {}
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_metadata_merging(self):
+    async def test_emit_termination_triggered_metadata_merging(self) -> None:
         """Test that custom metadata merges with default metadata."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -964,7 +967,7 @@ class TestEmitTerminationTriggered:
             )  # Default preserved
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_timestamp_generation(self):
+    async def test_emit_termination_triggered_timestamp_generation(self) -> None:
         """Test that termination triggered events have proper timestamp generation."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"
@@ -988,7 +991,7 @@ class TestEmitTerminationTriggered:
             assert emitted_event.timestamp.tzinfo == timezone.utc
 
     @pytest.mark.asyncio
-    async def test_emit_termination_triggered_threshold_comparison(self):
+    async def test_emit_termination_triggered_threshold_comparison(self) -> None:
         """Test termination triggered event with confidence vs threshold comparison."""
         with patch(
             "cognivault.events.emitter.get_global_event_emitter"

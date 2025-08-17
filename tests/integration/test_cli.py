@@ -1,6 +1,11 @@
-from unittest.mock import patch, Mock
+from unittest.mock import MagicMock, Mock, patch
 from cognivault.context import AgentContext
 import pytest
+from typing import Any
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 import json
 import tempfile
 import os
@@ -10,6 +15,8 @@ from cognivault.cli.main_commands import (
     create_llm_instance,
     _validate_langgraph_runtime,
 )
+from cognivault.database.models import Topic
+
 from typer.testing import CliRunner
 from cognivault.cli import app
 
@@ -17,9 +24,9 @@ runner = CliRunner()
 
 
 @pytest.mark.asyncio
-async def test_cli_default_execution_mode_is_langgraph_real():
+async def test_cli_default_execution_mode_is_langgraph_real() -> None:
     """Test that the default execution mode is now langgraph-real."""
-    fake_context = AgentContext(query="Test default mode")
+    fake_context = AgentContextPatterns.simple_query("Test default mode")
     fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
@@ -32,7 +39,9 @@ async def test_cli_default_execution_mode_is_langgraph_real():
 
 
 @pytest.mark.asyncio
-async def test_cli_legacy_mode_removed_error(capsys):
+async def test_cli_legacy_mode_removed_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test that legacy mode shows error message after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main("Test legacy error", execution_mode="legacy", log_level="INFO")
@@ -43,7 +52,9 @@ async def test_cli_legacy_mode_removed_error(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_langgraph_mode_removed_error(capsys):
+async def test_cli_langgraph_mode_removed_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test that intermediate langgraph mode shows error message after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -56,8 +67,8 @@ async def test_cli_langgraph_mode_removed_error(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_runs_with_refiner(capsys):
-    fake_context = AgentContext(query="Why is democracy shifting?")
+async def test_cli_runs_with_refiner(capsys: pytest.CaptureFixture[str]) -> None:
+    fake_context = AgentContextPatterns.simple_query("Why is democracy shifting?")
     fake_context.agent_outputs = {"refiner": "[Refined Note] Democracy is evolving..."}
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -69,18 +80,20 @@ async def test_cli_runs_with_refiner(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_runs_with_export_md(tmp_path, capsys):
+async def test_cli_runs_with_export_md(
+    tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
     query = "What is the role of memory in cognition?"
     export_path = tmp_path / "dummy_export.md"
 
     # Create fake context with agent output
-    fake_context = AgentContext(query=query)
+    fake_context = AgentContextPatterns.simple_query(query)
     fake_context.agent_outputs = {
         "refiner": "[Refined Note] Memory plays a crucial role..."
     }
 
     # Patch both the orchestrator and the MarkdownExporter
-    from unittest.mock import patch
+    from unittest.mock import MagicMock, Mock, patch
 
     with (
         patch("cognivault.store.wiki_adapter.MarkdownExporter.export") as mock_export,
@@ -97,8 +110,12 @@ async def test_cli_runs_with_export_md(tmp_path, capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_runs_with_multiple_agents(capsys):
-    fake_context = AgentContext(query="What causes political polarization?")
+async def test_cli_runs_with_multiple_agents(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake_context = AgentContextPatterns.simple_query(
+        "What causes political polarization?"
+    )
     fake_context.agent_outputs = {
         "refiner": "[Refined Note] Something something politics.",
         "critic": "[Critique] Something something bias.",
@@ -118,8 +135,8 @@ async def test_cli_runs_with_multiple_agents(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_runs_with_all_agents(capsys):
-    fake_context = AgentContext(query="Explain democratic backsliding.")
+async def test_cli_runs_with_all_agents(capsys: pytest.CaptureFixture[str]) -> None:
+    fake_context = AgentContextPatterns.simple_query("Explain democratic backsliding.")
     fake_context.agent_outputs = {
         "refiner": "[Refined Note] Democracy is sliding.",
         "critic": "[Critique] You're missing economic drivers.",
@@ -139,15 +156,15 @@ async def test_cli_runs_with_all_agents(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_invalid_log_level(capsys):
+async def test_cli_invalid_log_level(capsys: pytest.CaptureFixture[str]) -> None:
     # You may want to wrap this in a try/except block to catch logging misconfigurations
     with pytest.raises(Exception):
         await cli_main("Test invalid log level", agents="refiner", log_level="INVALID")
 
 
 @pytest.mark.asyncio
-async def test_cli_malformed_agents(capsys):
-    fake_context = AgentContext(query="Test malformed agents")
+async def test_cli_malformed_agents(capsys: pytest.CaptureFixture[str]) -> None:
+    fake_context = AgentContextPatterns.simple_query("Test malformed agents")
     fake_context.agent_outputs = {"refiner": "[Refined Note] Cleaned up input."}
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -158,8 +175,8 @@ async def test_cli_malformed_agents(capsys):
         assert "🧠 Refiner:" in captured.out
 
 
-def test_cli_main_entrypoint_runs():
-    fake_context = AgentContext(query="What is cognitive dissonance?")
+def test_cli_main_entrypoint_runs() -> None:
+    fake_context = AgentContextPatterns.simple_query("What is cognitive dissonance?")
     fake_context.agent_outputs = {"refiner": "[Refined Note] It's when thoughts clash."}
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -182,10 +199,10 @@ def test_cli_main_entrypoint_runs():
 
 
 @pytest.mark.asyncio
-async def test_cli_health_check_flag(capsys):
+async def test_cli_health_check_flag(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the --health-check flag functionality."""
-    fake_orchestrator = Mock()
-    fake_registry = Mock()
+    fake_orchestrator: Mock = Mock()
+    fake_registry: Mock = Mock()
     fake_registry.check_health.return_value = True
     fake_orchestrator.registry = fake_registry
 
@@ -201,7 +218,9 @@ async def test_cli_health_check_flag(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_health_check_basic_functionality(capsys):
+async def test_cli_health_check_basic_functionality(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test that health check mode runs without errors (integration test)."""
     await cli_main(
         "test query",
@@ -216,12 +235,12 @@ async def test_cli_health_check_basic_functionality(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_dry_run_flag(capsys):
+async def test_cli_dry_run_flag(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the --dry-run flag functionality."""
-    fake_orchestrator = Mock()
+    fake_orchestrator: Mock = Mock()
     fake_agents = [Mock(name="Refiner"), Mock(name="Critic")]
     fake_orchestrator.agents = fake_agents
-    fake_registry = Mock()
+    fake_registry: Mock = Mock()
     fake_registry.check_health.return_value = True
     fake_orchestrator.registry = fake_registry
 
@@ -238,9 +257,9 @@ async def test_cli_dry_run_flag(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_trace_flag(capsys):
+async def test_cli_trace_flag(capsys: pytest.CaptureFixture[str]) -> None:
     """Test the --trace flag functionality."""
-    fake_context = AgentContext(query="test query with trace")
+    fake_context = AgentContextPatterns.simple_query("test query with trace")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
@@ -265,9 +284,9 @@ async def test_cli_trace_flag(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_export_trace_flag(tmp_path):
+async def test_cli_export_trace_flag(tmp_path: Any) -> None:
     """Test the --export-trace flag functionality."""
-    fake_context = AgentContext(query="test query for export")
+    fake_context = AgentContextPatterns.simple_query("test query for export")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
@@ -307,9 +326,11 @@ async def test_cli_export_trace_flag(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_cli_trace_with_conditional_routing(capsys):
+async def test_cli_trace_with_conditional_routing(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test trace display with conditional routing information."""
-    fake_context = AgentContext(query="test query with routing")
+    fake_context = AgentContextPatterns.simple_query("test query with routing")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
@@ -335,9 +356,9 @@ async def test_cli_trace_with_conditional_routing(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_trace_with_failed_agents(capsys):
+async def test_cli_trace_with_failed_agents(capsys: pytest.CaptureFixture[str]) -> None:
     """Test trace display with failed agents."""
-    fake_context = AgentContext(query="test query with failures")
+    fake_context = AgentContextPatterns.simple_query("test query with failures")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = {"critic"}
@@ -357,10 +378,10 @@ async def test_cli_trace_with_failed_agents(capsys):
         assert "✗ Failed" in captured.out
 
 
-def test_cli_health_check_typer_interface():
+def test_cli_health_check_typer_interface() -> None:
     """Test health check flag through typer CLI interface."""
-    fake_orchestrator = Mock()
-    fake_registry = Mock()
+    fake_orchestrator: Mock = Mock()
+    fake_registry: Mock = Mock()
     fake_registry.check_health.return_value = True
     fake_orchestrator.registry = fake_registry
 
@@ -381,12 +402,12 @@ def test_cli_health_check_typer_interface():
         assert "Agent Health Checks" in result.output
 
 
-def test_cli_dry_run_typer_interface():
+def test_cli_dry_run_typer_interface() -> None:
     """Test dry run flag through typer CLI interface."""
-    fake_orchestrator = Mock()
+    fake_orchestrator: Mock = Mock()
     fake_agents = [Mock(name="Refiner")]
     fake_orchestrator.agents = fake_agents
-    fake_registry = Mock()
+    fake_registry: Mock = Mock()
     fake_registry.check_health.return_value = True
     fake_orchestrator.registry = fake_registry
 
@@ -407,9 +428,9 @@ def test_cli_dry_run_typer_interface():
         assert "Pipeline Validation" in result.output
 
 
-def test_cli_trace_typer_interface():
+def test_cli_trace_typer_interface() -> None:
     """Test trace flag through typer CLI interface."""
-    fake_context = AgentContext(query="test typer trace")
+    fake_context = AgentContextPatterns.simple_query("test typer trace")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
@@ -437,9 +458,9 @@ def test_cli_trace_typer_interface():
         assert "Execution Trace Summary" in result.output
 
 
-def test_cli_export_trace_typer_interface():
+def test_cli_export_trace_typer_interface() -> None:
     """Test export-trace flag through typer CLI interface."""
-    fake_context = AgentContext(query="test typer export")
+    fake_context = AgentContextPatterns.simple_query("test typer export")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
@@ -487,9 +508,11 @@ def test_cli_export_trace_typer_interface():
 
 
 @pytest.mark.asyncio
-async def test_cli_combined_flags(capsys, tmp_path):
+async def test_cli_combined_flags(
+    capsys: pytest.CaptureFixture[str], tmp_path: Any
+) -> None:
     """Test combining multiple new flags together."""
-    fake_context = AgentContext(query="test combined flags")
+    fake_context = AgentContextPatterns.simple_query("test combined flags")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
@@ -527,11 +550,13 @@ async def test_cli_combined_flags(capsys, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_cli_health_check_specific_agents(capsys):
+async def test_cli_health_check_specific_agents(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test health check with specific agents list."""
-    fake_registry = Mock()
+    fake_registry: Mock = Mock()
 
-    def mock_check_health(agent_name):
+    def mock_check_health(agent_name: str) -> Any:
         if agent_name == "refiner":
             return True
         elif agent_name == "critic":
@@ -559,7 +584,9 @@ async def test_cli_health_check_specific_agents(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_legacy_fails(capsys):
+async def test_cli_execution_mode_legacy_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test CLI rejects legacy execution mode after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -571,7 +598,9 @@ async def test_cli_execution_mode_legacy_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_langgraph_fails(capsys):
+async def test_cli_execution_mode_langgraph_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test CLI rejects intermediate langgraph execution mode after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -583,7 +612,7 @@ async def test_cli_execution_mode_langgraph_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_invalid():
+async def test_cli_execution_mode_invalid() -> None:
     """Test CLI with invalid execution mode."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -592,9 +621,11 @@ async def test_cli_execution_mode_invalid():
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_default_legacy(capsys):
+async def test_cli_execution_mode_default_legacy(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test CLI defaults to langgraph-real execution mode when not specified (Phase 1 migration)."""
-    fake_context = AgentContext(query="test default execution")
+    fake_context = AgentContextPatterns.simple_query("test default execution")
     fake_context.agent_outputs = {"refiner": "Default langgraph-real execution"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
@@ -618,7 +649,9 @@ async def test_cli_execution_mode_default_legacy(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_trace_legacy_fails(capsys):
+async def test_cli_execution_mode_with_trace_legacy_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test legacy execution mode with trace fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -634,7 +667,9 @@ async def test_cli_execution_mode_with_trace_legacy_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_trace_langgraph_fails(capsys):
+async def test_cli_execution_mode_with_trace_langgraph_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test intermediate LangGraph execution mode with trace fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -650,7 +685,9 @@ async def test_cli_execution_mode_with_trace_langgraph_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_health_check_legacy_fails(capsys):
+async def test_cli_execution_mode_with_health_check_legacy_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test legacy execution mode with health check fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -666,7 +703,9 @@ async def test_cli_execution_mode_with_health_check_legacy_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_health_check_langgraph_fails(capsys):
+async def test_cli_execution_mode_with_health_check_langgraph_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test intermediate LangGraph execution mode with health check fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -682,7 +721,9 @@ async def test_cli_execution_mode_with_health_check_langgraph_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_dry_run_legacy_fails(capsys):
+async def test_cli_execution_mode_with_dry_run_legacy_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test legacy execution mode with dry run fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -698,7 +739,9 @@ async def test_cli_execution_mode_with_dry_run_legacy_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_dry_run_langgraph_fails(capsys):
+async def test_cli_execution_mode_with_dry_run_langgraph_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test intermediate LangGraph execution mode with dry run fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -714,7 +757,7 @@ async def test_cli_execution_mode_with_dry_run_langgraph_fails(capsys):
     assert "Only 'langgraph-real' mode is supported after Phase 3" in captured.out
 
 
-def test_cli_execution_mode_legacy_typer_interface():
+def test_cli_execution_mode_legacy_typer_interface() -> None:
     """Test legacy execution mode through typer CLI interface fails after Phase 3."""
     result = runner.invoke(
         app,
@@ -730,7 +773,7 @@ def test_cli_execution_mode_legacy_typer_interface():
     assert "Unsupported execution mode: legacy" in result.output
 
 
-def test_cli_execution_mode_langgraph_typer_interface():
+def test_cli_execution_mode_langgraph_typer_interface() -> None:
     """Test intermediate LangGraph execution mode through typer CLI interface fails after Phase 3."""
     result = runner.invoke(
         app,
@@ -746,7 +789,7 @@ def test_cli_execution_mode_langgraph_typer_interface():
     assert "Unsupported execution mode: langgraph" in result.output
 
 
-def test_cli_execution_mode_invalid_typer_interface():
+def test_cli_execution_mode_invalid_typer_interface() -> None:
     """Test invalid execution mode through typer CLI interface."""
     result = runner.invoke(
         app,
@@ -763,7 +806,9 @@ def test_cli_execution_mode_invalid_typer_interface():
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_multiple_agents_legacy_fails(capsys):
+async def test_cli_execution_mode_with_multiple_agents_legacy_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test legacy execution mode with multiple agents fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -779,7 +824,9 @@ async def test_cli_execution_mode_with_multiple_agents_legacy_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_multiple_agents_langgraph_fails(capsys):
+async def test_cli_execution_mode_with_multiple_agents_langgraph_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test intermediate LangGraph execution mode with multiple agents fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -795,7 +842,9 @@ async def test_cli_execution_mode_with_multiple_agents_langgraph_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_error_handling_legacy_fails(capsys):
+async def test_cli_execution_mode_error_handling_legacy_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test legacy execution mode with error handling fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -811,7 +860,9 @@ async def test_cli_execution_mode_error_handling_legacy_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_error_handling_langgraph_fails(capsys):
+async def test_cli_execution_mode_error_handling_langgraph_fails(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test intermediate LangGraph execution mode with error handling fails after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -827,7 +878,9 @@ async def test_cli_execution_mode_error_handling_langgraph_fails(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_export_trace_legacy_fails(tmp_path, capsys):
+async def test_cli_execution_mode_with_export_trace_legacy_fails(
+    tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Test legacy execution mode with export trace fails after Phase 3."""
     export_file = tmp_path / "legacy_trace.json"
 
@@ -849,7 +902,9 @@ async def test_cli_execution_mode_with_export_trace_legacy_fails(tmp_path, capsy
 
 
 @pytest.mark.asyncio
-async def test_cli_execution_mode_with_export_trace_langgraph_fails(tmp_path, capsys):
+async def test_cli_execution_mode_with_export_trace_langgraph_fails(
+    tmp_path: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Test intermediate LangGraph execution mode with export trace fails after Phase 3."""
     export_file = tmp_path / "langgraph_trace.json"
 
@@ -875,17 +930,17 @@ async def test_cli_execution_mode_with_export_trace_langgraph_fails(tmp_path, ca
 
 @patch("cognivault.cli.main_commands.OpenAIConfig.load")
 @patch("cognivault.cli.main_commands.OpenAIChatLLM")
-def test_create_llm_instance(mock_llm_class, mock_config_load):
+def test_create_llm_instance(mock_llm_class: Any, mock_config_load: Any) -> None:
     """Test create_llm_instance function creates LLM with proper configuration."""
     # Mock configuration
-    mock_config = Mock()
+    mock_config: Mock = Mock()
     mock_config.api_key = "test-key"
     mock_config.model = "gpt-4"
     mock_config.base_url = "https://api.openai.com/v1"
     mock_config_load.return_value = mock_config
 
     # Mock LLM instance
-    mock_llm = Mock()
+    mock_llm: Mock = Mock()
     mock_llm_class.return_value = mock_llm
 
     # Test function
@@ -904,18 +959,18 @@ def test_create_llm_instance(mock_llm_class, mock_config_load):
 
 
 @pytest.mark.asyncio
-async def test_cli_topic_analysis_with_llm(capsys):
+async def test_cli_topic_analysis_with_llm(capsys: pytest.CaptureFixture[str]) -> None:
     """Test that CLI passes LLM instance to TopicManager for topic analysis."""
-    fake_context = AgentContext(query="Democracy in Mexico and US")
+    fake_context = AgentContextPatterns.simple_query("Democracy in Mexico and US")
     fake_context.agent_outputs = {"refiner": "Democracy analysis output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
 
     # Mock LLM instance
-    mock_llm = Mock()
+    mock_llm: Mock = Mock()
 
     # Mock topic analysis result
-    mock_topic_analysis = Mock()
+    mock_topic_analysis: Mock = Mock()
     mock_topic_analysis.suggested_topics = [
         Mock(topic="democracy"),
         Mock(topic="politics"),
@@ -924,10 +979,10 @@ async def test_cli_topic_analysis_with_llm(capsys):
     mock_topic_analysis.suggested_domain = "society"
 
     # Mock TopicManager
-    mock_topic_manager = Mock()
+    mock_topic_manager: Mock = Mock()
 
     # Create an async mock for analyze_and_suggest_topics
-    async def mock_analyze_topics(query, agent_outputs):
+    async def mock_analyze_topics(query: str, agent_outputs: Any) -> Any:
         return mock_topic_analysis
 
     mock_topic_manager.analyze_and_suggest_topics = mock_analyze_topics
@@ -961,21 +1016,23 @@ async def test_cli_topic_analysis_with_llm(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_topic_analysis_error_handling(capsys):
+async def test_cli_topic_analysis_error_handling(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test that CLI handles topic analysis errors gracefully."""
-    fake_context = AgentContext(query="Test query")
+    fake_context = AgentContextPatterns.simple_query("Test query")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
 
     # Mock LLM instance
-    mock_llm = Mock()
+    mock_llm: Mock = Mock()
 
     # Mock TopicManager that throws exception
-    mock_topic_manager = Mock()
+    mock_topic_manager: Mock = Mock()
 
     # Create an async mock that throws exception
-    async def mock_analyze_topics_error(query, agent_outputs):
+    async def mock_analyze_topics_error(query: str, agent_outputs: Any) -> None:
         raise Exception("Topic analysis failed")
 
     mock_topic_manager.analyze_and_suggest_topics = mock_analyze_topics_error
@@ -1003,7 +1060,9 @@ async def test_cli_topic_analysis_error_handling(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_comparison_mode_disabled_after_phase3(capsys):
+async def test_cli_comparison_mode_disabled_after_phase3(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test that comparison mode is disabled after Phase 3 legacy cleanup."""
     # Since legacy and intermediate modes are removed, comparison mode is no longer supported
     with pytest.raises(
@@ -1022,18 +1081,20 @@ async def test_cli_comparison_mode_disabled_after_phase3(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_topic_analysis_without_export_md(capsys):
+async def test_cli_topic_analysis_without_export_md(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test that topic analysis is only run when export_md is True."""
-    fake_context = AgentContext(query="Test query")
+    fake_context = AgentContextPatterns.simple_query("Test query")
     fake_context.agent_outputs = {"refiner": "Test output"}
     fake_context.successful_agents = {"refiner"}
     fake_context.failed_agents = set()
 
     # Mock LLM instance
-    mock_llm = Mock()
+    mock_llm: Mock = Mock()
 
     # Mock TopicManager - should not be called
-    mock_topic_manager = Mock()
+    mock_topic_manager: Mock = Mock()
 
     with (
         patch("cognivault.cli.create_llm_instance", return_value=mock_llm),
@@ -1064,9 +1125,9 @@ async def test_cli_topic_analysis_without_export_md(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_rollback_functionality():
+async def test_cli_rollback_functionality() -> None:
     """Test CLI rollback functionality with memory checkpoints."""
-    fake_context = AgentContext(query="Test rollback")
+    fake_context = AgentContextPatterns.simple_query("Test rollback")
     fake_context.agent_outputs = {"refiner": "Test output"}
 
     # Mock the rollback functionality
@@ -1092,9 +1153,9 @@ async def test_cli_rollback_functionality():
 
 
 @pytest.mark.asyncio
-async def test_cli_checkpoint_management_with_thread_id():
+async def test_cli_checkpoint_management_with_thread_id() -> None:
     """Test CLI checkpoint management with custom thread ID."""
-    fake_context = AgentContext(query="Test checkpoint thread")
+    fake_context = AgentContextPatterns.simple_query("Test checkpoint thread")
     fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
@@ -1117,7 +1178,7 @@ async def test_cli_checkpoint_management_with_thread_id():
 
 
 @pytest.mark.asyncio
-async def test_cli_checkpoint_error_handling():
+async def test_cli_checkpoint_error_handling() -> None:
     """Test CLI error handling when checkpoint operations fail."""
     # Mock checkpoint failure
     with patch(
@@ -1139,7 +1200,7 @@ async def test_cli_checkpoint_error_handling():
 # LangGraph Runtime Validation Tests
 
 
-def test_validate_langgraph_runtime_success():
+def test_validate_langgraph_runtime_success() -> None:
     """Test successful LangGraph runtime validation."""
     with patch("langgraph.graph.StateGraph") as mock_state_graph:
         with patch("langgraph.checkpoint.memory.MemorySaver"):
@@ -1148,7 +1209,7 @@ def test_validate_langgraph_runtime_success():
             mock_state_graph.assert_called_once()
 
 
-def test_validate_langgraph_runtime_import_error():
+def test_validate_langgraph_runtime_import_error() -> None:
     """Test LangGraph runtime validation with import error."""
     with patch(
         "builtins.__import__", side_effect=ImportError("No module named 'langgraph'")
@@ -1157,7 +1218,7 @@ def test_validate_langgraph_runtime_import_error():
             _validate_langgraph_runtime()
 
 
-def test_validate_langgraph_runtime_functionality_error():
+def test_validate_langgraph_runtime_functionality_error() -> None:
     """Test LangGraph runtime validation with functionality error."""
     with patch(
         "langgraph.graph.StateGraph", side_effect=RuntimeError("StateGraph failed")
@@ -1167,7 +1228,9 @@ def test_validate_langgraph_runtime_functionality_error():
 
 
 @pytest.mark.asyncio
-async def test_cli_langgraph_validation_failure_handling(capsys):
+async def test_cli_langgraph_validation_failure_handling(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test CLI handling of LangGraph validation failures."""
     import typer
 
@@ -1192,7 +1255,7 @@ async def test_cli_langgraph_validation_failure_handling(capsys):
 # Configuration and Error Handling Tests
 
 
-def test_create_llm_instance_success():
+def test_create_llm_instance_success() -> None:
     """Test successful LLM instance creation."""
     with patch("cognivault.cli.main_commands.OpenAIConfig.load") as mock_config:
         mock_config.return_value = Mock(
@@ -1208,7 +1271,7 @@ def test_create_llm_instance_success():
             )
 
 
-def test_create_llm_instance_config_error():
+def test_create_llm_instance_config_error() -> None:
     """Test LLM instance creation with configuration error."""
     with patch(
         "cognivault.cli.main_commands.OpenAIConfig.load",
@@ -1219,7 +1282,7 @@ def test_create_llm_instance_config_error():
 
 
 @pytest.mark.asyncio
-async def test_cli_orchestrator_error_handling():
+async def test_cli_orchestrator_error_handling() -> None:
     """Test CLI error handling for orchestrator failures."""
     with patch(
         "cognivault.orchestration.orchestrator.LangGraphOrchestrator.run",
@@ -1236,9 +1299,9 @@ async def test_cli_orchestrator_error_handling():
 
 
 @pytest.mark.asyncio
-async def test_cli_agent_parsing_error_handling():
+async def test_cli_agent_parsing_error_handling() -> None:
     """Test CLI error handling for invalid agent specifications."""
-    fake_context = AgentContext(query="Test invalid agents")
+    fake_context = AgentContextPatterns.simple_query("Test invalid agents")
     fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
@@ -1259,7 +1322,9 @@ async def test_cli_agent_parsing_error_handling():
 
 
 @pytest.mark.asyncio
-async def test_cli_comparison_mode_with_benchmarking_disabled(capsys):
+async def test_cli_comparison_mode_with_benchmarking_disabled(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test CLI comparison mode is disabled after Phase 3 legacy cleanup."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -1276,7 +1341,9 @@ async def test_cli_comparison_mode_with_benchmarking_disabled(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_comparison_mode_memory_tracking_disabled(capsys):
+async def test_cli_comparison_mode_memory_tracking_disabled(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test CLI comparison mode memory tracking is disabled after Phase 3."""
     with pytest.raises(typer.Exit):
         await cli_main(
@@ -1294,9 +1361,9 @@ async def test_cli_comparison_mode_memory_tracking_disabled(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_dag_visualization_integration():
+async def test_cli_dag_visualization_integration() -> None:
     """Test CLI DAG visualization integration."""
-    fake_context = AgentContext(query="Test DAG visualization")
+    fake_context = AgentContextPatterns.simple_query("Test DAG visualization")
     fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch("cognivault.cli.main_commands.cli_visualize_dag") as mock_visualize:
@@ -1320,9 +1387,9 @@ async def test_cli_dag_visualization_integration():
 
 
 @pytest.mark.asyncio
-async def test_cli_dag_visualization_with_file_output():
+async def test_cli_dag_visualization_with_file_output() -> None:
     """Test CLI DAG visualization with file output."""
-    fake_context = AgentContext(query="Test DAG file output")
+    fake_context = AgentContextPatterns.simple_query("Test DAG file output")
     fake_context.agent_outputs = {"refiner": "Test output", "critic": "Test output"}
 
     with patch("cognivault.cli.main_commands.cli_visualize_dag") as mock_visualize:
@@ -1347,9 +1414,11 @@ async def test_cli_dag_visualization_with_file_output():
 
 
 @pytest.mark.asyncio
-async def test_cli_dag_visualization_error_handling(capsys):
+async def test_cli_dag_visualization_error_handling(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """Test CLI DAG visualization error handling."""
-    fake_context = AgentContext(query="Test DAG error")
+    fake_context = AgentContextPatterns.simple_query("Test DAG error")
     fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(
@@ -1378,9 +1447,9 @@ async def test_cli_dag_visualization_error_handling(capsys):
 
 
 @pytest.mark.asyncio
-async def test_cli_complete_workflow_with_all_features():
+async def test_cli_complete_workflow_with_all_features() -> None:
     """Test complete CLI workflow with all features enabled."""
-    fake_context = AgentContext(query="Complete workflow test")
+    fake_context = AgentContextPatterns.simple_query("Complete workflow test")
     fake_context.agent_outputs = {
         "refiner": "Refined query",
         "critic": "Critical analysis",
@@ -1414,7 +1483,7 @@ async def test_cli_complete_workflow_with_all_features():
 
 
 @pytest.mark.asyncio
-async def test_cli_error_recovery_workflow():
+async def test_cli_error_recovery_workflow() -> None:
     """Test CLI error recovery and graceful degradation."""
     # Test recovery from LLM failure
     with patch(
@@ -1428,9 +1497,9 @@ async def test_cli_error_recovery_workflow():
 
 
 @pytest.mark.asyncio
-async def test_cli_performance_monitoring_integration():
+async def test_cli_performance_monitoring_integration() -> None:
     """Test CLI performance monitoring integration."""
-    fake_context = AgentContext(query="Performance test")
+    fake_context = AgentContextPatterns.simple_query("Performance test")
     fake_context.agent_outputs = {"refiner": "Test output"}
 
     with patch(

@@ -106,7 +106,7 @@ class ComposedPrompt(BaseModel):
 
     @field_validator("system_prompt")
     @classmethod
-    def validate_system_prompt_not_empty(cls, v):
+    def validate_system_prompt_not_empty(cls, v: str) -> str:
         """Ensure system prompt is not empty."""
         if not v or not v.strip():
             raise ValueError("system_prompt cannot be empty or whitespace-only")
@@ -114,7 +114,7 @@ class ComposedPrompt(BaseModel):
 
     @field_validator("templates")
     @classmethod
-    def validate_template_names(cls, v):
+    def validate_template_names(cls, v: Dict[str, str]) -> Dict[str, str]:
         """Ensure template names are valid identifiers."""
         import re
 
@@ -154,7 +154,7 @@ class PromptComposer:
     configuration while maintaining backward compatibility with existing systems.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the prompt composer."""
         self.default_prompts = {
             "refiner": REFINER_SYSTEM_PROMPT,

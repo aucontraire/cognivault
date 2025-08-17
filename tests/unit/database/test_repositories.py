@@ -4,45 +4,27 @@ Test cases for database repository pattern implementation.
 
 import pytest
 import uuid
-from typing import AsyncGenerator
-from unittest.mock import patch
-import os
 
-from cognivault.database import get_database_session, RepositoryFactory, init_database
+from typing import Any
+from unittest.mock import AsyncMock
+
+from cognivault.database import RepositoryFactory
 from cognivault.database.models import Topic, Question, WikiEntry
 
 
-# Test database configuration
-TEST_DATABASE_URL = (
-    "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5435/cognivault"
-)
+# Test database configuration now handled by centralized config
+from tests.utils.test_database_config import get_test_database_url
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_database():
-    """Setup test database configuration."""
-    os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-
-
-@pytest.fixture
-async def db_session():
-    """Get database session for testing."""
-    await init_database()
-    async with get_database_session() as session:
-        yield session
-
-
-@pytest.fixture
-async def repository_factory(db_session):
-    """Get repository factory with test database session."""
-    return RepositoryFactory(db_session)
+# Repository factory fixture is now provided by conftest.py
 
 
 class TestTopicRepository:
     """Test cases for TopicRepository."""
 
     @pytest.mark.asyncio
-    async def test_create_topic(self, repository_factory):
+    @pytest.mark.database
+    async def test_create_topic(self, repository_factory: RepositoryFactory) -> None:
         """Test creating a topic."""
         unique_name = f"Test Topic {uuid.uuid4().hex[:8]}"
 
@@ -56,7 +38,8 @@ class TestTopicRepository:
         assert topic.created_at is not None
 
     @pytest.mark.asyncio
-    async def test_get_topic_by_id(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_topic_by_id(self, repository_factory: RepositoryFactory) -> None:
         """Test retrieving topic by ID."""
         # Create topic
         unique_name = f"Test Topic ID {uuid.uuid4().hex[:8]}"
@@ -72,7 +55,10 @@ class TestTopicRepository:
         assert retrieved_topic.name == unique_name
 
     @pytest.mark.asyncio
-    async def test_get_topic_by_name(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_topic_by_name(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test retrieving topic by name."""
         unique_name = f"Test Topic Name {uuid.uuid4().hex[:8]}"
 
@@ -88,7 +74,10 @@ class TestTopicRepository:
         assert found_topic.name == unique_name
 
     @pytest.mark.asyncio
-    async def test_search_topics_by_name(self, repository_factory):
+    @pytest.mark.database
+    async def test_search_topics_by_name(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test searching topics by name pattern."""
         search_term = f"SearchTest{uuid.uuid4().hex[:6]}"
 
@@ -107,7 +96,10 @@ class TestTopicRepository:
         assert all(search_term in topic.name for topic in results)
 
     @pytest.mark.asyncio
-    async def test_hierarchical_topics(self, repository_factory):
+    @pytest.mark.database
+    async def test_hierarchical_topics(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test hierarchical topic relationships."""
         # Create parent topic
         parent = await repository_factory.topics.create_topic(
@@ -142,7 +134,8 @@ class TestQuestionRepository:
     """Test cases for QuestionRepository."""
 
     @pytest.mark.asyncio
-    async def test_create_question(self, repository_factory):
+    @pytest.mark.database
+    async def test_create_question(self, repository_factory: RepositoryFactory) -> None:
         """Test creating a question."""
         # Create topic first
         topic = await repository_factory.topics.create_topic(
@@ -165,10 +158,14 @@ class TestQuestionRepository:
         assert question.topic_id == topic.id
         assert question.correlation_id == correlation_id
         assert question.nodes_executed == ["refiner", "critic"]
+        assert question.execution_metadata is not None
         assert question.execution_metadata["test"] is True
 
     @pytest.mark.asyncio
-    async def test_get_question_by_correlation_id(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_question_by_correlation_id(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test retrieving question by correlation ID."""
         # Create topic and question
         topic = await repository_factory.topics.create_topic(
@@ -194,7 +191,10 @@ class TestQuestionRepository:
         assert found_question.correlation_id == correlation_id
 
     @pytest.mark.asyncio
-    async def test_get_questions_by_topic(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_questions_by_topic(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test retrieving questions for a specific topic."""
         # Create topic
         topic = await repository_factory.topics.create_topic(
@@ -217,7 +217,10 @@ class TestQuestionRepository:
         assert all(q.topic_id == topic.id for q in topic_questions)
 
     @pytest.mark.asyncio
-    async def test_search_questions_by_text(self, repository_factory):
+    @pytest.mark.database
+    async def test_search_questions_by_text(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test searching questions by query text."""
         search_term = f"SearchQuery{uuid.uuid4().hex[:6]}"
 
@@ -238,10 +241,13 @@ class TestQuestionRepository:
         results = await repository_factory.questions.search_by_query_text(search_term)
 
         assert len(results) >= 1
-        assert any(search_term in q.query for q in results)
+        assert any(search_term in (q.query or "") for q in results)
 
     @pytest.mark.asyncio
-    async def test_get_execution_statistics(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_execution_statistics(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test getting execution statistics."""
         # Create topic and questions with execution metadata
         topic = await repository_factory.topics.create_topic(
@@ -267,7 +273,10 @@ class TestQuestionRepository:
         assert "critic" in stats["node_usage_counts"]
 
     @pytest.mark.asyncio
-    async def test_get_questions_with_nodes(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_questions_with_nodes(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test getting questions by node execution patterns."""
         # Create topic
         topic = await repository_factory.topics.create_topic(
@@ -324,7 +333,10 @@ class TestWikiRepository:
     """Test cases for WikiRepository."""
 
     @pytest.mark.asyncio
-    async def test_create_wiki_entry(self, repository_factory):
+    @pytest.mark.database
+    async def test_create_wiki_entry(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test creating a wiki entry."""
         # Create topic and question
         topic = await repository_factory.topics.create_topic(
@@ -349,10 +361,14 @@ class TestWikiRepository:
         assert wiki_entry.topic_id == topic.id
         assert wiki_entry.question_id == question.id
         assert wiki_entry.version == 1
+        assert wiki_entry.content is not None
         assert "wiki entry" in wiki_entry.content
 
     @pytest.mark.asyncio
-    async def test_get_latest_wiki_for_topic(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_latest_wiki_for_topic(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test retrieving latest wiki entry for a topic."""
         # Create topic
         topic = await repository_factory.topics.create_topic(
@@ -377,7 +393,10 @@ class TestWikiRepository:
         assert latest_wiki.content == "Version 2 content"
 
     @pytest.mark.asyncio
-    async def test_get_all_versions_for_topic(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_all_versions_for_topic(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test retrieving all versions of wiki entries for a topic."""
         # Create topic
         topic = await repository_factory.topics.create_topic(
@@ -401,7 +420,10 @@ class TestWikiRepository:
         assert all_versions[0].version >= all_versions[1].version
 
     @pytest.mark.asyncio
-    async def test_wiki_with_relationships(self, repository_factory):
+    @pytest.mark.database
+    async def test_wiki_with_relationships(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test loading wiki entry with topic and question relationships."""
         # Create topic and question
         topic = await repository_factory.topics.create_topic(
@@ -438,7 +460,8 @@ class TestRepositoryFactory:
     """Test cases for RepositoryFactory."""
 
     @pytest.mark.asyncio
-    async def test_repository_factory_initialization(self, db_session):
+    @pytest.mark.database
+    async def test_repository_factory_initialization(self, db_session: Any) -> None:
         """Test that repository factory initializes correctly."""
         factory = RepositoryFactory(db_session)
 
@@ -454,7 +477,8 @@ class TestRepositoryFactory:
         assert factory.api_keys.session is db_session
 
     @pytest.mark.asyncio
-    async def test_transaction_consistency(self, db_session):
+    @pytest.mark.database
+    async def test_transaction_consistency(self, db_session: Any) -> None:
         """Test that all repositories share transaction consistency."""
         factory = RepositoryFactory(db_session)
 
@@ -484,21 +508,30 @@ class TestRepositoryErrorHandling:
     """Test error handling in repositories."""
 
     @pytest.mark.asyncio
-    async def test_get_nonexistent_topic(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_nonexistent_topic(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test retrieving non-existent topic."""
         fake_id = uuid.uuid4()
         topic = await repository_factory.topics.get_by_id(fake_id)
         assert topic is None
 
     @pytest.mark.asyncio
-    async def test_get_nonexistent_question(self, repository_factory):
+    @pytest.mark.database
+    async def test_get_nonexistent_question(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test retrieving non-existent question."""
         fake_id = uuid.uuid4()
         question = await repository_factory.questions.get_by_id(fake_id)
         assert question is None
 
     @pytest.mark.asyncio
-    async def test_duplicate_correlation_id_handling(self, repository_factory):
+    @pytest.mark.database
+    async def test_duplicate_correlation_id_handling(
+        self, repository_factory: RepositoryFactory
+    ) -> None:
         """Test handling duplicate correlation IDs."""
         # Create topic
         topic = await repository_factory.topics.create_topic(

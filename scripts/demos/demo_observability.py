@@ -27,7 +27,7 @@ from cognivault.diagnostics.metrics import (
 )
 from cognivault.diagnostics.health import HealthChecker
 from cognivault.diagnostics.diagnostics import DiagnosticsManager
-from cognivault.diagnostics.formatters import JSONFormatter
+from cognivault.diagnostics.formatters import DiagnosticJSONFormatter
 
 
 async def demo_observability():
@@ -149,7 +149,7 @@ async def demo_observability():
 
     try:
         # JSON Format
-        json_formatter = JSONFormatter()
+        json_formatter = DiagnosticJSONFormatter()
         health_json = json_formatter.format_health_results(health_results)
         print("JSON Output (truncated):")
         parsed_json = json.loads(health_json)

@@ -4,10 +4,11 @@ These tests go beyond YAML parsing to verify actual agent behavior modification.
 """
 
 import pytest
+from typing import Any
 import tempfile
 import asyncio
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from cognivault.workflows.definition import WorkflowDefinition
 from cognivault.workflows.composer import NodeFactory
@@ -17,11 +18,22 @@ from cognivault.config.agent_configs import (
     HistorianConfig,
     SynthesisConfig,
 )
+
+from tests.factories import (
+    RefinerConfigFactory,
+    CriticConfigFactory,
+    SynthesisConfigFactory,
+    HistorianConfigFactory,
+)
 from cognivault.agents.refiner.agent import RefinerAgent
 from cognivault.agents.critic.agent import CriticAgent
 from cognivault.agents.historian.agent import HistorianAgent
 from cognivault.agents.synthesis.agent import SynthesisAgent
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestFormat1ComprehensiveValidation:
@@ -108,7 +120,7 @@ flow:
   terminal_nodes: ["configured_synthesis"]
 """
 
-    def test_agent_instantiation_with_pydantic_configs(self):
+    def test_agent_instantiation_with_pydantic_configs(self) -> None:
         """Test that agents can be instantiated with Pydantic configs from YAML."""
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -117,16 +129,17 @@ flow:
 
         try:
             workflow = WorkflowDefinition.from_yaml_file(temp_path)
-            mock_llm = Mock()
+            mock_llm: Mock = Mock()
 
             # Test RefinerAgent instantiation using ConfigMapper for flat format handling
             from cognivault.config.config_mapper import ConfigMapper
 
             refiner_node = next(n for n in workflow.nodes if n.node_type == "refiner")
-            config = ConfigMapper.validate_and_create_config(
+            refiner_config = ConfigMapper.validate_and_create_config(
                 refiner_node.config, "refiner"
             )
-            agent = RefinerAgent(llm=mock_llm, config=config)
+            assert refiner_config is not None, "Failed to create refiner config"
+            agent = RefinerAgent(llm=mock_llm, config=refiner_config)
 
             # Verify the agent has the config
             assert agent.config.refinement_level == "comprehensive"
@@ -139,15 +152,16 @@ flow:
 
             # Test CriticAgent instantiation using ConfigMapper
             critic_node = next(n for n in workflow.nodes if n.node_type == "critic")
-            config = ConfigMapper.validate_and_create_config(
+            critic_config = ConfigMapper.validate_and_create_config(
                 critic_node.config, "critic"
             )
-            agent = CriticAgent(llm=mock_llm, config=config)
+            assert critic_config is not None, "Failed to create critic config"
+            critic_agent = CriticAgent(llm=mock_llm, config=critic_config)
 
-            assert agent.config.analysis_depth == "deep"
-            assert agent.config.confidence_reporting is True
-            assert agent.config.bias_detection is True
-            assert "accuracy" in agent.config.scoring_criteria
+            assert critic_agent.config.analysis_depth == "deep"
+            assert critic_agent.config.confidence_reporting is True
+            assert critic_agent.config.bias_detection is True
+            assert "accuracy" in critic_agent.config.scoring_criteria
 
             print("✅ Agent instantiation with Pydantic configs works!")
 
@@ -156,21 +170,19 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_config_validation_and_error_handling(self):
+    def test_config_validation_and_error_handling(self) -> None:
         """Test that invalid configurations are properly rejected."""
 
-        # Test invalid RefinerConfig
+        # # Test invalid RefinerConfig using factory
         with pytest.raises(ValueError):
-            RefinerConfig(
-                refinement_level="invalid_level",  # Should fail validation
-                behavioral_mode="active",
+            RefinerConfigFactory.generate_valid_data(
+                refinement_level="invalid_level"  # Should fail validation
             )
 
-        # Test invalid CriticConfig
+        # # Test invalid CriticConfig using factory
         with pytest.raises(ValueError):
-            CriticConfig(
-                analysis_depth="invalid_depth",  # Should fail validation
-                confidence_reporting=True,
+            CriticConfigFactory.generate_valid_data(
+                analysis_depth="invalid_depth"  # Should fail validation
             )
 
         # Test YAML with invalid config values
@@ -216,7 +228,7 @@ flow:
             Path(temp_path).unlink()
 
     @pytest.mark.asyncio
-    async def test_agent_execution_with_mock_llm(self):
+    async def test_agent_execution_with_mock_llm(self) -> None:
         """Test that configured agents execute correctly with mock LLM."""
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -227,8 +239,8 @@ flow:
             workflow = WorkflowDefinition.from_yaml_file(temp_path)
 
             # Create mock LLM with predictable responses and token usage
-            mock_llm = Mock()
-            mock_response = Mock()
+            mock_llm: Mock = Mock()
+            mock_response: Mock = Mock()
             mock_response.text = "Mock agent response"
             mock_response.tokens_used = 200
             mock_response.input_tokens = 120
@@ -248,7 +260,7 @@ flow:
             agent = RefinerAgent(llm=mock_llm, config=config)
 
             # Create test context
-            context = AgentContext(
+            context = AgentContextFactory.basic(
                 user_id="test_user",
                 session_id="test_session",
                 query="Test query for refinement",
@@ -272,7 +284,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_node_factory_creates_configured_agents(self):
+    def test_node_factory_creates_configured_agents(self) -> None:
         """Test that NodeFactory creates agents with proper configurations."""
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -298,7 +310,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_prompt_composition_integration(self):
+    def test_prompt_composition_integration(self) -> None:
         """Test that prompt composition actually uses the configuration."""
 
         from cognivault.workflows.prompt_composer import PromptComposer
@@ -326,10 +338,10 @@ flow:
         except Exception as e:
             pytest.fail(f"Prompt composition failed: {e}")
 
-    def test_backward_compatibility_with_no_config(self):
+    def test_backward_compatibility_with_no_config(self) -> None:
         """Test that agents still work without any configuration (backward compatibility)."""
 
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
 
         # Test all agent types work without config
         refiner = RefinerAgent(llm=mock_llm)  # No config parameter
@@ -343,7 +355,7 @@ flow:
 
         print("✅ Backward compatibility maintained!")
 
-    def test_config_field_coverage(self):
+    def test_config_field_coverage(self) -> None:
         """Test that all major Pydantic config fields are properly handled."""
 
         # Test comprehensive RefinerConfig
@@ -387,7 +399,7 @@ flow:
         print("✅ All major config fields properly handled!")
 
     @pytest.mark.skip(reason="Requires real LLM API - run manually when ready")
-    async def test_real_llm_execution_with_config(self):
+    async def test_real_llm_execution_with_config(self) -> None:
         """
         Test actual LLM execution with configuration.
         SKIP by default to avoid API costs - run manually when ready for final validation.
@@ -425,7 +437,7 @@ flow:
             agent1 = RefinerAgent(llm=llm, config=config1)
             agent2 = RefinerAgent(llm=llm, config=config2)
 
-            context = AgentContext(
+            context = AgentContextFactory.basic(
                 user_id="test_user",
                 session_id="test_session",
                 query="Analyze the impact of machine learning on healthcare",

@@ -6,15 +6,16 @@ validation and gating in the advanced node execution system.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.orchestration.nodes.validator_node import (
     ValidatorNode,
     ValidationCriteria,
     NodeValidationResult,
-    ValidationReport,
-    NodeExecutionContext,
+    WorkflowValidationReport,
 )
+from cognivault.orchestration.nodes.base_advanced_node import NodeExecutionContext
 from cognivault.agents.metadata import AgentMetadata, TaskClassification
 
 
@@ -22,7 +23,7 @@ class TestValidatorNodeInitialization:
     """Test ValidatorNode initialization and validation."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock AgentMetadata with validator execution pattern."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "validator"
@@ -31,7 +32,7 @@ class TestValidatorNodeInitialization:
         return metadata
 
     @pytest.fixture
-    def basic_criteria(self):
+    def basic_criteria(self) -> Any:
         """Create basic validation criteria."""
         return [
             ValidationCriteria(
@@ -50,7 +51,9 @@ class TestValidatorNodeInitialization:
             ),
         ]
 
-    def test_validator_node_creation_success(self, mock_metadata, basic_criteria):
+    def test_validator_node_creation_success(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test successful ValidatorNode creation."""
         node = ValidatorNode(
             metadata=mock_metadata,
@@ -70,7 +73,7 @@ class TestValidatorNodeInitialization:
         assert node.allow_warnings is True
         assert node.strict_mode is False
 
-    def test_validator_node_wrong_execution_pattern(self, basic_criteria):
+    def test_validator_node_wrong_execution_pattern(self, basic_criteria: Mock) -> None:
         """Test that ValidatorNode requires validator execution pattern."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "aggregator"  # Wrong pattern
@@ -82,7 +85,7 @@ class TestValidatorNodeInitialization:
                 metadata=metadata, node_name="test", validation_criteria=basic_criteria
             )
 
-    def test_validator_node_empty_criteria(self, mock_metadata):
+    def test_validator_node_empty_criteria(self, mock_metadata: Mock) -> None:
         """Test that ValidatorNode requires at least one criterion."""
         with pytest.raises(
             ValueError, match="ValidatorNode requires at least one validation criterion"
@@ -94,8 +97,8 @@ class TestValidatorNodeInitialization:
             )
 
     def test_validator_node_invalid_quality_threshold(
-        self, mock_metadata, basic_criteria
-    ):
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that quality_threshold must be between 0.0 and 1.0."""
         with pytest.raises(
             ValueError, match="quality_threshold must be between 0.0 and 1.0"
@@ -108,8 +111,8 @@ class TestValidatorNodeInitialization:
             )
 
     def test_validator_node_invalid_required_criteria_pass_rate(
-        self, mock_metadata, basic_criteria
-    ):
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that required_criteria_pass_rate must be between 0.0 and 1.0."""
         with pytest.raises(
             ValueError, match="required_criteria_pass_rate must be between 0.0 and 1.0"
@@ -121,7 +124,9 @@ class TestValidatorNodeInitialization:
                 required_criteria_pass_rate=1.5,
             )
 
-    def test_validator_node_default_values(self, mock_metadata, basic_criteria):
+    def test_validator_node_default_values(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test ValidatorNode with default values."""
         node = ValidatorNode(
             metadata=mock_metadata, node_name="test", validation_criteria=basic_criteria
@@ -132,7 +137,9 @@ class TestValidatorNodeInitialization:
         assert node.allow_warnings is True
         assert node.strict_mode is False
 
-    def test_validator_node_inherits_base_methods(self, mock_metadata, basic_criteria):
+    def test_validator_node_inherits_base_methods(
+        self, mock_metadata: Mock, basic_criteria: Mock
+    ) -> None:
         """Test that ValidatorNode inherits BaseAdvancedNode methods."""
         node = ValidatorNode(
             metadata=mock_metadata, node_name="test", validation_criteria=basic_criteria
@@ -152,7 +159,7 @@ class TestValidatorNodeInitialization:
 class TestValidationCriteria:
     """Test ValidationCriteria dataclass."""
 
-    def test_validation_criteria_creation_success(self):
+    def test_validation_criteria_creation_success(self) -> None:
         """Test successful ValidationCriteria creation."""
         criterion = ValidationCriteria(
             name="test_criterion",
@@ -167,7 +174,7 @@ class TestValidationCriteria:
         assert criterion.required is True
         assert criterion.error_message == "Test error"
 
-    def test_validation_criteria_default_values(self):
+    def test_validation_criteria_default_values(self) -> None:
         """Test ValidationCriteria with default values."""
         criterion = ValidationCriteria(name="test", validator=lambda data: True)
 
@@ -175,7 +182,7 @@ class TestValidationCriteria:
         assert criterion.required is True
         assert criterion.error_message == ""
 
-    def test_validation_criteria_validate_method(self):
+    def test_validation_criteria_validate_method(self) -> None:
         """Test ValidationCriteria validate method."""
         criterion = ValidationCriteria(
             name="has_key", validator=lambda data: "key" in data
@@ -185,12 +192,12 @@ class TestValidationCriteria:
         assert criterion.validate_data({"other": "value"}) is False
 
 
-class TestValidationReport:
-    """Test ValidationReport dataclass."""
+class TestWorkflowValidationReport:
+    """Test WorkflowValidationReport dataclass."""
 
-    def test_validation_report_creation(self):
-        """Test ValidationReport creation."""
-        report = ValidationReport(
+    def test_validation_report_creation(self) -> None:
+        """Test WorkflowValidationReport creation."""
+        report = WorkflowValidationReport(
             result=NodeValidationResult.PASS,
             quality_score=0.85,
             criteria_results={"test": {"passed": True}},
@@ -209,10 +216,10 @@ class TestValidationReport:
         assert report.passed_criteria == 2
         assert report.failed_criteria == 0
 
-    def test_validation_report_success_rate(self):
-        """Test ValidationReport success_rate calculation."""
+    def test_validation_report_success_rate(self) -> None:
+        """Test WorkflowValidationReport success_rate calculation."""
         # Test normal case
-        report = ValidationReport(
+        report = WorkflowValidationReport(
             result=NodeValidationResult.WARNING,
             quality_score=0.7,
             criteria_results={},
@@ -227,7 +234,7 @@ class TestValidationReport:
         assert report.success_rate == 0.75  # 3/4
 
         # Test edge case: no criteria
-        report_empty = ValidationReport(
+        report_empty = WorkflowValidationReport(
             result=NodeValidationResult.PASS,
             quality_score=0.0,
             criteria_results={},
@@ -246,14 +253,14 @@ class TestValidatorNodeExecute:
     """Test ValidatorNode execute method."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create mock AgentMetadata."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "validator"
         return metadata
 
     @pytest.fixture
-    def mock_context(self):
+    def mock_context(self) -> Any:
         """Create mock NodeExecutionContext with available inputs."""
         context = Mock(spec=NodeExecutionContext)
         context.correlation_id = "test-correlation"
@@ -284,7 +291,7 @@ class TestValidatorNodeExecute:
         return context
 
     @pytest.fixture
-    def validation_criteria(self):
+    def validation_criteria(self) -> Any:
         """Create validation criteria for testing."""
         return [
             ValidationCriteria(
@@ -312,7 +319,7 @@ class TestValidatorNodeExecute:
         ]
 
     @pytest.fixture
-    def validator_node(self, mock_metadata, validation_criteria):
+    def validator_node(self, mock_metadata: Mock, validation_criteria: Mock) -> Any:
         """Create a ValidatorNode for testing."""
         return ValidatorNode(
             metadata=mock_metadata,
@@ -325,7 +332,9 @@ class TestValidatorNodeExecute:
         )
 
     @pytest.mark.asyncio
-    async def test_execute_validation_success(self, validator_node, mock_context):
+    async def test_execute_validation_success(
+        self, validator_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute with successful validation."""
         with patch(
             "cognivault.orchestration.nodes.validator_node.emit_validation_completed"
@@ -358,8 +367,8 @@ class TestValidatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_validation_failure(
-        self, mock_metadata, validation_criteria, mock_context
-    ):
+        self, mock_metadata: Mock, validation_criteria: Mock, mock_context: Mock
+    ) -> None:
         """Test execute with validation failure."""
         # Set up context with invalid data
         mock_context.available_inputs = {
@@ -404,8 +413,8 @@ class TestValidatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_validation_with_warnings(
-        self, mock_metadata, validation_criteria, mock_context
-    ):
+        self, mock_metadata: Mock, validation_criteria: Mock, mock_context: Mock
+    ) -> None:
         """Test execute with warnings allowed."""
         # Set up context with data that passes required but fails optional criteria
         mock_context.available_inputs = {
@@ -447,8 +456,8 @@ class TestValidatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_strict_mode(
-        self, mock_metadata, validation_criteria, mock_context
-    ):
+        self, mock_metadata: Mock, validation_criteria: Mock, mock_context: Mock
+    ) -> None:
         """Test execute in strict mode."""
         # Set up context with data that would normally pass with warnings
         mock_context.available_inputs = {
@@ -482,8 +491,8 @@ class TestValidatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_quality_threshold(
-        self, mock_metadata, validation_criteria, mock_context
-    ):
+        self, mock_metadata: Mock, validation_criteria: Mock, mock_context: Mock
+    ) -> None:
         """Test execute with quality threshold enforcement."""
         # Create criteria with mixed weights - some pass, some fail
         mixed_criteria = [
@@ -523,8 +532,8 @@ class TestValidatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_required_criteria_pass_rate(
-        self, mock_metadata, mock_context
-    ):
+        self, mock_metadata: Mock, mock_context: Mock
+    ) -> None:
         """Test execute with required criteria pass rate enforcement."""
         # Create multiple required criteria, some will fail
         criteria = [
@@ -568,7 +577,7 @@ class TestValidatorNodeExecute:
         assert result["passed"] is False
 
     @pytest.mark.asyncio
-    async def test_execute_no_available_inputs(self, validator_node):
+    async def test_execute_no_available_inputs(self, validator_node: Mock) -> None:
         """Test execute with no available inputs."""
         context = Mock(spec=NodeExecutionContext)
         context.correlation_id = "test-correlation"
@@ -592,12 +601,12 @@ class TestValidatorNodeExecute:
 
     @pytest.mark.asyncio
     async def test_execute_criterion_evaluation_error(
-        self, mock_metadata, mock_context
-    ):
+        self, mock_metadata: Mock, mock_context: Mock
+    ) -> None:
         """Test execute handles criterion evaluation errors gracefully."""
 
         # Create a criterion that will raise an exception
-        def failing_validator(data):
+        def failing_validator(data: Mock) -> None:
             raise ValueError("Validation failed")
 
         criteria = [
@@ -638,7 +647,9 @@ class TestValidatorNodeExecute:
         )
 
     @pytest.mark.asyncio
-    async def test_execute_calls_pre_post_hooks(self, validator_node, mock_context):
+    async def test_execute_calls_pre_post_hooks(
+        self, validator_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute calls pre and post execution hooks."""
         with patch(
             "cognivault.orchestration.nodes.validator_node.emit_validation_completed"
@@ -652,7 +663,9 @@ class TestValidatorNodeExecute:
         mock_context.update_resource_usage.assert_called()
 
     @pytest.mark.asyncio
-    async def test_execute_validation_failure_invalid_context(self, validator_node):
+    async def test_execute_validation_failure_invalid_context(
+        self, validator_node: Mock
+    ) -> None:
         """Test execute fails with invalid context."""
         invalid_context = Mock(spec=NodeExecutionContext)
         invalid_context.correlation_id = ""  # Invalid
@@ -664,7 +677,9 @@ class TestValidatorNodeExecute:
             await validator_node.execute(invalid_context)
 
     @pytest.mark.asyncio
-    async def test_execute_best_quality_input_selection(self, validator_node):
+    async def test_execute_best_quality_input_selection(
+        self, validator_node: Mock
+    ) -> None:
         """Test execute selects highest quality input for validation."""
         context = Mock(spec=NodeExecutionContext)
         context.correlation_id = "test-correlation"
@@ -710,7 +725,9 @@ class TestValidatorNodeExecute:
         assert validated_data["metadata"]["source"] == "high"
 
     @pytest.mark.asyncio
-    async def test_execute_timing_measurement(self, validator_node, mock_context):
+    async def test_execute_timing_measurement(
+        self, validator_node: Mock, mock_context: Mock
+    ) -> None:
         """Test execute measures validation timing."""
         with patch(
             "cognivault.orchestration.nodes.validator_node.emit_validation_completed"
@@ -731,7 +748,7 @@ class TestValidatorNodeCanHandle:
     """Test ValidatorNode can_handle method."""
 
     @pytest.fixture
-    def validator_node(self):
+    def validator_node(self) -> Any:
         """Create a ValidatorNode for testing."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "validator"
@@ -755,7 +772,7 @@ class TestValidatorNodeCanHandle:
             strict_mode=False,
         )
 
-    def test_can_handle_with_valid_inputs(self, validator_node):
+    def test_can_handle_with_valid_inputs(self, validator_node: Mock) -> None:
         """Test can_handle returns True with valid inputs."""
         context = Mock(spec=NodeExecutionContext)
         context.available_inputs = {
@@ -765,14 +782,14 @@ class TestValidatorNodeCanHandle:
 
         assert validator_node.can_handle(context) is True
 
-    def test_can_handle_with_no_inputs(self, validator_node):
+    def test_can_handle_with_no_inputs(self, validator_node: Mock) -> None:
         """Test can_handle returns False with no inputs."""
         context = Mock(spec=NodeExecutionContext)
         context.available_inputs = {}
 
         assert validator_node.can_handle(context) is False
 
-    def test_can_handle_with_empty_inputs(self, validator_node):
+    def test_can_handle_with_empty_inputs(self, validator_node: Mock) -> None:
         """Test can_handle returns False with empty inputs."""
         context = Mock(spec=NodeExecutionContext)
         context.available_inputs = {
@@ -782,7 +799,7 @@ class TestValidatorNodeCanHandle:
 
         assert validator_node.can_handle(context) is False
 
-    def test_can_handle_with_non_dict_inputs(self, validator_node):
+    def test_can_handle_with_non_dict_inputs(self, validator_node: Mock) -> None:
         """Test can_handle returns False with non-dict inputs."""
         context = Mock(spec=NodeExecutionContext)
         context.available_inputs = {
@@ -792,7 +809,7 @@ class TestValidatorNodeCanHandle:
 
         assert validator_node.can_handle(context) is False
 
-    def test_can_handle_with_mixed_inputs(self, validator_node):
+    def test_can_handle_with_mixed_inputs(self, validator_node: Mock) -> None:
         """Test can_handle returns True when at least one input is valid."""
         context = Mock(spec=NodeExecutionContext)
         context.available_inputs = {
@@ -803,7 +820,7 @@ class TestValidatorNodeCanHandle:
 
         assert validator_node.can_handle(context) is True
 
-    def test_can_handle_evaluation_error(self, validator_node):
+    def test_can_handle_evaluation_error(self, validator_node: Mock) -> None:
         """Test can_handle returns False when evaluation raises exception."""
         context = Mock(spec=NodeExecutionContext)
         # Set up mock to raise exception when accessed

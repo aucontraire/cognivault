@@ -6,9 +6,10 @@ automated testing, CI integration, and coverage analysis capabilities.
 """
 
 import pytest
+from typing import Any
 import json
 import asyncio
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -23,12 +24,16 @@ from cognivault.diagnostics.pattern_tester import (
     PatternTestSession,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestPatternTestResult:
     """Test suite for PatternTestResult enum."""
 
-    def test_test_results(self):
+    def test_test_results(self) -> None:
         """Test PatternTestResult enum values."""
         assert PatternTestResult.PASS.value == "pass"
         assert PatternTestResult.FAIL.value == "fail"
@@ -40,7 +45,7 @@ class TestPatternTestResult:
 class TestPatternTestType:
     """Test suite for PatternTestType enum."""
 
-    def test_test_types(self):
+    def test_test_types(self) -> None:
         """Test PatternTestType enum values."""
         assert PatternTestType.UNIT.value == "unit"
         assert PatternTestType.INTEGRATION.value == "integration"
@@ -53,7 +58,7 @@ class TestPatternTestType:
 class TestPatternTestCase:
     """Test suite for PatternTestCase dataclass."""
 
-    def test_test_case_creation(self):
+    def test_test_case_creation(self) -> None:
         """Test PatternTestCase creation with all fields."""
         test_case = PatternTestCase(
             test_id="test_123",
@@ -85,7 +90,7 @@ class TestPatternTestCase:
         assert len(test_case.prerequisites) == 1
         assert test_case.cleanup_required is True
 
-    def test_test_case_defaults(self):
+    def test_test_case_defaults(self) -> None:
         """Test PatternTestCase with default values."""
         test_case = PatternTestCase(
             test_id="test_minimal",
@@ -108,7 +113,7 @@ class TestPatternTestCase:
 class TestPatternTestExecution:
     """Test suite for PatternTestExecution dataclass."""
 
-    def test_test_execution_creation(self):
+    def test_test_execution_creation(self) -> None:
         """Test PatternTestExecution creation."""
         test_case = PatternTestCase(
             test_id="exec_test",
@@ -121,7 +126,7 @@ class TestPatternTestExecution:
             expected_outcome={"success": True},
         )
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         timestamp = datetime.now(timezone.utc)
 
         execution = PatternTestExecution(
@@ -139,12 +144,13 @@ class TestPatternTestExecution:
         assert execution.result == PatternTestResult.PASS
         assert execution.duration == 2.5
         assert execution.error_message is None
-        assert execution.output_data["result"] == "success"
+        if execution.output_data is not None:
+            assert execution.output_data["result"] == "success"
         assert execution.context == context
         assert execution.timestamp == timestamp
         assert execution.retry_attempt == 1
 
-    def test_test_execution_failure(self):
+    def test_test_execution_failure(self) -> None:
         """Test PatternTestExecution for failed test."""
         test_case = PatternTestCase(
             test_id="fail_test",
@@ -172,7 +178,7 @@ class TestPatternTestExecution:
 class TestPatternTestSuite:
     """Test suite for PatternTestSuite dataclass."""
 
-    def test_test_suite_creation(self):
+    def test_test_suite_creation(self) -> None:
         """Test PatternTestSuite creation."""
         test_cases = [
             PatternTestCase(
@@ -197,10 +203,10 @@ class TestPatternTestSuite:
             ),
         ]
 
-        def setup_hook():
+        def setup_hook() -> None:
             pass
 
-        def teardown_hook():
+        def teardown_hook() -> None:
             pass
 
         suite = PatternTestSuite(
@@ -227,7 +233,7 @@ class TestPatternTestSuite:
 class TestPatternTestSession:
     """Test suite for PatternTestSession dataclass."""
 
-    def test_test_session_creation(self):
+    def test_test_session_creation(self) -> None:
         """Test PatternTestSession creation."""
         start_time = datetime.now(timezone.utc)
 
@@ -250,7 +256,7 @@ class TestPatternTestSession:
 class TestTestDataGenerator:
     """Test suite for TestDataGenerator class."""
 
-    def test_generate_test_queries_simple(self):
+    def test_generate_test_queries_simple(self) -> None:
         """Test generating simple test queries."""
         queries = TestDataGenerator.generate_test_queries(3, "simple")
 
@@ -258,7 +264,7 @@ class TestTestDataGenerator:
         assert all(isinstance(q, str) for q in queries)
         assert all(len(q) < 50 for q in queries)  # Simple queries should be short
 
-    def test_generate_test_queries_complex(self):
+    def test_generate_test_queries_complex(self) -> None:
         """Test generating complex test queries."""
         queries = TestDataGenerator.generate_test_queries(2, "complex")
 
@@ -266,21 +272,21 @@ class TestTestDataGenerator:
         assert all(isinstance(q, str) for q in queries)
         assert all(len(q) > 50 for q in queries)  # Complex queries should be longer
 
-    def test_generate_test_queries_mixed(self):
+    def test_generate_test_queries_mixed(self) -> None:
         """Test generating mixed complexity queries."""
         queries = TestDataGenerator.generate_test_queries(8, "mixed")
 
         assert len(queries) == 8
         assert all(isinstance(q, str) for q in queries)
 
-    def test_generate_test_queries_default_count(self):
+    def test_generate_test_queries_default_count(self) -> None:
         """Test generating queries with default count."""
         queries = TestDataGenerator.generate_test_queries()
 
         assert len(queries) == 10
         assert all(isinstance(q, str) for q in queries)
 
-    def test_generate_agent_combinations(self):
+    def test_generate_agent_combinations(self) -> None:
         """Test generating agent combinations."""
         combinations = TestDataGenerator.generate_agent_combinations()
 
@@ -298,7 +304,7 @@ class TestTestDataGenerator:
         assert len(single_agents) > 0
         assert len(multi_agents) > 0
 
-    def test_generate_stress_test_scenarios(self):
+    def test_generate_stress_test_scenarios(self) -> None:
         """Test generating stress test scenarios."""
         scenarios = TestDataGenerator.generate_stress_test_scenarios()
 
@@ -320,12 +326,12 @@ class TestPatternTestRunner:
     """Test suite for PatternTestRunner class."""
 
     @pytest.fixture
-    def runner(self):
+    def runner(self) -> Any:
         """Create PatternTestRunner instance."""
         return PatternTestRunner()
 
     @pytest.fixture
-    def sample_test_case(self):
+    def sample_test_case(self) -> Any:
         """Create sample test case."""
         return PatternTestCase(
             test_id="sample_test",
@@ -339,7 +345,7 @@ class TestPatternTestRunner:
         )
 
     @pytest.fixture
-    def sample_test_suite(self, sample_test_case):
+    def sample_test_suite(self, sample_test_case: Any) -> Any:
         """Create sample test suite."""
         return PatternTestSuite(
             suite_id="sample_suite",
@@ -348,20 +354,20 @@ class TestPatternTestRunner:
             test_cases=[sample_test_case],
         )
 
-    def test_initialization(self, runner):
+    def test_initialization(self, runner: Any) -> None:
         """Test PatternTestRunner initialization."""
         assert runner.console is not None
         assert runner.active_sessions == {}
         assert runner.test_registry == {}
         assert runner.pattern_cache == {}
 
-    def test_create_app(self, runner):
+    def test_create_app(self, runner: Any) -> None:
         """Test CLI app creation."""
         app = runner.create_app()
         assert app is not None
         assert app.info.name == "pattern-tester"
 
-    def test_generate_default_test_suite(self, runner):
+    def test_generate_default_test_suite(self, runner: Any) -> None:
         """Test generating default test suite."""
         test_types = [PatternTestType.UNIT, PatternTestType.INTEGRATION]
         suite = runner._generate_default_test_suite("test/pattern.py", test_types)
@@ -381,7 +387,7 @@ class TestPatternTestRunner:
         assert len(unit_tests) > 0
         assert len(integration_tests) > 0
 
-    def test_generate_unit_tests(self, runner):
+    def test_generate_unit_tests(self, runner: Any) -> None:
         """Test generating unit tests."""
         queries = ["Query 1", "Query 2"]
         agent_combos = [["refiner"], ["critic"]]
@@ -395,7 +401,7 @@ class TestPatternTestRunner:
         assert all("unit" in tc.tags for tc in unit_tests)
         assert all(tc.timeout == 30.0 for tc in unit_tests)
 
-    def test_generate_integration_tests(self, runner):
+    def test_generate_integration_tests(self, runner: Any) -> None:
         """Test generating integration tests."""
         queries = ["Integration query 1"]
         agent_combos = [["refiner", "critic"]]
@@ -409,7 +415,7 @@ class TestPatternTestRunner:
         assert "integration" in integration_tests[0].tags
         assert integration_tests[0].timeout == 60.0
 
-    def test_generate_performance_tests(self, runner):
+    def test_generate_performance_tests(self, runner: Any) -> None:
         """Test generating performance tests."""
         queries = ["Performance query 1", "Performance query 2"]
 
@@ -427,10 +433,10 @@ class TestPatternTestRunner:
     @patch("asyncio.wait_for")
     @patch("asyncio.run")
     def test_execute_single_test_success(
-        self, mock_asyncio, mock_wait_for, runner, sample_test_case
-    ):
+        self, mock_asyncio: Any, mock_wait_for: Any, runner: Any, sample_test_case: Any
+    ) -> None:
         """Test successful single test execution."""
-        mock_context = AgentContext(query="test")
+        mock_context = AgentContextPatterns.simple_query("test")
         mock_context.failed_agents = set()
         mock_context.agent_outputs = {"refiner": "output"}
         mock_wait_for.return_value = mock_context
@@ -447,8 +453,8 @@ class TestPatternTestRunner:
     @patch("asyncio.wait_for")
     @patch("asyncio.run")
     def test_execute_single_test_timeout(
-        self, mock_asyncio, mock_wait_for, runner, sample_test_case
-    ):
+        self, mock_asyncio: Any, mock_wait_for: Any, runner: Any, sample_test_case: Any
+    ) -> None:
         """Test single test execution with timeout."""
         mock_wait_for.side_effect = asyncio.TimeoutError()
         mock_asyncio.side_effect = asyncio.TimeoutError()
@@ -462,8 +468,8 @@ class TestPatternTestRunner:
     @patch("asyncio.wait_for")
     @patch("asyncio.run")
     def test_execute_single_test_error(
-        self, mock_asyncio, mock_wait_for, runner, sample_test_case
-    ):
+        self, mock_asyncio: Any, mock_wait_for: Any, runner: Any, sample_test_case: Any
+    ) -> None:
         """Test single test execution with error."""
         mock_wait_for.side_effect = Exception("Test error")
         mock_asyncio.side_effect = Exception("Test error")
@@ -474,9 +480,9 @@ class TestPatternTestRunner:
             assert execution.result == PatternTestResult.ERROR
             assert "Test error" in execution.error_message
 
-    def test_evaluate_test_result_success(self, runner):
+    def test_evaluate_test_result_success(self, runner: Any) -> None:
         """Test evaluating successful test result."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.failed_agents = set()
         context.agent_outputs = {"refiner": "output"}
 
@@ -485,10 +491,10 @@ class TestPatternTestRunner:
 
         assert result == PatternTestResult.PASS
 
-    def test_evaluate_test_result_failure(self, runner):
+    def test_evaluate_test_result_failure(self, runner: Any) -> None:
         """Test evaluating failed test result."""
-        context = AgentContext(query="test")
-        context.failed_agents = ["refiner"]
+        context = AgentContextPatterns.simple_query("test")
+        context.failed_agents = set(["refiner"])
         context.agent_outputs = {}
 
         expected = {"success": True}
@@ -496,9 +502,9 @@ class TestPatternTestRunner:
 
         assert result == PatternTestResult.FAIL
 
-    def test_evaluate_test_result_min_agents_fail(self, runner):
+    def test_evaluate_test_result_min_agents_fail(self, runner: Any) -> None:
         """Test evaluating test with insufficient agents."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.failed_agents = set()
         context.agent_outputs = {"refiner": "output"}
 
@@ -507,10 +513,10 @@ class TestPatternTestRunner:
 
         assert result == PatternTestResult.FAIL
 
-    def test_evaluate_test_result_all_agents_required(self, runner):
+    def test_evaluate_test_result_all_agents_required(self, runner: Any) -> None:
         """Test evaluating test requiring all agents to execute."""
-        context = AgentContext(query="test")
-        context.failed_agents = ["critic"]  # One agent failed
+        context = AgentContextPatterns.simple_query("test")
+        context.failed_agents = set(["critic"])  # One agent failed
         context.agent_outputs = {"refiner": "output"}
 
         expected = {"all_agents_executed": True}
@@ -518,7 +524,7 @@ class TestPatternTestRunner:
 
         assert result == PatternTestResult.FAIL
 
-    def test_calculate_session_summary(self, runner):
+    def test_calculate_session_summary(self, runner: Any) -> None:
         """Test calculating session summary."""
         # Create proper mock test cases to avoid async warnings
         mock_test_case = PatternTestCase(
@@ -582,7 +588,7 @@ class TestPatternTestRunner:
         assert summary["total_duration"] == 8.5
         assert summary["avg_duration"] == 2.125
 
-    def test_calculate_session_summary_empty(self, runner):
+    def test_calculate_session_summary_empty(self, runner: Any) -> None:
         """Test calculating summary for empty session."""
         session = PatternTestSession(
             session_id="empty", start_time=datetime.now(timezone.utc), executions=[]
@@ -594,7 +600,9 @@ class TestPatternTestRunner:
         assert summary["success_rate"] == 0
         assert summary["avg_duration"] == 0
 
-    def test_execute_test_suite_sequential(self, runner, sample_test_suite):
+    def test_execute_test_suite_sequential(
+        self, runner: Any, sample_test_suite: Any
+    ) -> None:
         """Test executing test suite sequentially."""
         with patch.object(runner, "_execute_single_test") as mock_execute:
             mock_execution = PatternTestExecution(
@@ -610,7 +618,9 @@ class TestPatternTestRunner:
             assert len(session.executions) == 1
             assert session.summary["total_tests"] == 1
 
-    def test_execute_test_suite_parallel(self, runner, sample_test_suite):
+    def test_execute_test_suite_parallel(
+        self, runner: Any, sample_test_suite: Any
+    ) -> None:
         """Test executing test suite in parallel."""
         with patch.object(runner, "_execute_single_test") as mock_execute:
             mock_execution = PatternTestExecution(
@@ -639,16 +649,18 @@ class TestPatternTestRunner:
             assert isinstance(session, PatternTestSession)
             assert len(session.executions) == 2
 
-    def test_execute_test_suite_with_hooks(self, runner, sample_test_suite):
+    def test_execute_test_suite_with_hooks(
+        self, runner: Any, sample_test_suite: Any
+    ) -> None:
         """Test executing test suite with setup/teardown hooks."""
         setup_called = False
         teardown_called = False
 
-        def setup_hook():
+        def setup_hook() -> None:
             nonlocal setup_called
             setup_called = True
 
-        def teardown_hook():
+        def teardown_hook() -> None:
             nonlocal teardown_called
             teardown_called = True
 
@@ -667,10 +679,12 @@ class TestPatternTestRunner:
             assert setup_called
             assert teardown_called
 
-    def test_execute_test_suite_hook_exception(self, runner, sample_test_suite):
+    def test_execute_test_suite_hook_exception(
+        self, runner: Any, sample_test_suite: Any
+    ) -> None:
         """Test executing test suite when hooks raise exceptions."""
 
-        def failing_hook():
+        def failing_hook() -> None:
             raise Exception("Hook failed")
 
         sample_test_suite.setup_hooks = [failing_hook]
@@ -691,7 +705,7 @@ class TestPatternTestRunner:
                 # Should have printed error messages
                 mock_print.assert_called()
 
-    def test_display_test_summary(self, runner):
+    def test_display_test_summary(self, runner: Any) -> None:
         """Test displaying test summary."""
         session = PatternTestSession(
             session_id="display_test",
@@ -730,7 +744,7 @@ class TestPatternTestRunner:
             # Should print summary and failed tests table
             mock_print.assert_called()
 
-    def test_save_test_results(self, runner, tmp_path):
+    def test_save_test_results(self, runner: Any, tmp_path: Any) -> None:
         """Test saving test results to file."""
         session = PatternTestSession(
             session_id="save_test",
@@ -774,11 +788,11 @@ class TestPatternTestRunnerIntegration:
     """Integration tests for PatternTestRunner."""
 
     @pytest.fixture
-    def runner(self):
+    def runner(self) -> Any:
         """Create runner for integration tests."""
         return PatternTestRunner()
 
-    def test_full_testing_workflow(self, runner):
+    def test_full_testing_workflow(self, runner: Any) -> None:
         """Test complete testing workflow."""
         # Create a simple test case inline since sample_test_case fixture is not available in this class
         test_case = PatternTestCase(
@@ -804,7 +818,7 @@ class TestPatternTestRunnerIntegration:
 
             assert isinstance(session, PatternTestSession)
 
-    def test_cli_app_integration(self, runner):
+    def test_cli_app_integration(self, runner: Any) -> None:
         """Test CLI app creation and commands."""
         app = runner.create_app()
 
@@ -812,7 +826,7 @@ class TestPatternTestRunnerIntegration:
         assert app is not None
         assert app.info.name == "pattern-tester"
 
-    def test_test_suite_file_operations(self, runner, tmp_path):
+    def test_test_suite_file_operations(self, runner: Any, tmp_path: Any) -> None:
         """Test test suite file creation and loading."""
         # Test suite generation
         suite_file = tmp_path / "test_suite.json"
@@ -843,11 +857,11 @@ class TestPatternTestRunnerPerformance:
     """Performance tests for PatternTestRunner."""
 
     @pytest.fixture
-    def runner(self):
+    def runner(self) -> Any:
         """Create runner for performance tests."""
         return PatternTestRunner()
 
-    def test_test_generation_performance(self, runner):
+    def test_test_generation_performance(self, runner: Any) -> None:
         """Test performance of test generation."""
         import time
 
@@ -865,7 +879,7 @@ class TestPatternTestRunnerPerformance:
         assert isinstance(suite, PatternTestSuite)
         assert len(suite.test_cases) > 0
 
-    def test_summary_calculation_performance(self, runner):
+    def test_summary_calculation_performance(self, runner: Any) -> None:
         """Test performance of summary calculation."""
         import time
 
@@ -913,14 +927,14 @@ class TestPatternTestRunnerErrorHandling:
     """Error handling tests for PatternTestRunner."""
 
     @pytest.fixture
-    def runner(self):
+    def runner(self) -> Any:
         """Create runner for error handling tests."""
         return PatternTestRunner()
 
-    def test_evaluate_test_result_exception(self, runner):
+    def test_evaluate_test_result_exception(self, runner: Any) -> None:
         """Test test result evaluation with exception."""
         # Create context that will cause exception during evaluation
-        context = Mock()
+        context: Mock = Mock()
         context.failed_agents = Mock(side_effect=Exception("Context error"))
 
         expected = {"success": True}
@@ -929,7 +943,7 @@ class TestPatternTestRunnerErrorHandling:
         # Should return ERROR for exception during evaluation
         assert result == PatternTestResult.ERROR
 
-    def test_execute_test_suite_empty_test_cases(self, runner):
+    def test_execute_test_suite_empty_test_cases(self, runner: Any) -> None:
         """Test executing test suite with no test cases."""
         empty_suite = PatternTestSuite(
             suite_id="empty_suite",
@@ -944,7 +958,7 @@ class TestPatternTestRunnerErrorHandling:
         assert len(session.executions) == 0
         assert session.summary["total_tests"] == 0
 
-    def test_display_summary_no_failed_tests(self, runner):
+    def test_display_summary_no_failed_tests(self, runner: Any) -> None:
         """Test displaying summary with no failed tests."""
         session = PatternTestSession(
             session_id="success_test",
@@ -967,7 +981,9 @@ class TestPatternTestRunnerErrorHandling:
             # Should print summary but no failed tests table
             mock_print.assert_called()
 
-    def test_save_test_results_directory_creation(self, runner, tmp_path):
+    def test_save_test_results_directory_creation(
+        self, runner: Any, tmp_path: Any
+    ) -> None:
         """Test saving test results with automatic directory creation."""
         nested_dir = tmp_path / "nested" / "results"
 
@@ -996,11 +1012,13 @@ class TestPatternTestRunnerCLICommands:
     """Test CLI command implementations."""
 
     @pytest.fixture
-    def runner(self):
+    def runner(self) -> Any:
         """Create runner for CLI tests."""
         return PatternTestRunner()
 
-    def test_generate_test_suite_command_logic(self, runner, tmp_path):
+    def test_generate_test_suite_command_logic(
+        self, runner: Any, tmp_path: Any
+    ) -> None:
         """Test test suite generation logic."""
         output_file = tmp_path / "generated_suite.json"
 
@@ -1046,7 +1064,7 @@ class TestPatternTestRunnerCLICommands:
             assert data["coverage_level"] == "standard"
             assert data["test_count"] == 2
 
-    def test_validate_test_suite_logic(self, runner, tmp_path):
+    def test_validate_test_suite_logic(self, runner: Any, tmp_path: Any) -> None:
         """Test test suite validation logic."""
         # Create valid test suite file
         valid_suite = tmp_path / "valid_suite.json"
@@ -1067,13 +1085,16 @@ class TestPatternTestRunnerCLICommands:
             validation_results = {"is_valid": True, "issues": [], "warnings": []}
 
             # Basic validation
+            issues: list[str] = []
             if "suite_id" not in suite_data:
-                validation_results["issues"].append("Missing suite_id")
+                issues.append("Missing suite_id")
                 validation_results["is_valid"] = False
 
             if "name" not in suite_data:
-                validation_results["issues"].append("Missing name")
+                issues.append("Missing name")
                 validation_results["is_valid"] = False
+
+            validation_results["issues"] = issues
 
         except (FileNotFoundError, json.JSONDecodeError) as e:
             validation_results = {
@@ -1084,9 +1105,10 @@ class TestPatternTestRunnerCLICommands:
 
         # Should be valid
         assert validation_results["is_valid"] is True
-        assert len(validation_results["issues"]) == 0
+        issues: list[str] = validation_results["issues"]  # type: ignore
+        assert len(issues) == 0
 
-    def test_coverage_analysis_logic(self, runner, tmp_path):
+    def test_coverage_analysis_logic(self, runner: Any, tmp_path: Any) -> None:
         """Test coverage analysis logic."""
         # Create test results directory
         results_dir = tmp_path / "test_results"

@@ -6,9 +6,15 @@ circuit breakers, and recovery mechanisms.
 """
 
 import pytest
+from typing import Any
+from unittest.mock import Mock
 import time
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.dependencies.graph_engine import (
     DependencyGraphEngine,
@@ -31,7 +37,7 @@ from cognivault.dependencies.failure_manager import (
 class MockAgent(BaseAgent):
     """Mock agent for testing."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         super().__init__(name=name)
 
     async def run(self, context: AgentContext) -> AgentContext:
@@ -40,7 +46,7 @@ class MockAgent(BaseAgent):
 
 
 @pytest.fixture
-def graph_engine():
+def graph_engine() -> Any:
     """Create a graph engine with sample agents."""
     engine = DependencyGraphEngine()
 
@@ -64,21 +70,21 @@ def graph_engine():
 
 
 @pytest.fixture
-def failure_manager(graph_engine):
+def failure_manager(graph_engine: Mock) -> Any:
     """Create a failure manager for testing."""
     return FailureManager(graph_engine)
 
 
 @pytest.fixture
-def context():
+def context() -> Any:
     """Create a basic agent context."""
-    return AgentContext(query="test query")
+    return AgentContextPatterns.simple_query("test query")
 
 
 class TestRetryConfiguration:
     """Test RetryConfiguration functionality."""
 
-    def test_retry_config_creation(self):
+    def test_retry_config_creation(self) -> None:
         """Test creating retry configuration."""
         config = RetryConfiguration(
             strategy=RetryStrategy.EXPONENTIAL_BACKOFF,
@@ -92,7 +98,7 @@ class TestRetryConfiguration:
         assert config.base_delay_ms == 2000.0
         assert config.backoff_multiplier == 1.5
 
-    def test_fixed_interval_delay(self):
+    def test_fixed_interval_delay(self) -> None:
         """Test fixed interval delay calculation."""
         config = RetryConfiguration(
             strategy=RetryStrategy.FIXED_INTERVAL,
@@ -103,7 +109,7 @@ class TestRetryConfiguration:
         assert config.calculate_delay(1) == 1000.0
         assert config.calculate_delay(3) == 1000.0
 
-    def test_linear_backoff_delay(self):
+    def test_linear_backoff_delay(self) -> None:
         """Test linear backoff delay calculation."""
         config = RetryConfiguration(
             strategy=RetryStrategy.LINEAR_BACKOFF,
@@ -115,7 +121,7 @@ class TestRetryConfiguration:
         assert config.calculate_delay(2) == 2000.0
         assert config.calculate_delay(3) == 3000.0
 
-    def test_exponential_backoff_delay(self):
+    def test_exponential_backoff_delay(self) -> None:
         """Test exponential backoff delay calculation."""
         config = RetryConfiguration(
             strategy=RetryStrategy.EXPONENTIAL_BACKOFF,
@@ -128,7 +134,7 @@ class TestRetryConfiguration:
         assert config.calculate_delay(2) == 2000.0
         assert config.calculate_delay(3) == 4000.0
 
-    def test_adaptive_delay(self):
+    def test_adaptive_delay(self) -> None:
         """Test adaptive delay calculation."""
         config = RetryConfiguration(
             strategy=RetryStrategy.ADAPTIVE,
@@ -149,7 +155,7 @@ class TestRetryConfiguration:
         delay = config.calculate_delay(2, recent_failures=2)
         assert delay == 1000.0  # base delay
 
-    def test_max_delay_cap(self):
+    def test_max_delay_cap(self) -> None:
         """Test that delays are capped at max_delay_ms."""
         config = RetryConfiguration(
             strategy=RetryStrategy.EXPONENTIAL_BACKOFF,
@@ -163,14 +169,14 @@ class TestRetryConfiguration:
         delay = config.calculate_delay(10)  # Would be 512000 without cap
         assert delay == 5000.0
 
-    def test_no_retry_strategy(self):
+    def test_no_retry_strategy(self) -> None:
         """Test no retry strategy."""
         config = RetryConfiguration(strategy=RetryStrategy.NO_RETRY)
 
         assert config.calculate_delay(1) == 0
         assert config.calculate_delay(5) == 0
 
-    def test_jitter_variation(self):
+    def test_jitter_variation(self) -> None:
         """Test that jitter adds variation."""
         config = RetryConfiguration(
             strategy=RetryStrategy.FIXED_INTERVAL,
@@ -189,7 +195,7 @@ class TestRetryConfiguration:
 class TestFailureRecord:
     """Test FailureRecord functionality."""
 
-    def test_failure_record_creation(self):
+    def test_failure_record_creation(self) -> None:
         """Test creating a failure record."""
         record = FailureRecord(
             agent_id="test_agent",
@@ -208,7 +214,7 @@ class TestFailureRecord:
         assert record.attempt_number == 2
         assert record.impact_score == 0.5
 
-    def test_failure_record_to_dict(self):
+    def test_failure_record_to_dict(self) -> None:
         """Test converting failure record to dictionary."""
         record = FailureRecord(
             agent_id="test_agent",
@@ -239,7 +245,7 @@ class TestFailureRecord:
 class TestFailureImpactAnalysis:
     """Test FailureImpactAnalysis functionality."""
 
-    def test_impact_analysis_creation(self):
+    def test_impact_analysis_creation(self) -> None:
         """Test creating failure impact analysis."""
         analysis = FailureImpactAnalysis(
             failed_agent="agent_a",
@@ -259,7 +265,7 @@ class TestFailureImpactAnalysis:
         assert analysis.estimated_delay_ms == 5000.0
         assert analysis.severity_score == 0.8
 
-    def test_total_affected_count(self):
+    def test_total_affected_count(self) -> None:
         """Test getting total affected count."""
         analysis = FailureImpactAnalysis(
             failed_agent="agent_a",
@@ -275,7 +281,7 @@ class TestFailureImpactAnalysis:
         # Should deduplicate agent_c
         assert analysis.get_total_affected_count() == 3
 
-    def test_has_recovery_options(self):
+    def test_has_recovery_options(self) -> None:
         """Test checking if recovery options are available."""
         # With recovery options
         analysis1 = FailureImpactAnalysis(
@@ -320,7 +326,7 @@ class TestFailureImpactAnalysis:
 class TestCircuitBreaker:
     """Test DependencyCircuitBreaker functionality."""
 
-    def test_circuit_breaker_creation(self):
+    def test_circuit_breaker_creation(self) -> None:
         """Test creating a circuit breaker."""
         cb = DependencyCircuitBreaker(
             failure_threshold=3,
@@ -333,7 +339,7 @@ class TestCircuitBreaker:
         assert cb.half_open_max_calls == 2
         assert cb.state == "CLOSED"
 
-    def test_circuit_breaker_closed_state(self):
+    def test_circuit_breaker_closed_state(self) -> None:
         """Test circuit breaker in closed state."""
         cb = DependencyCircuitBreaker(failure_threshold=2)
 
@@ -345,7 +351,7 @@ class TestCircuitBreaker:
         cb.record_success()
         assert cb.get_state() == "CLOSED"
 
-    def test_circuit_breaker_opens_on_failures(self):
+    def test_circuit_breaker_opens_on_failures(self) -> None:
         """Test circuit breaker opens after failure threshold."""
         cb = DependencyCircuitBreaker(failure_threshold=2)
 
@@ -359,7 +365,7 @@ class TestCircuitBreaker:
         assert cb.get_state() == "OPEN"
         assert cb.can_execute() is False
 
-    def test_circuit_breaker_recovery(self):
+    def test_circuit_breaker_recovery(self) -> None:
         """Test circuit breaker recovery after timeout."""
         cb = DependencyCircuitBreaker(
             failure_threshold=1,
@@ -378,7 +384,7 @@ class TestCircuitBreaker:
         assert cb.can_execute() is True
         assert cb.get_state() == "HALF_OPEN"
 
-    def test_circuit_breaker_half_open_success(self):
+    def test_circuit_breaker_half_open_success(self) -> None:
         """Test circuit breaker success in half-open state."""
         cb = DependencyCircuitBreaker(failure_threshold=1, recovery_timeout_ms=1.0)
 
@@ -394,7 +400,7 @@ class TestCircuitBreaker:
         cb.record_success()
         assert cb.get_state() == "CLOSED"
 
-    def test_circuit_breaker_half_open_failure(self):
+    def test_circuit_breaker_half_open_failure(self) -> None:
         """Test circuit breaker failure in half-open state."""
         cb = DependencyCircuitBreaker(failure_threshold=1, recovery_timeout_ms=1.0)
 
@@ -410,7 +416,7 @@ class TestCircuitBreaker:
         cb.record_failure()
         assert cb.get_state() == "OPEN"
 
-    def test_circuit_breaker_half_open_call_limit(self):
+    def test_circuit_breaker_half_open_call_limit(self) -> None:
         """Test circuit breaker call limit in half-open state."""
         cb = DependencyCircuitBreaker(
             failure_threshold=1,
@@ -435,7 +441,7 @@ class TestCircuitBreaker:
 class TestFailureManager:
     """Test FailureManager functionality."""
 
-    def test_failure_manager_creation(self, graph_engine):
+    def test_failure_manager_creation(self, graph_engine: Mock) -> None:
         """Test creating a failure manager."""
         fm = FailureManager(graph_engine)
 
@@ -444,7 +450,7 @@ class TestFailureManager:
         assert len(fm.circuit_breakers) == 0
         assert fm.cascade_prevention == CascadePreventionStrategy.CIRCUIT_BREAKER
 
-    def test_configure_retry(self, failure_manager):
+    def test_configure_retry(self, failure_manager: Mock) -> None:
         """Test configuring retry behavior."""
         config = RetryConfiguration(max_attempts=5)
         failure_manager.configure_retry("agent_a", config)
@@ -452,19 +458,19 @@ class TestFailureManager:
         assert "agent_a" in failure_manager.retry_configs
         assert failure_manager.retry_configs["agent_a"].max_attempts == 5
 
-    def test_configure_circuit_breaker(self, failure_manager):
+    def test_configure_circuit_breaker(self, failure_manager: Mock) -> None:
         """Test configuring circuit breaker."""
         failure_manager.configure_circuit_breaker("agent_a", failure_threshold=3)
 
         assert "agent_a" in failure_manager.circuit_breakers
         assert failure_manager.circuit_breakers["agent_a"].failure_threshold == 3
 
-    def test_set_cascade_prevention(self, failure_manager):
+    def test_set_cascade_prevention(self, failure_manager: Mock) -> None:
         """Test setting cascade prevention strategy."""
         failure_manager.set_cascade_prevention(CascadePreventionStrategy.ISOLATION)
         assert failure_manager.cascade_prevention == CascadePreventionStrategy.ISOLATION
 
-    def test_add_fallback_chain(self, failure_manager):
+    def test_add_fallback_chain(self, failure_manager: Mock) -> None:
         """Test adding fallback chain."""
         fallback_agents = ["agent_b", "agent_c"]
         failure_manager.add_fallback_chain("agent_a", fallback_agents)
@@ -472,14 +478,18 @@ class TestFailureManager:
         assert "agent_a" in failure_manager.fallback_chains
         assert failure_manager.fallback_chains["agent_a"] == fallback_agents
 
-    def test_can_execute_agent_basic(self, failure_manager, context):
+    def test_can_execute_agent_basic(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test basic agent execution check."""
         can_execute, reason = failure_manager.can_execute_agent("agent_a", context)
 
         assert can_execute is True
         assert reason == "OK"
 
-    def test_can_execute_agent_blocked(self, failure_manager, context):
+    def test_can_execute_agent_blocked(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test execution check for blocked agent."""
         failure_manager.blocked_agents.add("agent_a")
 
@@ -488,7 +498,9 @@ class TestFailureManager:
         assert can_execute is False
         assert "blocked" in reason
 
-    def test_can_execute_agent_circuit_breaker(self, failure_manager, context):
+    def test_can_execute_agent_circuit_breaker(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test execution check with circuit breaker."""
         # Configure and open circuit breaker
         failure_manager.configure_circuit_breaker("agent_a", failure_threshold=1)
@@ -500,7 +512,9 @@ class TestFailureManager:
         assert "Circuit breaker" in reason
 
     @pytest.mark.asyncio
-    async def test_handle_agent_failure_basic(self, failure_manager, context):
+    async def test_handle_agent_failure_basic(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test basic agent failure handling."""
         error = Exception("Test error")
 
@@ -517,7 +531,9 @@ class TestFailureManager:
         assert should_retry is True
 
     @pytest.mark.asyncio
-    async def test_handle_agent_failure_max_retries(self, failure_manager, context):
+    async def test_handle_agent_failure_max_retries(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test failure handling when max retries exceeded."""
         error = Exception("Test error")
         config = RetryConfiguration(max_attempts=2)
@@ -532,31 +548,31 @@ class TestFailureManager:
 
         assert should_retry is False
 
-    def test_classify_failure_timeout(self, failure_manager):
+    def test_classify_failure_timeout(self, failure_manager: Mock) -> None:
         """Test classifying timeout failures."""
         error = TimeoutError("Operation timed out")
         failure_type = failure_manager._classify_failure(error)
         assert failure_type == FailureType.TIMEOUT
 
-    def test_classify_failure_llm_error(self, failure_manager):
+    def test_classify_failure_llm_error(self, failure_manager: Mock) -> None:
         """Test classifying LLM errors."""
         error = Exception("OpenAI API error")
         failure_type = failure_manager._classify_failure(error)
         assert failure_type == FailureType.LLM_ERROR
 
-    def test_classify_failure_validation(self, failure_manager):
+    def test_classify_failure_validation(self, failure_manager: Mock) -> None:
         """Test classifying validation errors."""
         error = ValueError("Invalid input")
         failure_type = failure_manager._classify_failure(error)
         assert failure_type == FailureType.VALIDATION_ERROR
 
-    def test_classify_failure_unknown(self, failure_manager):
+    def test_classify_failure_unknown(self, failure_manager: Mock) -> None:
         """Test classifying unknown errors."""
         error = Exception("Some unknown error")
         failure_type = failure_manager._classify_failure(error)
         assert failure_type == FailureType.UNKNOWN
 
-    def test_analyze_failure_impact(self, failure_manager, context):
+    def test_analyze_failure_impact(self, failure_manager: Mock, context: Mock) -> None:
         """Test analyzing failure impact."""
         # Add dependencies
         failure_manager.graph_engine.add_dependency(
@@ -572,7 +588,9 @@ class TestFailureManager:
         assert "agent_b" in analysis.directly_affected
         assert analysis.severity_score > 0
 
-    def test_analyze_dependency_failures(self, failure_manager, context):
+    def test_analyze_dependency_failures(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test analyzing dependency failures."""
         # Add dependencies
         failure_manager.graph_engine.add_dependency(
@@ -596,7 +614,9 @@ class TestFailureManager:
         assert analysis.failed_agent == "agent_a"
 
     @pytest.mark.asyncio
-    async def test_attempt_recovery_fallback_chain(self, failure_manager, context):
+    async def test_attempt_recovery_fallback_chain(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test recovery using fallback chain."""
         # Set up fallback chain
         failure_manager.add_fallback_chain("agent_a", ["agent_b"])
@@ -610,7 +630,9 @@ class TestFailureManager:
         assert "agent_b" in context.agent_outputs
 
     @pytest.mark.asyncio
-    async def test_attempt_recovery_checkpoint_rollback(self, failure_manager, context):
+    async def test_attempt_recovery_checkpoint_rollback(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test recovery using checkpoint rollback."""
         # Create checkpoint
         context.agent_outputs["test"] = "value"
@@ -628,8 +650,8 @@ class TestFailureManager:
 
     @pytest.mark.asyncio
     async def test_attempt_recovery_graceful_degradation(
-        self, failure_manager, context
-    ):
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test recovery using graceful degradation."""
         result = await failure_manager.attempt_recovery(
             "agent_a", "graceful_degradation", context
@@ -640,7 +662,9 @@ class TestFailureManager:
         assert "[DEGRADED]" in context.agent_outputs.get("agent_a", "")
 
     @pytest.mark.asyncio
-    async def test_attempt_recovery_isolation(self, failure_manager, context):
+    async def test_attempt_recovery_isolation(
+        self, failure_manager: Mock, context: Mock
+    ) -> None:
         """Test recovery using isolation."""
         result = await failure_manager.attempt_recovery("agent_a", "isolation", context)
 
@@ -648,7 +672,7 @@ class TestFailureManager:
         assert "agent_a" in failure_manager.blocked_agents
         assert "agent_a" in context.execution_state.get("isolated_agents", [])
 
-    def test_create_checkpoint(self, failure_manager, context):
+    def test_create_checkpoint(self, failure_manager: Mock, context: Mock) -> None:
         """Test creating recovery checkpoint."""
         context.agent_outputs["test"] = "value"
 
@@ -658,7 +682,7 @@ class TestFailureManager:
         checkpoint = failure_manager.recovery_checkpoints["test_checkpoint"]
         assert checkpoint.agent_outputs["test"] == "value"
 
-    def test_get_failure_statistics(self, failure_manager):
+    def test_get_failure_statistics(self, failure_manager: Mock) -> None:
         """Test getting failure statistics."""
         # Add some failure history
         for i in range(3):
@@ -685,7 +709,7 @@ class TestIntegration:
     """Integration tests for failure manager."""
 
     @pytest.mark.asyncio
-    async def test_complete_failure_handling_workflow(self, graph_engine):
+    async def test_complete_failure_handling_workflow(self, graph_engine: Mock) -> None:
         """Test complete failure handling workflow."""
         # Set up complex dependency graph
         failure_manager = FailureManager(graph_engine)
@@ -703,7 +727,7 @@ class TestIntegration:
             CascadePreventionStrategy.GRACEFUL_DEGRADATION
         )
 
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Simulate failure
         error = Exception("Simulated failure")
@@ -728,10 +752,10 @@ class TestIntegration:
             assert recovery_result in [True, False]  # Should complete successfully
 
     @pytest.mark.asyncio
-    async def test_cascade_prevention_scenarios(self, graph_engine):
+    async def test_cascade_prevention_scenarios(self, graph_engine: Mock) -> None:
         """Test different cascade prevention scenarios."""
         failure_manager = FailureManager(graph_engine)
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         # Test circuit breaker strategy
         failure_manager.set_cascade_prevention(
@@ -758,7 +782,9 @@ class TestIntegration:
         assert "circuit_breaker" in recovery_action
         assert "agent_a" in failure_manager.blocked_agents
 
-    def test_failure_type_classification_comprehensive(self, failure_manager):
+    def test_failure_type_classification_comprehensive(
+        self, failure_manager: Mock
+    ) -> None:
         """Test comprehensive failure type classification."""
         test_cases = [
             (TimeoutError("timeout"), FailureType.TIMEOUT),

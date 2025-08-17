@@ -6,6 +6,7 @@ with the existing workflow YAML format and agent factories.
 """
 
 import pytest
+from typing import Any
 import asyncio
 from pathlib import Path
 import tempfile
@@ -28,7 +29,7 @@ from cognivault.agents.synthesis.agent import SynthesisAgent
 class TestConfigurationIntegrationValidation:
     """Test that our Phase 1 configuration system integrates properly with existing workflows."""
 
-    def test_enhanced_prompts_example_loads_correctly(self):
+    def test_enhanced_prompts_example_loads_correctly(self) -> None:
         """Test that the known working enhanced_prompts_example.yaml loads correctly."""
         example_path = (
             Path(__file__).parent.parent.parent.parent
@@ -57,7 +58,7 @@ class TestConfigurationIntegrationValidation:
         assert "thematic_focus" in synthesis_node.config
         assert synthesis_node.config["synthesis_strategy"] == "comprehensive"
 
-    def test_pydantic_config_creation_from_yaml_data(self):
+    def test_pydantic_config_creation_from_yaml_data(self) -> None:
         """Test that we can create Pydantic configs from YAML configuration data."""
         # Test RefinerConfig creation
         yaml_config = {
@@ -72,23 +73,23 @@ class TestConfigurationIntegrationValidation:
         assert config.output_format == "structured"
 
         # Test CriticConfig creation
-        yaml_config = {
+        critic_yaml_config = {
             "analysis_depth": "deep",
             "confidence_reporting": True,
             "bias_detection": True,
         }
 
-        config = CriticConfig(**yaml_config)
-        assert config.analysis_depth == "deep"
-        assert config.confidence_reporting is True
-        assert config.bias_detection is True
+        critic_config = CriticConfig(**critic_yaml_config)
+        assert critic_config.analysis_depth == "deep"
+        assert critic_config.confidence_reporting is True
+        assert critic_config.bias_detection is True
 
-    def test_agent_constructor_with_config(self):
+    def test_agent_constructor_with_config(self) -> None:
         """Test that agents accept our Pydantic configurations."""
-        from unittest.mock import Mock
+        from unittest.mock import MagicMock, Mock
 
         # Mock LLM for testing
-        mock_llm = Mock()
+        mock_llm: Mock = Mock()
 
         # Test RefinerAgent with configuration
         config = RefinerConfig(
@@ -104,7 +105,7 @@ class TestConfigurationIntegrationValidation:
         assert agent_no_config.config.refinement_level == "standard"  # default
         assert agent_no_config.config.behavioral_mode == "adaptive"  # default
 
-    def test_workflow_with_pydantic_style_config(self):
+    def test_workflow_with_pydantic_style_config(self) -> None:
         """Test that we can create a workflow using our new Pydantic-style configuration."""
         workflow_yaml = """
 name: "Test Pydantic Configuration"
@@ -154,7 +155,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_mixed_configuration_styles(self):
+    def test_mixed_configuration_styles(self) -> None:
         """Test that both old prompt-style and new Pydantic-style configs can coexist."""
         workflow_yaml = """
 name: "Mixed Configuration Test"
@@ -214,14 +215,14 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_node_factory_handles_configurations(self):
+    def test_node_factory_handles_configurations(self) -> None:
         """Test that NodeFactory can handle both configuration styles."""
-        from cognivault.workflows.definition import NodeConfiguration
+        from cognivault.workflows.definition import WorkflowNodeConfiguration
 
         factory = NodeFactory()
 
         # Test old style configuration
-        old_style_config = NodeConfiguration(
+        old_style_config = WorkflowNodeConfiguration(
             node_id="test_historian",
             node_type="historian",
             category="BASE",
@@ -236,7 +237,7 @@ flow:
         assert callable(node_func)
 
         # Test new style configuration
-        new_style_config = NodeConfiguration(
+        new_style_config = WorkflowNodeConfiguration(
             node_id="test_refiner",
             node_type="refiner",
             category="BASE",
@@ -251,7 +252,7 @@ flow:
         node_func = factory.create_node(new_style_config)
         assert callable(node_func)
 
-    def test_charts_directory_workflows_load(self):
+    def test_charts_directory_workflows_load(self) -> None:
         """Test that existing chart workflows load correctly."""
         charts_dir = Path(__file__).parent.parent.parent.parent / "examples" / "charts"
 
@@ -279,7 +280,7 @@ flow:
             assert "Executive" in workflow.name
             assert len(workflow.nodes) > 0
 
-    def test_src_examples_directory_workflows_load(self):
+    def test_src_examples_directory_workflows_load(self) -> None:
         """Test that src/workflows/examples workflows load correctly."""
         examples_dir = (
             Path(__file__).parent.parent.parent.parent

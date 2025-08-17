@@ -8,7 +8,7 @@ ecosystem-ready metadata for the "Kubernetes of intelligent DAG workflows."
 
 from .definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
     EdgeDefinition,
     NodeCategory,
@@ -23,7 +23,7 @@ from .definition import (
 
 __all__ = [
     "WorkflowDefinition",
-    "NodeConfiguration",
+    "WorkflowNodeConfiguration",
     "FlowDefinition",
     "EdgeDefinition",
     "NodeCategory",

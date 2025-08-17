@@ -450,7 +450,9 @@ class GraphExecutor:
     that our graph structures work correctly.
     """
 
-    def __init__(self, graph_def: GraphDefinition, agents: Dict[str, BaseAgent]):
+    def __init__(
+        self, graph_def: GraphDefinition, agents: Dict[str, BaseAgent]
+    ) -> None:
         self.graph_def = graph_def
         self.agents = agents
 

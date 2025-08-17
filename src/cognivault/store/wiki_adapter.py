@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 import uuid
 import hashlib
-from typing import KeysView, Optional, Dict, List
+from typing import KeysView, Optional, Dict, List, Any
 from .utils import slugify_title
 from .frontmatter import (
     EnhancedFrontmatter,
@@ -25,7 +25,7 @@ class MarkdownExporter:
         Directory where markdown files will be saved (default is "./src/cognivault/notes").
     """
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: Optional[str] = None) -> None:
         # Use configuration default if not provided
         config = get_config()
         self.output_dir = (
@@ -35,7 +35,7 @@ class MarkdownExporter:
 
     def export(
         self,
-        agent_outputs: dict,
+        agent_outputs: Dict[str, Any],
         question: str,
         agent_results: Optional[Dict[str, AgentExecutionResult]] = None,
         topics: Optional[List[str]] = None,
@@ -119,7 +119,7 @@ class MarkdownExporter:
     def _build_enhanced_frontmatter(
         self,
         question: str,
-        agent_outputs: dict,
+        agent_outputs: Dict[str, Any],
         timestamp: str,
         filename: str,
         agent_results: Optional[Dict[str, AgentExecutionResult]] = None,
@@ -198,8 +198,8 @@ class MarkdownExporter:
 
     @staticmethod
     def _build_metadata(
-        question: str, agent_outputs: dict, timestamp: str, filename: str
-    ) -> dict:
+        question: str, agent_outputs: Dict[str, Any], timestamp: str, filename: str
+    ) -> Dict[str, Any]:
         """
         Build metadata dictionary for the markdown frontmatter.
 
@@ -230,7 +230,7 @@ class MarkdownExporter:
         }
 
     @staticmethod
-    def _render_frontmatter(metadata: dict) -> list:
+    def _render_frontmatter(metadata: Dict[str, Any]) -> List[str]:
         """
         Render YAML frontmatter lines from metadata dictionary.
 

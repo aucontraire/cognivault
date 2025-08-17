@@ -392,7 +392,7 @@ class SequentialPlanBuilder(ExecutionPlanBuilder):
 class ParallelBatchedPlanBuilder(ExecutionPlanBuilder):
     """Builder for parallel batched execution plans."""
 
-    def __init__(self, max_batch_size: int = 4):
+    def __init__(self, max_batch_size: int = 4) -> None:
         self.max_batch_size = max_batch_size
 
     def build_plan(
@@ -478,7 +478,7 @@ class ParallelBatchedPlanBuilder(ExecutionPlanBuilder):
 class AdaptivePlanBuilder(ExecutionPlanBuilder):
     """Builder for adaptive execution plans that adjust based on conditions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.sequential_builder = SequentialPlanBuilder()
         self.parallel_builder = ParallelBatchedPlanBuilder()
 
@@ -606,7 +606,7 @@ class ExecutionPlanner:
     dependency graphs, execution strategies, and runtime conditions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.builders = {
             ExecutionStrategy.SEQUENTIAL: SequentialPlanBuilder(),
             ExecutionStrategy.PARALLEL_BATCHED: ParallelBatchedPlanBuilder(),
@@ -620,7 +620,7 @@ class ExecutionPlanner:
         graph_engine: DependencyGraphEngine,
         strategy: Optional[ExecutionStrategy] = None,
         context: Optional[AgentContext] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionPlan:
         """
         Create an execution plan using the specified strategy.
@@ -657,6 +657,8 @@ class ExecutionPlanner:
             strategy == ExecutionStrategy.PARALLEL_BATCHED
             and "max_batch_size" in kwargs
         ):
+            # Type narrowing: we know this is ParallelBatchedPlanBuilder
+            assert isinstance(builder, ParallelBatchedPlanBuilder)
             builder.max_batch_size = kwargs["max_batch_size"]
 
         logger.info(f"Creating execution plan with strategy: {strategy.value}")

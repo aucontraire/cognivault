@@ -1,6 +1,7 @@
 """Integration tests for langgraph_backend module."""
 
 import pytest
+from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import Mock, patch
 import time
 
@@ -16,14 +17,14 @@ class TestLangGraphBackendIntegration:
     """Integration tests for the complete langgraph_backend module."""
 
     @pytest.fixture
-    def memory_manager(self):
+    def memory_manager(self) -> Mock:
         """Fixture for memory manager mock."""
         manager = Mock()
         manager.memory_saver = Mock()
         return manager
 
     @pytest.fixture
-    def full_config(self, memory_manager):
+    def full_config(self, memory_manager: Mock) -> GraphConfig:
         """Fixture for complete graph configuration."""
         return GraphConfig(
             agents_to_run=["refiner", "critic", "historian", "synthesis"],
@@ -34,32 +35,61 @@ class TestLangGraphBackendIntegration:
         )
 
     @pytest.fixture
-    def graph_factory_with_cache(self):
+    def graph_factory_with_cache(self) -> GraphFactory:
         """Fixture for GraphFactory with caching enabled."""
         cache_config = CacheConfig(max_size=5, ttl_seconds=300, enable_stats=True)
         return GraphFactory(cache_config)
 
+    @staticmethod
+    def setup_state_graph_mocks(mock_state_graph: Mock) -> Tuple[Mock, Mock, Mock]:
+        """Helper method to set up StateGraph mock objects consistently.
+
+        This eliminates the repetitive mock setup pattern that appears throughout the tests.
+
+        Args:
+            mock_state_graph: The patched StateGraph mock from @patch decorator
+
+        Returns:
+            Tuple containing:
+            - mock_graph_instance: The StateGraph instance mock
+            - mock_compiled: The compiled graph mock
+            - mock_state_graph_generic: The generic StateGraph[Type] mock
+        """
+        mock_graph_instance: Mock = Mock()
+        mock_compiled: Mock = Mock()
+        mock_graph_instance.compile.return_value = mock_compiled
+
+        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+        mock_state_graph_generic: Mock = Mock()
+        mock_state_graph_generic.return_value = mock_graph_instance
+        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
+        mock_state_graph.return_value = mock_graph_instance
+
+        return mock_graph_instance, mock_compiled, mock_state_graph_generic
+
     @patch("cognivault.langgraph_backend.build_graph.StateGraph")
     def test_end_to_end_graph_creation_with_cache(
-        self, mock_state_graph, graph_factory_with_cache, full_config
-    ):
+        self,
+        mock_state_graph: Mock,
+        graph_factory_with_cache: GraphFactory,
+        full_config: GraphConfig,
+    ) -> None:
         """Test complete end-to-end graph creation with caching."""
-        # Mock StateGraph
-        mock_graph_instance = Mock()
-        mock_compiled = Mock()
-        mock_graph_instance.compile.return_value = mock_compiled
-        mock_state_graph.return_value = mock_graph_instance
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+            self.setup_state_graph_mocks(mock_state_graph)
+        )
 
         # First creation - should hit pattern registry and StateGraph
         result1 = graph_factory_with_cache.create_graph(full_config)
 
         # Verify first creation
         assert result1 is mock_compiled
-        assert mock_state_graph.called
+        assert mock_state_graph_generic.called
         assert mock_graph_instance.compile.called
 
         # Reset mocks for second call
-        mock_state_graph.reset_mock()
+        mock_state_graph_generic.reset_mock()
         mock_graph_instance.reset_mock()
 
         # Second creation with same config - should hit cache
@@ -67,10 +97,10 @@ class TestLangGraphBackendIntegration:
 
         # Verify cache hit
         assert result2 is mock_compiled
-        assert not mock_state_graph.called  # Should not create new StateGraph
+        assert not mock_state_graph_generic.called  # Should not create new StateGraph
         assert not mock_graph_instance.compile.called  # Should not compile again
 
-    def test_pattern_registry_integration_with_factory(self):
+    def test_pattern_registry_integration_with_factory(self) -> None:
         """Test PatternRegistry integration with GraphFactory."""
         factory = GraphFactory()
 
@@ -90,15 +120,19 @@ class TestLangGraphBackendIntegration:
 
     @patch("cognivault.langgraph_backend.build_graph.StateGraph")
     def test_different_patterns_create_different_graphs(
-        self, mock_state_graph, graph_factory_with_cache
-    ):
+        self, mock_state_graph: Mock, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test that different patterns create different cached graphs."""
-        # Mock StateGraph
-        mock_graph_instance = Mock()
-        mock_compiled_standard = Mock()
-        mock_compiled_parallel = Mock()
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, _, mock_state_graph_generic = self.setup_state_graph_mocks(
+            mock_state_graph
+        )
 
-        def compile_side_effect():
+        # Custom compiled mocks for different patterns
+        mock_compiled_standard: Mock = Mock()
+        mock_compiled_parallel: Mock = Mock()
+
+        def compile_side_effect() -> Mock:
             if (
                 mock_graph_instance.add_edge.call_count == 4
             ):  # Standard pattern has 4 edges
@@ -107,7 +141,6 @@ class TestLangGraphBackendIntegration:
                 return mock_compiled_parallel
 
         mock_graph_instance.compile.side_effect = compile_side_effect
-        mock_state_graph.return_value = mock_graph_instance
 
         agents = ["refiner", "critic", "historian", "synthesis"]
 
@@ -136,8 +169,8 @@ class TestLangGraphBackendIntegration:
         assert result_standard is not result_parallel
 
     def test_cache_behavior_with_different_configurations(
-        self, graph_factory_with_cache
-    ):
+        self, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test cache behavior with various configuration combinations."""
         base_agents = ["refiner", "synthesis"]
 
@@ -154,10 +187,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Create graphs for each configuration
             results = []
@@ -173,12 +206,12 @@ class TestLangGraphBackendIntegration:
 
             # Each configuration should create a separate cache entry
             # (4 different configs = 4 StateGraph compilations)
-            assert mock_state_graph.call_count == 4
+            assert mock_state_graph_generic.call_count == 4
 
-    def test_cache_ttl_integration(self):
+    def test_cache_ttl_integration(self) -> None:
         """Test cache TTL integration with graph creation."""
         # Use very short TTL for testing
-        cache_config = CacheConfig(max_size=5, ttl_seconds=0.1, enable_stats=True)
+        cache_config = CacheConfig(max_size=5, ttl_seconds=1, enable_stats=True)
         factory = GraphFactory(cache_config)
 
         config = GraphConfig(
@@ -191,29 +224,29 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # First creation
             result1 = factory.create_graph(config)
-            assert mock_state_graph.call_count == 1
+            assert mock_state_graph_generic.call_count == 1
 
             # Immediate second creation (should hit cache)
             result2 = factory.create_graph(config)
-            assert mock_state_graph.call_count == 1  # No additional calls
+            assert mock_state_graph_generic.call_count == 1  # No additional calls
             assert result1 is result2
 
             # Wait for TTL to expire
-            time.sleep(0.15)
+            time.sleep(1.1)
 
             # Third creation (should miss cache due to TTL)
             result3 = factory.create_graph(config)
-            assert mock_state_graph.call_count == 2  # New creation
+            assert mock_state_graph_generic.call_count == 2  # New creation
             assert result3 is mock_compiled  # Same mock, but new creation
 
-    def test_lru_cache_integration(self):
+    def test_lru_cache_integration(self) -> None:
         """Test LRU cache behavior integration."""
         # Use small cache size
         cache_config = CacheConfig(max_size=2, ttl_seconds=300, enable_stats=True)
@@ -244,10 +277,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Create all configs (should trigger LRU eviction)
             results = []
@@ -256,13 +289,17 @@ class TestLangGraphBackendIntegration:
                 results.append(result)
 
             # All should have been created
-            assert mock_state_graph.call_count == 3
+            assert mock_state_graph_generic.call_count == 3
 
             # Re-create first config (should be evicted from cache due to LRU)
-            result_first_again = factory.create_graph(configs[0])
-            assert mock_state_graph.call_count == 4  # New creation due to eviction
+            factory.create_graph(configs[0])
+            assert (
+                mock_state_graph_generic.call_count == 4
+            )  # New creation due to eviction
 
-    def test_error_handling_integration(self, graph_factory_with_cache):
+    def test_error_handling_integration(
+        self, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test error handling integration across components."""
         # Test invalid agents
         invalid_config = GraphConfig(
@@ -288,11 +325,11 @@ class TestLangGraphBackendIntegration:
 
     @patch("cognivault.langgraph_backend.build_graph.StateGraph")
     def test_checkpointing_integration(
-        self, mock_state_graph, graph_factory_with_cache
-    ):
+        self, mock_state_graph: Mock, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test checkpointing integration with memory manager."""
-        memory_manager = Mock()
-        memory_saver_mock = Mock()
+        memory_manager: Mock = Mock()
+        memory_saver_mock: Mock = Mock()
         memory_manager.get_memory_saver.return_value = memory_saver_mock
 
         config = GraphConfig(
@@ -303,21 +340,20 @@ class TestLangGraphBackendIntegration:
             cache_enabled=True,
         )
 
-        # Mock StateGraph
-        mock_graph_instance = Mock()
-        mock_compiled = Mock()
-        mock_graph_instance.compile.return_value = mock_compiled
-        mock_state_graph.return_value = mock_graph_instance
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+            self.setup_state_graph_mocks(mock_state_graph)
+        )
 
         # Create graph with checkpointing
-        result = graph_factory_with_cache.create_graph(config)
+        graph_factory_with_cache.create_graph(config)
 
         # Verify checkpointer was passed to compile
         compile_call = mock_graph_instance.compile.call_args
         assert "checkpointer" in compile_call[1]
         assert compile_call[1]["checkpointer"] is memory_saver_mock
 
-    def test_pattern_edge_generation_integration(self):
+    def test_pattern_edge_generation_integration(self) -> None:
         """Test pattern edge generation integration."""
         factory = GraphFactory()
         agents = ["refiner", "critic", "historian", "synthesis"]
@@ -348,13 +384,14 @@ class TestLangGraphBackendIntegration:
 
         for pattern_name, expected_edges in pattern_expected_edges.items():
             pattern = factory.pattern_registry.get_pattern(pattern_name)
-            actual_edges = pattern.get_edges(agents)
-            assert actual_edges == expected_edges
+            if pattern is not None:
+                actual_edges = pattern.get_edges(agents)
+                assert actual_edges == expected_edges
 
     @patch("cognivault.langgraph_backend.build_graph.StateGraph")
     def test_node_addition_integration(
-        self, mock_state_graph, graph_factory_with_cache
-    ):
+        self, mock_state_graph: Mock, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test node addition integration with patterns."""
         config = GraphConfig(
             agents_to_run=["refiner", "critic", "synthesis"],
@@ -363,11 +400,10 @@ class TestLangGraphBackendIntegration:
             cache_enabled=False,
         )
 
-        # Mock StateGraph
-        mock_graph_instance = Mock()
-        mock_compiled = Mock()
-        mock_graph_instance.compile.return_value = mock_compiled
-        mock_state_graph.return_value = mock_graph_instance
+        # Set up StateGraph mocks using helper method
+        mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+            self.setup_state_graph_mocks(mock_state_graph)
+        )
 
         # Create graph
         graph_factory_with_cache.create_graph(config)
@@ -381,7 +417,9 @@ class TestLangGraphBackendIntegration:
         for agent_name in expected_nodes:
             assert any(agent_name in str(call) for call in node_calls)
 
-    def test_cache_statistics_integration(self, graph_factory_with_cache):
+    def test_cache_statistics_integration(
+        self, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test cache statistics integration."""
         config = GraphConfig(
             agents_to_run=["refiner", "synthesis"],
@@ -393,10 +431,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Initial stats
             initial_stats = graph_factory_with_cache.get_cache_stats()
@@ -417,7 +455,9 @@ class TestLangGraphBackendIntegration:
             assert stats_after_hit["misses"] == 1
             assert stats_after_hit["current_size"] == 1
 
-    def test_clear_cache_integration(self, graph_factory_with_cache):
+    def test_clear_cache_integration(
+        self, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test cache clearing integration."""
         config = GraphConfig(
             agents_to_run=["refiner", "synthesis"],
@@ -429,10 +469,10 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Create and cache graph
             graph_factory_with_cache.create_graph(config)
@@ -447,7 +487,9 @@ class TestLangGraphBackendIntegration:
             stats = graph_factory_with_cache.get_cache_stats()
             assert stats["misses"] == 2  # Original miss + post-clear miss
 
-    def test_available_patterns_integration(self, graph_factory_with_cache):
+    def test_available_patterns_integration(
+        self, graph_factory_with_cache: GraphFactory
+    ) -> None:
         """Test available patterns integration."""
         patterns = graph_factory_with_cache.get_available_patterns()
 
@@ -457,7 +499,7 @@ class TestLangGraphBackendIntegration:
         assert "conditional" in patterns
         assert len(patterns) >= 3
 
-    def test_cache_disabled_via_config(self):
+    def test_cache_disabled_via_config(self) -> None:
         """Test integration with cache disabled via config."""
         # Cache is always enabled - the disable is via cache_enabled=False in GraphConfig
         factory = GraphFactory()
@@ -472,16 +514,16 @@ class TestLangGraphBackendIntegration:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                self.setup_state_graph_mocks(mock_state_graph)
+            )
 
             # Multiple creations should all hit StateGraph (no caching)
             factory.create_graph(config)
             factory.create_graph(config)
 
-            assert mock_state_graph.call_count == 2
+            assert mock_state_graph_generic.call_count == 2
 
             # Cache should still exist but not be used
             stats = factory.get_cache_stats()
@@ -491,12 +533,12 @@ class TestLangGraphBackendIntegration:
 class TestRealWorldScenarios:
     """Test real-world usage scenarios."""
 
-    def test_typical_usage_scenario(self):
+    def test_typical_usage_scenario(self) -> None:
         """Test typical usage scenario with multiple graph creations."""
         factory = GraphFactory()
 
         # Simulate CLI usage patterns
-        scenarios = [
+        scenarios: List[Dict[str, Any]] = [
             # Full pipeline
             {
                 "agents": ["refiner", "critic", "historian", "synthesis"],
@@ -526,13 +568,17 @@ class TestRealWorldScenarios:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                TestLangGraphBackendIntegration.setup_state_graph_mocks(
+                    mock_state_graph
+                )
+            )
 
             for scenario in scenarios:
-                memory_manager = Mock() if scenario["checkpoints"] else None
+                memory_manager: Optional[Mock] = (
+                    Mock() if scenario["checkpoints"] else None
+                )
                 if memory_manager:
                     memory_manager.memory_saver = Mock()
 
@@ -548,9 +594,9 @@ class TestRealWorldScenarios:
                 assert result is mock_compiled
 
             # Should have created 4 different graphs (different configs)
-            assert mock_state_graph.call_count == 4
+            assert mock_state_graph_generic.call_count == 4
 
-    def test_performance_scenario(self):
+    def test_performance_scenario(self) -> None:
         """Test performance scenario with repeated operations."""
         cache_config = CacheConfig(max_size=10, ttl_seconds=60, enable_stats=True)
         factory = GraphFactory(cache_config)
@@ -565,10 +611,12 @@ class TestRealWorldScenarios:
         with patch(
             "cognivault.langgraph_backend.build_graph.StateGraph"
         ) as mock_state_graph:
-            mock_graph_instance = Mock()
-            mock_compiled = Mock()
-            mock_graph_instance.compile.return_value = mock_compiled
-            mock_state_graph.return_value = mock_graph_instance
+            # Set up StateGraph mocks using helper method
+            mock_graph_instance, mock_compiled, mock_state_graph_generic = (
+                TestLangGraphBackendIntegration.setup_state_graph_mocks(
+                    mock_state_graph
+                )
+            )
 
             # Simulate repeated operations (like in testing or batch processing)
             results = []
@@ -577,7 +625,7 @@ class TestRealWorldScenarios:
                 results.append(result)
 
             # Should only create graph once due to caching
-            assert mock_state_graph.call_count == 1
+            assert mock_state_graph_generic.call_count == 1
 
             # All results should be the same cached object
             assert all(result is mock_compiled for result in results)

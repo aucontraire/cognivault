@@ -2,10 +2,12 @@
 API Key repository for authentication and usage tracking.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
+from typing import Any, Dict
 
 from sqlalchemy import and_, desc, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from cognivault.database.models import APIKey
 from cognivault.observability import get_logger
@@ -23,7 +25,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
     rate limiting validation, and key lifecycle management.
     """
 
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, APIKey)
 
     async def create_api_key(
@@ -90,7 +92,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
             Active API key or None if not found/inactive/expired
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             stmt = select(APIKey).where(
                 and_(
                     APIKey.key_hash == key_hash,
@@ -117,7 +119,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
             True if incremented successfully
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             stmt = (
                 update(APIKey)
                 .where(APIKey.id == key_id)
@@ -170,7 +172,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
             List of active API keys
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             stmt = (
                 select(APIKey)
                 .where(
@@ -202,7 +204,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
             List of expired API keys
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             stmt = (
                 select(APIKey)
                 .where(and_(APIKey.expires_at.is_not(None), APIKey.expires_at <= now))
@@ -216,7 +218,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
             logger.error(f"Failed to get expired API keys: {e}")
             raise
 
-    async def get_usage_statistics(self) -> dict:
+    async def get_usage_statistics(self) -> Dict[str, Any]:
         """
         Get API key usage statistics.
 
@@ -241,7 +243,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
             # Keys by rate limit
             rate_limit_distribution: dict[int, int] = {}
             for key in all_keys:
-                from typing import cast
+                from typing import cast, Any
 
                 limit = cast(int, key.rate_limit)
                 rate_limit_distribution[limit] = (
@@ -282,7 +284,7 @@ class APIKeyRepository(BaseRepository[APIKey]):
                     if key.is_active:
                         from typing import cast
 
-                        key_id = cast(UUID, key.id)
+                        key_id = key.id
                         success = await self.deactivate_key(key_id)
                         if success:
                             deactivated_count += 1
@@ -321,8 +323,8 @@ class APIKeyRepository(BaseRepository[APIKey]):
                 from datetime import datetime
                 from typing import cast
 
-                old_name = cast(str | None, old_key.name)
-                old_description = cast(str | None, old_key.description)
+                old_name = old_key.name
+                old_description = old_key.description
                 old_rate_limit = cast(int, old_key.rate_limit)
                 old_daily_quota = cast(int, old_key.daily_quota)
                 old_expires_at = cast(datetime | None, old_key.expires_at)

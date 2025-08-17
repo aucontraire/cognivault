@@ -6,10 +6,15 @@ including the Refiner → Critic flow and error handling.
 """
 
 import pytest
+from typing import Any
 import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 from cognivault.agents.base_agent import BaseAgent
 from cognivault.exceptions import AgentExecutionError
 from cognivault.orchestration.prototype_dag import (
@@ -24,7 +29,7 @@ class MockRefinerAgent(BaseAgent):
 
     def __init__(
         self, should_fail: bool = False, output_content: str = "Refined query"
-    ):
+    ) -> None:
         super().__init__("Refiner")
         self.should_fail = should_fail
         self.output_content = output_content
@@ -43,7 +48,7 @@ class MockCriticAgent(BaseAgent):
 
     def __init__(
         self, should_fail: bool = False, output_content: str = "Critical analysis"
-    ):
+    ) -> None:
         super().__init__("Critic")
         self.should_fail = should_fail
         self.output_content = output_content
@@ -58,15 +63,15 @@ class MockCriticAgent(BaseAgent):
 
 
 @pytest.fixture
-def mock_registry():
+def mock_registry() -> Any:
     """Mock agent registry for testing."""
-    registry = Mock()
+    registry: Mock = Mock()
 
-    def create_agent_side_effect(agent_name, **kwargs):
+    def create_agent_side_effect(agent_name: Any, **kwargs: Any) -> None:
         if agent_name == "refiner":
-            return MockRefinerAgent()
+            return MockRefinerAgent()  # type: ignore[return-value]
         elif agent_name == "critic":
-            return MockCriticAgent()
+            return MockCriticAgent()  # type: ignore[return-value]
         else:
             raise ValueError(f"Unknown agent: {agent_name}")
 
@@ -75,9 +80,9 @@ def mock_registry():
 
 
 @pytest.fixture
-def mock_llm():
+def mock_llm() -> Any:
     """Mock LLM for testing."""
-    llm = Mock()
+    llm: Mock = Mock()
     llm.api_key = "test_key"
     llm.model = "test_model"
     return llm
@@ -86,7 +91,7 @@ def mock_llm():
 class TestPrototypeDAGExecutor:
     """Test cases for PrototypeDAGExecutor."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test executor initialization."""
         executor = PrototypeDAGExecutor()
 
@@ -96,7 +101,7 @@ class TestPrototypeDAGExecutor:
         assert executor.successful_executions == 0
         assert executor.failed_executions == 0
 
-    def test_custom_initialization(self):
+    def test_custom_initialization(self) -> None:
         """Test executor with custom parameters."""
         executor = PrototypeDAGExecutor(
             enable_parallel_execution=True, max_execution_time_seconds=120.0
@@ -110,8 +115,12 @@ class TestPrototypeDAGExecutor:
     @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
     @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_successful_dag_execution(
-        self, mock_llm_class, mock_config, mock_get_registry, mock_registry
-    ):
+        self,
+        mock_llm_class: Any,
+        mock_config: Any,
+        mock_get_registry: Any,
+        mock_registry: Any,
+    ) -> None:
         """Test successful DAG execution."""
         # Setup mocks
         mock_get_registry.return_value = mock_registry
@@ -142,17 +151,17 @@ class TestPrototypeDAGExecutor:
     @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
     @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_dag_execution_with_failure(
-        self, mock_llm_class, mock_config, mock_get_registry
-    ):
+        self, mock_llm_class: Any, mock_config: Any, mock_get_registry: Any
+    ) -> None:
         """Test DAG execution with agent failure."""
         # Setup mocks to return failing agents
-        failing_registry = Mock()
+        failing_registry: Mock = Mock()
 
-        def create_failing_agent(agent_name, **kwargs):
+        def create_failing_agent(agent_name: Any, **kwargs: Any) -> None:
             if agent_name == "refiner":
-                return MockRefinerAgent(should_fail=True)
+                return MockRefinerAgent(should_fail=True)  # type: ignore[return-value]
             elif agent_name == "critic":
-                return MockCriticAgent()
+                return MockCriticAgent()  # type: ignore[return-value]
             else:
                 raise ValueError(f"Unknown agent: {agent_name}")
 
@@ -184,17 +193,17 @@ class TestPrototypeDAGExecutor:
     @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
     @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_partial_execution_success(
-        self, mock_llm_class, mock_config, mock_get_registry
-    ):
+        self, mock_llm_class: Any, mock_config: Any, mock_get_registry: Any
+    ) -> None:
         """Test DAG execution where refiner succeeds but critic fails."""
         # Setup mocks
-        partial_registry = Mock()
+        partial_registry: Mock = Mock()
 
-        def create_partial_failing_agents(agent_name, **kwargs):
+        def create_partial_failing_agents(agent_name: Any, **kwargs: Any) -> None:
             if agent_name == "refiner":
-                return MockRefinerAgent()  # Succeeds
+                return MockRefinerAgent()  # type: ignore[return-value] # Succeeds
             elif agent_name == "critic":
-                return MockCriticAgent(should_fail=True)  # Fails
+                return MockCriticAgent(should_fail=True)  # type: ignore[return-value] # Fails
             else:
                 raise ValueError(f"Unknown agent: {agent_name}")
 
@@ -218,7 +227,7 @@ class TestPrototypeDAGExecutor:
         assert len(result.nodes_executed) >= 1  # Refiner should execute
         assert len(result.errors) > 0  # Should have critic error
 
-    def test_get_executor_statistics(self):
+    def test_get_executor_statistics(self) -> None:
         """Test executor statistics collection."""
         executor = PrototypeDAGExecutor()
 
@@ -240,8 +249,12 @@ class TestPrototypeDAGExecutor:
     @patch("cognivault.orchestration.prototype_dag.OpenAIConfig")
     @patch("cognivault.orchestration.prototype_dag.OpenAIChatLLM")
     async def test_execution_with_custom_config(
-        self, mock_llm_class, mock_config, mock_get_registry, mock_registry
-    ):
+        self,
+        mock_llm_class: Any,
+        mock_config: Any,
+        mock_get_registry: Any,
+        mock_registry: Any,
+    ) -> None:
         """Test DAG execution with custom configuration."""
         mock_get_registry.return_value = mock_registry
         mock_config.load.return_value = Mock(
@@ -269,13 +282,13 @@ class TestPrototypeDAGExecutor:
         assert isinstance(result, DAGExecutionResult)
         assert result.success is True
 
-    def test_performance_metrics_calculation(self):
+    def test_performance_metrics_calculation(self) -> None:
         """Test performance metrics calculation."""
         executor = PrototypeDAGExecutor()
 
         # Create a mock execution result
         mock_execution_result = DAGExecutionResult(
-            final_context=AgentContext(query="test"),
+            final_context=AgentContextPatterns.simple_query("test"),
             success=True,
             total_execution_time_ms=0,  # Will be set by method
             nodes_executed=["refiner", "critic"],
@@ -319,9 +332,9 @@ class TestPrototypeDAGExecutor:
 class TestDAGExecutionResult:
     """Test cases for DAGExecutionResult."""
 
-    def test_dag_execution_result_creation(self):
+    def test_dag_execution_result_creation(self) -> None:
         """Test DAG execution result creation."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         result = DAGExecutionResult(
             final_context=context,
@@ -349,12 +362,12 @@ class TestRunPrototypeDemo:
 
     @pytest.mark.asyncio
     @patch("cognivault.orchestration.prototype_dag.PrototypeDAGExecutor")
-    async def test_run_prototype_demo(self, mock_executor_class):
+    async def test_run_prototype_demo(self, mock_executor_class: Any) -> None:
         """Test the prototype demo function."""
         # Setup mock executor
-        mock_executor = Mock()
+        mock_executor: Mock = Mock()
         mock_result = DAGExecutionResult(
-            final_context=AgentContext(query="test"),
+            final_context=AgentContextPatterns.simple_query("test"),
             success=True,
             total_execution_time_ms=200.0,
             nodes_executed=["refiner", "critic"],
@@ -382,11 +395,13 @@ class TestRunPrototypeDemo:
 
     @pytest.mark.asyncio
     @patch("cognivault.orchestration.prototype_dag.PrototypeDAGExecutor")
-    async def test_run_prototype_demo_default_query(self, mock_executor_class):
+    async def test_run_prototype_demo_default_query(
+        self, mock_executor_class: Any
+    ) -> None:
         """Test the prototype demo with default query."""
-        mock_executor = Mock()
+        mock_executor: Mock = Mock()
         mock_result = DAGExecutionResult(
-            final_context=AgentContext(query="default"),
+            final_context=AgentContextPatterns.simple_query("default"),
             success=True,
             total_execution_time_ms=150.0,
             nodes_executed=["refiner"],
@@ -407,11 +422,13 @@ class TestRunPrototypeDemo:
     @pytest.mark.asyncio
     @patch("cognivault.orchestration.prototype_dag.logger")
     @patch("cognivault.orchestration.prototype_dag.PrototypeDAGExecutor")
-    async def test_run_prototype_demo_logging(self, mock_executor_class, mock_logger):
+    async def test_run_prototype_demo_logging(
+        self, mock_executor_class: Any, mock_logger: Any
+    ) -> None:
         """Test that the demo function logs execution results."""
-        mock_executor = Mock()
+        mock_executor: Mock = Mock()
         mock_result = DAGExecutionResult(
-            final_context=AgentContext(query="test"),
+            final_context=AgentContextPatterns.simple_query("test"),
             success=True,
             total_execution_time_ms=100.0,
             nodes_executed=["refiner"],
@@ -437,7 +454,7 @@ class TestDAGIntegration:
     """Integration tests for the DAG execution system."""
 
     @pytest.mark.asyncio
-    async def test_full_dag_execution_flow(self):
+    async def test_full_dag_execution_flow(self) -> None:
         """Test complete DAG execution flow with real components."""
         # This test uses actual components but with mocked external dependencies
 
@@ -451,7 +468,7 @@ class TestDAGIntegration:
             ) as mock_llm_class,
         ):
             # Setup mocks
-            registry = Mock()
+            registry: Mock = Mock()
             registry.create_agent.side_effect = lambda name, **kwargs: {
                 "refiner": MockRefinerAgent(),
                 "critic": MockCriticAgent(),

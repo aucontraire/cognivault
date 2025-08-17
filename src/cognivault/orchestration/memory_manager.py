@@ -10,11 +10,14 @@ import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union, TypeAlias, TYPE_CHECKING, cast
 from dataclasses import dataclass
 import logging
 
 from langgraph.checkpoint.memory import MemorySaver
+
+# Define RunnableConfig type alias for LangGraph compatibility
+RunnableConfig: TypeAlias = Dict[str, Any]
 
 from .state_schemas import CogniVaultState, create_initial_state
 
@@ -55,7 +58,7 @@ class CogniVaultMemoryManager:
     and rollback capabilities using LangGraph's MemorySaver.
     """
 
-    def __init__(self, config: CheckpointConfig):
+    def __init__(self, config: CheckpointConfig) -> None:
         """Initialize memory manager with configuration."""
         self.config = config
         self.memory_saver: Optional[MemorySaver] = None
@@ -284,14 +287,14 @@ class CogniVaultMemoryManager:
             # Retrieve the actual state data from MemorySaver
             if self.memory_saver:
                 # Use LangGraph MemorySaver to get checkpoint data with new 0.6.0 API
-                from langgraph.types import RunnableConfig
+                # Use RunnableConfig type that's already defined at module level
 
                 # Still use RunnableConfig for backward compatibility with MemorySaver.get_tuple()
                 # The new Context API is primarily for node execution, not checkpoint retrieval
                 config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 
                 # Get the checkpoint tuple from MemorySaver
-                checkpoint_tuple = self.memory_saver.get_tuple(config)
+                checkpoint_tuple = self.memory_saver.get_tuple(config)  # type: ignore[arg-type]
 
                 if checkpoint_tuple and checkpoint_tuple.checkpoint:
                     # Extract state from the checkpoint
@@ -381,7 +384,7 @@ class CogniVaultMemoryManager:
                 }
             )
 
-    def _serialize_value(self, value):
+    def _serialize_value(self, value: Any) -> Any:
         """Recursively serialize complex values."""
         if isinstance(value, datetime):
             return {"_type": "datetime", "_value": value.isoformat()}
@@ -409,7 +412,7 @@ class CogniVaultMemoryManager:
         else:
             return value
 
-    def _json_serializer(self, obj):
+    def _json_serializer(self, obj: Any) -> Any:
         """Custom JSON serializer for non-standard types."""
         if isinstance(obj, datetime):
             return obj.isoformat()
@@ -440,17 +443,27 @@ class CogniVaultMemoryManager:
                     return None
 
                 state_data = data.get("data", {})
-                return self._deserialize_value(state_data)
+                result = self._deserialize_value(state_data)
+                return (
+                    cast(Optional[CogniVaultState], result)
+                    if isinstance(result, dict)
+                    else None
+                )
             else:
                 # Legacy format - try direct deserialization
                 logger.info("Deserializing legacy state format")
-                return self._deserialize_value(data)
+                result = self._deserialize_value(data)
+                return (
+                    cast(Optional[CogniVaultState], result)
+                    if isinstance(result, dict)
+                    else None
+                )
 
         except Exception as e:
             logger.error(f"State deserialization failed: {e}")
             return None
 
-    def _deserialize_value(self, value):
+    def _deserialize_value(self, value: Any) -> Any:
         """Recursively deserialize complex values."""
         if isinstance(value, dict):
             if "_type" in value and "_value" in value:
@@ -542,7 +555,7 @@ class CogniVaultMemoryManager:
 
 
 def create_memory_manager(
-    enable_checkpoints: bool = False, thread_id: Optional[str] = None, **kwargs
+    enable_checkpoints: bool = False, thread_id: Optional[str] = None, **kwargs: Any
 ) -> CogniVaultMemoryManager:
     """
     Factory function to create a memory manager.

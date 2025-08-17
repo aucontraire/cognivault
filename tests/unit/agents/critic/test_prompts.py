@@ -3,14 +3,14 @@
 from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
 
 
-def test_critic_system_prompt_exists():
+def test_critic_system_prompt_exists() -> None:
     """Test that the CRITIC_SYSTEM_PROMPT constant is defined."""
     assert CRITIC_SYSTEM_PROMPT is not None
     assert isinstance(CRITIC_SYSTEM_PROMPT, str)
     assert len(CRITIC_SYSTEM_PROMPT) > 0
 
 
-def test_critic_system_prompt_contains_key_components():
+def test_critic_system_prompt_contains_key_components() -> None:
     """Test that the system prompt contains all required components from the charter."""
     # Check for main purpose and role
     assert "CriticAgent" in CRITIC_SYSTEM_PROMPT
@@ -44,7 +44,7 @@ def test_critic_system_prompt_contains_key_components():
     assert "Low" in CRITIC_SYSTEM_PROMPT
 
 
-def test_critic_system_prompt_contains_constraints():
+def test_critic_system_prompt_contains_constraints() -> None:
     """Test that the system prompt contains proper constraints."""
     # Check for what NOT to do
     assert "DO NOT answer the question yourself" in CRITIC_SYSTEM_PROMPT
@@ -53,7 +53,7 @@ def test_critic_system_prompt_contains_constraints():
     assert "cite historical examples or perform synthesis" in CRITIC_SYSTEM_PROMPT
 
 
-def test_critic_system_prompt_contains_examples():
+def test_critic_system_prompt_contains_examples() -> None:
     """Test that the system prompt contains examples for different scenarios."""
     # Check for input/output examples
     assert (
@@ -72,7 +72,7 @@ def test_critic_system_prompt_contains_examples():
     assert "Query is well-scoped and neutral" in CRITIC_SYSTEM_PROMPT
 
 
-def test_critic_system_prompt_structure():
+def test_critic_system_prompt_structure() -> None:
     """Test that the system prompt has proper structure and formatting."""
     # Check for main sections
     assert "## PRIMARY RESPONSIBILITIES" in CRITIC_SYSTEM_PROMPT
@@ -88,7 +88,7 @@ def test_critic_system_prompt_structure():
     assert "3. **Surface potential biases" in CRITIC_SYSTEM_PROMPT
 
 
-def test_critic_system_prompt_formatting_guidelines():
+def test_critic_system_prompt_formatting_guidelines() -> None:
     """Test that the system prompt includes proper formatting guidelines."""
     # Check for format specifications
     assert "**Format**:" in CRITIC_SYSTEM_PROMPT
@@ -101,7 +101,7 @@ def test_critic_system_prompt_formatting_guidelines():
     assert "- Confidence:" in CRITIC_SYSTEM_PROMPT
 
 
-def test_critic_system_prompt_downstream_integration():
+def test_critic_system_prompt_downstream_integration() -> None:
     """Test that the system prompt mentions downstream agent integration."""
     assert "downstream agents" in CRITIC_SYSTEM_PROMPT
     assert "historical lookup" in CRITIC_SYSTEM_PROMPT
@@ -109,7 +109,7 @@ def test_critic_system_prompt_downstream_integration():
     # The prompt mentions downstream agents without naming specific agent classes
 
 
-def test_critic_system_prompt_length():
+def test_critic_system_prompt_length() -> None:
     """Test that the system prompt is substantial but not excessively long."""
     # Should be comprehensive but not overwhelming
     assert 2000 <= len(CRITIC_SYSTEM_PROMPT) <= 8000, (
@@ -117,7 +117,7 @@ def test_critic_system_prompt_length():
     )
 
 
-def test_critic_system_prompt_no_harmful_content():
+def test_critic_system_prompt_no_harmful_content() -> None:
     """Test that the system prompt doesn't contain potentially harmful instructions."""
     harmful_phrases = [
         "ignore previous instructions",
@@ -132,7 +132,7 @@ def test_critic_system_prompt_no_harmful_content():
         assert phrase not in prompt_lower, f"Found potentially harmful phrase: {phrase}"
 
 
-def test_critic_system_prompt_role_consistency():
+def test_critic_system_prompt_role_consistency() -> None:
     """Test that the system prompt maintains consistent role definition."""
     # Should not confuse the role with other agents
     assert "RefinerAgent" in CRITIC_SYSTEM_PROMPT  # Should mention but not claim to be

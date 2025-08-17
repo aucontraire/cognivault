@@ -3,7 +3,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Coroutine
 from dataclasses import dataclass
 from enum import Enum
 
@@ -20,22 +20,106 @@ from cognivault.correlation import (
     get_workflow_id,
 )
 
-# Event emission imports
-try:
-    from cognivault.events import (
-        emit_agent_execution_started,
-        emit_agent_execution_completed,
-    )
-
-    # Don't import registry here to avoid circular import
-    # Will import at runtime when needed
-
-    EVENTS_AVAILABLE = True
-except ImportError:
-    EVENTS_AVAILABLE = False
+# Lazy event emission imports to avoid circular import
+# Events will be imported at runtime when needed
+EVENTS_AVAILABLE = True
 
 
-class RetryConfig:
+async def _emit_agent_execution_started(
+    workflow_id: str,
+    agent_name: str,
+    input_context: Dict[str, Any],
+    agent_metadata: Optional[Any] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    event_category: Optional[Any] = None,
+) -> None:
+    """Lazily import and emit agent execution started event."""
+    try:
+        from cognivault.events import emit_agent_execution_started
+        from cognivault.events.types import EventCategory
+
+        await emit_agent_execution_started(
+            workflow_id=workflow_id,
+            agent_name=agent_name,
+            input_context=input_context,
+            agent_metadata=agent_metadata,
+            correlation_id=correlation_id,
+            metadata=metadata,
+            event_category=event_category or EventCategory.EXECUTION,
+        )
+    except ImportError as e:
+        # Events not available, skip silently
+        pass
+    except Exception as e:
+        # Log error but don't fail execution
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to emit agent execution started event: {e}")
+
+
+async def _emit_agent_execution_completed(
+    workflow_id: str,
+    agent_name: str,
+    success: bool,
+    output_context: Dict[str, Any],
+    agent_metadata: Optional[Any] = None,
+    execution_time_ms: Optional[float] = None,
+    error_message: Optional[str] = None,
+    error_type: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    event_category: Optional[Any] = None,
+) -> None:
+    """Lazily import and emit agent execution completed event."""
+    try:
+        from cognivault.events import emit_agent_execution_completed
+        from cognivault.events.types import EventCategory
+
+        await emit_agent_execution_completed(
+            workflow_id=workflow_id,
+            agent_name=agent_name,
+            success=success,
+            output_context=output_context,
+            agent_metadata=agent_metadata,
+            execution_time_ms=execution_time_ms,
+            error_message=error_message,
+            error_type=error_type,
+            correlation_id=correlation_id,
+            metadata=metadata,
+            event_category=event_category or EventCategory.EXECUTION,
+        )
+    except ImportError as e:
+        # Events not available, skip silently
+        pass
+    except Exception as e:
+        # Log error but don't fail execution
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to emit agent execution completed event: {e}")
+
+
+# For backward compatibility, make the lazy functions available
+emit_agent_execution_started = _emit_agent_execution_started
+emit_agent_execution_completed = _emit_agent_execution_completed
+
+# Make event emission functions available at module level for testing
+__all__ = [
+    "BaseAgent",
+    "AgentRetryConfig",
+    "CircuitBreakerState",
+    "NodeType",
+    "NodeInputSchema",
+    "NodeOutputSchema",
+    "LangGraphNodeDefinition",
+    "emit_agent_execution_started",
+    "emit_agent_execution_completed",
+]
+
+
+class AgentRetryConfig:
     """Configuration for agent retry behavior."""
 
     def __init__(
@@ -45,7 +129,7 @@ class RetryConfig:
         max_delay: float = 60.0,
         exponential_backoff: bool = True,
         jitter: bool = True,
-    ):
+    ) -> None:
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -56,20 +140,22 @@ class RetryConfig:
 class CircuitBreakerState:
     """Simple circuit breaker state for agent execution."""
 
-    def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 300.0):
+    def __init__(
+        self, failure_threshold: int = 5, recovery_timeout: float = 300.0
+    ) -> None:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
         self.last_failure_time: Optional[datetime] = None
         self.is_open = False
 
-    def record_success(self):
+    def record_success(self) -> None:
         """Record a successful execution."""
         self.failure_count = 0
         self.is_open = False
         self.last_failure_time = None
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """Record a failed execution."""
         self.failure_count += 1
         self.last_failure_time = datetime.now(timezone.utc)
@@ -285,7 +371,7 @@ class BaseAgent(ABC):
     ----------
     name : str
         The name of the agent.
-    retry_config : RetryConfig, optional
+    retry_config : AgentRetryConfig, optional
         Retry configuration for this agent. If None, uses default settings.
     timeout_seconds : float, optional
         Agent execution timeout in seconds. Default is 30.0.
@@ -296,12 +382,12 @@ class BaseAgent(ABC):
     def __init__(
         self,
         name: str,
-        retry_config: Optional[RetryConfig] = None,
+        retry_config: Optional[AgentRetryConfig] = None,
         timeout_seconds: float = 30.0,
         enable_circuit_breaker: bool = True,
-    ):
+    ) -> None:
         self.name: str = name
-        self.retry_config = retry_config or RetryConfig()
+        self.retry_config = retry_config or AgentRetryConfig()
         self.timeout_seconds = timeout_seconds
         self.logger = logging.getLogger(
             f"{self.__class__.__module__}.{self.__class__.__name__}"
@@ -379,7 +465,7 @@ class BaseAgent(ABC):
         self.execution_count += 1
 
         # Emit agent execution started event if available
-        if EVENTS_AVAILABLE:
+        if True:  # Events always available with lazy loading
             try:
                 from cognivault.agents.registry import get_agent_registry
 
@@ -444,7 +530,7 @@ class BaseAgent(ABC):
                 )
 
                 # Emit agent execution completed event if available
-                if EVENTS_AVAILABLE:
+                if True:  # Events always available with lazy loading
                     try:
                         from cognivault.agents.registry import get_agent_registry
 
@@ -530,7 +616,7 @@ class BaseAgent(ABC):
                         self.circuit_breaker.record_failure()
 
                     # Emit agent execution completed event for timeout failure if available
-                    if EVENTS_AVAILABLE:
+                    if True:  # Events always available with lazy loading
                         try:
                             from cognivault.agents.registry import get_agent_registry
 
@@ -604,7 +690,7 @@ class BaseAgent(ABC):
                         self.circuit_breaker.record_failure()
 
                     # Emit agent execution completed event for failure if available
-                    if EVENTS_AVAILABLE:
+                    if True:  # Events always available with lazy loading
                         try:
                             from cognivault.agents.registry import get_agent_registry
 
@@ -763,7 +849,7 @@ class BaseAgent(ABC):
         # Default to retry for unknown exceptions (conservative approach)
         return True
 
-    async def _handle_retry_delay(self, retry_attempt: int):
+    async def _handle_retry_delay(self, retry_attempt: int) -> None:
         """
         Handle delay between retry attempts with exponential backoff and jitter.
 

@@ -106,7 +106,10 @@ class SearchResult(BaseModel):
     @property
     def topics(self) -> List[str]:
         """Get topics from metadata."""
-        return self.metadata.get("topics", [])
+        topics = self.metadata.get("topics", [])
+        if isinstance(topics, list):
+            return [str(item) for item in topics]
+        return []
 
     @property
     def domain(self) -> Optional[str]:
@@ -140,7 +143,7 @@ class HistorianSearchInterface(ABC):
 class NotesDirectoryParser:
     """Utility class for parsing markdown notes with frontmatter."""
 
-    def __init__(self, notes_directory: Optional[str] = None):
+    def __init__(self, notes_directory: Optional[str] = None) -> None:
         config = get_config()
         self.notes_directory = notes_directory or config.files.notes_directory
 
@@ -210,7 +213,7 @@ class NotesDirectoryParser:
 class TagBasedSearch(HistorianSearchInterface):
     """Search based on frontmatter topics and tags."""
 
-    def __init__(self, notes_directory: Optional[str] = None):
+    def __init__(self, notes_directory: Optional[str] = None) -> None:
         self.parser = NotesDirectoryParser(notes_directory)
 
     async def search(self, query: str, limit: int = 10) -> List[SearchResult]:
@@ -390,7 +393,7 @@ class TagBasedSearch(HistorianSearchInterface):
 class KeywordSearch(HistorianSearchInterface):
     """Enhanced keyword search with TF-IDF-like scoring."""
 
-    def __init__(self, notes_directory: Optional[str] = None):
+    def __init__(self, notes_directory: Optional[str] = None) -> None:
         self.parser = NotesDirectoryParser(notes_directory)
 
     async def search(self, query: str, limit: int = 10) -> List[SearchResult]:
@@ -620,7 +623,7 @@ class KeywordSearch(HistorianSearchInterface):
 class HybridSearch(HistorianSearchInterface):
     """Hybrid search combining tag-based and keyword search."""
 
-    def __init__(self, notes_directory: Optional[str] = None):
+    def __init__(self, notes_directory: Optional[str] = None) -> None:
         self.tag_search = TagBasedSearch(notes_directory)
         self.keyword_search = KeywordSearch(notes_directory)
 

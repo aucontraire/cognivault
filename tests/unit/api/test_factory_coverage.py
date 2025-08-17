@@ -5,8 +5,9 @@ Focuses on error handling, edge cases, and untested code paths.
 """
 
 import pytest
+from typing import Any
 import os
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from cognivault.api.factory import (
     get_orchestration_api,
@@ -15,7 +16,7 @@ from cognivault.api.factory import (
     reset_api_cache,
     get_api_mode,
     set_api_mode,
-    temporary_api_mode,
+    TemporaryAPIMode,
     is_mock_mode,
     get_cached_api_info,
     _cached_orchestration_api,
@@ -25,15 +26,15 @@ from cognivault.api.factory import (
 class TestAPIFactoryErrorHandling:
     """Test API factory error handling and edge cases."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset cache before each test."""
         reset_api_cache()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up after each test."""
         reset_api_cache()
 
-    def test_get_api_mode_default(self):
+    def test_get_api_mode_default(self) -> None:
         """Test getting API mode from environment with default."""
         # Clear environment variable
         if "COGNIVAULT_API_MODE" in os.environ:
@@ -42,28 +43,28 @@ class TestAPIFactoryErrorHandling:
         mode = get_api_mode()
         assert mode == "real"  # Default value
 
-    def test_get_api_mode_set(self):
+    def test_get_api_mode_set(self) -> None:
         """Test getting API mode from environment when set."""
         with patch.dict(os.environ, {"COGNIVAULT_API_MODE": "mock"}):
             mode = get_api_mode()
             assert mode == "mock"
 
-    def test_is_mock_mode_true(self):
+    def test_is_mock_mode_true(self) -> None:
         """Test is_mock_mode when in mock mode."""
         set_api_mode("mock")
         assert is_mock_mode() is True
 
-    def test_is_mock_mode_false(self):
+    def test_is_mock_mode_false(self) -> None:
         """Test is_mock_mode when in real mode."""
         set_api_mode("real")
         assert is_mock_mode() is False
 
-    def test_get_api_mode_when_set(self):
+    def test_get_api_mode_when_set(self) -> None:
         """Test getting API mode when explicitly set."""
         set_api_mode("mock")
         assert get_api_mode() == "mock"
 
-    def test_get_api_mode_from_environment(self):
+    def test_get_api_mode_from_environment(self) -> None:
         """Test getting API mode from environment when not set."""
         # Reset any set mode
         reset_api_cache()
@@ -72,12 +73,12 @@ class TestAPIFactoryErrorHandling:
             mode = get_api_mode()
             assert mode == "mock"
 
-    def test_set_api_mode_invalid(self):
+    def test_set_api_mode_invalid(self) -> None:
         """Test setting invalid API mode."""
         with pytest.raises(ValueError, match="Invalid API mode"):
             set_api_mode("invalid_mode")
 
-    def test_set_api_mode_valid(self):
+    def test_set_api_mode_valid(self) -> None:
         """Test setting valid API mode."""
         set_api_mode("mock")
         assert get_api_mode() == "mock"
@@ -85,7 +86,7 @@ class TestAPIFactoryErrorHandling:
         set_api_mode("real")
         assert get_api_mode() == "real"
 
-    def test_get_orchestration_api_real_mode_creation_error(self):
+    def test_get_orchestration_api_real_mode_creation_error(self) -> None:
         """Test real API creation error handling."""
         with patch(
             "cognivault.api.factory.LangGraphOrchestrationAPI"
@@ -95,7 +96,7 @@ class TestAPIFactoryErrorHandling:
             with pytest.raises(Exception, match="Failed to create real API"):
                 get_orchestration_api(force_mode="real")
 
-    def test_get_orchestration_api_mock_mode_creation_error(self):
+    def test_get_orchestration_api_mock_mode_creation_error(self) -> None:
         """Test mock API creation error handling."""
         with patch(
             "tests.fakes.mock_orchestration.MockOrchestrationAPI"
@@ -105,12 +106,12 @@ class TestAPIFactoryErrorHandling:
             with pytest.raises(Exception, match="Failed to create mock API"):
                 get_orchestration_api(force_mode="mock")
 
-    def test_get_cached_api_info_with_cache(self):
+    def test_get_cached_api_info_with_cache(self) -> None:
         """Test getting cached API info when API is cached."""
         with patch(
             "tests.fakes.mock_orchestration.MockOrchestrationAPI"
         ) as mock_mock_class:
-            mock_api = Mock()
+            mock_api: Mock = Mock()
             mock_api.api_name = "Mock API"
             mock_api.api_version = "1.0.0"
             mock_api._initialized = True
@@ -125,20 +126,20 @@ class TestAPIFactoryErrorHandling:
             assert info["api_version"] == "1.0.0"
             assert info["initialized"] is True
 
-    def test_get_cached_api_info_no_cache(self):
+    def test_get_cached_api_info_no_cache(self) -> None:
         """Test getting cached API info when no API is cached."""
         reset_api_cache()
         info = get_cached_api_info()
         assert info is None
 
-    def test_temporary_api_mode_context_manager(self):
-        """Test temporary API mode context manager."""
+    def test_temporary_api_mode_context_manager(self) -> None:
+        """Test TemporaryAPIMode context manager."""
         # Set initial mode
         set_api_mode("real")
         original_mode = get_api_mode()
 
         # Use temporary mode
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             assert get_api_mode() == "mock"
             # Cache should be reset
             assert _cached_orchestration_api is None
@@ -146,13 +147,13 @@ class TestAPIFactoryErrorHandling:
         # Should restore original mode
         assert get_api_mode() == original_mode
 
-    def test_temporary_api_mode_exception_handling(self):
-        """Test temporary API mode with exception."""
+    def test_temporary_api_mode_exception_handling(self) -> None:
+        """Test TemporaryAPIMode with exception."""
         set_api_mode("real")
         original_mode = get_api_mode()
 
         try:
-            with temporary_api_mode("mock"):
+            with TemporaryAPIMode("mock"):
                 assert get_api_mode() == "mock"
                 raise Exception("Test exception")
         except Exception:
@@ -161,14 +162,14 @@ class TestAPIFactoryErrorHandling:
         # Should still restore original mode
         assert get_api_mode() == original_mode
 
-    def test_temporary_api_mode_nested(self):
-        """Test nested temporary API mode context managers."""
+    def test_temporary_api_mode_nested(self) -> None:
+        """Test nested TemporaryAPIMode context managers."""
         set_api_mode("real")
 
-        with temporary_api_mode("mock"):
+        with TemporaryAPIMode("mock"):
             assert get_api_mode() == "mock"
 
-            with temporary_api_mode("real"):
+            with TemporaryAPIMode("real"):
                 assert get_api_mode() == "real"
 
             # Should restore to outer context
@@ -178,10 +179,10 @@ class TestAPIFactoryErrorHandling:
         assert get_api_mode() == "real"
 
     @pytest.mark.asyncio
-    async def test_initialize_api_real_mode_error(self):
+    async def test_initialize_api_real_mode_error(self) -> None:
         """Test API initialization error in real mode."""
         with patch("cognivault.api.factory.get_orchestration_api") as mock_get_api:
-            mock_api = Mock()
+            mock_api: Mock = Mock()
             mock_api.initialize = AsyncMock(
                 side_effect=Exception("Initialization failed")
             )
@@ -192,10 +193,10 @@ class TestAPIFactoryErrorHandling:
                 await initialize_api(force_mode="real")
 
     @pytest.mark.asyncio
-    async def test_initialize_api_mock_mode_error(self):
+    async def test_initialize_api_mock_mode_error(self) -> None:
         """Test API initialization error in mock mode."""
         with patch("cognivault.api.factory.get_orchestration_api") as mock_get_api:
-            mock_api = Mock()
+            mock_api: Mock = Mock()
             mock_api.initialize = AsyncMock(side_effect=Exception("Mock init failed"))
             mock_api._initialized = False
             mock_get_api.return_value = mock_api
@@ -204,10 +205,10 @@ class TestAPIFactoryErrorHandling:
                 await initialize_api(force_mode="mock")
 
     @pytest.mark.asyncio
-    async def test_initialize_api_already_initialized(self):
+    async def test_initialize_api_already_initialized(self) -> None:
         """Test initializing already initialized API."""
         with patch("cognivault.api.factory.get_orchestration_api") as mock_get_api:
-            mock_api = Mock()
+            mock_api: Mock = Mock()
             mock_api.initialize = AsyncMock()
             mock_api._initialized = True  # Already initialized
             mock_get_api.return_value = mock_api
@@ -219,7 +220,7 @@ class TestAPIFactoryErrorHandling:
             mock_api.initialize.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_shutdown_api_no_cached_api(self):
+    async def test_shutdown_api_no_cached_api(self) -> None:
         """Test shutting down when no API is cached."""
         reset_api_cache()
 
@@ -227,13 +228,13 @@ class TestAPIFactoryErrorHandling:
         await shutdown_api()
 
     @pytest.mark.asyncio
-    async def test_shutdown_api_with_cached_api(self):
+    async def test_shutdown_api_with_cached_api(self) -> None:
         """Test shutting down with cached API."""
         # Import the module to access the global variable directly
         import cognivault.api.factory as factory_module
 
         # Create and cache a mock API directly
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_api.shutdown = AsyncMock()
 
         # Cache the API directly in the module
@@ -244,12 +245,12 @@ class TestAPIFactoryErrorHandling:
         mock_api.shutdown.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_shutdown_api_error_handling(self):
+    async def test_shutdown_api_error_handling(self) -> None:
         """Test shutdown error handling."""
         # Import the module to access the global variable directly
         import cognivault.api.factory as factory_module
 
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_api.shutdown = AsyncMock(side_effect=Exception("Shutdown failed"))
 
         # Cache the API directly in the module to avoid patching issues
@@ -260,7 +261,7 @@ class TestAPIFactoryErrorHandling:
             await shutdown_api()
             mock_logger.assert_called_once()
 
-    def test_reset_api_cache_multiple_times(self):
+    def test_reset_api_cache_multiple_times(self) -> None:
         """Test resetting API cache multiple times."""
         # Create and cache an API
         with patch("tests.fakes.mock_orchestration.MockOrchestrationAPI"):
@@ -275,7 +276,7 @@ class TestAPIFactoryErrorHandling:
         reset_api_cache()
         reset_api_cache()  # Multiple resets should be safe
 
-    def test_api_caching_with_different_modes(self):
+    def test_api_caching_with_different_modes(self) -> None:
         """Test API caching behavior with different modes."""
         with (
             patch(
@@ -285,8 +286,8 @@ class TestAPIFactoryErrorHandling:
                 "cognivault.api.factory.LangGraphOrchestrationAPI"
             ) as mock_real_class,
         ):
-            mock_mock_api = Mock()
-            mock_real_api = Mock()
+            mock_mock_api: Mock = Mock()
+            mock_real_api: Mock = Mock()
             mock_mock_class.return_value = mock_mock_api
             mock_real_class.return_value = mock_real_api
 
@@ -309,21 +310,21 @@ class TestAPIFactoryErrorHandling:
 class TestAPIFactoryIntegrationScenarios:
     """Test API factory integration scenarios."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset cache before each test."""
         reset_api_cache()
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up after each test."""
         reset_api_cache()
 
     @pytest.mark.asyncio
-    async def test_full_lifecycle_real_api(self):
+    async def test_full_lifecycle_real_api(self) -> None:
         """Test full lifecycle with real API."""
         with patch(
             "cognivault.api.factory.LangGraphOrchestrationAPI"
         ) as mock_real_class:
-            mock_api = Mock()
+            mock_api: Mock = Mock()
             mock_api.initialize = AsyncMock()
             mock_api.shutdown = AsyncMock()
             mock_api._initialized = False
@@ -343,12 +344,12 @@ class TestAPIFactoryIntegrationScenarios:
             mock_api.shutdown.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_full_lifecycle_mock_api(self):
+    async def test_full_lifecycle_mock_api(self) -> None:
         """Test full lifecycle with mock API."""
         with patch(
             "tests.fakes.mock_orchestration.MockOrchestrationAPI"
         ) as mock_mock_class:
-            mock_api = Mock()
+            mock_api: Mock = Mock()
             mock_api.initialize = AsyncMock()
             mock_api.shutdown = AsyncMock()
             mock_api._initialized = False
@@ -368,7 +369,7 @@ class TestAPIFactoryIntegrationScenarios:
             mock_api.shutdown.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_mode_switching_during_lifecycle(self):
+    async def test_mode_switching_during_lifecycle(self) -> None:
         """Test switching modes during API lifecycle."""
         with (
             patch(
@@ -378,8 +379,8 @@ class TestAPIFactoryIntegrationScenarios:
                 "cognivault.api.factory.LangGraphOrchestrationAPI"
             ) as mock_real_class,
         ):
-            mock_mock_api = Mock()
-            mock_real_api = Mock()
+            mock_mock_api: Mock = Mock()
+            mock_real_api: Mock = Mock()
             mock_mock_api.initialize = AsyncMock()
             mock_mock_api.shutdown = AsyncMock()
             mock_real_api.initialize = AsyncMock()
@@ -404,7 +405,7 @@ class TestAPIFactoryIntegrationScenarios:
 
             await shutdown_api()
 
-    def test_environment_variable_priority(self):
+    def test_environment_variable_priority(self) -> None:
         """Test environment variable priority over set mode."""
         # Set mode programmatically
         set_api_mode("mock")
@@ -418,7 +419,7 @@ class TestAPIFactoryIntegrationScenarios:
             mode = get_api_mode()
             assert mode == "real"
 
-    def test_force_mode_priority(self):
+    def test_force_mode_priority(self) -> None:
         """Test force_mode parameter priority."""
         # Set mode and environment
         set_api_mode("mock")
@@ -427,7 +428,7 @@ class TestAPIFactoryIntegrationScenarios:
             with patch(
                 "tests.fakes.mock_orchestration.MockOrchestrationAPI"
             ) as mock_mock_class:
-                mock_api = Mock()
+                mock_api: Mock = Mock()
                 mock_mock_class.return_value = mock_api
 
                 # Force mode should override both set mode and environment
@@ -436,18 +437,18 @@ class TestAPIFactoryIntegrationScenarios:
                 mock_mock_class.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_concurrent_api_access(self):
+    async def test_concurrent_api_access(self) -> None:
         """Test concurrent API access and caching."""
         import asyncio
 
         with patch(
             "tests.fakes.mock_orchestration.MockOrchestrationAPI"
         ) as mock_mock_class:
-            mock_api = Mock()
+            mock_api: Mock = Mock()
             mock_api.initialize = AsyncMock()
             mock_mock_class.return_value = mock_api
 
-            async def get_api():
+            async def get_api() -> Any:
                 return get_orchestration_api(force_mode="mock")
 
             # Get API concurrently
@@ -460,7 +461,7 @@ class TestAPIFactoryIntegrationScenarios:
             # Should only create one instance
             mock_mock_class.assert_called_once()
 
-    def test_api_mode_case_handling(self):
+    def test_api_mode_case_handling(self) -> None:
         """Test that API mode handles different cases."""
         # Test uppercase
         with patch.dict(os.environ, {"COGNIVAULT_API_MODE": "MOCK"}):

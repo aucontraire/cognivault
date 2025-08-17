@@ -7,7 +7,7 @@ work together seamlessly in realistic scenarios.
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 from cognivault.orchestration.nodes.decision_node import (
     DecisionNode,
@@ -33,7 +33,7 @@ class TestComplexWorkflows:
     """Test complex multi-node workflows."""
 
     @pytest.fixture
-    def mock_metadata_decision(self):
+    def mock_metadata_decision(self) -> Any:
         """Create mock metadata for decision node."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "decision"
@@ -43,7 +43,7 @@ class TestComplexWorkflows:
         return metadata
 
     @pytest.fixture
-    def mock_metadata_aggregator(self):
+    def mock_metadata_aggregator(self) -> Any:
         """Create mock metadata for aggregator node."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "aggregator"
@@ -53,7 +53,7 @@ class TestComplexWorkflows:
         return metadata
 
     @pytest.fixture
-    def mock_metadata_validator(self):
+    def mock_metadata_validator(self) -> Any:
         """Create mock metadata for validator node."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "validator"
@@ -63,7 +63,7 @@ class TestComplexWorkflows:
         return metadata
 
     @pytest.fixture
-    def mock_metadata_terminator(self):
+    def mock_metadata_terminator(self) -> Any:
         """Create mock metadata for terminator node."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "terminator"
@@ -73,7 +73,7 @@ class TestComplexWorkflows:
         return metadata
 
     @pytest.fixture
-    def workflow_context(self):
+    def workflow_context(self) -> Any:
         """Create a workflow execution context."""
         context = NodeExecutionContext(
             workflow_id="workflow-001",
@@ -97,10 +97,10 @@ class TestComplexWorkflows:
     @pytest.mark.asyncio
     async def test_decision_to_aggregator_workflow(
         self,
-        mock_metadata_decision,
-        mock_metadata_aggregator,
-        workflow_context,
-    ):
+        mock_metadata_decision: Any,
+        mock_metadata_aggregator: Any,
+        workflow_context: Any,
+    ) -> None:
         """Test Decision → Aggregator workflow."""
         # Create decision node
         decision_criteria = [
@@ -187,10 +187,10 @@ class TestComplexWorkflows:
     @pytest.mark.asyncio
     async def test_aggregator_to_validator_workflow(
         self,
-        mock_metadata_aggregator,
-        mock_metadata_validator,
-        workflow_context,
-    ):
+        mock_metadata_aggregator: Any,
+        mock_metadata_validator: Any,
+        workflow_context: Any,
+    ) -> None:
         """Test Aggregator → Validator workflow."""
         # Create aggregator node with low thresholds
         aggregator_node = AggregatorNode(
@@ -288,10 +288,10 @@ class TestComplexWorkflows:
     @pytest.mark.asyncio
     async def test_validator_to_terminator_workflow(
         self,
-        mock_metadata_validator,
-        mock_metadata_terminator,
-        workflow_context,
-    ):
+        mock_metadata_validator: Any,
+        mock_metadata_terminator: Any,
+        workflow_context: Any,
+    ) -> None:
         """Test Validator → Terminator workflow."""
         # Create validator node
         validation_criteria = [
@@ -384,12 +384,12 @@ class TestComplexWorkflows:
     @pytest.mark.asyncio
     async def test_full_pipeline_workflow(
         self,
-        mock_metadata_decision,
-        mock_metadata_aggregator,
-        mock_metadata_validator,
-        mock_metadata_terminator,
-        workflow_context,
-    ):
+        mock_metadata_decision: Any,
+        mock_metadata_aggregator: Any,
+        mock_metadata_validator: Any,
+        mock_metadata_terminator: Any,
+        workflow_context: Any,
+    ) -> None:
         """Test complete Decision → Aggregator → Validator → Terminator pipeline."""
         # Create all nodes
         decision_node = DecisionNode(
@@ -519,7 +519,7 @@ class TestNodeFailureHandling:
     """Test how nodes handle failures in multi-node workflows."""
 
     @pytest.fixture
-    def mock_metadata(self):
+    def mock_metadata(self) -> Any:
         """Create generic mock metadata."""
         metadata = Mock(spec=AgentMetadata)
         metadata.cognitive_speed = "adaptive"
@@ -528,7 +528,9 @@ class TestNodeFailureHandling:
         return metadata
 
     @pytest.mark.asyncio
-    async def test_aggregator_insufficient_inputs_fallback(self, mock_metadata):
+    async def test_aggregator_insufficient_inputs_fallback(
+        self, mock_metadata: Any
+    ) -> None:
         """Test aggregator fallback when insufficient inputs are available."""
         mock_metadata.execution_pattern = "aggregator"
 
@@ -565,7 +567,7 @@ class TestNodeFailureHandling:
             await aggregator_node.execute(context)
 
     @pytest.mark.asyncio
-    async def test_validator_with_failing_criteria(self, mock_metadata):
+    async def test_validator_with_failing_criteria(self, mock_metadata: Any) -> None:
         """Test validator handling of failing validation criteria."""
         mock_metadata.execution_pattern = "validator"
 
@@ -617,7 +619,9 @@ class TestNodeFailureHandling:
             )
 
     @pytest.mark.asyncio
-    async def test_terminator_context_validation_failure(self, mock_metadata):
+    async def test_terminator_context_validation_failure(
+        self, mock_metadata: Any
+    ) -> None:
         """Test terminator handling of invalid context."""
         from pydantic import ValidationError
 
@@ -652,14 +656,14 @@ class TestDataFlowIntegrity:
     """Test data integrity as it flows between nodes."""
 
     @pytest.fixture
-    def mock_metadata_aggregator(self):
+    def mock_metadata_aggregator(self) -> Any:
         """Mock metadata for aggregator."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "aggregator"
         return metadata
 
     @pytest.fixture
-    def mock_metadata_validator(self):
+    def mock_metadata_validator(self) -> Any:
         """Mock metadata for validator."""
         metadata = Mock(spec=AgentMetadata)
         metadata.execution_pattern = "validator"
@@ -667,8 +671,8 @@ class TestDataFlowIntegrity:
 
     @pytest.mark.asyncio
     async def test_metadata_preservation_across_nodes(
-        self, mock_metadata_aggregator, mock_metadata_validator
-    ):
+        self, mock_metadata_aggregator: Any, mock_metadata_validator: Any
+    ) -> None:
         """Test that metadata is preserved as data flows between nodes."""
         # Create nodes with permissive thresholds
         aggregator = AggregatorNode(
@@ -754,7 +758,9 @@ class TestDataFlowIntegrity:
             assert validated_metadata["source"] == "expert_system"
 
     @pytest.mark.asyncio
-    async def test_correlation_id_propagation(self, mock_metadata_aggregator):
+    async def test_correlation_id_propagation(
+        self, mock_metadata_aggregator: Any
+    ) -> None:
         """Test that correlation IDs are properly propagated."""
         aggregator = AggregatorNode(
             mock_metadata_aggregator,

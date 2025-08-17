@@ -1,13 +1,14 @@
 import pytest
+from typing import Any
 from cognivault.agents.historian.main import run_historian
 
 
 @pytest.mark.asyncio
-async def test_run_historian(monkeypatch):
+async def test_run_historian(monkeypatch: Any) -> None:
     class DummyHistorianAgent:
         name = "Historian"
 
-        async def run(self, context):
+        async def run(self, context: Any) -> Any:
             context.add_agent_output("Historian", "Test Output")
             return context
 

@@ -11,7 +11,7 @@ class SchemaValidator:
     """Validates API request/response schemas."""
 
     @staticmethod
-    def validate_external_schema(data: Dict[str, Any], schema_class: Type) -> bool:
+    def validate_external_schema(data: Dict[str, Any], schema_class: Type[Any]) -> bool:
         """
         Validate data against external schema class.
 
@@ -34,7 +34,7 @@ class SchemaValidator:
             return False
 
     @staticmethod
-    def get_schema_version(schema_class: Type) -> Optional[str]:
+    def get_schema_version(schema_class: Type[Any]) -> Optional[str]:
         """Extract version from schema docstring."""
         if schema_class.__doc__:
             # Look for version pattern in docstring
@@ -59,7 +59,7 @@ class SchemaMigrator:
         from_version: str,
         to_version: str,
         migration_func: Callable[[Dict[str, Any]], Dict[str, Any]],
-    ):
+    ) -> None:
         """Register a schema migration function."""
         key = f"{from_version}->{to_version}"
         if key not in self.migrations:

@@ -6,9 +6,10 @@ benchmarking, performance monitoring, and optimization suggestions.
 """
 
 import pytest
+from typing import Any
 import json
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from datetime import datetime, timezone
 
 from cognivault.diagnostics.profiler import (
@@ -18,12 +19,16 @@ from cognivault.diagnostics.profiler import (
     BenchmarkSuite,
 )
 from cognivault.context import AgentContext
+from tests.factories.agent_context_factories import (
+    AgentContextFactory,
+    AgentContextPatterns,
+)
 
 
 class TestPerformanceMetric:
     """Test suite for PerformanceMetric dataclass."""
 
-    def test_performance_metric_creation(self):
+    def test_performance_metric_creation(self) -> None:
         """Test PerformanceMetric creation."""
         timestamp = datetime.now(timezone.utc)
         metric = PerformanceMetric(
@@ -41,7 +46,7 @@ class TestPerformanceMetric:
         assert metric.metadata["agent"] == "refiner"
         assert metric.metadata["query_length"] == 100
 
-    def test_performance_metric_minimal(self):
+    def test_performance_metric_minimal(self) -> None:
         """Test PerformanceMetric with minimal fields."""
         timestamp = datetime.now(timezone.utc)
         metric = PerformanceMetric(
@@ -57,7 +62,7 @@ class TestPerformanceMetric:
 class TestExecutionProfile:
     """Test suite for ExecutionProfile dataclass."""
 
-    def test_execution_profile_creation(self):
+    def test_execution_profile_creation(self) -> None:
         """Test ExecutionProfile creation with all fields."""
         timestamp = datetime.now(timezone.utc)
         profile = ExecutionProfile(
@@ -92,7 +97,7 @@ class TestExecutionProfile:
         assert profile.context_size == 2048
         assert profile.llm_calls == 3
 
-    def test_execution_profile_failed(self):
+    def test_execution_profile_failed(self) -> None:
         """Test ExecutionProfile for failed execution."""
         profile = ExecutionProfile(
             execution_id="exec_failed",
@@ -116,7 +121,7 @@ class TestExecutionProfile:
 class TestBenchmarkSuite:
     """Test suite for BenchmarkSuite dataclass."""
 
-    def test_benchmark_suite_creation(self):
+    def test_benchmark_suite_creation(self) -> None:
         """Test BenchmarkSuite creation."""
         timestamp = datetime.now(timezone.utc)
         profile1 = ExecutionProfile(
@@ -155,12 +160,12 @@ class TestPerformanceProfiler:
     """Test suite for PerformanceProfiler class."""
 
     @pytest.fixture
-    def profiler(self):
+    def profiler(self) -> Any:
         """Create a PerformanceProfiler instance for testing."""
         return PerformanceProfiler()
 
     @pytest.fixture
-    def sample_profile(self):
+    def sample_profile(self) -> Any:
         """Create a sample execution profile for testing."""
         return ExecutionProfile(
             execution_id="sample_123",
@@ -177,7 +182,7 @@ class TestPerformanceProfiler:
             llm_calls=5,
         )
 
-    def test_initialization(self, profiler):
+    def test_initialization(self, profiler: Mock) -> None:
         """Test PerformanceProfiler initialization."""
         assert profiler.console is not None
         assert profiler.monitoring is False
@@ -185,14 +190,16 @@ class TestPerformanceProfiler:
         assert profiler.resource_monitor_thread is None
         assert len(profiler.resource_data) == 0
 
-    def test_create_app(self, profiler):
+    def test_create_app(self, profiler: Mock) -> None:
         """Test CLI app creation."""
         app = profiler.create_app()
         assert app is not None
         assert app.info.name == "profiler"
 
     @patch("cognivault.diagnostics.profiler.LangGraphOrchestrator")
-    def test_profile_execution_basic(self, mock_orchestrator, profiler):
+    def test_profile_execution_basic(
+        self, mock_orchestrator: Mock, profiler: Mock
+    ) -> None:
         """Test basic execution profiling."""
         with patch.object(profiler, "_run_profiling_suite") as mock_suite:
             with patch.object(profiler, "_display_profile_results"):
@@ -224,7 +231,7 @@ class TestPerformanceProfiler:
 
                 mock_suite.assert_called_once()
 
-    def test_profile_execution_with_live_monitoring(self, profiler):
+    def test_profile_execution_with_live_monitoring(self, profiler: Mock) -> None:
         """Test profiling with live monitoring."""
         with patch.object(profiler, "_profile_with_live_monitoring") as mock_live:
             profiler.profile_execution(
@@ -239,7 +246,9 @@ class TestPerformanceProfiler:
 
             mock_live.assert_called_once()
 
-    def test_profile_execution_with_output_file(self, profiler, tmp_path):
+    def test_profile_execution_with_output_file(
+        self, profiler: Mock, tmp_path: Any
+    ) -> None:
         """Test profiling with output file."""
         output_file = tmp_path / "profile_output.json"
 
@@ -274,7 +283,7 @@ class TestPerformanceProfiler:
 
                     mock_save.assert_called_once()
 
-    def test_run_benchmark_basic(self, profiler):
+    def test_run_benchmark_basic(self, profiler: Mock) -> None:
         """Test basic benchmark execution."""
         with patch.object(profiler, "_load_benchmark_queries") as mock_load:
             with patch.object(profiler, "_execute_benchmark_suite") as mock_execute:
@@ -301,7 +310,9 @@ class TestPerformanceProfiler:
 
                         mock_execute.assert_called_once()
 
-    def test_run_benchmark_with_queries_file(self, profiler, tmp_path):
+    def test_run_benchmark_with_queries_file(
+        self, profiler: Mock, tmp_path: Any
+    ) -> None:
         """Test benchmark with custom queries file."""
         queries_file = tmp_path / "queries.txt"
         queries_file.write_text("Custom query 1\nCustom query 2\n")
@@ -326,7 +337,7 @@ class TestPerformanceProfiler:
                         runs_per_query=2,
                     )
 
-    def test_compare_modes(self, profiler):
+    def test_compare_modes(self, profiler: Mock) -> None:
         """Test execution mode comparison."""
         with patch.object(profiler, "_run_mode_comparison") as mock_compare:
             with patch.object(profiler, "_display_comparison_results"):
@@ -346,7 +357,7 @@ class TestPerformanceProfiler:
 
                 mock_compare.assert_called_once()
 
-    def test_compare_modes_with_visual(self, profiler):
+    def test_compare_modes_with_visual(self, profiler: Mock) -> None:
         """Test mode comparison with visual output."""
         with patch.object(profiler, "_run_mode_comparison") as mock_compare:
             with patch.object(profiler, "_display_comparison_results"):
@@ -365,7 +376,7 @@ class TestPerformanceProfiler:
 
                     mock_visual.assert_called_once()
 
-    def test_monitor_performance(self, profiler):
+    def test_monitor_performance(self, profiler: Mock) -> None:
         """Test performance monitoring."""
         with patch.object(profiler, "_start_performance_monitoring") as mock_monitor:
             with patch.object(profiler, "_display_monitoring_results"):
@@ -377,7 +388,9 @@ class TestPerformanceProfiler:
 
                 mock_monitor.assert_called_once()
 
-    def test_monitor_performance_with_output(self, profiler, tmp_path):
+    def test_monitor_performance_with_output(
+        self, profiler: Mock, tmp_path: Any
+    ) -> None:
         """Test performance monitoring with output file."""
         output_file = tmp_path / "monitoring.json"
 
@@ -392,7 +405,7 @@ class TestPerformanceProfiler:
 
                     mock_save.assert_called_once()
 
-    def test_analyze_profile(self, profiler, tmp_path):
+    def test_analyze_profile(self, profiler: Mock, tmp_path: Any) -> None:
         """Test profile analysis."""
         profile_file = tmp_path / "profile.json"
         profile_file.write_text('{"test": "data"}')
@@ -412,7 +425,9 @@ class TestPerformanceProfiler:
 
                         mock_analyze.assert_called_once()
 
-    def test_analyze_profile_with_comparison(self, profiler, tmp_path):
+    def test_analyze_profile_with_comparison(
+        self, profiler: Mock, tmp_path: Any
+    ) -> None:
         """Test profile analysis with comparison."""
         profile_file = tmp_path / "profile1.json"
         compare_file = tmp_path / "profile2.json"
@@ -435,7 +450,7 @@ class TestPerformanceProfiler:
 
                             mock_compare.assert_called_once()
 
-    def test_generate_report(self, profiler, tmp_path):
+    def test_generate_report(self, profiler: Mock, tmp_path: Any) -> None:
         """Test report generation."""
         data_dir = tmp_path / "data"
         data_dir.mkdir()
@@ -457,7 +472,7 @@ class TestPerformanceProfiler:
                     mock_generate.assert_called_once()
                     mock_save.assert_called_once()
 
-    def test_suggest_optimizations(self, profiler, tmp_path):
+    def test_suggest_optimizations(self, profiler: Mock, tmp_path: Any) -> None:
         """Test optimization suggestions."""
         profile_file = tmp_path / "optimization_profile.json"
         profile_file.write_text('{"optimization": "test"}')
@@ -478,7 +493,9 @@ class TestPerformanceProfiler:
 
                     mock_suggest.assert_called_once()
 
-    def test_suggest_optimizations_interactive(self, profiler, tmp_path):
+    def test_suggest_optimizations_interactive(
+        self, profiler: Mock, tmp_path: Any
+    ) -> None:
         """Test interactive optimization suggestions."""
         profile_file = tmp_path / "interactive_profile.json"
         profile_file.write_text('{"interactive": "test"}')
@@ -499,7 +516,7 @@ class TestPerformanceProfiler:
 
                     mock_interactive.assert_called_once()
 
-    def test_stress_test(self, profiler):
+    def test_stress_test(self, profiler: Mock) -> None:
         """Test stress testing."""
         with patch.object(profiler, "_execute_stress_test") as mock_stress:
             with patch.object(profiler, "_display_stress_test_results"):
@@ -520,7 +537,7 @@ class TestPerformanceProfiler:
 
                 mock_stress.assert_called_once()
 
-    def test_run_profiling_suite(self, profiler):
+    def test_run_profiling_suite(self, profiler: Mock) -> None:
         """Test running profiling suite."""
         with patch.object(profiler, "_profile_single_execution") as mock_single:
             mock_profile = ExecutionProfile(
@@ -549,9 +566,11 @@ class TestPerformanceProfiler:
             assert all(isinstance(p, ExecutionProfile) for p in results)
 
     @patch("asyncio.run")
-    def test_profile_single_execution_legacy(self, mock_asyncio, profiler):
+    def test_profile_single_execution_legacy(
+        self, mock_asyncio: Mock, profiler: Mock
+    ) -> None:
         """Test single execution profiling in legacy mode."""
-        mock_context = AgentContext(query="test")
+        mock_context = AgentContextPatterns.simple_query("test")
         mock_asyncio.return_value = mock_context
 
         with patch.object(profiler, "_start_resource_monitoring"):
@@ -572,9 +591,11 @@ class TestPerformanceProfiler:
                 assert profile.execution_mode == "legacy"
 
     @patch("asyncio.run")
-    def test_profile_single_execution_langgraph_real(self, mock_asyncio, profiler):
+    def test_profile_single_execution_langgraph_real(
+        self, mock_asyncio: Mock, profiler: Mock
+    ) -> None:
         """Test single execution profiling in langgraph-real mode."""
-        mock_context = AgentContext(query="test")
+        mock_context = AgentContextPatterns.simple_query("test")
         mock_asyncio.return_value = mock_context
 
         profile = profiler._profile_single_execution(
@@ -588,7 +609,7 @@ class TestPerformanceProfiler:
         assert profile.execution_mode == "langgraph-real"
         assert "refiner" in profile.agents or "critic" in profile.agents
 
-    def test_start_stop_resource_monitoring(self, profiler):
+    def test_start_stop_resource_monitoring(self, profiler: Mock) -> None:
         """Test resource monitoring start and stop."""
         # Start monitoring
         profiler._start_resource_monitoring()
@@ -605,9 +626,9 @@ class TestPerformanceProfiler:
         assert "memory" in resource_data
         assert "cpu" in resource_data
 
-    def test_extract_agent_durations(self, profiler):
+    def test_extract_agent_durations(self, profiler: Mock) -> None:
         """Test extracting agent durations from context."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.agent_outputs = {"refiner": "output1", "critic": "output2"}
 
         durations = profiler._extract_agent_durations(context)
@@ -616,9 +637,9 @@ class TestPerformanceProfiler:
         assert "refiner" in durations
         assert "critic" in durations
 
-    def test_extract_token_usage(self, profiler):
+    def test_extract_token_usage(self, profiler: Mock) -> None:
         """Test extracting token usage from context."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
 
         token_usage = profiler._extract_token_usage(context)
 
@@ -627,9 +648,9 @@ class TestPerformanceProfiler:
         assert "input" in token_usage
         assert "output" in token_usage
 
-    def test_count_llm_calls(self, profiler):
+    def test_count_llm_calls(self, profiler: Mock) -> None:
         """Test counting LLM calls from context."""
-        context = AgentContext(query="test")
+        context = AgentContextPatterns.simple_query("test")
         context.agent_outputs = {"refiner": "output1", "critic": "output2"}
 
         llm_calls = profiler._count_llm_calls(context)
@@ -637,7 +658,7 @@ class TestPerformanceProfiler:
         assert isinstance(llm_calls, int)
         assert llm_calls >= 0
 
-    def test_display_profile_results(self, profiler, sample_profile):
+    def test_display_profile_results(self, profiler: Mock, sample_profile: Any) -> None:
         """Test displaying profile results."""
         profiles = [sample_profile]
 
@@ -645,12 +666,14 @@ class TestPerformanceProfiler:
             profiler._display_profile_results(profiles)
             mock_print.assert_called()
 
-    def test_display_profile_results_empty(self, profiler):
+    def test_display_profile_results_empty(self, profiler: Mock) -> None:
         """Test displaying empty profile results."""
         profiler._display_profile_results([])
         # Should not raise any exceptions
 
-    def test_load_benchmark_queries_from_file(self, profiler, tmp_path):
+    def test_load_benchmark_queries_from_file(
+        self, profiler: Mock, tmp_path: Any
+    ) -> None:
         """Test loading benchmark queries from file."""
         queries_file = tmp_path / "test_queries.txt"
         queries_file.write_text("Query 1\nQuery 2\nQuery 3\n")
@@ -662,7 +685,7 @@ class TestPerformanceProfiler:
         assert "Query 2" in queries
         assert "Query 3" in queries
 
-    def test_load_benchmark_queries_default(self, profiler):
+    def test_load_benchmark_queries_default(self, profiler: Mock) -> None:
         """Test loading default benchmark queries."""
         queries = profiler._load_benchmark_queries(None)
 
@@ -671,11 +694,15 @@ class TestPerformanceProfiler:
         assert all(isinstance(q, str) for q in queries)
 
     @patch("cognivault.diagnostics.profiler.LangGraphOrchestrator")
-    def test_execute_benchmark_suite(self, mock_orchestrator, profiler):
+    def test_execute_benchmark_suite(
+        self, mock_orchestrator: Mock, profiler: Mock
+    ) -> None:
         """Test executing benchmark suite."""
         # Create non-async mock orchestrator
-        mock_orchestrator_instance = Mock()
-        mock_orchestrator_instance.run = Mock(return_value=AgentContext(query="test"))
+        mock_orchestrator_instance: Mock = Mock()
+        mock_orchestrator_instance.run = Mock(
+            return_value=AgentContextPatterns.simple_query("test")
+        )
         mock_orchestrator.return_value = mock_orchestrator_instance
 
         with patch.object(profiler, "_profile_single_execution") as mock_profile:
@@ -705,7 +732,9 @@ class TestPerformanceProfiler:
             assert suite.suite_name == "test_bench"
             assert len(suite.profiles) == 4  # 2 queries * 2 runs
 
-    def test_calculate_benchmark_summary(self, profiler, sample_profile):
+    def test_calculate_benchmark_summary(
+        self, profiler: Mock, sample_profile: Any
+    ) -> None:
         """Test calculating benchmark summary statistics."""
         profiles = [sample_profile, sample_profile]  # Duplicate for testing
 
@@ -717,13 +746,13 @@ class TestPerformanceProfiler:
         assert "total_runs" in summary["overall"]
         assert "avg_duration" in summary["overall"]
 
-    def test_calculate_benchmark_summary_empty(self, profiler):
+    def test_calculate_benchmark_summary_empty(self, profiler: Mock) -> None:
         """Test calculating summary with empty profiles."""
         summary = profiler._calculate_benchmark_summary([])
 
         assert summary == {}
 
-    def test_display_benchmark_results(self, profiler):
+    def test_display_benchmark_results(self, profiler: Mock) -> None:
         """Test displaying benchmark results."""
         suite = BenchmarkSuite(
             suite_name="Display Test",
@@ -748,7 +777,9 @@ class TestPerformanceProfiler:
             profiler._display_benchmark_results(suite)
             mock_print.assert_called()
 
-    def test_save_profiles(self, profiler, sample_profile, tmp_path):
+    def test_save_profiles(
+        self, profiler: Mock, sample_profile: Any, tmp_path: Any
+    ) -> None:
         """Test saving profiles to file."""
         output_file = tmp_path / "saved_profiles.json"
         profiles = [sample_profile]
@@ -763,7 +794,7 @@ class TestPerformanceProfiler:
             assert "profiles" in data
             assert len(data["profiles"]) == 1
 
-    def test_save_benchmark_suite(self, profiler, tmp_path):
+    def test_save_benchmark_suite(self, profiler: Mock, tmp_path: Any) -> None:
         """Test saving benchmark suite."""
         suite = BenchmarkSuite(
             suite_name="Save Test Suite",
@@ -788,11 +819,11 @@ class TestPerformanceProfilerIntegration:
     """Integration tests for PerformanceProfiler."""
 
     @pytest.fixture
-    def profiler(self):
+    def profiler(self) -> Any:
         """Create profiler for integration tests."""
         return PerformanceProfiler()
 
-    def test_full_profiling_workflow(self, profiler):
+    def test_full_profiling_workflow(self, profiler: Mock) -> None:
         """Test complete profiling workflow."""
         with patch("cognivault.diagnostics.profiler.LangGraphOrchestrator"):
             with patch.object(profiler, "_run_profiling_suite") as mock_suite:
@@ -822,7 +853,7 @@ class TestPerformanceProfilerIntegration:
                     output_file=None,
                 )
 
-    def test_cli_app_integration(self, profiler):
+    def test_cli_app_integration(self, profiler: Mock) -> None:
         """Test CLI app creation and commands."""
         app = profiler.create_app()
 
@@ -836,11 +867,11 @@ class TestPerformanceProfilerPerformance:
     """Performance tests for PerformanceProfiler."""
 
     @pytest.fixture
-    def profiler(self):
+    def profiler(self) -> Any:
         """Create profiler for performance tests."""
         return PerformanceProfiler()
 
-    def test_resource_monitoring_performance(self, profiler):
+    def test_resource_monitoring_performance(self, profiler: Mock) -> None:
         """Test performance of resource monitoring."""
         start_time = time.time()
 
@@ -854,7 +885,7 @@ class TestPerformanceProfilerPerformance:
         assert (end_time - start_time) < 1.0
         assert isinstance(resource_data, dict)
 
-    def test_benchmark_summary_performance(self, profiler):
+    def test_benchmark_summary_performance(self, profiler: Mock) -> None:
         """Test performance of benchmark summary calculation."""
         # Create many profiles for performance testing
         profiles = []

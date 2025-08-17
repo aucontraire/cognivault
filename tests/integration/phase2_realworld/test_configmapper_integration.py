@@ -4,6 +4,7 @@ This validates Option C - supporting both flat chart format and nested Pydantic 
 """
 
 import pytest
+from typing import Any, Dict, cast
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock
@@ -22,7 +23,7 @@ from cognivault.config.agent_configs import (
 class TestConfigMapperIntegration:
     """Test ConfigMapper integration with the workflow system."""
 
-    def test_configmapper_flat_to_nested_mapping(self):
+    def test_configmapper_flat_to_nested_mapping(self) -> None:
         """Test that ConfigMapper correctly maps flat format to nested format."""
 
         # Test flat configuration format (chart workflows)
@@ -57,7 +58,7 @@ class TestConfigMapperIntegration:
         assert nested_config["execution_config"]["timeout_seconds"] == 45
         assert nested_config["execution_config"]["max_retries"] == 3
 
-    def test_configmapper_create_agent_config_flat_format(self):
+    def test_configmapper_create_agent_config_flat_format(self) -> None:
         """Test ConfigMapper can create agent configs from flat format."""
 
         # Test RefinerAgent with flat format
@@ -80,7 +81,7 @@ class TestConfigMapperIntegration:
         ]
         assert config.execution_config.timeout_seconds == 30
 
-    def test_configmapper_create_agent_config_nested_format(self):
+    def test_configmapper_create_agent_config_nested_format(self) -> None:
         """Test ConfigMapper can handle nested format directly."""
 
         # Test nested format (Pydantic structure)
@@ -107,7 +108,7 @@ class TestConfigMapperIntegration:
         assert config.behavioral_config.custom_constraints == ["technical_accuracy"]
         assert config.output_config.format_preference == "structured"
 
-    def test_configmapper_handles_prompts_section(self):
+    def test_configmapper_handles_prompts_section(self) -> None:
         """Test ConfigMapper properly handles legacy 'prompts' section."""
 
         # Test configuration with legacy prompts section
@@ -135,7 +136,7 @@ class TestConfigMapperIntegration:
         )
         assert config.behavioral_config.custom_constraints == ["maintain_structure"]
 
-    def test_composer_create_agent_config_uses_configmapper(self):
+    def test_composer_create_agent_config_uses_configmapper(self) -> None:
         """Test that create_agent_config function uses ConfigMapper."""
 
         # Test flat format
@@ -158,7 +159,7 @@ class TestConfigMapperIntegration:
             "thoroughness",
         ]
 
-    def test_nodefactory_with_flat_chart_format(self):
+    def test_nodefactory_with_flat_chart_format(self) -> None:
         """Test NodeFactory can create nodes with flat chart format configurations."""
 
         # Create a workflow with flat format configurations
@@ -249,7 +250,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_nodefactory_with_mixed_formats(self):
+    def test_nodefactory_with_mixed_formats(self) -> None:
         """Test NodeFactory can handle mixed flat and nested formats in same workflow."""
 
         workflow_yaml = """
@@ -318,7 +319,7 @@ flow:
         finally:
             Path(temp_path).unlink()
 
-    def test_configmapper_error_handling(self):
+    def test_configmapper_error_handling(self) -> None:
         """Test ConfigMapper graceful error handling for invalid configurations."""
 
         # Test with completely invalid configuration
@@ -342,7 +343,7 @@ flow:
 
         print("✅ ConfigMapper error handling works!")
 
-    def test_all_agent_types_with_configmapper(self):
+    def test_all_agent_types_with_configmapper(self) -> None:
         """Test ConfigMapper works with all 4 agent types."""
 
         test_configs = {
@@ -376,17 +377,18 @@ flow:
         }
 
         for agent_type, config_data in test_configs.items():
-            # Test ConfigMapper directly
-            config = ConfigMapper.create_agent_config(config_data, agent_type)
+            # Test ConfigMapper directly (cast to Dict for type safety)
+            config_dict = cast(Dict[str, Any], config_data)
+            config = ConfigMapper.create_agent_config(config_dict, agent_type)
             assert isinstance(config, expected_types[agent_type])
 
             # Test via create_agent_config function
-            config2 = create_agent_config(agent_type, config_data)
+            config2 = create_agent_config(agent_type, config_dict)
             assert isinstance(config2, expected_types[agent_type])
 
         print("✅ All 4 agent types work with ConfigMapper!")
 
-    def test_backward_compatibility_with_enhanced_prompts_example(self):
+    def test_backward_compatibility_with_enhanced_prompts_example(self) -> None:
         """Test that ConfigMapper maintains backward compatibility with working example."""
 
         # Load the working enhanced_prompts_example.yaml

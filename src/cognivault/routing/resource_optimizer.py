@@ -262,7 +262,7 @@ class ResourceOptimizer:
     make optimal agent selection decisions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the resource optimizer."""
         self.logger = get_logger(f"{__name__}.ResourceOptimizer")
 

@@ -5,7 +5,8 @@ Tests the topic discovery and management endpoints using mock data and services.
 """
 
 import pytest
-from unittest.mock import patch, Mock
+from typing import Any
+from unittest.mock import MagicMock, Mock, patch
 from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
@@ -15,7 +16,7 @@ from cognivault.api.models import TopicSummary, TopicsResponse, TopicWikiRespons
 class TestTopicsRoutes:
     """Test suite for topics discovery endpoints."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client for each test."""
         self.client = TestClient(app)
 
@@ -26,10 +27,10 @@ class TestTopicsRoutes:
         topic_service._cache_timestamp = 0.0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_success(self, mock_get_api):
+    def test_get_topics_success(self, mock_get_api: Mock) -> None:
         """Test successful topics discovery with mock workflow history."""
         # Setup mock orchestration API with workflow history
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -98,9 +99,9 @@ class TestTopicsRoutes:
             assert isinstance(topic["last_updated"], float)
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_with_search(self, mock_get_api):
+    def test_get_topics_with_search(self, mock_get_api: Mock) -> None:
         """Test topics discovery with search filtering."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -156,9 +157,9 @@ class TestTopicsRoutes:
         assert len(machine_or_learning_topics) > 0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_with_pagination(self, mock_get_api):
+    def test_get_topics_with_pagination(self, mock_get_api: Mock) -> None:
         """Test topics discovery with custom pagination parameters."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         # Create more mock data to test pagination
         mock_history = []
         queries = [
@@ -206,9 +207,9 @@ class TestTopicsRoutes:
         assert data["has_more"] == expected_has_more
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_empty_history(self, mock_get_api):
+    def test_get_topics_empty_history(self, mock_get_api: Mock) -> None:
         """Test topics discovery with no workflow history."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_api.get_workflow_history.return_value = []
         mock_get_api.return_value = mock_api
 
@@ -224,7 +225,7 @@ class TestTopicsRoutes:
         assert data["has_more"] is False
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_orchestration_failure(self, mock_get_api):
+    def test_get_topics_orchestration_failure(self, mock_get_api: Mock) -> None:
         """Test topics discovery when orchestration API fails."""
         mock_get_api.side_effect = Exception("Orchestration API unavailable")
 
@@ -240,7 +241,7 @@ class TestTopicsRoutes:
         assert "Orchestration API unavailable" in detail["message"]
         assert detail["type"] == "Exception"
 
-    def test_get_topics_parameter_validation(self):
+    def test_get_topics_parameter_validation(self) -> None:
         """Test topics endpoint parameter validation."""
         # Test invalid limit (too high)
         response = self.client.get("/api/topics?limit=101")
@@ -267,9 +268,9 @@ class TestTopicsRoutes:
         assert response.status_code == 422
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_search_no_results(self, mock_get_api):
+    def test_get_topics_search_no_results(self, mock_get_api: Mock) -> None:
         """Test topics discovery when search returns no matching topics."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -295,9 +296,9 @@ class TestTopicsRoutes:
 
     @patch("cognivault.api.routes.topics.logger")
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_logging(self, mock_get_api, mock_logger):
+    def test_get_topics_logging(self, mock_get_api: Mock, mock_logger: Mock) -> None:
         """Test that topics discovery logs appropriately."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -334,7 +335,9 @@ class TestTopicsRoutes:
 
     @patch("cognivault.api.routes.topics.logger")
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_error_logging(self, mock_get_api, mock_logger):
+    def test_get_topics_error_logging(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that topics discovery errors are logged properly."""
         error_message = "Database connection timeout"
         mock_get_api.side_effect = Exception(error_message)
@@ -349,9 +352,11 @@ class TestTopicsRoutes:
         assert "Topics endpoint failed" in logged_message
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_topic_discovery_service_keyword_extraction(self, mock_get_api):
+    def test_topic_discovery_service_keyword_extraction(
+        self, mock_get_api: Mock
+    ) -> None:
         """Test the keyword extraction functionality."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -381,9 +386,9 @@ class TestTopicsRoutes:
         assert len(found_words) > 0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_topic_discovery_query_grouping(self, mock_get_api):
+    def test_topic_discovery_query_grouping(self, mock_get_api: Mock) -> None:
         """Test that similar queries are grouped into the same topic."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -430,10 +435,10 @@ class TestTopicsRoutes:
             assert ml_topic["query_count"] >= 2
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_topic_discovery_service_error_handling(self, mock_get_api):
+    def test_topic_discovery_service_error_handling(self, mock_get_api: Mock) -> None:
         """Test that topic discovery service handles errors gracefully."""
         # Simulate orchestration API returning malformed data
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_api.get_workflow_history.side_effect = RuntimeError("Database error")
         mock_get_api.return_value = mock_api
 
@@ -449,9 +454,9 @@ class TestTopicsRoutes:
         assert detail["type"] == "RuntimeError"
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topics_edge_cases(self, mock_get_api):
+    def test_get_topics_edge_cases(self, mock_get_api: Mock) -> None:
         """Test topics discovery with edge case scenarios."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
 
         # Test with queries that have minimal keywords
         mock_history = [
@@ -490,7 +495,7 @@ class TestTopicsRoutes:
         assert isinstance(data["topics"], list)
         assert data["total"] >= 0
 
-    def test_topics_endpoint_response_schema(self):
+    def test_topics_endpoint_response_schema(self) -> None:
         """Test that topics endpoint responses match expected schema."""
         # Test with invalid request to get 422 response
         response = self.client.get("/api/topics?limit=invalid")
@@ -506,7 +511,7 @@ class TestTopicsRoutes:
 class TestTopicWikiRoutes:
     """Test suite for topic wiki knowledge retrieval endpoints."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test client for each test."""
         self.client = TestClient(app)
 
@@ -517,10 +522,10 @@ class TestTopicWikiRoutes:
         topic_service._cache_timestamp = 0.0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topic_wiki_success(self, mock_get_api):
+    def test_get_topic_wiki_success(self, mock_get_api: Mock) -> None:
         """Test successful topic wiki knowledge retrieval."""
         # Setup mock orchestration API
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -582,7 +587,7 @@ class TestTopicWikiRoutes:
             assert isinstance(source_id, str)
             assert len(source_id) == 36  # UUID format
 
-    def test_get_topic_wiki_invalid_uuid_format(self):
+    def test_get_topic_wiki_invalid_uuid_format(self) -> None:
         """Test topic wiki with invalid UUID format."""
         invalid_topic_id = "invalid-uuid-format"
         response = self.client.get(f"/api/topics/{invalid_topic_id}/wiki")
@@ -596,10 +601,10 @@ class TestTopicWikiRoutes:
         assert detail["topic_id"] == invalid_topic_id
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topic_wiki_topic_not_found(self, mock_get_api):
+    def test_get_topic_wiki_topic_not_found(self, mock_get_api: Mock) -> None:
         """Test topic wiki when topic ID is not found."""
         # Setup mock with empty history so no topics are discovered
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_api.get_workflow_history.return_value = []
         mock_get_api.return_value = mock_api
 
@@ -616,10 +621,10 @@ class TestTopicWikiRoutes:
         assert detail["topic_id"] == nonexistent_topic_id
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topic_wiki_with_minimal_data(self, mock_get_api):
+    def test_get_topic_wiki_with_minimal_data(self, mock_get_api: Mock) -> None:
         """Test topic wiki with minimal workflow data."""
         # Setup mock with one simple workflow
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -652,9 +657,11 @@ class TestTopicWikiRoutes:
             assert data["query_count"] >= 0
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topic_wiki_with_multiple_related_workflows(self, mock_get_api):
+    def test_get_topic_wiki_with_multiple_related_workflows(
+        self, mock_get_api: Mock
+    ) -> None:
         """Test topic wiki with multiple related workflows."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -720,7 +727,9 @@ class TestTopicWikiRoutes:
 
     @patch("cognivault.api.routes.topics.topic_service.find_topic_by_id")
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topic_wiki_orchestration_failure(self, mock_get_api, mock_find_topic):
+    def test_get_topic_wiki_orchestration_failure(
+        self, mock_get_api: Mock, mock_find_topic: Mock
+    ) -> None:
         """Test topic wiki when orchestration API fails during knowledge synthesis."""
         # Create a mock topic to return
         from cognivault.api.models import TopicSummary
@@ -753,9 +762,11 @@ class TestTopicWikiRoutes:
 
     @patch("cognivault.api.routes.topics.logger")
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_get_topic_wiki_logging(self, mock_get_api, mock_logger):
+    def test_get_topic_wiki_logging(
+        self, mock_get_api: Mock, mock_logger: Mock
+    ) -> None:
         """Test that topic wiki retrieval logs appropriately."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -795,7 +806,7 @@ class TestTopicWikiRoutes:
                 ]
                 assert len(completion_logs) > 0
 
-    def test_get_topic_wiki_edge_cases(self):
+    def test_get_topic_wiki_edge_cases(self) -> None:
         """Test topic wiki endpoint with edge case inputs."""
         # Test with various invalid formats
         invalid_ids = [
@@ -817,9 +828,9 @@ class TestTopicWikiRoutes:
         assert response.status_code == 404  # FastAPI route not found
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_topic_wiki_content_synthesis_quality(self, mock_get_api):
+    def test_topic_wiki_content_synthesis_quality(self, mock_get_api: Mock) -> None:
         """Test the quality and structure of synthesized wiki content."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
         mock_history = [
             {
                 "workflow_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -874,9 +885,9 @@ class TestTopicWikiRoutes:
             )
 
     @patch("cognivault.api.routes.topics.get_orchestration_api")
-    def test_topic_wiki_source_tracking(self, mock_get_api):
+    def test_topic_wiki_source_tracking(self, mock_get_api: Mock) -> None:
         """Test that topic wiki properly tracks source workflows."""
-        mock_api = Mock()
+        mock_api: Mock = Mock()
 
         # Create workflows with distinct IDs
         workflow_ids = [
