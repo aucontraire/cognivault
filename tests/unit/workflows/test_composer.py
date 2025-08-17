@@ -18,7 +18,7 @@ from cognivault.workflows.composer import (
 )
 from cognivault.workflows.definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
     EdgeDefinition,
 )
@@ -32,7 +32,7 @@ class TestNodeFactory:
         """Test successful BASE node creation."""
         factory = NodeFactory()
 
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="test_refiner",
             node_type="refiner",
             category="BASE",
@@ -53,7 +53,7 @@ class TestNodeFactory:
         """Test ADVANCED DecisionNode creation."""
         factory = NodeFactory()
 
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="decision_1",
             node_type="decision",
             category="ADVANCED",
@@ -77,7 +77,7 @@ class TestNodeFactory:
         """Test ADVANCED AggregatorNode creation."""
         factory = NodeFactory()
 
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="aggregator_1",
             node_type="aggregator",
             category="ADVANCED",
@@ -104,7 +104,7 @@ class TestNodeFactory:
         """Test error handling for unsupported node category."""
         factory = NodeFactory()
 
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="invalid_node",
             node_type="custom",
             category="INVALID",
@@ -119,7 +119,7 @@ class TestNodeFactory:
         """Test error handling for unsupported ADVANCED node type."""
         factory = NodeFactory()
 
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="invalid_advanced",
             node_type="custom_advanced",
             category="ADVANCED",
@@ -209,14 +209,14 @@ class TestDagComposer:
             description="Test workflow",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
                     execution_pattern="processor",
                     metadata={},
                 ),
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="critic",
                     node_type="critic",
                     category="BASE",
@@ -413,7 +413,7 @@ class TestWorkflowCompositionIntegration:
             created_by="test",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="start",
                     node_type="refiner",
                     category="BASE",
@@ -451,14 +451,14 @@ class TestWorkflowCompositionIntegration:
             created_by="test",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
                     execution_pattern="processor",
                     metadata={},
                 ),
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="decision",
                     node_type="decision",
                     category="ADVANCED",

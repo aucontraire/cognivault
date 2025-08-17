@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from cognivault.workflows.definition import (
     EdgeDefinition,
     FlowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     ExecutionConfiguration,
     OutputConfiguration,
     QualityGates,
@@ -165,7 +165,7 @@ class TestNodeConfiguration:
 
     def test_node_configuration_creation_minimal(self) -> None:
         """Test creating NodeConfiguration with minimal required fields."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="refiner", category="BASE"
         )
 
@@ -179,7 +179,7 @@ class TestNodeConfiguration:
 
     def test_node_configuration_creation_full(self) -> None:
         """Test creating NodeConfiguration with all fields specified."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="advanced_node",
             node_type="decision",
             category="ADVANCED",
@@ -199,7 +199,7 @@ class TestNodeConfiguration:
 
     def test_node_configuration_to_dict(self) -> None:
         """Test NodeConfiguration serialization to dictionary."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test",
             node_type="critic",
             category="BASE",
@@ -222,17 +222,21 @@ class TestNodeConfiguration:
     def test_node_configuration_validation_empty_fields(self) -> None:
         """Test NodeConfiguration allows empty required fields (Pydantic default behavior)."""
         # Pydantic by default allows empty strings - we could add validators if stricter validation is needed
-        node1 = NodeConfiguration(node_id="", node_type="refiner", category="BASE")
+        node1 = WorkflowNodeConfiguration(
+            node_id="", node_type="refiner", category="BASE"
+        )
         assert node1.node_id == ""
         assert node1.node_type == "refiner"
         assert node1.category == "BASE"
 
-        node2 = NodeConfiguration(node_id="test", node_type="", category="BASE")
+        node2 = WorkflowNodeConfiguration(node_id="test", node_type="", category="BASE")
         assert node2.node_id == "test"
         assert node2.node_type == ""
         assert node2.category == "BASE"
 
-        node3 = NodeConfiguration(node_id="test", node_type="refiner", category="")
+        node3 = WorkflowNodeConfiguration(
+            node_id="test", node_type="refiner", category=""
+        )
         assert node3.node_id == "test"
         assert node3.node_type == "refiner"
         assert node3.category == ""
@@ -344,7 +348,7 @@ class TestWorkflowDefinition:
 
     def create_sample_workflow(self) -> WorkflowDefinition:
         """Create a sample workflow for testing."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="refiner", category="BASE"
         )
         edge = EdgeDefinition(from_node="start", to_node="test_node")
@@ -392,7 +396,7 @@ class TestWorkflowDefinition:
 
     def test_workflow_definition_creation_full(self) -> None:
         """Test creating WorkflowDefinition with all optional fields."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="refiner", category="BASE"
         )
         edge = EdgeDefinition(from_node="start", to_node="test_node")
@@ -433,7 +437,7 @@ class TestWorkflowDefinition:
 
     def test_workflow_definition_create_class_method(self) -> None:
         """Test WorkflowDefinition.create() class method."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="refiner", category="BASE"
         )
         edge = EdgeDefinition(from_node="start", to_node="test_node")
@@ -764,7 +768,7 @@ class TestPydanticValidation:
 
     def test_workflow_validation_wrong_types(self) -> None:
         """Test Pydantic validation catches type errors."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="refiner", category="BASE"
         )
         edge = EdgeDefinition(from_node="start", to_node="test_node")
@@ -781,7 +785,7 @@ class TestPydanticValidation:
 
     def test_pydantic_model_dump(self) -> None:
         """Test Pydantic model_dump() method works correctly."""
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="refiner", category="BASE"
         )
         edge = EdgeDefinition(from_node="start", to_node="test_node")
@@ -837,6 +841,6 @@ class TestTypeAliases:
         )
 
         assert WorkflowConfig == WorkflowDefinition
-        assert NodeConfig == NodeConfiguration
+        assert NodeConfig == WorkflowNodeConfiguration
         assert FlowConfig == FlowDefinition
         assert EdgeConfig == EdgeDefinition

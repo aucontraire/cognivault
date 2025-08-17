@@ -16,7 +16,7 @@ from pathlib import Path
 from cognivault.diagnostics.pattern_validator import (
     PatternValidationFramework,
     StructuralValidator,
-    SemanticValidator,
+    PatternSemanticValidator,
     PerformanceValidator,
     SecurityValidator,
     PatternValidationLevel,
@@ -256,17 +256,17 @@ class TestStructuralValidator:
         )
 
 
-class TestSemanticValidator:
-    """Test suite for SemanticValidator class."""
+class TestPatternSemanticValidator:
+    """Test suite for PatternSemanticValidator class."""
 
     @pytest.fixture
     def validator(self) -> Any:
-        """Create SemanticValidator instance."""
-        return SemanticValidator()
+        """Create PatternSemanticValidator instance."""
+        return PatternSemanticValidator()
 
     def test_validator_name(self, validator: Any) -> None:
         """Test validator name property."""
-        assert validator.validator_name == "Semantic Validator"
+        assert validator.validator_name == "Pattern Semantic Validator"
 
     def test_validate_valid_pattern(self, validator: Any) -> None:
         """Test validation of valid pattern."""
@@ -526,7 +526,9 @@ class TestPatternValidationFramework:
         assert len(framework.validators) == 4  # 4 built-in validators
         assert len(framework.custom_validators) == 0
         assert any(isinstance(v, StructuralValidator) for v in framework.validators)
-        assert any(isinstance(v, SemanticValidator) for v in framework.validators)
+        assert any(
+            isinstance(v, PatternSemanticValidator) for v in framework.validators
+        )
         assert any(isinstance(v, PerformanceValidator) for v in framework.validators)
         assert any(isinstance(v, SecurityValidator) for v in framework.validators)
 

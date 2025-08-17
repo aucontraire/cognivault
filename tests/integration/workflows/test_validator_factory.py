@@ -16,7 +16,7 @@ from pathlib import Path
 # Test path setup is handled by pytest configuration
 
 from cognivault.workflows.composer import DagComposer, NodeFactory
-from cognivault.workflows.definition import NodeConfiguration
+from cognivault.workflows.definition import WorkflowNodeConfiguration
 from cognivault.agents.metadata import AgentMetadata
 
 
@@ -32,7 +32,7 @@ def test_validator_factory_configurations() -> None:
     # Test Case 1: Strict Validator Configuration
     print("\n1. Testing Strict Validator Configuration...")
     try:
-        strict_config = NodeConfiguration(
+        strict_config = WorkflowNodeConfiguration(
             node_id="strict_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -84,7 +84,7 @@ def test_validator_factory_configurations() -> None:
     # Test Case 2: Permissive Validator Configuration
     print("\n2. Testing Permissive Validator Configuration...")
     try:
-        permissive_config = NodeConfiguration(
+        permissive_config = WorkflowNodeConfiguration(
             node_id="permissive_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -129,7 +129,7 @@ def test_validator_factory_configurations() -> None:
     # Test Case 3: Minimal Configuration (Boundary Testing)
     print("\n3. Testing Minimal Validator Configuration...")
     try:
-        minimal_config = NodeConfiguration(
+        minimal_config = WorkflowNodeConfiguration(
             node_id="minimal_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -164,7 +164,7 @@ def test_validator_factory_configurations() -> None:
     # Test Case 4: Complex Multi-Criteria Configuration
     print("\n4. Testing Complex Multi-Criteria Validator Configuration...")
     try:
-        complex_config = NodeConfiguration(
+        complex_config = WorkflowNodeConfiguration(
             node_id="complex_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -228,7 +228,7 @@ def test_validator_factory_configurations() -> None:
     # Test Case 5: Invalid Configuration (Error Testing)
     print("\n5. Testing Invalid Configuration (Expected to Fail)...")
     try:
-        invalid_config = NodeConfiguration(
+        invalid_config = WorkflowNodeConfiguration(
             node_id="invalid_test_validator",
             node_type="validator",
             category="ADVANCED",
@@ -325,7 +325,7 @@ def test_validator_configuration_validation() -> None:
     for test_name, config_data in boundary_tests:
         print(f"\n   Testing {test_name}...")
         try:
-            config = NodeConfiguration(
+            config = WorkflowNodeConfiguration(
                 node_id=f"boundary_test_{test_name.lower().replace(' ', '_')}",
                 node_type="validator",
                 category="ADVANCED",

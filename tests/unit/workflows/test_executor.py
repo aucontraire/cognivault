@@ -18,7 +18,7 @@ from cognivault.workflows.executor import (
 )
 from cognivault.workflows.definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
     EdgeDefinition,
 )
@@ -39,7 +39,7 @@ except (ImportError, Exception):
 def create_test_workflow() -> Union[object, Mock]:
     """Create a test WorkflowDefinition for testing."""
     try:
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="processor", category="BASE"
         )
         flow = FlowDefinition(entry_point="test_node", edges=[])
@@ -125,7 +125,7 @@ class TestWorkflowExecutor:
             description="Test workflow",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -284,7 +284,7 @@ class TestDeclarativeOrchestrator:
             description="Test workflow",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -414,7 +414,7 @@ class TestWorkflowExecutionIntegration:
             created_by="test",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -483,7 +483,7 @@ class TestWorkflowExecutionIntegration:
             created_by="test",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",

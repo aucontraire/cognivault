@@ -12,7 +12,7 @@ from .adapter import (
     LangGraphNodeAdapter,
     StandardNodeAdapter,
     ConditionalNodeAdapter,
-    NodeConfiguration,
+    ExecutionNodeConfiguration,
     NodeExecutionResult,
     create_node_adapter,
 )
@@ -42,7 +42,7 @@ __all__ = [
     "LangGraphNodeAdapter",
     "StandardNodeAdapter",
     "ConditionalNodeAdapter",
-    "NodeConfiguration",
+    "ExecutionNodeConfiguration",
     "NodeExecutionResult",
     "create_node_adapter",
     # DAG execution

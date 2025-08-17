@@ -35,12 +35,13 @@ if TYPE_CHECKING:
 
 
 class HealthStatus(Enum):
-    """Health status enumeration."""
+    """Comprehensive health status enumeration for all CogniVault components."""
 
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
-    UNKNOWN = "unknown"
+    MAINTENANCE = "maintenance"  # TODO: Available for future planned downtime features
+    UNKNOWN = "unknown"  # When status cannot be determined
 
 
 class ComponentHealth(BaseModel):

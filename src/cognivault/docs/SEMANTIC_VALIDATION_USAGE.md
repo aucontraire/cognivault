@@ -138,9 +138,9 @@ config = GraphConfig(
 ### Creating Custom Validators
 
 ```python
-from cognivault.langgraph_backend import SemanticValidator, ValidationResult, ValidationSeverity
+from cognivault.langgraph_backend import WorkflowSemanticValidator, ValidationResult, ValidationSeverity
 
-class CustomValidator(SemanticValidator):
+class CustomValidator(WorkflowSemanticValidator):
     def validate_workflow(self, agents, pattern, **kwargs):
         result = ValidationResult(is_valid=True, issues=[])
         

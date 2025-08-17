@@ -20,7 +20,7 @@ from cognivault.exceptions import AgentExecutionError, StateTransitionError
 from cognivault.orchestration.adapter import (
     StandardNodeAdapter,
     ConditionalNodeAdapter,
-    NodeConfiguration,
+    ExecutionNodeConfiguration,
     NodeExecutionResult,
     create_node_adapter,
 )
@@ -71,7 +71,7 @@ def sample_context() -> Any:
 @pytest.fixture
 def node_config() -> Any:
     """Create a sample node configuration."""
-    return NodeConfiguration(
+    return ExecutionNodeConfiguration(
         timeout_seconds=10.0,
         retry_enabled=True,
         step_id="test_step_001",
@@ -190,7 +190,7 @@ class TestStandardNodeAdapter:
 
         # Execute multiple times
         for i in range(3):
-            await adapter.execute(sample_context, NodeConfiguration())
+            await adapter.execute(sample_context, ExecutionNodeConfiguration())
 
         assert adapter.total_executions == 3
         assert adapter.successful_executions == 3
@@ -226,7 +226,7 @@ class TestConditionalNodeAdapter:
             return ["next_node", "alternative_node"]
 
         adapter = ConditionalNodeAdapter(mock_agent, routing_func)
-        result = await adapter.execute(sample_context, NodeConfiguration())
+        result = await adapter.execute(sample_context, ExecutionNodeConfiguration())
 
         assert result.success is True
         assert len(executed_nodes) == 1
@@ -245,7 +245,7 @@ class TestConditionalNodeAdapter:
             raise ValueError("Routing function error")
 
         adapter = ConditionalNodeAdapter(mock_agent, failing_routing_func)
-        result = await adapter.execute(sample_context, NodeConfiguration())
+        result = await adapter.execute(sample_context, ExecutionNodeConfiguration())
 
         # Agent execution should succeed, but routing should fail gracefully
         assert result.success is True
@@ -259,12 +259,12 @@ class TestConditionalNodeAdapter:
         assert len(error_edges) > 0
 
 
-class TestNodeConfiguration:
-    """Test cases for NodeConfiguration."""
+class TestExecutionNodeConfiguration:
+    """Test cases for ExecutionNodeConfiguration."""
 
     def test_default_configuration(self) -> None:
         """Test default node configuration."""
-        config = NodeConfiguration()
+        config = ExecutionNodeConfiguration()
 
         assert config.timeout_seconds is None
         assert config.retry_enabled is True
@@ -273,7 +273,7 @@ class TestNodeConfiguration:
 
     def test_custom_configuration(self) -> None:
         """Test custom node configuration."""
-        config = NodeConfiguration(
+        config = ExecutionNodeConfiguration(
             timeout_seconds=30.0,
             retry_enabled=False,
             step_id="custom_step",
@@ -338,7 +338,7 @@ class TestNodeAdapterIntegration:
         adapter = StandardNodeAdapter(mock_agent)
         original_size = sample_context.current_size
 
-        result = await adapter.execute(sample_context, NodeConfiguration())
+        result = await adapter.execute(sample_context, ExecutionNodeConfiguration())
 
         # Context should be modified
         assert result.context.current_size != original_size
@@ -356,7 +356,7 @@ class TestNodeAdapterIntegration:
         adapter = StandardNodeAdapter(mock_agent)
         initial_snapshots = len(sample_context.snapshots)
 
-        await adapter.execute(sample_context, NodeConfiguration())
+        await adapter.execute(sample_context, ExecutionNodeConfiguration())
 
         # Snapshot should be created before execution
         assert len(sample_context.snapshots) > initial_snapshots
@@ -387,8 +387,12 @@ class TestNodeAdapterIntegration:
         slow_adapter = StandardNodeAdapter(slow_agent)
 
         # Execute both agents
-        fast_result = await fast_adapter.execute(sample_context, NodeConfiguration())
-        slow_result = await slow_adapter.execute(sample_context, NodeConfiguration())
+        fast_result = await fast_adapter.execute(
+            sample_context, ExecutionNodeConfiguration()
+        )
+        slow_result = await slow_adapter.execute(
+            sample_context, ExecutionNodeConfiguration()
+        )
 
         # Fast agent should have lower execution time
         assert fast_result.execution_time_ms < slow_result.execution_time_ms
@@ -408,7 +412,7 @@ class TestNodeAdapterIntegration:
         ):
             adapter = StandardNodeAdapter(mock_agent, enable_state_validation=True)
 
-            result = await adapter.execute(sample_context, NodeConfiguration())
+            result = await adapter.execute(sample_context, ExecutionNodeConfiguration())
 
             assert result.success is False
             assert isinstance(result.error, StateTransitionError)
@@ -421,7 +425,7 @@ class TestNodeAdapterIntegration:
         adapter = StandardNodeAdapter(slow_agent)
 
         # Set a very short timeout
-        config = NodeConfiguration(timeout_seconds=0.01)
+        config = ExecutionNodeConfiguration(timeout_seconds=0.01)
 
         # Note: This test depends on the agent's timeout implementation
         # For now, we'll just verify the configuration is passed through

@@ -12,7 +12,8 @@ from httpx import Response
 
 from cognivault.api.main import app
 from cognivault.api.models import WorkflowRequest, WorkflowResponse
-from cognivault.api.base import HealthStatus, APIStatus
+from cognivault.api.base import APIHealthStatus
+from cognivault.diagnostics.health import HealthStatus
 
 
 class TestFastAPIIntegration:
@@ -139,8 +140,8 @@ class TestFastAPIIntegration:
         """Test health check integration with orchestration API."""
         # Setup mock for successful health check
         mock_api = AsyncMock()
-        mock_status = HealthStatus(
-            status=APIStatus.HEALTHY,
+        mock_status = APIHealthStatus(
+            status=HealthStatus.HEALTHY,
             details="LangGraphOrchestrationAPI is healthy",
             checks={
                 "initialized": True,

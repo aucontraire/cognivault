@@ -25,7 +25,7 @@ from rich.panel import Panel
 
 # LangGraph imports moved to function level to avoid module-level import issues
 # from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
-# from cognivault.langgraph_backend.semantic_validation import SemanticValidator
+# from cognivault.langgraph_backend.semantic_validation import WorkflowSemanticValidator
 
 
 class PatternValidationLevel(Enum):
@@ -213,12 +213,12 @@ class StructuralValidator(PatternValidator):
         return issues
 
 
-class SemanticValidator(PatternValidator):
+class PatternSemanticValidator(PatternValidator):
     """Validates pattern semantic correctness."""
 
     @property
     def validator_name(self) -> str:
-        return "Semantic Validator"
+        return "Pattern Semantic Validator"
 
     def validate(
         self, pattern: "GraphPattern", level: PatternValidationLevel
@@ -451,7 +451,7 @@ class PatternValidationFramework:
         self.console = Console()
         self.validators: List[PatternValidator] = [
             StructuralValidator(),
-            SemanticValidator(),
+            PatternSemanticValidator(),
             PerformanceValidator(),
             SecurityValidator(),
         ]

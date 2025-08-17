@@ -217,12 +217,12 @@ flow:
 
     def test_node_factory_handles_configurations(self) -> None:
         """Test that NodeFactory can handle both configuration styles."""
-        from cognivault.workflows.definition import NodeConfiguration
+        from cognivault.workflows.definition import WorkflowNodeConfiguration
 
         factory = NodeFactory()
 
         # Test old style configuration
-        old_style_config = NodeConfiguration(
+        old_style_config = WorkflowNodeConfiguration(
             node_id="test_historian",
             node_type="historian",
             category="BASE",
@@ -237,7 +237,7 @@ flow:
         assert callable(node_func)
 
         # Test new style configuration
-        new_style_config = NodeConfiguration(
+        new_style_config = WorkflowNodeConfiguration(
             node_id="test_refiner",
             node_type="refiner",
             category="BASE",

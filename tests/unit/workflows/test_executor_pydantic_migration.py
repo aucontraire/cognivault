@@ -47,11 +47,11 @@ def create_test_workflow() -> Union[object, Mock]:
     try:
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
         )
 
-        node = NodeConfiguration(
+        node = WorkflowNodeConfiguration(
             node_id="test_node", node_type="processor", category="BASE"
         )
         flow = FlowDefinition(entry_point="test_node", edges=[])
@@ -80,11 +80,11 @@ class TestExecutionContext:
         try:
             from cognivault.workflows.definition import (
                 WorkflowDefinition,
-                NodeConfiguration,
+                WorkflowNodeConfiguration,
                 FlowDefinition,
             )
 
-            node = NodeConfiguration(
+            node = WorkflowNodeConfiguration(
                 node_id="test_node", node_type="processor", category="BASE"
             )
             flow = FlowDefinition(entry_point="test_node", edges=[])

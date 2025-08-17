@@ -83,6 +83,11 @@ def test_graph_factory_basic(mock_state_graph: Any) -> None:
     mock_graph_instance: Mock = Mock()
     mock_compiled: Mock = Mock()
     mock_graph_instance.compile.return_value = mock_compiled
+    
+    # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+    mock_state_graph_generic: Mock = Mock()
+    mock_state_graph_generic.return_value = mock_graph_instance
+    mock_state_graph.__getitem__.return_value = mock_state_graph_generic
     mock_state_graph.return_value = mock_graph_instance
 
     factory = GraphFactory()
@@ -98,7 +103,7 @@ def test_graph_factory_basic(mock_state_graph: Any) -> None:
     assert result is mock_compiled
 
     # StateGraph should have been called
-    assert mock_state_graph.called
+    assert mock_state_graph_generic.called
 
 
 def test_integration_basic() -> None:

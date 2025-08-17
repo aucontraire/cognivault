@@ -79,14 +79,14 @@ def _validate_langgraph_runtime() -> None:
         # Test basic StateGraph creation (lightweight validation)
         from typing import TypedDict
 
-        class TestState(TypedDict):
+        class LangGraphRuntimeTestState(TypedDict):
             test: str
 
-        def test_node(state: TestState) -> TestState:
+        def test_node(state: LangGraphRuntimeTestState) -> LangGraphRuntimeTestState:
             return {"test": "working"}
 
         # Quick validation - create but don't execute
-        graph = StateGraph(TestState)
+        graph = StateGraph(LangGraphRuntimeTestState)
         graph.add_node("test", test_node)
         graph.add_edge("test", END)
         graph.set_entry_point("test")

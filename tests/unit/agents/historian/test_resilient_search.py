@@ -20,7 +20,7 @@ from cognivault.agents.historian.resilient_search import (
     TitleGenerator,
     FailedDocument,
     ProcessingStats,
-    ValidationReport,
+    DocumentProcessingReport,
     BatchResult,
 )
 from cognivault.agents.historian.search import (
@@ -304,7 +304,7 @@ class TestResilientSearchProcessor:
 
         # Should fall back to resilient processing
         assert isinstance(results, list)
-        assert isinstance(report, ValidationReport)
+        assert isinstance(report, DocumentProcessingReport)
         assert report.total_processed >= 0
 
     @pytest.mark.asyncio
@@ -580,4 +580,4 @@ class TestAsyncSupport:
         # Should complete with async delay
         assert (end_time - start_time) >= 0.1
         assert isinstance(results, list)
-        assert isinstance(report, ValidationReport)
+        assert isinstance(report, DocumentProcessingReport)

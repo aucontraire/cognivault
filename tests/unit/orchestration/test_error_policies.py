@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from cognivault.orchestration.error_policies import (
     ErrorPolicyType,
     FallbackStrategy,
-    RetryConfig,
+    PolicyRetryConfig,
     CircuitBreakerConfig,
     ErrorPolicy,
     LangGraphExecutionError,
@@ -56,12 +56,12 @@ class TestEnums:
         assert CircuitBreakerState.HALF_OPEN.value == "half_open"
 
 
-class TestRetryConfig:
-    """Test RetryConfig dataclass."""
+class TestPolicyRetryConfig:
+    """Test PolicyRetryConfig dataclass."""
 
     def test_default_retry_config(self) -> None:
         """Test default retry configuration."""
-        config = RetryConfig()
+        config = PolicyRetryConfig()
 
         assert config.max_attempts == 3
         assert config.base_delay_seconds == 1.0
@@ -72,7 +72,7 @@ class TestRetryConfig:
 
     def test_custom_retry_config(self) -> None:
         """Test custom retry configuration."""
-        config = RetryConfig(
+        config = PolicyRetryConfig(
             max_attempts=5,
             base_delay_seconds=0.5,
             max_delay_seconds=30.0,
@@ -133,7 +133,7 @@ class TestErrorPolicy:
 
     def test_complex_error_policy(self) -> None:
         """Test complex error policy with all options."""
-        retry_config = RetryConfig(max_attempts=2)
+        retry_config = PolicyRetryConfig(max_attempts=2)
         cb_config = CircuitBreakerConfig(failure_threshold=3)
 
         policy = ErrorPolicy(
@@ -472,7 +472,7 @@ class TestRetryDecorator:
         ) as mock_manager:
             mock_policy = ErrorPolicy(
                 policy_type=ErrorPolicyType.RETRY_WITH_BACKOFF,
-                retry_config=RetryConfig(retry_on_types=[ValueError]),
+                retry_config=PolicyRetryConfig(retry_on_types=[ValueError]),
             )
             mock_manager.return_value.get_policy.return_value = mock_policy
 

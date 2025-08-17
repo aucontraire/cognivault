@@ -16,7 +16,7 @@ from enum import Enum
 
 from .base import GraphPattern
 from ..semantic_validation import (
-    SemanticValidator,
+    WorkflowSemanticValidator,
     SemanticValidationResult,
     ValidationSeverity,
 )
@@ -433,7 +433,7 @@ class EnhancedConditionalPattern(GraphPattern):
     def __init__(
         self,
         config: Optional[RoutingConfig] = None,
-        semantic_validator: Optional[SemanticValidator] = None,
+        semantic_validator: Optional[WorkflowSemanticValidator] = None,
     ) -> None:
         """
         Initialize enhanced conditional pattern.
@@ -442,7 +442,7 @@ class EnhancedConditionalPattern(GraphPattern):
         ----------
         config : Optional[RoutingConfig]
             Routing configuration, defaults to standard config
-        semantic_validator : Optional[SemanticValidator]
+        semantic_validator : Optional[WorkflowSemanticValidator]
             Semantic validator for domain-specific rules
         """
         self.config = config or RoutingConfig()
@@ -991,7 +991,7 @@ class EnhancedConditionalPattern(GraphPattern):
         return stats
 
 
-class ConditionalPatternValidator(SemanticValidator):
+class ConditionalPatternValidator(WorkflowSemanticValidator):
     """
     Specialized semantic validator for conditional patterns.
 

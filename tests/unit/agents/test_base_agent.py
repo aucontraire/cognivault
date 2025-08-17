@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import patch
 from cognivault.agents.base_agent import (
     BaseAgent,
-    RetryConfig,
+    AgentRetryConfig,
     CircuitBreakerState,
     NodeType,
     NodeInputSchema,
@@ -177,7 +177,7 @@ def test_base_agent_run_abstract_error() -> None:
 
 # RetryConfig tests
 def test_retry_config_defaults() -> None:
-    config = RetryConfig()
+    config = AgentRetryConfig()
     assert config.max_retries == 3
     assert config.base_delay == 1.0
     assert config.max_delay == 60.0
@@ -186,7 +186,7 @@ def test_retry_config_defaults() -> None:
 
 
 def test_retry_config_custom() -> None:
-    config = RetryConfig(
+    config = AgentRetryConfig(
         max_retries=5,
         base_delay=2.0,
         max_delay=120.0,
@@ -289,11 +289,11 @@ def test_base_agent_initialization_defaults() -> None:
     assert agent.success_count == 0
     assert agent.failure_count == 0
     assert agent.circuit_breaker is not None
-    assert isinstance(agent.retry_config, RetryConfig)
+    assert isinstance(agent.retry_config, AgentRetryConfig)
 
 
 def test_base_agent_initialization_custom() -> None:
-    retry_config = RetryConfig(max_retries=5)
+    retry_config = AgentRetryConfig(max_retries=5)
     agent = ConcreteAgent(
         "CustomAgent",
         retry_config=retry_config,
@@ -377,7 +377,7 @@ async def test_run_with_retry_timeout() -> None:
 @pytest.mark.asyncio
 async def test_run_with_retry_retries_on_failure() -> None:
     agent = FlakyAgent("FlakyAgent", failures_before_success=2)
-    agent.retry_config = RetryConfig(max_retries=3, base_delay=0.01)
+    agent.retry_config = AgentRetryConfig(max_retries=3, base_delay=0.01)
     context = AgentContextPatterns.simple_query("test")
 
     result = await agent.run_with_retry(context)
@@ -391,7 +391,7 @@ async def test_run_with_retry_retries_on_failure() -> None:
 @pytest.mark.asyncio
 async def test_run_with_retry_max_retries_exceeded() -> None:
     agent = FailingAgent("FailingAgent")
-    agent.retry_config = RetryConfig(max_retries=2, base_delay=0.01)
+    agent.retry_config = AgentRetryConfig(max_retries=2, base_delay=0.01)
     context = AgentContextPatterns.simple_query("test")
 
     with pytest.raises(AgentExecutionError) as exc_info:
@@ -461,7 +461,7 @@ async def test_handle_retry_delay_zero_delay() -> None:
 @pytest.mark.asyncio
 async def test_handle_retry_delay_exponential_backoff() -> None:
     agent = ConcreteAgent("TestAgent")
-    agent.retry_config = RetryConfig(
+    agent.retry_config = AgentRetryConfig(
         base_delay=0.01, exponential_backoff=True, jitter=False, max_delay=1.0
     )
 
@@ -480,7 +480,7 @@ async def test_handle_retry_delay_exponential_backoff() -> None:
 @pytest.mark.asyncio
 async def test_handle_retry_delay_with_jitter() -> None:
     agent = ConcreteAgent("TestAgent")
-    agent.retry_config = RetryConfig(
+    agent.retry_config = AgentRetryConfig(
         base_delay=0.1, exponential_backoff=False, jitter=True
     )
 
@@ -641,7 +641,9 @@ async def test_run_with_retry_unreachable_fallback() -> None:
             raise Exception("non-retryable")  # Non-agent exception not caught
 
     agent = NoExceptionAgent()
-    agent.retry_config = RetryConfig(max_retries=-1)  # Forces loop to skip entirely
+    agent.retry_config = AgentRetryConfig(
+        max_retries=-1
+    )  # Forces loop to skip entirely
 
     context = AgentContextPatterns.force_fallback()
     with pytest.raises(AgentExecutionError) as exc_info:
@@ -725,7 +727,7 @@ async def test_invoke_method_error_propagation() -> None:
     """Test that invoke() method properly propagates errors."""
 
     agent = FailingAgent("FailingAgent")
-    agent.retry_config = RetryConfig(max_retries=1, base_delay=0.01)
+    agent.retry_config = AgentRetryConfig(max_retries=1, base_delay=0.01)
     context = AgentContextPatterns.simple_query("test error propagation")
 
     with pytest.raises(AgentExecutionError):
@@ -740,7 +742,9 @@ async def test_invoke_method_timeout_override_with_exception() -> None:
     """Test that timeout is restored even when an exception occurs."""
 
     agent = FailingAgent("FailingAgent", timeout_seconds=30.0)
-    agent.retry_config = RetryConfig(max_retries=0, base_delay=0.01)  # Fail immediately
+    agent.retry_config = AgentRetryConfig(
+        max_retries=0, base_delay=0.01
+    )  # Fail immediately
     context = AgentContextPatterns.simple_query("test timeout restore on exception")
     config = {"timeout_seconds": 60.0}
 
@@ -759,7 +763,7 @@ async def test_invoke_method_preserves_all_functionality() -> None:
 
     # Use FlakyAgent to test retry behavior through invoke()
     agent = FlakyAgent("FlakyAgent", failures_before_success=1)
-    agent.retry_config = RetryConfig(max_retries=2, base_delay=0.01)
+    agent.retry_config = AgentRetryConfig(max_retries=2, base_delay=0.01)
     context = AgentContextPatterns.simple_query("test invoke preserves functionality")
 
     result = await agent.invoke(context)

@@ -108,7 +108,7 @@ emit_agent_execution_completed = _emit_agent_execution_completed
 # Make event emission functions available at module level for testing
 __all__ = [
     "BaseAgent",
-    "RetryConfig",
+    "AgentRetryConfig",
     "CircuitBreakerState",
     "NodeType",
     "NodeInputSchema",
@@ -119,7 +119,7 @@ __all__ = [
 ]
 
 
-class RetryConfig:
+class AgentRetryConfig:
     """Configuration for agent retry behavior."""
 
     def __init__(
@@ -371,7 +371,7 @@ class BaseAgent(ABC):
     ----------
     name : str
         The name of the agent.
-    retry_config : RetryConfig, optional
+    retry_config : AgentRetryConfig, optional
         Retry configuration for this agent. If None, uses default settings.
     timeout_seconds : float, optional
         Agent execution timeout in seconds. Default is 30.0.
@@ -382,12 +382,12 @@ class BaseAgent(ABC):
     def __init__(
         self,
         name: str,
-        retry_config: Optional[RetryConfig] = None,
+        retry_config: Optional[AgentRetryConfig] = None,
         timeout_seconds: float = 30.0,
         enable_circuit_breaker: bool = True,
     ) -> None:
         self.name: str = name
-        self.retry_config = retry_config or RetryConfig()
+        self.retry_config = retry_config or AgentRetryConfig()
         self.timeout_seconds = timeout_seconds
         self.logger = logging.getLogger(
             f"{self.__class__.__module__}.{self.__class__.__name__}"

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator, ConfigD
 
 from cognivault.workflows.definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
     EdgeDefinition,
     NodeCategory,

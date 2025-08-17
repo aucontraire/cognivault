@@ -21,7 +21,7 @@ from .graph_patterns import (
 )
 from .graph_cache import GraphCache, CacheConfig
 from .semantic_validation import (
-    SemanticValidator,
+    WorkflowSemanticValidator,
     CogniVaultValidator,
     SemanticValidationResult,
     ValidationIssue,
@@ -45,7 +45,7 @@ __all__ = [
     "GraphCache",
     "CacheConfig",
     # Semantic validation
-    "SemanticValidator",
+    "WorkflowSemanticValidator",
     "CogniVaultValidator",
     "SemanticValidationResult",
     "ValidationIssue",

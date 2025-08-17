@@ -43,7 +43,7 @@ class FallbackStrategy(Enum):
     PARTIAL_RESULT = "partial_result"
 
 
-class RetryConfig(BaseModel):
+class PolicyRetryConfig(BaseModel):
     """
     Configuration for retry behavior.
 
@@ -148,7 +148,7 @@ class ErrorPolicy(BaseModel):
     policy_type: ErrorPolicyType = Field(
         ..., description="Type of error handling policy to apply"
     )
-    retry_config: Optional[RetryConfig] = Field(
+    retry_config: Optional[PolicyRetryConfig] = Field(
         default=None, description="Configuration for retry behavior, if applicable"
     )
     circuit_breaker_config: Optional[CircuitBreakerConfig] = Field(
@@ -276,7 +276,7 @@ class ErrorPolicyManager:
         # Refiner agent policy - fail fast for critical path
         self.policies["refiner"] = ErrorPolicy(
             policy_type=ErrorPolicyType.RETRY_WITH_BACKOFF,
-            retry_config=RetryConfig(
+            retry_config=PolicyRetryConfig(
                 max_attempts=2,
                 base_delay_seconds=0.5,
                 max_delay_seconds=5.0,
@@ -288,7 +288,7 @@ class ErrorPolicyManager:
         # Critic agent policy - graceful degradation
         self.policies["critic"] = ErrorPolicy(
             policy_type=ErrorPolicyType.GRACEFUL_DEGRADATION,
-            retry_config=RetryConfig(max_attempts=1),
+            retry_config=PolicyRetryConfig(max_attempts=1),
             fallback_strategy=FallbackStrategy.PARTIAL_RESULT,
             timeout_seconds=20.0,
         )
@@ -311,7 +311,7 @@ class ErrorPolicyManager:
         # Synthesis agent policy - critical but with retries
         self.policies["synthesis"] = ErrorPolicy(
             policy_type=ErrorPolicyType.RETRY_WITH_BACKOFF,
-            retry_config=RetryConfig(
+            retry_config=PolicyRetryConfig(
                 max_attempts=3,
                 base_delay_seconds=1.0,
                 max_delay_seconds=10.0,
@@ -341,7 +341,7 @@ class ErrorPolicyManager:
         """Get default error policy."""
         return ErrorPolicy(
             policy_type=ErrorPolicyType.RETRY_WITH_BACKOFF,
-            retry_config=RetryConfig(max_attempts=3),
+            retry_config=PolicyRetryConfig(max_attempts=3),
             timeout_seconds=30.0,
         )
 
@@ -362,7 +362,7 @@ def retry_with_policy(node_name: str) -> Callable[[F], F]:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             policy = get_error_policy_manager().get_policy(node_name)
-            retry_config = policy.retry_config or RetryConfig()
+            retry_config = policy.retry_config or PolicyRetryConfig()
 
             last_exception = None
 

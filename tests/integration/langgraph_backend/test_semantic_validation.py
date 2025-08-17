@@ -4,7 +4,7 @@ import pytest
 from typing import Any
 
 from cognivault.langgraph_backend.semantic_validation import (
-    SemanticValidator,
+    WorkflowSemanticValidator,
     CogniVaultValidator,
     SemanticValidationResult,
     ValidationIssue,
@@ -300,7 +300,7 @@ class TestCreateDefaultValidator:
         assert validator.strict_mode
 
 
-class TestSemanticValidatorIntegration:
+class TestWorkflowSemanticValidatorIntegration:
     """Integration tests for semantic validation."""
 
     def test_validator_workflow_comprehensive(self) -> None:
@@ -351,7 +351,7 @@ class TestSemanticValidatorIntegration:
         assert isinstance(result, SemanticValidationResult)
 
 
-class MockValidator(SemanticValidator):
+class MockValidator(WorkflowSemanticValidator):
     """Mock validator for testing abstract interface."""
 
     def __init__(self, should_fail: bool = False) -> None:
@@ -373,13 +373,13 @@ class MockValidator(SemanticValidator):
         return {"mock_pattern"}
 
 
-class TestSemanticValidatorInterface:
-    """Test the abstract SemanticValidator interface."""
+class TestWorkflowSemanticValidatorInterface:
+    """Test the abstract WorkflowSemanticValidator interface."""
 
     def test_abstract_validator_cannot_be_instantiated(self) -> None:
-        """Test that SemanticValidator cannot be instantiated directly."""
+        """Test that WorkflowSemanticValidator cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            SemanticValidator()  # type: ignore[abstract]
+            WorkflowSemanticValidator()  # type: ignore[abstract]
 
     def test_mock_validator_implementation(self) -> None:
         """Test mock validator implementation."""

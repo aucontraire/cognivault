@@ -24,7 +24,7 @@ from cognivault.workflows.validators import (
 )
 from cognivault.workflows.definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
     EdgeDefinition,
     NodeCategory,
@@ -33,7 +33,7 @@ from cognivault.workflows.definition import (
 
 def create_test_workflow(
     name: str = "Test Workflow",
-    nodes: Optional[List[NodeConfiguration]] = None,
+    nodes: Optional[List[WorkflowNodeConfiguration]] = None,
     edges: Optional[List[EdgeDefinition]] = None,
     entry_point: str = "node1",
     terminal_nodes: Optional[List[str]] = None,
@@ -41,10 +41,10 @@ def create_test_workflow(
     """Create a test workflow for validation testing."""
     if nodes is None:
         nodes = [
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="node1", node_type="refiner", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="node2", node_type="critic", category=NodeCategory.BASE
             ),
         ]
@@ -481,10 +481,10 @@ class TestWorkflowValidator:
     def test_validate_workflow_duplicate_node_ids(self) -> None:
         """Test validation of workflow with duplicate node IDs."""
         duplicate_nodes = [
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="duplicate", node_type="refiner", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="duplicate", node_type="critic", category=NodeCategory.BASE
             ),
         ]
@@ -551,7 +551,7 @@ class TestWorkflowValidator:
 
         # Create workflow that exceeds limits
         many_nodes = [
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id=f"node{i}", node_type="refiner", category=NodeCategory.BASE
             )
             for i in range(5)  # Exceeds max_nodes=2
@@ -692,13 +692,13 @@ class TestAdvancedValidationFeatures:
     def test_workflow_metadata_generation(self) -> None:
         """Test workflow metadata generation during validation."""
         nodes = [
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="node1", node_type="refiner", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="node2", node_type="critic", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="node3", node_type="historian", category=NodeCategory.BASE
             ),
         ]
@@ -736,7 +736,7 @@ class TestAdvancedValidationFeatures:
             version="1.0.0",
             workflow_id="test",
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="valid_node",
                     node_type="refiner",
                     category=NodeCategory.BASE,
@@ -774,13 +774,13 @@ class TestAdvancedValidationFeatures:
         """Test performance hints validation when enabled."""
         # Create workflow with multiple incoming edges to a node (potential parallel optimization)
         nodes = [
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="source1", node_type="refiner", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="source2", node_type="critic", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="target", node_type="synthesis", category=NodeCategory.BASE
             ),
         ]
@@ -815,10 +815,10 @@ class TestAdvancedValidationFeatures:
         """Test naming convention validation when enabled."""
         # Create workflow with invalid node ID naming
         invalid_nodes = [
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="Invalid Node!", node_type="refiner", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="valid_node", node_type="critic", category=NodeCategory.BASE
             ),
         ]
@@ -843,13 +843,13 @@ class TestAdvancedValidationFeatures:
         """Test detection of unreachable nodes."""
         # Create workflow with unreachable node
         nodes = [
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="entry", node_type="refiner", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="reachable", node_type="critic", category=NodeCategory.BASE
             ),
-            NodeConfiguration(
+            WorkflowNodeConfiguration(
                 node_id="unreachable", node_type="historian", category=NodeCategory.BASE
             ),
         ]

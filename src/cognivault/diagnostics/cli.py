@@ -776,14 +776,16 @@ class DiagnosticsCLI:
                 from langgraph.checkpoint.memory import MemorySaver
                 from typing import TypedDict
 
-                class TestState(TypedDict):
+                class LangGraphHealthCheckState(TypedDict):
                     test: str
 
-                def test_node(state: TestState) -> TestState:
+                def test_node(
+                    state: LangGraphHealthCheckState,
+                ) -> LangGraphHealthCheckState:
                     return {"test": "working"}
 
                 # Test basic StateGraph creation
-                graph = StateGraph(TestState)
+                graph = StateGraph(LangGraphHealthCheckState)
                 graph.add_node("test", test_node)
                 graph.add_edge("test", END)
                 graph.set_entry_point("test")

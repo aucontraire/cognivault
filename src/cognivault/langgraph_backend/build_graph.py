@@ -24,7 +24,7 @@ from cognivault.observability import get_logger
 from .graph_patterns import GraphPattern, PatternRegistry
 from .graph_cache import GraphCache, CacheConfig
 from .semantic_validation import (
-    SemanticValidator,
+    WorkflowSemanticValidator,
     ValidationError,
     SemanticValidationResult,
 )
@@ -46,7 +46,7 @@ class GraphConfig:
     pattern_name: str = "standard"
     cache_enabled: bool = True
     enable_validation: bool = False
-    validator: Optional[SemanticValidator] = None
+    validator: Optional[WorkflowSemanticValidator] = None
     validation_strict_mode: bool = False
 
 
@@ -68,7 +68,7 @@ class GraphFactory:
     def __init__(
         self,
         cache_config: Optional[CacheConfig] = None,
-        default_validator: Optional[SemanticValidator] = None,
+        default_validator: Optional[WorkflowSemanticValidator] = None,
     ) -> None:
         """
         Initialize the GraphFactory.
@@ -77,7 +77,7 @@ class GraphFactory:
         ----------
         cache_config : CacheConfig, optional
             Configuration for graph caching. If None, default config is used.
-        default_validator : SemanticValidator, optional
+        default_validator : WorkflowSemanticValidator, optional
             Default semantic validator for workflows. If None, no validation by default.
         """
         self.logger = get_logger(f"{__name__}.GraphFactory")
@@ -462,13 +462,15 @@ class GraphFactory:
         except Exception as e:
             raise GraphBuildError(f"Validation setup failed: {e}") from e
 
-    def set_default_validator(self, validator: Optional[SemanticValidator]) -> None:
+    def set_default_validator(
+        self, validator: Optional[WorkflowSemanticValidator]
+    ) -> None:
         """
         Set the default semantic validator for the factory.
 
         Parameters
         ----------
-        validator : SemanticValidator, optional
+        validator : WorkflowSemanticValidator, optional
             Validator to use by default. None to disable default validation.
         """
         self.default_validator = validator
@@ -479,7 +481,7 @@ class GraphFactory:
         self,
         agents: List[str],
         pattern: str,
-        validator: Optional[SemanticValidator] = None,
+        validator: Optional[WorkflowSemanticValidator] = None,
         strict_mode: bool = False,
     ) -> SemanticValidationResult:
         """
@@ -491,7 +493,7 @@ class GraphFactory:
             List of agent names
         pattern : str
             Pattern name to validate
-        validator : SemanticValidator, optional
+        validator : WorkflowSemanticValidator, optional
             Validator to use. Uses default if None.
         strict_mode : bool
             Whether to use strict validation mode

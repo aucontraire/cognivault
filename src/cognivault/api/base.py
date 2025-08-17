@@ -8,24 +8,16 @@ providing common lifecycle, versioning, and health check patterns.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-from enum import Enum
+
+from cognivault.diagnostics.health import HealthStatus
 
 
-class APIStatus(Enum):
-    """Standard API status enumeration."""
-
-    HEALTHY = "healthy"
-    DEGRADED = "degraded"
-    UNHEALTHY = "unhealthy"
-    MAINTENANCE = "maintenance"
-
-
-class HealthStatus:
+class APIHealthStatus:
     """Standardized health status across all APIs."""
 
     def __init__(
         self,
-        status: APIStatus,
+        status: HealthStatus,
         details: Optional[str] = None,
         checks: Optional[Dict[str, Any]] = None,
     ) -> None:
@@ -66,12 +58,12 @@ class BaseAPI(ABC):
         pass
 
     @abstractmethod
-    async def health_check(self) -> HealthStatus:
+    async def health_check(self) -> APIHealthStatus:
         """
         Comprehensive health check including dependencies.
 
         Returns:
-            HealthStatus with status, details, and check results
+            APIHealthStatus with status, details, and check results
         """
         pass
 

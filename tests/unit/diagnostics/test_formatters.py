@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timedelta
 
 from cognivault.diagnostics.formatters import (
-    JSONFormatter,
+    DiagnosticJSONFormatter,
     CSVFormatter,
     PrometheusFormatter,
     InfluxDBFormatter,
@@ -25,12 +25,12 @@ from tests.factories.diagnostic_health_factories import (
 )
 
 
-class TestJSONFormatter:
+class TestDiagnosticJSONFormatter:
     """Test JSON formatter functionality."""
 
     def setup_method(self) -> None:
         """Set up test environment."""
-        self.formatter = JSONFormatter()
+        self.formatter = DiagnosticJSONFormatter()
 
     def test_format_health_results(self) -> None:
         """Test formatting health results as JSON."""
@@ -142,7 +142,7 @@ class TestJSONFormatter:
 
     def test_format_json_pretty_print(self) -> None:
         """Test JSON formatting with pretty printing."""
-        formatter = JSONFormatter(indent=4)
+        formatter = DiagnosticJSONFormatter(indent=4)
         health_results = {
             "test": ComponentHealthFactory.basic_healthy_component(
                 name="test",
@@ -269,8 +269,8 @@ class TestCSVFormatter:
         assert "timestamp,overall_health,total_components" in formatted
         assert "healthy" in formatted
         assert (
-            "1,1,0,0,1" in formatted
-        )  # healthy_components,degraded_components,unhealthy_components,total_executions
+            "1,1,0,0,0,1" in formatted
+        )  # healthy_components,degraded_components,unhealthy_components,maintenance_components,total_executions
 
     def test_csv_special_characters(self) -> None:
         """Test CSV formatting handles special characters properly."""
@@ -597,7 +597,7 @@ class TestFormatterIntegration:
     def test_empty_health_results(self) -> None:
         """Test formatters handle empty health results."""
         formatters = [
-            JSONFormatter(),
+            DiagnosticJSONFormatter(),
             CSVFormatter(),
             PrometheusFormatter(),
             InfluxDBFormatter(),
@@ -607,7 +607,7 @@ class TestFormatterIntegration:
             result = formatter.format_health_results({})
             assert isinstance(result, str)
             # Should not crash and should return valid format
-            if isinstance(formatter, JSONFormatter):
+            if isinstance(formatter, DiagnosticJSONFormatter):
                 assert result == "{}"
             elif isinstance(formatter, CSVFormatter):
                 # Should at least have headers
@@ -616,7 +616,7 @@ class TestFormatterIntegration:
     def test_none_values(self) -> None:
         """Test formatters handle None values gracefully."""
         formatters = [
-            JSONFormatter(),
+            DiagnosticJSONFormatter(),
             CSVFormatter(),
             PrometheusFormatter(),
             InfluxDBFormatter(),
@@ -639,7 +639,7 @@ class TestFormatterIntegration:
             )
         }
 
-        json_formatter = JSONFormatter()
+        json_formatter = DiagnosticJSONFormatter()
         csv_formatter = CSVFormatter()
         prometheus_formatter = PrometheusFormatter()
         influxdb_formatter = InfluxDBFormatter()

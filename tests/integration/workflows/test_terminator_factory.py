@@ -12,7 +12,7 @@ scenarios to ensure proper instantiation and configuration handling.
 import sys
 
 from cognivault.workflows.composer import NodeFactory
-from cognivault.workflows.definition import NodeConfiguration
+from cognivault.workflows.definition import WorkflowNodeConfiguration
 
 
 def test_terminator_factory_configurations() -> None:
@@ -27,7 +27,7 @@ def test_terminator_factory_configurations() -> None:
     # Test Case 1: Confidence-based Terminator
     print("\n1. Testing Confidence-based Terminator Configuration...")
     try:
-        confidence_config = NodeConfiguration(
+        confidence_config = WorkflowNodeConfiguration(
             node_id="confidence_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -78,7 +78,7 @@ def test_terminator_factory_configurations() -> None:
     # Test Case 2: Resource-based Terminator
     print("\n2. Testing Resource-based Terminator Configuration...")
     try:
-        resource_config = NodeConfiguration(
+        resource_config = WorkflowNodeConfiguration(
             node_id="resource_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -129,7 +129,7 @@ def test_terminator_factory_configurations() -> None:
     # Test Case 3: Completion-based Terminator
     print("\n3. Testing Completion-based Terminator Configuration...")
     try:
-        completion_config = NodeConfiguration(
+        completion_config = WorkflowNodeConfiguration(
             node_id="completion_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -175,7 +175,7 @@ def test_terminator_factory_configurations() -> None:
     # Test Case 4: Minimal Configuration (Boundary Testing)
     print("\n4. Testing Minimal Terminator Configuration...")
     try:
-        minimal_config = NodeConfiguration(
+        minimal_config = WorkflowNodeConfiguration(
             node_id="minimal_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -210,7 +210,7 @@ def test_terminator_factory_configurations() -> None:
     # Test Case 5: Complex Multi-Strategy Configuration
     print("\n5. Testing Complex Multi-Strategy Terminator Configuration...")
     try:
-        complex_config = NodeConfiguration(
+        complex_config = WorkflowNodeConfiguration(
             node_id="complex_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -275,7 +275,7 @@ def test_terminator_factory_configurations() -> None:
     # Test Case 6: Default Configuration (No explicit criteria)
     print("\n6. Testing Default Terminator Configuration...")
     try:
-        default_config = NodeConfiguration(
+        default_config = WorkflowNodeConfiguration(
             node_id="default_terminator",
             node_type="terminator",
             category="ADVANCED",
@@ -343,7 +343,7 @@ def test_terminator_strategy_variations() -> None:
     for strategy, description in strategies:
         print(f"\n   Testing {strategy} strategy...")
         try:
-            config = NodeConfiguration(
+            config = WorkflowNodeConfiguration(
                 node_id=f"terminator_{strategy}",
                 node_type="terminator",
                 category="ADVANCED",
@@ -435,7 +435,7 @@ def test_terminator_boundary_conditions() -> None:
     for test_name, config_data in boundary_tests:
         print(f"\n   Testing {test_name}...")
         try:
-            config = NodeConfiguration(
+            config = WorkflowNodeConfiguration(
                 node_id=f"boundary_test_{test_name.lower().replace(' ', '_')}",
                 node_type="terminator",
                 category="ADVANCED",

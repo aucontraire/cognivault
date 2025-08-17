@@ -47,6 +47,11 @@ class WorkflowRequest(BaseModel):
         max_length=100,
         json_schema_extra={"example": "req-12345-abcdef"},
     )
+    export_md: Optional[bool] = Field(
+        None,
+        description="Export agent outputs to markdown file (generates wiki file)",
+        json_schema_extra={"example": True},
+    )
 
     @field_validator("agents")
     @classmethod
@@ -142,6 +147,19 @@ class WorkflowResponse(BaseModel):
         description="Error message if execution failed",
         max_length=5000,
         json_schema_extra={"example": "Agent 'historian' failed: timeout exceeded"},
+    )
+    markdown_export: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Markdown export information (if export_md was requested)",
+        json_schema_extra={
+            "example": {
+                "file_path": "/path/to/exported/file.md",
+                "filename": "2025-08-15T10-30-00_query_abc123.md",
+                "export_timestamp": "2025-08-15T10:30:00Z",
+                "suggested_topics": ["ai", "machine-learning"],
+                "suggested_domain": "technology",
+            }
+        },
     )
 
     @model_validator(mode="after")

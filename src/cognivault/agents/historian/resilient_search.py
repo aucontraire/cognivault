@@ -49,8 +49,8 @@ class ProcessingStats:
 
 
 @dataclass
-class ValidationReport:
-    """Comprehensive report of validation and processing results."""
+class DocumentProcessingReport:
+    """Comprehensive report of document validation and processing results."""
 
     total_processed: int
     successful_validations: int
@@ -225,7 +225,7 @@ class ResilientSearchProcessor:
 
     async def process_search_with_recovery(
         self, search_interface: HistorianSearchInterface, query: str, limit: int = 10
-    ) -> Tuple[List[SearchResult], ValidationReport]:
+    ) -> Tuple[List[SearchResult], DocumentProcessingReport]:
         """
         Execute search with comprehensive error recovery.
 
@@ -236,7 +236,7 @@ class ResilientSearchProcessor:
             results = await search_interface.search(query, limit)
 
             # If successful, return with minimal report
-            report = ValidationReport(
+            report = DocumentProcessingReport(
                 total_processed=len(results),
                 successful_validations=len(results),
                 failed_validations=0,
@@ -257,7 +257,7 @@ class ResilientSearchProcessor:
 
     async def _resilient_search_processing(
         self, query: str, limit: int
-    ) -> Tuple[List[SearchResult], ValidationReport]:
+    ) -> Tuple[List[SearchResult], DocumentProcessingReport]:
         """Process search with individual document error handling."""
         from cognivault.agents.historian.search import TagBasedSearch
 
@@ -316,7 +316,7 @@ class ResilientSearchProcessor:
         final_results = valid_results[:limit]
 
         # Generate comprehensive report
-        report = ValidationReport(
+        report = DocumentProcessingReport(
             total_processed=stats.success_count
             + stats.skip_count
             + stats.recovered_count

@@ -11,9 +11,9 @@ from pathlib import Path
 from cognivault.agents.metadata import (
     AgentMetadata,
     TaskClassification,
-    DiscoveryStrategy,
     classify_query_task,
 )
+from cognivault.dependencies.dynamic_composition import DiscoveryStrategy
 from cognivault.exceptions import FailurePropagationStrategy
 from tests.factories.event_factory import (
     AgentMetadataFactory,
@@ -239,7 +239,7 @@ class TestAgentMetadata:
 
             metadata = AgentMetadata.create_default()
 
-            # Should create DummyAgent fallback
+            # Should create StringConversionFallbackAgent fallback
             assert metadata.name == "default_agent"
             assert hasattr(metadata.agent_class, "__name__")
 
@@ -283,7 +283,7 @@ class TestAgentMetadata:
             metadata = AgentMetadata.from_dict(agent_dict)
 
             assert metadata.name == "test_agent"
-            # Should use DummyAgent fallback
+            # Should use EqualityFallbackAgent fallback
             assert hasattr(metadata.agent_class, "__name__")
 
 

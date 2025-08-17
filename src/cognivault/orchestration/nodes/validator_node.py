@@ -6,7 +6,6 @@ validation and gating in the advanced node execution system.
 """
 
 from typing import Dict, List, Any, Optional, Callable, cast
-from dataclasses import dataclass  # Still needed for ValidationReport
 from enum import Enum
 import asyncio
 
@@ -71,9 +70,9 @@ class ValidationCriteria(BaseModel):
         return self.validator(data)
 
 
-class ValidationReport(BaseModel):
+class WorkflowValidationReport(BaseModel):
     """
-    Detailed validation report.
+    Detailed validation report for workflow execution.
 
     Migrated from dataclass to Pydantic BaseModel for enhanced validation,
     serialization, and integration with the CogniVault Pydantic ecosystem.
@@ -342,7 +341,9 @@ class ValidatorNode(BaseAdvancedNode):
 
         return best_input or {}
 
-    async def _perform_validation(self, data: Dict[str, Any]) -> ValidationReport:
+    async def _perform_validation(
+        self, data: Dict[str, Any]
+    ) -> WorkflowValidationReport:
         """
         Perform validation against all criteria.
 
@@ -353,7 +354,7 @@ class ValidatorNode(BaseAdvancedNode):
 
         Returns
         -------
-        ValidationReport
+        WorkflowValidationReport
             Detailed validation report
         """
         start_time = asyncio.get_event_loop().time()
@@ -425,7 +426,7 @@ class ValidatorNode(BaseAdvancedNode):
             quality_score, passed_criteria, failed_criteria, warnings, criteria_results
         )
 
-        return ValidationReport(
+        return WorkflowValidationReport(
             result=result,
             quality_score=quality_score,
             criteria_results=criteria_results,

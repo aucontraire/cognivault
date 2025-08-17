@@ -57,6 +57,11 @@ class TestGraphFactoryValidationIntegration:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
+        
+        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+        mock_state_graph_generic: Mock = Mock()
+        mock_state_graph_generic.return_value = mock_graph_instance
+        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
         mock_state_graph.return_value = mock_graph_instance
 
         config = GraphConfig(
@@ -69,7 +74,7 @@ class TestGraphFactoryValidationIntegration:
         result = factory_with_validation.create_graph(config)
 
         assert result is mock_compiled
-        assert mock_state_graph.called
+        assert mock_state_graph_generic.called
 
     @patch("cognivault.langgraph_backend.build_graph.StateGraph")
     def test_create_graph_with_validation_enabled_invalid_strict(
@@ -99,6 +104,11 @@ class TestGraphFactoryValidationIntegration:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
+        
+        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+        mock_state_graph_generic: Mock = Mock()
+        mock_state_graph_generic.return_value = mock_graph_instance
+        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
         mock_state_graph.return_value = mock_graph_instance
 
         config = GraphConfig(
@@ -113,7 +123,7 @@ class TestGraphFactoryValidationIntegration:
         result = factory_with_validation.create_graph(config)
 
         assert result is mock_compiled
-        assert mock_state_graph.called
+        assert mock_state_graph_generic.called
 
     def test_create_graph_validation_disabled(
         self, factory_with_validation: Mock
@@ -132,12 +142,17 @@ class TestGraphFactoryValidationIntegration:
             mock_graph_instance: Mock = Mock()
             mock_compiled: Mock = Mock()
             mock_graph_instance.compile.return_value = mock_compiled
+            
+            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+            mock_state_graph_generic: Mock = Mock()
+            mock_state_graph_generic.return_value = mock_graph_instance
+            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
             mock_state_graph.return_value = mock_graph_instance
 
             result = factory_with_validation.create_graph(config)
 
             assert result is mock_compiled
-            assert mock_state_graph.called
+            assert mock_state_graph_generic.called
 
     def test_create_graph_validation_enabled_no_validator(
         self, factory_without_validation: Mock
@@ -156,13 +171,18 @@ class TestGraphFactoryValidationIntegration:
             mock_graph_instance: Mock = Mock()
             mock_compiled: Mock = Mock()
             mock_graph_instance.compile.return_value = mock_compiled
+            
+            # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+            mock_state_graph_generic: Mock = Mock()
+            mock_state_graph_generic.return_value = mock_graph_instance
+            mock_state_graph.__getitem__.return_value = mock_state_graph_generic
             mock_state_graph.return_value = mock_graph_instance
 
             # Should succeed with warning about missing validator
             result = factory_without_validation.create_graph(config)
 
             assert result is mock_compiled
-            assert mock_state_graph.called
+            assert mock_state_graph_generic.called
 
     def test_validate_workflow_method(self, factory_with_validation: Mock) -> None:
         """Test the standalone validate_workflow method."""
@@ -301,6 +321,11 @@ class TestValidationCaching:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
+        
+        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+        mock_state_graph_generic: Mock = Mock()
+        mock_state_graph_generic.return_value = mock_graph_instance
+        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
         mock_state_graph.return_value = mock_graph_instance
 
         config = GraphConfig(
@@ -313,12 +338,12 @@ class TestValidationCaching:
         # First call - should validate and cache
         result1 = factory_with_validation.create_graph(config)
         assert result1 is mock_compiled
-        assert mock_state_graph.call_count == 1
+        assert mock_state_graph_generic.call_count == 1
 
         # Second call - should hit cache and skip validation
         result2 = factory_with_validation.create_graph(config)
         assert result2 is mock_compiled
-        assert mock_state_graph.call_count == 1  # No additional calls
+        assert mock_state_graph_generic.call_count == 1  # No additional calls
 
     @patch("cognivault.langgraph_backend.build_graph.StateGraph")
     def test_validation_with_cache_miss(
@@ -329,6 +354,11 @@ class TestValidationCaching:
         mock_graph_instance: Mock = Mock()
         mock_compiled: Mock = Mock()
         mock_graph_instance.compile.return_value = mock_compiled
+        
+        # Set up mock to handle generic type calls StateGraph[CogniVaultState]()
+        mock_state_graph_generic: Mock = Mock()
+        mock_state_graph_generic.return_value = mock_graph_instance
+        mock_state_graph.__getitem__.return_value = mock_state_graph_generic
         mock_state_graph.return_value = mock_graph_instance
 
         config1 = GraphConfig(
@@ -351,7 +381,7 @@ class TestValidationCaching:
 
         assert result1 is mock_compiled
         assert result2 is mock_compiled
-        assert mock_state_graph.call_count == 2
+        assert mock_state_graph_generic.call_count == 2
 
 
 class TestRealWorldValidationScenarios:

@@ -183,10 +183,11 @@ class TestLLMGatewayAPIContract:
 
             async def health_check(self) -> Any:
                 """Mock health check."""
-                from cognivault.api.base import HealthStatus, APIStatus
+                from cognivault.api.base import APIHealthStatus
+                from cognivault.diagnostics.health import HealthStatus
 
-                return HealthStatus(
-                    status=APIStatus.HEALTHY,
+                return APIHealthStatus(
+                    status=HealthStatus.HEALTHY,
                     details="Test gateway",
                     checks={"initialized": self._initialized},
                 )
@@ -198,7 +199,6 @@ class TestLLMGatewayAPIContract:
         api = TestLLMGateway()
         await api.initialize()
 
-        from cognivault.api.models import CompletionRequest
         from tests.factories.api_model_factories import APIModelFactory
 
         # Test that calling methods emits warnings

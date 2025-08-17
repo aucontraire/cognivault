@@ -47,7 +47,7 @@ class DiagnosticFormatter:
         raise NotImplementedError
 
 
-class JSONFormatter(DiagnosticFormatter):
+class DiagnosticJSONFormatter(DiagnosticFormatter):
     """JSON formatter for diagnostic data."""
 
     def __init__(
@@ -142,6 +142,7 @@ class CSVFormatter(DiagnosticFormatter):
                     "healthy_components",
                     "degraded_components",
                     "unhealthy_components",
+                    "maintenance_components",
                     "total_executions",
                     "success_rate",
                     "avg_duration_ms",
@@ -150,7 +151,13 @@ class CSVFormatter(DiagnosticFormatter):
             )
 
         # Count component health statuses
-        health_counts = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0}
+        health_counts = {
+            "healthy": 0,
+            "degraded": 0,
+            "unhealthy": 0,
+            "maintenance": 0,
+            "unknown": 0,
+        }
         for health in diagnostics.component_healths.values():
             health_counts[health.status.value] += 1
 
@@ -162,6 +169,7 @@ class CSVFormatter(DiagnosticFormatter):
                 health_counts["healthy"],
                 health_counts["degraded"],
                 health_counts["unhealthy"],
+                health_counts["maintenance"],
                 diagnostics.performance_metrics.total_executions,
                 f"{diagnostics.performance_metrics.success_rate:.4f}",
                 f"{diagnostics.performance_metrics.average_execution_time_ms:.2f}",
@@ -326,6 +334,7 @@ class PrometheusFormatter(DiagnosticFormatter):
             "healthy": 1,
             "degraded": 0.5,
             "unhealthy": 0,
+            "maintenance": 0.3,
             "unknown": -1,
         }
         overall_health_value = health_status_map.get(
@@ -401,6 +410,7 @@ class PrometheusFormatter(DiagnosticFormatter):
             "healthy": 1,
             "degraded": 0.5,
             "unhealthy": 0,
+            "maintenance": 0.3,
             "unknown": -1,
         }
 
@@ -527,6 +537,7 @@ class PrometheusFormatter(DiagnosticFormatter):
             HealthStatus.HEALTHY: 1.0,
             HealthStatus.DEGRADED: 0.5,
             HealthStatus.UNHEALTHY: 0.0,
+            HealthStatus.MAINTENANCE: 0.3,  # Between degraded and unhealthy
             HealthStatus.UNKNOWN: -1.0,
         }
         return status_map.get(status, -1.0)
@@ -550,7 +561,13 @@ class InfluxDBFormatter(DiagnosticFormatter):
         timestamp_ns = int(diagnostics.timestamp.timestamp() * 1_000_000_000)
 
         # System health
-        health_numeric = {"healthy": 1, "degraded": 0.5, "unhealthy": 0, "unknown": -1}
+        health_numeric = {
+            "healthy": 1,
+            "degraded": 0.5,
+            "unhealthy": 0,
+            "maintenance": 0.3,
+            "unknown": -1,
+        }
         overall_health = health_numeric.get(diagnostics.overall_health.value, -1)
 
         lines.append(f"cognivault_system_health value={overall_health} {timestamp_ns}")
@@ -599,6 +616,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
             "healthy": 1.0,
             "degraded": 0.5,
             "unhealthy": 0.0,
+            "maintenance": 0.3,
             "unknown": -1.0,
         }
 
@@ -695,6 +713,7 @@ class InfluxDBFormatter(DiagnosticFormatter):
             HealthStatus.HEALTHY: 1.0,
             HealthStatus.DEGRADED: 0.5,
             HealthStatus.UNHEALTHY: 0.0,
+            HealthStatus.MAINTENANCE: 0.3,  # Between degraded and unhealthy
             HealthStatus.UNKNOWN: -1.0,
         }
         return status_map.get(status, -1.0)
@@ -726,7 +745,7 @@ def get_formatter(format_type: str, **kwargs: Any) -> DiagnosticFormatter:
         Configured formatter instance
     """
     formatters = {
-        "json": JSONFormatter,
+        "json": DiagnosticJSONFormatter,
         "csv": CSVFormatter,
         "prometheus": PrometheusFormatter,
         "influxdb": InfluxDBFormatter,

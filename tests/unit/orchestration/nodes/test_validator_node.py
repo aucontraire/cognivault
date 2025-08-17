@@ -13,7 +13,7 @@ from cognivault.orchestration.nodes.validator_node import (
     ValidatorNode,
     ValidationCriteria,
     NodeValidationResult,
-    ValidationReport,
+    WorkflowValidationReport,
 )
 from cognivault.orchestration.nodes.base_advanced_node import NodeExecutionContext
 from cognivault.agents.metadata import AgentMetadata, TaskClassification
@@ -192,12 +192,12 @@ class TestValidationCriteria:
         assert criterion.validate_data({"other": "value"}) is False
 
 
-class TestValidationReport:
-    """Test ValidationReport dataclass."""
+class TestWorkflowValidationReport:
+    """Test WorkflowValidationReport dataclass."""
 
     def test_validation_report_creation(self) -> None:
-        """Test ValidationReport creation."""
-        report = ValidationReport(
+        """Test WorkflowValidationReport creation."""
+        report = WorkflowValidationReport(
             result=NodeValidationResult.PASS,
             quality_score=0.85,
             criteria_results={"test": {"passed": True}},
@@ -217,9 +217,9 @@ class TestValidationReport:
         assert report.failed_criteria == 0
 
     def test_validation_report_success_rate(self) -> None:
-        """Test ValidationReport success_rate calculation."""
+        """Test WorkflowValidationReport success_rate calculation."""
         # Test normal case
-        report = ValidationReport(
+        report = WorkflowValidationReport(
             result=NodeValidationResult.WARNING,
             quality_score=0.7,
             criteria_results={},
@@ -234,7 +234,7 @@ class TestValidationReport:
         assert report.success_rate == 0.75  # 3/4
 
         # Test edge case: no criteria
-        report_empty = ValidationReport(
+        report_empty = WorkflowValidationReport(
             result=NodeValidationResult.PASS,
             quality_score=0.0,
             criteria_results={},

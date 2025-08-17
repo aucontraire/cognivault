@@ -23,7 +23,7 @@ from cognivault.workflows.composer import (
 )
 from cognivault.workflows.definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
     EdgeDefinition,
 )
@@ -303,7 +303,7 @@ class TestNodeFactoryBaseNodes:
 
     def test_create_base_node_refiner_with_config(self) -> None:
         """Test creating base refiner node with configuration."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="test_refiner",
             node_type="refiner",
             category="BASE",
@@ -332,7 +332,7 @@ class TestNodeFactoryBaseNodes:
 
     def test_create_base_node_without_config(self) -> None:
         """Test creating base node without configuration (uses defaults)."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="test_critic",
             node_type="critic",
             category="BASE",
@@ -356,7 +356,7 @@ class TestNodeFactoryBaseNodes:
     @pytest.mark.asyncio
     async def test_base_node_execution_success(self) -> None:
         """Test successful execution of a base node."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="test_historian",
             node_type="historian",
             category="BASE",
@@ -400,7 +400,7 @@ class TestNodeFactoryBaseNodes:
     @pytest.mark.asyncio
     async def test_base_node_execution_failure(self) -> None:
         """Test base node execution with agent failure."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="test_failing_agent",
             node_type="refiner",
             category="BASE",
@@ -444,7 +444,7 @@ class TestNodeFactoryBaseNodes:
 
     def test_create_base_node_llm_initialization_failure(self) -> None:
         """Test base node creation when LLM initialization fails."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="test_llm_fail",
             node_type="synthesis",
             category="BASE",
@@ -475,7 +475,7 @@ class TestNodeFactoryAdvancedNodes:
 
     def test_create_advanced_decision_node(self) -> None:
         """Test creating advanced decision node."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="decision_node",
             node_type="decision",
             category="ADVANCED",
@@ -501,7 +501,7 @@ class TestNodeFactoryAdvancedNodes:
 
     def test_create_advanced_aggregator_node(self) -> None:
         """Test creating advanced aggregator node."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="aggregator_node",
             node_type="aggregator",
             category="ADVANCED",
@@ -526,7 +526,7 @@ class TestNodeFactoryAdvancedNodes:
 
     def test_create_advanced_validator_node(self) -> None:
         """Test creating advanced validator node."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="validator_node",
             node_type="validator",
             category="ADVANCED",
@@ -565,7 +565,7 @@ class TestNodeFactoryAdvancedNodes:
 
     def test_create_advanced_terminator_node(self) -> None:
         """Test creating advanced terminator node."""
-        node_config = NodeConfiguration(
+        node_config = WorkflowNodeConfiguration(
             node_id="terminator_node",
             node_type="terminator",
             category="ADVANCED",
@@ -590,7 +590,7 @@ class TestNodeFactoryAdvancedNodes:
 
     def test_create_advanced_node_routing(self) -> None:
         """Test that advanced node creation is routed correctly by execution pattern."""
-        decision_config = NodeConfiguration(
+        decision_config = WorkflowNodeConfiguration(
             node_id="test_decision",
             node_type="decision",
             category="ADVANCED",
@@ -609,7 +609,7 @@ class TestNodeFactoryAdvancedNodes:
 
     def test_create_advanced_node_unknown_pattern_raises_error(self) -> None:
         """Test that unknown execution pattern raises WorkflowCompositionError."""
-        unknown_config = NodeConfiguration(
+        unknown_config = WorkflowNodeConfiguration(
             node_id="unknown_node",
             node_type="unknown",
             category="ADVANCED",
@@ -624,7 +624,7 @@ class TestNodeFactoryAdvancedNodes:
 
     def test_create_fallback_node(self) -> None:
         """Test creating fallback node for unknown categories."""
-        unknown_config = NodeConfiguration(
+        unknown_config = WorkflowNodeConfiguration(
             node_id="fallback_node",
             node_type="unknown_type",
             category="UNKNOWN",
@@ -724,7 +724,7 @@ class TestDagComposerValidation:
             description="Valid workflow for testing",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -750,7 +750,7 @@ class TestDagComposerValidation:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -780,7 +780,7 @@ class TestDagComposerValidation:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -811,7 +811,7 @@ class TestDagComposerValidation:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -856,7 +856,7 @@ class TestDagComposerWorkflowComposition:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -912,7 +912,7 @@ class TestDagComposerWorkflowComposition:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -977,7 +977,7 @@ class TestDagComposerFileOperations:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -1095,21 +1095,21 @@ class TestIntegrationScenarios:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
                     execution_pattern="processor",
                     metadata={},
                 ),
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="critic",
                     node_type="critic",
                     category="BASE",
                     execution_pattern="processor",
                     metadata={},
                 ),
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="decision",
                     node_type="decision",
                     category="ADVANCED",
@@ -1119,7 +1119,7 @@ class TestIntegrationScenarios:
                         "routes": {"high": "synthesis", "low": "historian"},
                     },
                 ),
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="synthesis",
                     node_type="synthesis",
                     category="BASE",
@@ -1184,7 +1184,7 @@ class TestIntegrationScenarios:
             created_by="test_user",
             created_at=datetime.now(),
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",

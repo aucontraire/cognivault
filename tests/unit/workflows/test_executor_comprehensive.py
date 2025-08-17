@@ -109,7 +109,7 @@ class TestWorkflowExecutorAdvancedCoverage:
         # Mock workflow and execution context - create proper mock workflow
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
         )
         from datetime import datetime
@@ -123,7 +123,7 @@ class TestWorkflowExecutorAdvancedCoverage:
             description="Test workflow",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="agent1",
                     node_type="refiner",
                     category="BASE",
@@ -188,7 +188,7 @@ class TestWorkflowExecutorAdvancedCoverage:
         # Mock workflow and execution context - create proper mock workflow
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
         )
         from datetime import datetime
@@ -202,7 +202,7 @@ class TestWorkflowExecutorAdvancedCoverage:
             description="Test workflow",
             tags=["test"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="agent1",
                     node_type="refiner",
                     category="BASE",
@@ -320,7 +320,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
         """Set up test fixtures."""
         from cognivault.workflows.definition import (
             WorkflowDefinition,
-            NodeConfiguration,
+            WorkflowNodeConfiguration,
             FlowDefinition,
         )
 
@@ -333,7 +333,7 @@ class TestDeclarativeOrchestratorAdvancedCoverage:
             description="Advanced test workflow",
             tags=["test", "advanced"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",

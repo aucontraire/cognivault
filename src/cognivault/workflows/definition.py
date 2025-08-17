@@ -109,7 +109,7 @@ class FlowDefinition(BaseModel):
         }
 
 
-class NodeConfiguration(BaseModel):
+class WorkflowNodeConfiguration(BaseModel):
     """
     Node configuration with clear taxonomy and classification filters.
 
@@ -197,7 +197,7 @@ class WorkflowDefinition(BaseModel):
     name: str
     version: str
     workflow_id: str = Field(description="Unique identifier for ecosystem")
-    nodes: List[NodeConfiguration]
+    nodes: List[WorkflowNodeConfiguration]
     flow: FlowDefinition
     # Optional fields with defaults for backward compatibility
     created_by: str = Field(default="unknown", description="Creator attribution")
@@ -227,7 +227,7 @@ class WorkflowDefinition(BaseModel):
         name: str,
         version: str,
         created_by: str,
-        nodes: List[NodeConfiguration],
+        nodes: List[WorkflowNodeConfiguration],
         flow: FlowDefinition,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -360,7 +360,7 @@ class WorkflowDefinition(BaseModel):
         # Parse nodes - support legacy format missing category
         nodes = []
         for node_data in data["nodes"]:
-            node = NodeConfiguration(
+            node = WorkflowNodeConfiguration(
                 node_id=node_data["node_id"],
                 node_type=node_data["node_type"],
                 category=node_data.get(
@@ -572,6 +572,6 @@ class WorkflowDefinition(BaseModel):
 
 # Type aliases for convenience
 WorkflowConfig = WorkflowDefinition
-NodeConfig = NodeConfiguration
+NodeConfig = WorkflowNodeConfiguration
 FlowConfig = FlowDefinition
 EdgeConfig = EdgeDefinition

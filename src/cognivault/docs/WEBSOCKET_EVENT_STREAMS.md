@@ -154,6 +154,24 @@ ws.send(JSON.stringify({
 
 ## Usage Patterns
 
+### Visual Testing Interface
+
+For development and debugging, use the provided web interface:
+
+```bash
+# Start the API server
+poetry run uvicorn cognivault.api.main:app --reload --host 0.0.0.0 --port 8001
+
+# Open the visual testing tool
+open tools/test_websocket_events.html
+```
+
+The interface provides:
+- Real-time event monitoring with professional Bootstrap 5.3 UI
+- Workflow execution capabilities with form-based and curl command options
+- Event export and correlation ID management for debugging sessions
+- Professional interface for development and testing workflows
+
 ### High-Level Progress Monitoring
 
 Use **orchestration events** for simple progress tracking:

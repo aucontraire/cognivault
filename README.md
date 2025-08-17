@@ -251,6 +251,11 @@ CogniVault provides sophisticated multi-agent orchestration with comprehensive o
 - **Manual Testing Guide**: [Complete API testing documentation](src/cognivault/docs/API_MANUAL_TESTING_GUIDE.md) for all endpoints and WebSocket scenarios
 - **External Integration**: Platform ready for external consumer integration
 
+**Developer Testing Tools**
+- **Visual WebSocket Interface**: `tools/test_websocket_events.html` - Professional Bootstrap interface for real-time event monitoring
+- **WebSocket Event Streams**: Comprehensive event documentation and usage patterns for integration
+- **API Testing Workflows**: Complete testing scenarios for development and integration validation
+
 **Technical Implementation**
 - **Zero Breaking Changes**: All existing functionality preserved during API service implementation
 - **Type-Safe Implementation**: Pydantic validation throughout API layer

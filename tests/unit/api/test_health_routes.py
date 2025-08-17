@@ -10,7 +10,8 @@ from unittest.mock import patch, AsyncMock, Mock
 from fastapi.testclient import TestClient
 
 from cognivault.api.main import app
-from cognivault.api.base import HealthStatus, APIStatus
+from cognivault.api.base import APIHealthStatus
+from cognivault.diagnostics.health import HealthStatus
 from cognivault.api.factory import reset_api_cache
 
 
@@ -46,8 +47,8 @@ class TestHealthRoutes:
         """Test detailed health check with successful orchestration API."""
         # Setup mock orchestration API
         mock_api = AsyncMock()
-        mock_status = HealthStatus(
-            status=APIStatus.HEALTHY, details="test details", checks={"test": "data"}
+        mock_status = APIHealthStatus(
+            status=HealthStatus.HEALTHY, details="test details", checks={"test": "data"}
         )
         mock_api.health_check.return_value = mock_status
         mock_get_api.return_value = mock_api

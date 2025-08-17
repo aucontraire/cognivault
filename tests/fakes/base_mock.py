@@ -7,7 +7,8 @@ for comprehensive testing scenarios.
 
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-from cognivault.api.base import BaseAPI, HealthStatus, APIStatus
+from cognivault.api.base import BaseAPI, APIHealthStatus
+from cognivault.diagnostics.health import HealthStatus
 
 
 class BaseMockAPI(BaseAPI):
@@ -22,7 +23,7 @@ class BaseMockAPI(BaseAPI):
         self._api_name = api_name
         self._api_version = api_version
         self._initialized = False
-        self._health_status = APIStatus.HEALTHY
+        self._health_status = HealthStatus.HEALTHY
         self._metrics: Dict[str, Any] = {}
         self._failure_mode: Optional[str] = None
 
@@ -49,9 +50,9 @@ class BaseMockAPI(BaseAPI):
         """Mock shutdown."""
         self._initialized = False
 
-    async def health_check(self) -> HealthStatus:
+    async def health_check(self) -> APIHealthStatus:
         """Mock health check with configurable status."""
-        return HealthStatus(
+        return APIHealthStatus(
             status=self._health_status,
             details=f"Mock {self._api_name} health check",
             checks={
@@ -73,7 +74,7 @@ class BaseMockAPI(BaseAPI):
         }
 
     # Test configuration methods
-    def set_health_status(self, status: APIStatus) -> None:
+    def set_health_status(self, status: HealthStatus) -> None:
         """Configure mock health status for testing."""
         self._health_status = status
 

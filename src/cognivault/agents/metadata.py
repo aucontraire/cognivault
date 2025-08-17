@@ -9,36 +9,16 @@ and future utility agent integration.
 import time
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Type, Literal, TYPE_CHECKING, cast
-from enum import Enum
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 if TYPE_CHECKING:
     from cognivault.agents.base_agent import BaseAgent
-    from cognivault.agents.protocols import AgentConstructorPattern
-else:
-    # Avoid circular imports for runtime
-    try:
-        from cognivault.agents.protocols import AgentConstructorPattern
-    except ImportError:
-        # Define enum here as fallback
-        class AgentConstructorPattern(Enum):
-            LLM_REQUIRED = "llm_required"
-            LLM_OPTIONAL = "llm_optional"
-            STANDARD = "standard"
-            FLEXIBLE = "flexible"
+
+from cognivault.agents.protocols import AgentConstructorPattern
 
 
 from cognivault.exceptions import FailurePropagationStrategy
-
-
-class DiscoveryStrategy(Enum):
-    """Strategies for discovering agents."""
-
-    FILESYSTEM = "filesystem"
-    REGISTRY = "registry"
-    NETWORK = "network"
-    PLUGIN = "plugin"
-    HYBRID = "hybrid"
+from cognivault.dependencies.dynamic_composition import DiscoveryStrategy
 
 
 class AgentMetadata(BaseModel):
@@ -285,11 +265,11 @@ class AgentMetadata(BaseModel):
                 return getattr(module, class_name)
             except (ValueError, ImportError, AttributeError):
                 # Fallback to dummy agent for invalid class paths
-                class DummyAgent:
-                    """Dummy agent class for fallback."""
+                class StringConversionFallbackAgent:
+                    """Fallback agent class for invalid class paths during string-to-class conversion."""
 
                     __module__ = "cognivault.agents.dummy"
-                    __name__ = "DummyAgent"
+                    __name__ = "StringConversionFallbackAgent"
 
                     def __init__(self) -> None:
                         self.name = "dummy_agent"
@@ -300,7 +280,7 @@ class AgentMetadata(BaseModel):
                         del config  # Mark as used
                         return state
 
-                return DummyAgent
+                return StringConversionFallbackAgent
         return v
 
     def model_post_init(self, __context: Any) -> None:
@@ -615,8 +595,8 @@ class AgentMetadata(BaseModel):
                 agent_class = base_agent_module.BaseAgent
             except ImportError:
                 # Create a simple dummy class as fallback
-                class DummyAgent:
-                    """Dummy agent class for fallback when BaseAgent cannot be imported."""
+                class EqualityFallbackAgent:
+                    """Fallback agent class for equality comparison when BaseAgent cannot be imported."""
 
                     def __init__(self) -> None:
                         self.name = "dummy_agent"
@@ -636,7 +616,7 @@ class AgentMetadata(BaseModel):
 
                         return cls(
                             name="dummy_agent",
-                            agent_class=DummyAgent,
+                            agent_class=EqualityFallbackAgent,
                             description="Dummy agent metadata",
                             cognitive_speed="adaptive",
                             cognitive_depth="variable",
@@ -659,7 +639,7 @@ class AgentMetadata(BaseModel):
                             compatibility={},
                             # Additional required parameters
                             agent_id="dummy_agent",
-                            module_path="cognivault.agents.dummy.DummyAgent",
+                            module_path="cognivault.agents.dummy.EqualityFallbackAgent",
                             discovery_strategy=None,
                             file_path=None,
                             checksum=None,
@@ -669,7 +649,7 @@ class AgentMetadata(BaseModel):
                             load_errors=[],
                         )
 
-                agent_class = DummyAgent
+                agent_class = EqualityFallbackAgent
 
         # Ensure agent_class is never None at this point
         if agent_class is None:
@@ -727,8 +707,8 @@ class AgentMetadata(BaseModel):
             agent_class = base_agent_module.BaseAgent  # Placeholder
         except ImportError:
             # Create a simple dummy class as fallback
-            class DummyAgent:
-                """Dummy agent class for fallback when BaseAgent cannot be imported."""
+            class DeserializationFallbackAgent:
+                """Fallback agent class for deserialization when BaseAgent cannot be imported."""
 
                 def __init__(self) -> None:
                     self.name = "dummy_agent"
@@ -740,7 +720,7 @@ class AgentMetadata(BaseModel):
                     del config  # Mark as used
                     return state
 
-            agent_class = DummyAgent
+            agent_class = DeserializationFallbackAgent
 
         # Handle enum reconstruction
         discovery_strategy = None

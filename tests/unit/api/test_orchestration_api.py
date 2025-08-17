@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
 from cognivault.api.models import WorkflowRequest, WorkflowResponse, StatusResponse
-from cognivault.api.base import HealthStatus
+from cognivault.api.base import APIHealthStatus
 from cognivault.context import AgentContext
 from tests.factories.agent_context_factories import (
     AgentContextFactory,
@@ -465,7 +465,7 @@ class TestLangGraphOrchestrationAPIHealth:
 
             health = await api.health_check()
 
-            assert isinstance(health, HealthStatus)
+            assert isinstance(health, APIHealthStatus)
             # With 2/10 failures (20%), status should be healthy
             assert health.status.value == "healthy"
             assert health.timestamp is not None

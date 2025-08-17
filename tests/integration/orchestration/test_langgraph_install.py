@@ -50,18 +50,18 @@ class TestLangGraphInstallation:
         from langgraph.graph import StateGraph, END
         from typing import Any, Dict, List, Optional
 
-        class TestState(TypedDict):
+        class LangGraphIncrementState(TypedDict):
             count: int
             message: str
 
-        def increment_node(state: TestState) -> TestState:
+        def increment_node(state: LangGraphIncrementState) -> LangGraphIncrementState:
             return {
                 "count": state["count"] + 1,
                 "message": f"Count is now {state['count'] + 1}",
             }
 
         # Act
-        graph = StateGraph(TestState)
+        graph = StateGraph(LangGraphIncrementState)
         graph.add_node("increment", increment_node)
         graph.add_edge("increment", END)
         graph.set_entry_point("increment")

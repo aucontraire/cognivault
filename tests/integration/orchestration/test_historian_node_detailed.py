@@ -77,10 +77,10 @@ class ControlledHistorianAgent(BaseAgent):
 
     def __init__(self, name: str = "historian", behavior: str = "success") -> None:
         # Disable retries for controlled failure testing
-        from cognivault.agents.base_agent import RetryConfig
+        from cognivault.agents.base_agent import AgentRetryConfig
 
         retry_config = (
-            RetryConfig(max_retries=0)
+            AgentRetryConfig(max_retries=0)
             if behavior in ["failure", "timeout_error", "memory_error"]
             else None
         )
@@ -255,10 +255,10 @@ class TestHistorianNodeCircuitBreaker:
         # Create agent that fails first, then succeeds (disable retries for circuit breaker testing)
         class FailThenSucceedAgent(BaseAgent):
             def __init__(self, name: str = "historian") -> None:
-                from cognivault.agents.base_agent import RetryConfig
+                from cognivault.agents.base_agent import AgentRetryConfig
 
                 super().__init__(
-                    name, retry_config=RetryConfig(max_retries=0)
+                    name, retry_config=AgentRetryConfig(max_retries=0)
                 )  # No retries
                 self.call_count = 0
 

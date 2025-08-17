@@ -26,11 +26,9 @@ from cognivault.events.types import (
     EventFilters,
     EventStatistics,
 )
-from cognivault.agents.metadata import (
-    TaskClassification,
-    AgentMetadata,
-    DiscoveryStrategy,
-)
+from cognivault.agents.metadata import TaskClassification, AgentMetadata
+
+from cognivault.dependencies import DiscoveryStrategy
 from cognivault.exceptions import FailurePropagationStrategy
 
 

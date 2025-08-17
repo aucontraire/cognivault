@@ -21,7 +21,7 @@ from .adapter import (
     LangGraphNodeAdapter,
     StandardNodeAdapter,
     ConditionalNodeAdapter,
-    NodeConfiguration,
+    ExecutionNodeConfiguration,
 )
 from .graph_builder import GraphBuilder, GraphEdge, EdgeType, GraphDefinition
 
@@ -280,7 +280,7 @@ class PrototypeDAGExecutor:
                     # Execute the node
                     node_adapter = node_adapters[node_id]
 
-                    node_config = NodeConfiguration(
+                    node_config = ExecutionNodeConfiguration(
                         timeout_seconds=config.get("node_timeout_seconds"),
                         retry_enabled=config.get("retry_enabled", True),
                         step_id=f"{node_id}_{iteration}",

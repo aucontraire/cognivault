@@ -17,7 +17,7 @@ from langgraph.graph import StateGraph
 if TYPE_CHECKING:
     from cognivault.workflows.definition import (
         WorkflowDefinition,
-        NodeConfiguration,
+        WorkflowNodeConfiguration,
         EdgeDefinition,
     )
     from cognivault.workflows.executor import CompositionResult
@@ -175,7 +175,9 @@ class NodeFactory:
         # Future: Plugin registry lookup for community-contributed nodes
         self.plugin_registry: Optional[Any] = None
 
-    def create_node(self, node_config: "NodeConfiguration") -> Callable[..., Any]:
+    def create_node(
+        self, node_config: "WorkflowNodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create a node function from configuration."""
         if node_config.category == "BASE":
             return self._create_base_node(node_config)
@@ -186,7 +188,9 @@ class NodeFactory:
                 f"Unsupported node category: {node_config.category}"
             )
 
-    def _create_base_node(self, node_config: "NodeConfiguration") -> Callable[..., Any]:
+    def _create_base_node(
+        self, node_config: "WorkflowNodeConfiguration"
+    ) -> Callable[..., Any]:
         """Create BASE agent node with actual LLM execution."""
         agent_class = get_agent_class(node_config.node_type)
 
@@ -297,7 +301,7 @@ class NodeFactory:
         return node_func
 
     def _create_advanced_node(
-        self, node_config: "NodeConfiguration"
+        self, node_config: "WorkflowNodeConfiguration"
     ) -> Callable[..., Any]:
         """Create ADVANCED node (DecisionNode, AggregatorNode, etc.)."""
         try:
@@ -319,7 +323,7 @@ class NodeFactory:
             return self._create_fallback_node(node_config)
 
     def _create_decision_node(
-        self, node_config: "NodeConfiguration"
+        self, node_config: "WorkflowNodeConfiguration"
     ) -> Callable[..., Any]:
         """Create a DecisionNode using configuration from node_config."""
         from cognivault.agents.metadata import AgentMetadata
@@ -395,7 +399,7 @@ class NodeFactory:
         return decision_node_func
 
     def _create_aggregator_node(
-        self, node_config: "NodeConfiguration"
+        self, node_config: "WorkflowNodeConfiguration"
     ) -> Callable[..., Any]:
         """Create an AggregatorNode using configuration from node_config."""
         from cognivault.agents.metadata import AgentMetadata
@@ -456,7 +460,7 @@ class NodeFactory:
         return aggregator_node_func
 
     def _create_validator_node(
-        self, node_config: "NodeConfiguration"
+        self, node_config: "WorkflowNodeConfiguration"
     ) -> Callable[..., Any]:
         """Create a ValidatorNode using configuration from node_config."""
         try:
@@ -550,7 +554,7 @@ class NodeFactory:
             return self._create_fallback_node(node_config)
 
     def _create_terminator_node(
-        self, node_config: "NodeConfiguration"
+        self, node_config: "WorkflowNodeConfiguration"
     ) -> Callable[..., Any]:
         """Create a TerminatorNode using configuration from node_config."""
         try:
@@ -655,7 +659,7 @@ class NodeFactory:
             return self._create_fallback_node(node_config)
 
     def _create_fallback_node(
-        self, node_config: "NodeConfiguration"
+        self, node_config: "WorkflowNodeConfiguration"
     ) -> Callable[..., Any]:
         """Create a simple fallback function for nodes that can't be instantiated."""
 

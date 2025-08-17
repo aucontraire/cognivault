@@ -25,7 +25,7 @@ from cognivault.cli.workflow_commands import (
 )
 from cognivault.workflows.definition import (
     WorkflowDefinition,
-    NodeConfiguration,
+    WorkflowNodeConfiguration,
     FlowDefinition,
 )
 from cognivault.context import AgentContext
@@ -52,7 +52,7 @@ class TestWorkflowCLICommands:
             description="Test workflow for CLI testing",
             tags=["test", "cli"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
@@ -505,7 +505,7 @@ metadata: {}
             description="Test workflow for display",
             tags=["test", "display"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="node1",
                     node_type="refiner",
                     category="BASE",
@@ -718,7 +718,7 @@ class TestWorkflowMarkdownExport:
             description="Test workflow for markdown export",
             tags=["test", "export"],
             nodes=[
-                NodeConfiguration(
+                WorkflowNodeConfiguration(
                     node_id="refiner",
                     node_type="refiner",
                     category="BASE",
