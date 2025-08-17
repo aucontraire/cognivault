@@ -43,12 +43,12 @@ class TestLangGraphBackendIntegration:
     @staticmethod
     def setup_state_graph_mocks(mock_state_graph: Mock) -> Tuple[Mock, Mock, Mock]:
         """Helper method to set up StateGraph mock objects consistently.
-        
+
         This eliminates the repetitive mock setup pattern that appears throughout the tests.
-        
+
         Args:
             mock_state_graph: The patched StateGraph mock from @patch decorator
-            
+
         Returns:
             Tuple containing:
             - mock_graph_instance: The StateGraph instance mock
@@ -124,10 +124,10 @@ class TestLangGraphBackendIntegration:
     ) -> None:
         """Test that different patterns create different cached graphs."""
         # Set up StateGraph mocks using helper method
-        mock_graph_instance, _, mock_state_graph_generic = (
-            self.setup_state_graph_mocks(mock_state_graph)
+        mock_graph_instance, _, mock_state_graph_generic = self.setup_state_graph_mocks(
+            mock_state_graph
         )
-        
+
         # Custom compiled mocks for different patterns
         mock_compiled_standard: Mock = Mock()
         mock_compiled_parallel: Mock = Mock()
@@ -570,7 +570,9 @@ class TestRealWorldScenarios:
         ) as mock_state_graph:
             # Set up StateGraph mocks using helper method
             mock_graph_instance, mock_compiled, mock_state_graph_generic = (
-                TestLangGraphBackendIntegration.setup_state_graph_mocks(mock_state_graph)
+                TestLangGraphBackendIntegration.setup_state_graph_mocks(
+                    mock_state_graph
+                )
             )
 
             for scenario in scenarios:
@@ -611,7 +613,9 @@ class TestRealWorldScenarios:
         ) as mock_state_graph:
             # Set up StateGraph mocks using helper method
             mock_graph_instance, mock_compiled, mock_state_graph_generic = (
-                TestLangGraphBackendIntegration.setup_state_graph_mocks(mock_state_graph)
+                TestLangGraphBackendIntegration.setup_state_graph_mocks(
+                    mock_state_graph
+                )
             )
 
             # Simulate repeated operations (like in testing or batch processing)
