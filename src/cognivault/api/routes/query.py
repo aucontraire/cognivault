@@ -144,17 +144,17 @@ async def get_query_history(
         # Get orchestration API instance
         orchestration_api = get_orchestration_api()
 
-        # Get workflow history from orchestration API
-        # Note: Current implementation returns in-memory active workflows
-        # In production, this would be from persistent storage
-        raw_history: List[Dict[str, Any]] = orchestration_api.get_workflow_history(
-            limit=limit + offset  # Get more to handle offset
+        # Get workflow history from database
+        raw_history: List[
+            Dict[str, Any]
+        ] = await orchestration_api.get_workflow_history_from_database(
+            limit=limit, offset=offset
         )
 
         logger.debug(f"Raw history retrieved: {len(raw_history)} workflows")
 
-        # Apply offset pagination
-        paginated_history = raw_history[offset : offset + limit]
+        # Database method already handles pagination, use results directly
+        paginated_history = raw_history
 
         # Convert raw history to typed models
         workflow_items: List[WorkflowHistoryItem] = []
@@ -176,8 +176,12 @@ async def get_query_history(
                 continue
 
         # Calculate pagination metadata
-        total_workflows = len(raw_history)  # In production, this would be a count query
-        has_more = (offset + len(workflow_items)) < total_workflows
+        # For now, we estimate if there are more based on returned count
+        # In future, add a separate count query for exact total
+        total_workflows = offset + len(workflow_items)  # Minimum count
+        has_more = (
+            len(workflow_items) == limit
+        )  # If we got full limit, likely more exist
 
         response = WorkflowHistoryResponse(
             workflows=workflow_items,

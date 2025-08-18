@@ -14,6 +14,10 @@ from .test_database_config import (
     INTEGRATION_DATABASE_URL,
     DOCKER_DATABASE_URL,
 )
+from .async_test_helpers import (
+    AsyncSessionWrapper,
+    create_mock_session_factory,
+)
 
 __all__ = [
     "TestDatabaseConfigFactory",
@@ -23,4 +27,6 @@ __all__ = [
     "TEST_DATABASE_URL",
     "INTEGRATION_DATABASE_URL",
     "DOCKER_DATABASE_URL",
+    "AsyncSessionWrapper",
+    "create_mock_session_factory",
 ]

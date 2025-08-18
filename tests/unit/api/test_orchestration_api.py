@@ -20,6 +20,10 @@ from tests.factories.agent_context_factories import (
     AgentContextPatterns,
 )
 from cognivault.exceptions import StateTransitionError
+from tests.utils.async_test_helpers import (
+    AsyncSessionWrapper,
+    create_mock_session_factory,
+)
 
 
 class TestLangGraphOrchestrationAPIInitialization:
@@ -687,3 +691,569 @@ class TestLangGraphOrchestrationAPIErrorHandling:
                 assert response.workflow_id is not None
 
             await api.shutdown()
+
+
+class TestLangGraphOrchestrationAPIPersistence:
+    """Test database persistence functionality for workflow execution results."""
+
+    @pytest.fixture
+    async def api_with_mock_session(self) -> Any:
+        """Provide API with mocked database session and repository."""
+        api = LangGraphOrchestrationAPI()
+
+        with patch("cognivault.api.orchestration_api.LangGraphOrchestrator"):
+            await api.initialize()
+
+            # Mock session factory and question repository
+            mock_session = AsyncMock()
+            mock_question_repo = AsyncMock()
+
+            # Use centralized async session wrapper
+            api._session_factory = create_mock_session_factory(mock_session)
+
+            with patch(
+                "cognivault.api.orchestration_api.QuestionRepository",
+                return_value=mock_question_repo,
+            ) as mock_repo_class:
+                yield api, mock_session, mock_question_repo, mock_repo_class
+
+            await api.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_persist_workflow_to_database_success(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test successful workflow persistence to database."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        # Create test data
+        request = WorkflowRequest(
+            query="Test persistence workflow",
+            agents=["refiner", "critic"],
+            correlation_id="test-persist-123",
+            execution_config={"timeout": 30},
+        )
+
+        response = WorkflowResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440456",
+            status="completed",
+            agent_outputs={
+                "refiner": "Refined output for persistence test",
+                "critic": "Critical analysis for persistence test",
+            },
+            execution_time_seconds=12.5,
+            correlation_id="test-persist-123",
+        )
+
+        mock_execution_context = AgentContextFactory.basic(
+            query=request.query, agent_outputs=response.agent_outputs
+        )
+
+        # Execute persistence
+        await api._persist_workflow_to_database(
+            request,
+            response,
+            mock_execution_context,
+            response.workflow_id,
+            request.execution_config or {},
+        )
+
+        # Session factory and repository should have been used
+        # (We can't easily mock function calls, but we verify the end result)
+
+        # Verify QuestionRepository was instantiated with session
+        mock_repo_class.assert_called_once_with(mock_session)
+
+        # Verify create_question was called with correct parameters
+        mock_question_repo.create_question.assert_called_once()
+        call_args = mock_question_repo.create_question.call_args
+
+        assert call_args.kwargs["query"] == "Test persistence workflow"
+        assert call_args.kwargs["correlation_id"] == "test-persist-123"
+        assert (
+            call_args.kwargs["execution_id"] == "550e8400-e29b-41d4-a716-446655440456"
+        )
+        assert call_args.kwargs["nodes_executed"] == ["refiner", "critic"]
+
+        # Verify execution metadata structure
+        execution_metadata = call_args.kwargs["execution_metadata"]
+        assert (
+            execution_metadata["workflow_id"] == "550e8400-e29b-41d4-a716-446655440456"
+        )
+        assert execution_metadata["execution_time_seconds"] == 12.5
+        assert execution_metadata["agent_outputs"] == response.agent_outputs
+        assert execution_metadata["agents_requested"] == ["refiner", "critic"]
+        assert execution_metadata["export_md"] is False
+        assert execution_metadata["execution_config"] == {"timeout": 30}
+        assert execution_metadata["api_version"] == "1.0.0"
+        assert execution_metadata["orchestrator_type"] == "langgraph-real"
+
+    @pytest.mark.asyncio
+    async def test_persist_workflow_to_database_with_defaults(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test workflow persistence with default values for optional fields."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        # Create minimal request
+        request = WorkflowRequest(query="Minimal test workflow")
+
+        response = WorkflowResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440789",
+            status="completed",
+            agent_outputs={"refiner": "Minimal output"},
+            execution_time_seconds=5.0,
+        )
+
+        mock_execution_context = AgentContextFactory.basic(
+            query=request.query, agent_outputs={"refiner": "Minimal output"}
+        )
+
+        # Execute persistence
+        await api._persist_workflow_to_database(
+            request, response, mock_execution_context, response.workflow_id, {}
+        )
+
+        # Verify create_question was called with defaults
+        call_args = mock_question_repo.create_question.call_args
+
+        assert call_args.kwargs["correlation_id"] is None
+        assert call_args.kwargs["nodes_executed"] == ["refiner"]
+
+        # Verify execution metadata uses defaults
+        execution_metadata = call_args.kwargs["execution_metadata"]
+        assert execution_metadata["agents_requested"] == [
+            "refiner",
+            "critic",
+            "historian",
+            "synthesis",
+        ]
+        assert execution_metadata["export_md"] is False
+        assert execution_metadata["execution_config"] == {}
+
+    @pytest.mark.asyncio
+    async def test_persist_workflow_to_database_error_isolation(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test that database persistence errors don't propagate to caller."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        # Configure repository to raise error
+        mock_question_repo.create_question.side_effect = Exception(
+            "Database connection failed"
+        )
+
+        request = WorkflowRequest(query="Error test workflow")
+        response = WorkflowResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655440999",
+            status="completed",
+            agent_outputs={"refiner": "output"},
+            execution_time_seconds=1.0,
+        )
+
+        mock_execution_context = AgentContextFactory.basic(
+            query=request.query, agent_outputs=response.agent_outputs
+        )
+
+        # Execute persistence - should not raise exception
+        await api._persist_workflow_to_database(
+            request, response, mock_execution_context, response.workflow_id, {}
+        )
+
+        # Verify the repository method was attempted
+        mock_question_repo.create_question.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_persist_failed_workflow_to_database_success(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test successful failed workflow persistence to database."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        # Create test data for failed workflow
+        request = WorkflowRequest(
+            query="Failed workflow test",
+            agents=["refiner"],
+            correlation_id="test-failed-456",
+        )
+
+        error_response = WorkflowResponse(
+            workflow_id="550e8400-e29b-41d4-a716-446655441789",
+            status="failed",
+            agent_outputs={},
+            execution_time_seconds=2.5,
+            correlation_id="test-failed-456",
+            error_message="Test orchestrator failure",
+        )
+
+        error_message = "Test orchestrator failure"
+
+        # Execute failed workflow persistence
+        await api._persist_failed_workflow_to_database(
+            request, error_response, error_response.workflow_id, error_message, {}
+        )
+
+        # Verify create_question was called
+        call_args = mock_question_repo.create_question.call_args
+
+        assert call_args.kwargs["query"] == "Failed workflow test"
+        assert call_args.kwargs["correlation_id"] == "test-failed-456"
+        assert (
+            call_args.kwargs["execution_id"] == "550e8400-e29b-41d4-a716-446655441789"
+        )
+        assert call_args.kwargs["nodes_executed"] == []
+
+        # Verify execution metadata includes failure information
+        execution_metadata = call_args.kwargs["execution_metadata"]
+        assert execution_metadata["status"] == "failed"
+        assert execution_metadata["error_message"] == "Test orchestrator failure"
+        assert execution_metadata["execution_time_seconds"] == 2.5
+        assert execution_metadata["orchestrator_type"] == "langgraph-real"
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_history_from_database_success(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test successful workflow history retrieval from database."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        # Mock database questions
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+
+        mock_questions = [
+            SimpleNamespace(
+                id=1,
+                execution_id="hist-workflow-1",
+                query="First historical workflow",
+                created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                execution_metadata={
+                    "execution_time_seconds": 15.2,
+                    "status": "completed",
+                },
+            ),
+            SimpleNamespace(
+                id=2,
+                execution_id="hist-workflow-2",
+                query="Second historical workflow with longer query that gets truncated",
+                created_at=datetime(2023, 1, 2, 12, 0, 0, tzinfo=timezone.utc),
+                execution_metadata={
+                    "execution_time_seconds": 8.7,
+                    "status": "completed",
+                },
+            ),
+        ]
+
+        mock_question_repo.get_recent_questions.return_value = mock_questions
+
+        # Execute history retrieval
+        history = await api.get_workflow_history_from_database(limit=5, offset=10)
+
+        # Verify repository was called with correct parameters
+        mock_question_repo.get_recent_questions.assert_called_once_with(
+            limit=5, offset=10
+        )
+
+        # Verify response structure
+        assert len(history) == 2
+
+        first_item = history[0]
+        assert first_item["workflow_id"] == "hist-workflow-1"
+        assert first_item["status"] == "completed"
+        assert first_item["query"] == "First historical workflow"
+        assert (
+            first_item["start_time"]
+            == datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        )
+        assert first_item["execution_time"] == 15.2
+
+        second_item = history[1]
+        assert second_item["workflow_id"] == "hist-workflow-2"
+        assert len(second_item["query"]) <= 100  # Truncated
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_history_from_database_empty_results(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test workflow history retrieval with no results."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        mock_question_repo.get_recent_questions.return_value = []
+
+        history = await api.get_workflow_history_from_database(limit=10)
+
+        assert history == []
+        mock_question_repo.get_recent_questions.assert_called_once_with(
+            limit=10, offset=0
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_history_from_database_error_handling(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test workflow history retrieval error handling."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        # Configure repository to raise error
+        mock_question_repo.get_recent_questions.side_effect = Exception(
+            "Database query failed"
+        )
+
+        # Execute history retrieval - should return empty list
+        history = await api.get_workflow_history_from_database()
+
+        assert history == []
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_history_from_database_missing_execution_id(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test workflow history with questions missing execution_id."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+
+        # Mock question without execution_id
+        mock_questions = [
+            SimpleNamespace(
+                id=42,
+                execution_id=None,
+                query="Question without execution_id",
+                created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                execution_metadata={"execution_time_seconds": 10.0},
+            )
+        ]
+
+        mock_question_repo.get_recent_questions.return_value = mock_questions
+
+        history = await api.get_workflow_history_from_database()
+
+        # Should use question ID as fallback workflow_id
+        assert len(history) == 1
+        assert history[0]["workflow_id"] == "42"
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_history_from_database_missing_metadata(
+        self,
+        api_with_mock_session: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test workflow history with questions missing execution metadata."""
+        api, mock_session, mock_question_repo, mock_repo_class = api_with_mock_session
+
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+
+        # Mock question without execution_metadata
+        mock_questions = [
+            SimpleNamespace(
+                id=55,
+                execution_id="workflow-no-metadata",
+                query="Question without execution metadata",
+                created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                execution_metadata=None,
+            )
+        ]
+
+        mock_question_repo.get_recent_questions.return_value = mock_questions
+
+        history = await api.get_workflow_history_from_database()
+
+        # Should use default execution time
+        assert len(history) == 1
+        assert history[0]["execution_time"] == 0.0
+
+
+class TestLangGraphOrchestrationAPIWorkflowExecutionWithPersistence:
+    """Test complete workflow execution including database persistence."""
+
+    @pytest.fixture
+    async def api_with_persistence_mocks(self) -> Any:
+        """Provide API with mocked orchestrator and database components."""
+        api = LangGraphOrchestrationAPI()
+
+        with patch(
+            "cognivault.api.orchestration_api.LangGraphOrchestrator"
+        ) as mock_orchestrator_class:
+            mock_orchestrator = AsyncMock()
+            mock_orchestrator.clear_graph_cache = Mock()
+            mock_orchestrator_class.return_value = mock_orchestrator
+
+            # Mock successful orchestrator execution
+            mock_context = AgentContextFactory.basic(
+                query="Test query with persistence",
+                agent_outputs={
+                    "refiner": "Refined output for persistence",
+                    "synthesis": "Synthesis output for persistence",
+                },
+            )
+            mock_orchestrator.run.return_value = mock_context
+
+            await api.initialize()
+
+            # Mock database persistence methods
+            with (
+                patch.object(
+                    api, "_persist_workflow_to_database"
+                ) as mock_persist_success,
+                patch.object(
+                    api, "_persist_failed_workflow_to_database"
+                ) as mock_persist_failed,
+            ):
+                yield api, mock_orchestrator, mock_persist_success, mock_persist_failed
+
+            await api.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_calls_persistence_on_success(
+        self,
+        api_with_persistence_mocks: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test that successful workflow execution calls database persistence."""
+        api, mock_orchestrator, mock_persist_success, mock_persist_failed = (
+            api_with_persistence_mocks
+        )
+
+        request = WorkflowRequest(
+            query="Test workflow with persistence",
+            agents=["refiner", "synthesis"],
+            correlation_id="test-persist-execution-123",
+        )
+
+        # Mock event functions
+        with (
+            patch("cognivault.events.emit_workflow_started"),
+            patch("cognivault.events.emit_workflow_completed"),
+        ):
+            response = await api.execute_workflow(request)
+
+            # Verify workflow completed successfully
+            assert response.status == "completed"
+            assert response.correlation_id == "test-persist-execution-123"
+
+            # Verify persistence was called
+            mock_persist_success.assert_called_once()
+
+            # Verify persistence was called with correct parameters
+            call_args = mock_persist_success.call_args
+            assert call_args[0][0] == request  # WorkflowRequest
+            assert (
+                call_args[0][1].workflow_id == response.workflow_id
+            )  # WorkflowResponse
+            assert call_args[0][3] == response.workflow_id  # workflow_id
+
+            # Verify failed persistence was not called
+            mock_persist_failed.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_calls_persistence_on_failure(
+        self,
+        api_with_persistence_mocks: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test that failed workflow execution calls failed persistence."""
+        api, mock_orchestrator, mock_persist_success, mock_persist_failed = (
+            api_with_persistence_mocks
+        )
+
+        # Configure orchestrator to fail
+        mock_orchestrator.run.side_effect = Exception(
+            "Orchestrator failure for persistence test"
+        )
+
+        request = WorkflowRequest(
+            query="Test failed workflow with persistence",
+            agents=["refiner"],
+            correlation_id="test-persist-failure-456",
+        )
+
+        # Mock event functions
+        with (
+            patch("cognivault.events.emit_workflow_started"),
+            patch("cognivault.events.emit_workflow_completed"),
+        ):
+            response = await api.execute_workflow(request)
+
+            # Verify workflow failed
+            assert response.status == "failed"
+            assert response.error_message is not None
+            assert "Orchestrator failure for persistence test" in response.error_message
+
+            # Verify failed persistence was called
+            mock_persist_failed.assert_called_once()
+
+            # Verify failed persistence was called with correct parameters
+            call_args = mock_persist_failed.call_args
+            assert call_args[0][0] == request  # WorkflowRequest
+            assert (
+                call_args[0][1].status == "failed"
+            )  # WorkflowResponse (error response)
+            assert call_args[0][2] == response.workflow_id  # workflow_id
+            assert (
+                "Orchestrator failure for persistence test" in call_args[0][3]
+            )  # error_message
+
+            # Verify success persistence was not called
+            mock_persist_success.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_execute_workflow_continues_on_persistence_failure(
+        self,
+        api_with_persistence_mocks: Tuple[
+            LangGraphOrchestrationAPI, AsyncMock, AsyncMock, AsyncMock
+        ],
+    ) -> None:
+        """Test that persistence failures don't affect workflow response."""
+        api, mock_orchestrator, mock_persist_success, mock_persist_failed = (
+            api_with_persistence_mocks
+        )
+
+        # Configure persistence to fail
+        mock_persist_success.side_effect = Exception("Database persistence failed")
+
+        request = WorkflowRequest(
+            query="Test persistence failure isolation", agents=["refiner"]
+        )
+
+        # Mock event functions
+        with (
+            patch("cognivault.events.emit_workflow_started"),
+            patch("cognivault.events.emit_workflow_completed"),
+        ):
+            response = await api.execute_workflow(request)
+
+            # Verify workflow still completed successfully despite persistence failure
+            assert response.status == "completed"
+            assert response.error_message is None
+
+            # Verify persistence was attempted
+            mock_persist_success.assert_called_once()

@@ -97,6 +97,26 @@ class OrchestrationAPI(BaseAPI):
         """
         raise NotImplementedError("Subclasses must implement get_workflow_history")
 
+    async def get_workflow_history_from_database(
+        self, limit: int = 10, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        Get workflow history from database instead of in-memory storage.
+
+        Args:
+            limit: Maximum number of results to return
+            offset: Number of results to skip for pagination
+
+        Returns:
+            List of workflow execution history items from database
+
+        Note:
+            This method provides database-backed workflow history with pagination support.
+        """
+        raise NotImplementedError(
+            "Subclasses must implement get_workflow_history_from_database"
+        )
+
     @ensure_initialized
     async def get_status_by_correlation_id(self, correlation_id: str) -> StatusResponse:
         """
