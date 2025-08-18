@@ -7,18 +7,14 @@ ensuring proper integration between API, orchestrator, and database layers.
 
 import pytest
 import uuid
-from typing import Any, Dict
+from typing import Any
 from datetime import datetime, timezone
 
 from cognivault.api.orchestration_api import LangGraphOrchestrationAPI
-from cognivault.api.models import WorkflowRequest, WorkflowResponse
 from cognivault.database.repositories.factory import RepositoryFactory
-from cognivault.database.connection import get_session_factory
-from tests.factories.api_model_factories import APIModelFactory
-from tests.utils.async_test_helpers import (
-    AsyncSessionWrapper,
-    create_mock_session_factory,
-)
+
+from tests.utils.async_test_helpers import create_mock_session_factory
+from tests.factories import APIModelPatterns
 
 
 @pytest.mark.asyncio
@@ -65,7 +61,7 @@ async def test_workflow_persistence_end_to_end_success(
             await api.initialize()
 
             # Create test workflow request
-            request = WorkflowRequest(
+            request = APIModelPatterns.generate_valid_data(
                 query="Integration test workflow persistence",
                 agents=["refiner", "critic", "synthesis"],
                 correlation_id=f"integration-test-{uuid.uuid4().hex[:8]}",
@@ -177,7 +173,7 @@ async def test_failed_workflow_persistence_end_to_end(
 
             await api.initialize()
 
-            request = WorkflowRequest(
+            request = APIModelPatterns.generate_valid_data(
                 query="Failed integration test workflow",
                 agents=["refiner"],
                 correlation_id=f"integration-failed-{uuid.uuid4().hex[:8]}",
@@ -253,7 +249,7 @@ async def test_workflow_history_database_integration(
 
             # Execute multiple workflows to build history
             workflow_requests = [
-                WorkflowRequest(
+                APIModelPatterns.generate_valid_data(
                     query=f"History test workflow {i}",
                     agents=["refiner", "synthesis"],
                     correlation_id=f"history-test-{i}-{uuid.uuid4().hex[:4]}",
@@ -373,7 +369,7 @@ async def test_database_error_isolation_integration(
 
             await api.initialize()
 
-            request = WorkflowRequest(
+            request = APIModelPatterns.generate_valid_data(
                 query="Database error test workflow",
                 agents=["refiner"],
                 correlation_id=f"db-error-test-{uuid.uuid4().hex[:8]}",
@@ -433,7 +429,7 @@ async def test_workflow_persistence_with_export_md_flag(
             await api.initialize()
 
             # Test with export_md enabled
-            request = WorkflowRequest(
+            request = APIModelPatterns.generate_valid_data(
                 query="Export MD test workflow",
                 agents=["synthesis"],
                 correlation_id=f"export-md-test-{uuid.uuid4().hex[:8]}",
@@ -529,7 +525,7 @@ async def test_complex_execution_metadata_structure(
                 },
             }
 
-            request = WorkflowRequest(
+            request = APIModelPatterns.generate_valid_data(
                 query="Complex metadata structure test workflow with unicode 测试 and special chars @#$%",
                 agents=["refiner", "critic", "historian", "synthesis"],
                 correlation_id=f"complex-metadata-{uuid.uuid4().hex[:8]}",
