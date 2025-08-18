@@ -20,6 +20,8 @@ from cognivault.api.decorators import ensure_initialized
 from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.observability import get_logger
 from cognivault.events import emit_workflow_started, emit_workflow_completed
+from cognivault.database.connection import get_session_factory
+from cognivault.database.repositories.question_repository import QuestionRepository
 
 logger = get_logger(__name__)
 
@@ -37,6 +39,7 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
         self._initialized = False
         self._active_workflows: Dict[str, Dict[str, Any]] = {}
         self._total_workflows = 0
+        self._session_factory = get_session_factory()
 
     @property
     def api_name(self) -> str:
@@ -161,6 +164,9 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
         workflow_id = str(uuid.uuid4())
         start_time = time.time()
 
+        # Store original execution config for persistence (before modifications)
+        original_execution_config = request.execution_config or {}
+
         try:
             logger.info(
                 f"Starting workflow {workflow_id} with query: {request.query[:100]}..."
@@ -185,8 +191,10 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             }
             self._total_workflows += 1
 
-            # Create execution config from request
-            config = request.execution_config or {}
+            # Create execution config from request (for orchestrator)
+            config = dict(
+                original_execution_config
+            )  # Create a copy to avoid modifying original
             if request.correlation_id:
                 config["correlation_id"] = request.correlation_id
             # Pass the workflow_id to orchestrator to prevent duplicate ID generation
@@ -284,6 +292,22 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                         "export_timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
+            # Persist workflow to database (isolated error handling)
+            try:
+                await self._persist_workflow_to_database(
+                    request,
+                    response,
+                    result_context,
+                    workflow_id,
+                    original_execution_config,
+                )
+            except Exception as persist_error:
+                # CRITICAL: Don't fail workflow if database persistence fails
+                logger.error(
+                    f"Failed to persist workflow {workflow_id}: {persist_error}"
+                )
+                # Continue execution without failing
+
             # Update workflow tracking
             self._active_workflows[workflow_id].update(
                 {"status": "completed", "response": response, "end_time": time.time()}
@@ -317,6 +341,11 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                 execution_time_seconds=execution_time,
                 correlation_id=request.correlation_id,
                 error_message=str(e),
+            )
+
+            # Persist failed workflow to database
+            await self._persist_failed_workflow_to_database(
+                request, error_response, workflow_id, str(e), original_execution_config
             )
 
             # Update workflow tracking
@@ -401,6 +430,108 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
 
         return True
 
+    async def _persist_workflow_to_database(
+        self,
+        request: WorkflowRequest,
+        response: WorkflowResponse,
+        execution_context: Any,
+        workflow_id: str,
+        original_execution_config: Dict[str, Any],
+    ) -> None:
+        """Persist completed workflow to database."""
+        try:
+            async with self._session_factory() as session:
+                question_repo = QuestionRepository(session)
+
+                # Prepare execution metadata
+                execution_metadata = {
+                    "workflow_id": workflow_id,
+                    "execution_time_seconds": response.execution_time_seconds,
+                    "agent_outputs": response.agent_outputs,
+                    "agents_requested": request.agents
+                    or ["refiner", "critic", "historian", "synthesis"],
+                    "export_md": (
+                        request.export_md if request.export_md is not None else False
+                    ),
+                    "execution_config": original_execution_config,
+                    "api_version": self.api_version,
+                    "orchestrator_type": "langgraph-real",
+                }
+
+                # Extract nodes executed
+                nodes_executed = (
+                    list(response.agent_outputs.keys())
+                    if response.agent_outputs
+                    else []
+                )
+
+                # Create database record
+                await question_repo.create_question(
+                    query=request.query,
+                    correlation_id=request.correlation_id,
+                    execution_id=workflow_id,
+                    nodes_executed=nodes_executed,
+                    execution_metadata=execution_metadata,
+                )
+
+                logger.info(f"Workflow {workflow_id} persisted to database")
+
+        except Exception as e:
+            # CRITICAL: Don't fail API response if database fails
+            logger.error(f"Failed to persist workflow {workflow_id}: {e}")
+
+    async def _persist_failed_workflow_to_database(
+        self,
+        request: WorkflowRequest,
+        response: WorkflowResponse,
+        workflow_id: str,
+        error_message: str,
+        original_execution_config: Dict[str, Any],
+    ) -> None:
+        """Persist failed workflow to database."""
+        try:
+            async with self._session_factory() as session:
+                question_repo = QuestionRepository(session)
+
+                # Prepare execution metadata for failed workflow
+                execution_metadata = {
+                    "workflow_id": workflow_id,
+                    "execution_time_seconds": response.execution_time_seconds,
+                    "agent_outputs": response.agent_outputs,
+                    "agents_requested": request.agents
+                    or ["refiner", "critic", "historian", "synthesis"],
+                    "export_md": (
+                        request.export_md if request.export_md is not None else False
+                    ),
+                    "execution_config": original_execution_config,
+                    "api_version": self.api_version,
+                    "orchestrator_type": "langgraph-real",
+                    "status": "failed",
+                    "error_message": error_message,
+                }
+
+                # Extract nodes executed (likely empty for failed workflows)
+                nodes_executed = (
+                    list(response.agent_outputs.keys())
+                    if response.agent_outputs
+                    else []
+                )
+
+                # Create database record
+                await question_repo.create_question(
+                    query=request.query,
+                    correlation_id=request.correlation_id,
+                    execution_id=workflow_id,
+                    nodes_executed=nodes_executed,
+                    execution_metadata=execution_metadata,
+                )
+
+                logger.info(f"Failed workflow {workflow_id} persisted to database")
+
+        except Exception as e:
+            # CRITICAL: Don't fail API response if database fails
+            logger.error(f"Failed to persist failed workflow {workflow_id}: {e}")
+
     # Additional helper methods for debugging and monitoring
 
     def get_active_workflows(self) -> Dict[str, Dict[str, Any]]:
@@ -433,6 +564,35 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             }
             for wf in workflows[:limit]
         ]
+
+    async def get_workflow_history_from_database(
+        self, limit: int = 10, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get workflow history from database instead of in-memory storage."""
+        try:
+            async with self._session_factory() as session:
+                question_repo = QuestionRepository(session)
+                questions = await question_repo.get_recent_questions(
+                    limit=limit, offset=offset
+                )
+
+                return [
+                    {
+                        "workflow_id": q.execution_id or str(q.id),
+                        "status": "completed",
+                        "query": q.query[:100] if q.query else "",
+                        "start_time": q.created_at.timestamp(),
+                        "execution_time": (
+                            q.execution_metadata.get("execution_time_seconds", 0.0)
+                            if q.execution_metadata
+                            else 0.0
+                        ),
+                    }
+                    for q in questions
+                ]
+        except Exception as e:
+            logger.error(f"Failed to retrieve workflow history: {e}")
+            return []
 
     def find_workflow_by_correlation_id(self, correlation_id: str) -> Optional[str]:
         """
