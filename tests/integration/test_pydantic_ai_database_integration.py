@@ -201,9 +201,9 @@ class TestPydanticAIDatabaseIntegration:
         )
 
         assert question is not None
-        assert question.execution_metadata is not None
-        assert "agent_outputs" in question.execution_metadata
-        assert "critic" in question.execution_metadata["agent_outputs"]
+        assert question.execution_state is not None
+        assert "agent_outputs" in question.execution_state
+        assert "critic" in question.execution_state["agent_outputs"]
 
         print(f"✅ Stored question with ID: {question.id}")
 
@@ -270,7 +270,7 @@ class TestPydanticAIDatabaseIntegration:
         print(f"✅ Found {len(structured_questions)} questions with structured outputs")
 
         # Step 4: Validate data consistency and types
-        stored_critic_output = question.execution_metadata["agent_outputs"]["critic"]
+        stored_critic_output = question.execution_state["agent_outputs"]["critic"]
 
         # Validate all required Pydantic fields are present
         required_fields = [

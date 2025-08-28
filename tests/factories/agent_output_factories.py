@@ -19,13 +19,13 @@ All factories include three convenience methods to reduce verbose parameter pass
 
 Usage Examples:
     # Simple usage - zero parameters
-    output = CriticStateFactory.generate_valid_data()
+    state = CriticStateFactory.generate_valid_data()
 
     # With customization - only specify what you need
-    output = CriticStateFactory.generate_valid_data(severity="high", confidence=0.95)
+    state = CriticStateFactory.generate_valid_data(severity="high", confidence=0.95)
 
     # Realistic timestamps for integration tests
-    output = RefinerStateFactory.generate_with_current_timestamp()
+    state = RefinerStateFactory.generate_with_current_timestamp()
 """
 
 from datetime import datetime, timezone

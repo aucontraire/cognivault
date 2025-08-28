@@ -21,9 +21,9 @@ from cognivault.agents.base_agent import BaseAgent
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     CogniVaultContext,
-    RefinerOutput,
+    RefinerState,
     create_initial_state,
-    set_agent_output,
+    set_agent_state,
 )
 from cognivault.orchestration.node_wrappers import (
     historian_node,
@@ -157,14 +157,14 @@ class TestHistorianNodeCircuitBreaker:
     def initial_state(self) -> CogniVaultState:
         """Create initial state with refiner output."""
         state = create_initial_state("Test query", "exec-123")
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Test refined query",
             "topics": ["test"],
             "confidence": 0.8,
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        return set_agent_output(state, "refiner", refiner_output)
+        return set_agent_state(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_opens_after_failures(
@@ -315,14 +315,14 @@ class TestHistorianNodeMetrics:
     def initial_state(self) -> CogniVaultState:
         """Create initial state with refiner output."""
         state = create_initial_state("Test query", "exec-123")
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Test refined query",
             "topics": ["test"],
             "confidence": 0.8,
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        return set_agent_output(state, "refiner", refiner_output)
+        return set_agent_state(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
     async def test_metrics_collection_success(
@@ -422,14 +422,14 @@ class TestHistorianNodeErrorHandling:
     def initial_state(self) -> CogniVaultState:
         """Create initial state with refiner output."""
         state = create_initial_state("Test query", "exec-123")
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Test refined query",
             "topics": ["test"],
             "confidence": 0.8,
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        return set_agent_output(state, "refiner", refiner_output)
+        return set_agent_state(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
     async def test_memory_error_handling(self, initial_state: CogniVaultState) -> None:
@@ -518,14 +518,14 @@ class TestHistorianNodeEdgeCases:
     def initial_state(self) -> CogniVaultState:
         """Create initial state with refiner output."""
         state = create_initial_state("Test query", "exec-123")
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Test refined query",
             "topics": ["test"],
             "confidence": 0.8,
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        return set_agent_output(state, "refiner", refiner_output)
+        return set_agent_state(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
     async def test_minimal_query_handling(self, initial_state: CogniVaultState) -> None:
@@ -748,14 +748,14 @@ class TestHistorianNodePerformance:
     def initial_state(self) -> CogniVaultState:
         """Create initial state with refiner output."""
         state = create_initial_state("Performance test query", "exec-123")
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Performance test refined query",
             "topics": ["performance", "test"],
             "confidence": 0.8,
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        return set_agent_output(state, "refiner", refiner_output)
+        return set_agent_state(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
     async def test_performance_under_load(self, initial_state: CogniVaultState) -> None:

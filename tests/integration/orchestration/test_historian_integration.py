@@ -24,8 +24,8 @@ from cognivault.orchestration.state_schemas import (
     CriticState,
     create_initial_state,
     validate_state_integrity,
-    get_agent_output,
-    set_agent_output,
+    get_agent_state,
+    set_agent_state,
     record_agent_error,
 )
 from cognivault.orchestration.node_wrappers import (
@@ -274,7 +274,7 @@ class TestHistorianStateIntegration:
         }
 
         # Set historian output
-        new_state = set_agent_output(state, "historian", historian_output)
+        new_state = set_agent_state(state, "historian", historian_output)
 
         # Verify historian output is set
         assert new_state["historian"] is not None
@@ -300,8 +300,8 @@ class TestHistorianStateIntegration:
         }
 
         # Set and get historian output
-        new_state = set_agent_output(state, "historian", historian_output)
-        retrieved_output = get_agent_output(new_state, "historian")
+        new_state = set_agent_state(state, "historian", historian_output)
+        retrieved_output = get_agent_state(new_state, "historian")
 
         # Verify retrieval
         assert retrieved_output is not None
@@ -346,7 +346,7 @@ class TestHistorianStateIntegration:
             "timestamp": "2023-01-01T00:00:00Z",
         }
 
-        state_with_historian = set_agent_output(state, "historian", historian_output)
+        state_with_historian = set_agent_state(state, "historian", historian_output)
 
         # State with historian should be valid
         assert validate_state_integrity(state_with_historian) is True
@@ -365,7 +365,7 @@ class TestHistorianStateIntegration:
             "timestamp": "",  # Empty timestamp
         }
 
-        state_with_invalid = set_agent_output(
+        state_with_invalid = set_agent_state(
             state, "historian", invalid_historian_output
         )
 
@@ -404,7 +404,7 @@ class TestHistorianNode:
             "timestamp": "2023-01-01T00:00:00Z",
         }
 
-        return set_agent_output(state, "refiner", refiner_output)
+        return set_agent_state(state, "refiner", refiner_output)
 
     @pytest.mark.asyncio
     async def test_historian_node_basic_execution(
@@ -516,7 +516,7 @@ class TestHistorianNode:
                 "timestamp": "2023-01-01T00:00:00Z",
             }
 
-            state_with_critic = set_agent_output(initial_state, "critic", critic_output)
+            state_with_critic = set_agent_state(initial_state, "critic", critic_output)
 
             result_state = await historian_node(state_with_critic, runtime)
 
@@ -552,7 +552,7 @@ class TestHistorianNodeDependencies:
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        state_with_refiner = set_agent_output(state, "refiner", refiner_output)
+        state_with_refiner = set_agent_state(state, "refiner", refiner_output)
 
         assert validate_node_input(state_with_refiner, "historian") is True
 
@@ -571,7 +571,7 @@ class TestHistorianNodeDependencies:
             "processing_notes": None,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        state_with_refiner = set_agent_output(state, "refiner", refiner_output)
+        state_with_refiner = set_agent_state(state, "refiner", refiner_output)
 
         # Add critic output
         critic_output: CriticState = {
@@ -583,9 +583,7 @@ class TestHistorianNodeDependencies:
             "confidence": 0.8,
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        state_with_critic = set_agent_output(
-            state_with_refiner, "critic", critic_output
-        )
+        state_with_critic = set_agent_state(state_with_refiner, "critic", critic_output)
 
         # Should still fail without historian
         assert validate_node_input(state_with_critic, "synthesis") is False
@@ -603,7 +601,7 @@ class TestHistorianNodeDependencies:
             "metadata": {},
             "timestamp": "2023-01-01T00:00:00Z",
         }
-        state_with_historian = set_agent_output(
+        state_with_historian = set_agent_state(
             state_with_critic, "historian", historian_output
         )
 
@@ -685,7 +683,7 @@ class TestHistorianStateConversion:
             "timestamp": "2023-01-01T00:00:00Z",
         }
 
-        state_with_historian = set_agent_output(state, "historian", historian_output)
+        state_with_historian = set_agent_state(state, "historian", historian_output)
 
         # Convert to context
         context = await convert_state_to_context(state_with_historian)
@@ -738,7 +736,7 @@ class TestHistorianStateConversion:
             "timestamp": "2023-01-01T00:00:00Z",
         }
 
-        state_with_historian = set_agent_output(state, "historian", historian_output)
+        state_with_historian = set_agent_state(state, "historian", historian_output)
 
         # Convert to context
         context = await convert_state_to_context(state_with_historian)

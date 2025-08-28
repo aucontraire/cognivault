@@ -40,10 +40,10 @@ from cognivault.orchestration.state_bridge import AgentContextStateBridge
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     CogniVaultContext,
-    RefinerOutput,
-    CriticOutput,
-    HistorianOutput,
-    SynthesisOutput,
+    RefinerState,
+    CriticState,
+    HistorianState,
+    SynthesisState,
     create_initial_state,
     validate_state_integrity,
 )
@@ -551,7 +551,7 @@ class LangGraphOrchestrator:
 
         # Add agent outputs
         if final_state.get("refiner"):
-            refiner_output: Optional[RefinerOutput] = final_state["refiner"]
+            refiner_output: Optional[RefinerState] = final_state["refiner"]
             if refiner_output is not None:
                 context.add_agent_output("refiner", refiner_output["refined_question"])
                 context.execution_state["refiner_topics"] = refiner_output["topics"]
@@ -560,7 +560,7 @@ class LangGraphOrchestrator:
                 ]
 
         if final_state.get("critic"):
-            critic_output: Optional[CriticOutput] = final_state["critic"]
+            critic_output: Optional[CriticState] = final_state["critic"]
             if critic_output is not None:
                 context.add_agent_output("critic", critic_output["critique"])
                 context.execution_state["critic_suggestions"] = critic_output[
@@ -569,7 +569,7 @@ class LangGraphOrchestrator:
                 context.execution_state["critic_severity"] = critic_output["severity"]
 
         if final_state.get("historian"):
-            historian_output: Optional[HistorianOutput] = final_state["historian"]
+            historian_output: Optional[HistorianState] = final_state["historian"]
             if historian_output is not None:
                 context.add_agent_output(
                     "historian", historian_output["historical_summary"]
@@ -588,7 +588,7 @@ class LangGraphOrchestrator:
                 ]
 
         if final_state.get("synthesis"):
-            synthesis_output: Optional[SynthesisOutput] = final_state["synthesis"]
+            synthesis_output: Optional[SynthesisState] = final_state["synthesis"]
             if synthesis_output is not None:
                 context.add_agent_output(
                     "synthesis", synthesis_output["final_analysis"]

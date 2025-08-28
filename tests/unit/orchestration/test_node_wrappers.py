@@ -25,9 +25,9 @@ from cognivault.orchestration.node_wrappers import (
 )
 from cognivault.orchestration.state_schemas import (
     create_initial_state,
-    RefinerOutput,
-    CriticOutput,
-    HistorianOutput,
+    RefinerState,
+    CriticState,
+    HistorianState,
     CogniVaultState,
     CogniVaultContext,
 )
@@ -403,7 +403,7 @@ class TestConvertStateToContext:
         """Test conversion with refiner output."""
         state = create_initial_state("Test query", "exec-456")
 
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined test query",
             "topics": ["test", "query"],
             "confidence": 0.9,
@@ -428,7 +428,7 @@ class TestConvertStateToContext:
         """Test conversion with critic output."""
         state = create_initial_state("Test query", "exec-789")
 
-        critic_output: CriticOutput = {
+        critic_output: CriticState = {
             "critique": "Good analysis",
             "suggestions": ["Add more details"],
             "severity": "medium",
@@ -456,7 +456,7 @@ class TestConvertStateToContext:
         state = create_initial_state("Test query", "exec-empty")
 
         # Add empty outputs
-        empty_refiner_output: RefinerOutput = {
+        empty_refiner_output: RefinerState = {
             "refined_question": "",
             "topics": [],
             "confidence": 0.5,
@@ -561,7 +561,7 @@ class TestCriticNode:
         )
 
         # Add refiner output (required dependency)
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -610,7 +610,7 @@ class TestCriticNode:
         )
 
         # Add refiner output
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -643,7 +643,7 @@ class TestSynthesisNode:
         )
 
         # Add required dependencies
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -652,7 +652,7 @@ class TestSynthesisNode:
         }
         state["refiner"] = refiner_output
 
-        critic_output: CriticOutput = {
+        critic_output: CriticState = {
             "critique": "Good analysis",
             "suggestions": ["improve"],
             "severity": "low",
@@ -663,7 +663,7 @@ class TestSynthesisNode:
         }
         state["critic"] = critic_output
 
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Historical context for test",
             "retrieved_notes": ["/notes/test.md"],
             "search_results_count": 5,
@@ -723,7 +723,7 @@ class TestSynthesisNode:
         )
 
         # Add refiner but not critic
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -748,7 +748,7 @@ class TestSynthesisNode:
         )
 
         # Add refiner and critic but not historian
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -757,7 +757,7 @@ class TestSynthesisNode:
         }
         state["refiner"] = refiner_output
 
-        critic_output: CriticOutput = {
+        critic_output: CriticState = {
             "critique": "Good analysis",
             "suggestions": ["improve"],
             "severity": "low",
@@ -784,7 +784,7 @@ class TestSynthesisNode:
         )
 
         # Add required dependencies
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -793,7 +793,7 @@ class TestSynthesisNode:
         }
         state["refiner"] = refiner_output
 
-        critic_output: CriticOutput = {
+        critic_output: CriticState = {
             "critique": "Good analysis",
             "suggestions": ["improve"],
             "severity": "low",
@@ -804,7 +804,7 @@ class TestSynthesisNode:
         }
         state["critic"] = critic_output
 
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Historical context for test",
             "retrieved_notes": ["/notes/test.md"],
             "search_results_count": 5,
@@ -883,7 +883,7 @@ class TestValidateNodeInput:
         state = create_initial_state("Test query", "exec-validate")
 
         # Add refiner output
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -910,7 +910,7 @@ class TestValidateNodeInput:
         state = create_initial_state("Test query", "exec-validate")
 
         # Add both dependencies
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined query",
             "topics": ["test"],
             "confidence": 0.9,
@@ -919,7 +919,7 @@ class TestValidateNodeInput:
         }
         state["refiner"] = refiner_output
 
-        critic_output: CriticOutput = {
+        critic_output: CriticState = {
             "critique": "Good analysis",
             "suggestions": ["improve"],
             "severity": "low",
@@ -930,7 +930,7 @@ class TestValidateNodeInput:
         }
         state["critic"] = critic_output
 
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Historical context for test",
             "retrieved_notes": ["/notes/test.md"],
             "search_results_count": 5,

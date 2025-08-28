@@ -347,17 +347,17 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
 
     # Add any existing agent outputs to context with proper keys
     if state.get("refiner"):
-        refiner_output: Optional[RefinerState] = state["refiner"]
-        if refiner_output is not None:
-            refined_question = refiner_output.get("refined_question", "")
+        refiner_state: Optional[RefinerState] = state["refiner"]
+        if refiner_state is not None:
+            refined_question = refiner_state.get("refined_question", "")
             # Add with both 'refiner' and 'Refiner' keys for compatibility
             if refined_question:
                 context.add_agent_output("refiner", refined_question)
                 context.add_agent_output("Refiner", refined_question)
-                context.execution_state["refiner_topics"] = refiner_output.get(
+                context.execution_state["refiner_topics"] = refiner_state.get(
                     "topics", []
                 )
-                context.execution_state["refiner_confidence"] = refiner_output.get(
+                context.execution_state["refiner_confidence"] = refiner_state.get(
                     "confidence", 0.8
                 )
                 logger.info(
@@ -369,17 +369,17 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
                 )
 
     if state.get("critic"):
-        critic_output: Optional[CriticState] = state["critic"]
-        if critic_output is not None:
-            critique = critic_output.get("critique", "")
+        critic_state: Optional[CriticState] = state["critic"]
+        if critic_state is not None:
+            critique = critic_state.get("critique", "")
             # Add with both 'critic' and 'Critic' keys for compatibility
             if critique:
                 context.add_agent_output("critic", critique)
                 context.add_agent_output("Critic", critique)
-                context.execution_state["critic_suggestions"] = critic_output.get(
+                context.execution_state["critic_suggestions"] = critic_state.get(
                     "suggestions", []
                 )
-                context.execution_state["critic_severity"] = critic_output.get(
+                context.execution_state["critic_severity"] = critic_state.get(
                     "severity", "medium"
                 )
                 logger.info(f"Added critic output to context: {str(critique)[:100]}...")
@@ -387,23 +387,23 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
                 logger.warning("Critic output found in state but critique is empty")
 
     if state.get("historian"):
-        historian_output: Optional[HistorianState] = state["historian"]
-        if historian_output is not None:
-            historical_summary = historian_output.get("historical_summary", "")
+        historian_state: Optional[HistorianState] = state["historian"]
+        if historian_state is not None:
+            historical_summary = historian_state.get("historical_summary", "")
             # Add with both 'historian' and 'Historian' keys for compatibility
             if historical_summary:
                 context.add_agent_output("historian", historical_summary)
                 context.add_agent_output("Historian", historical_summary)
                 context.execution_state["historian_retrieved_notes"] = (
-                    historian_output.get("retrieved_notes", [])
+                    historian_state.get("retrieved_notes", [])
                 )
                 context.execution_state["historian_search_strategy"] = (
-                    historian_output.get("search_strategy", "hybrid")
+                    historian_state.get("search_strategy", "hybrid")
                 )
-                context.execution_state["historian_topics_found"] = (
-                    historian_output.get("topics_found", [])
+                context.execution_state["historian_topics_found"] = historian_state.get(
+                    "topics_found", []
                 )
-                context.execution_state["historian_confidence"] = historian_output.get(
+                context.execution_state["historian_confidence"] = historian_state.get(
                     "confidence", 0.8
                 )
                 logger.info(
@@ -519,7 +519,7 @@ async def refiner_node(
         refiner_raw_output = result_context.agent_outputs.get("refiner", "")
 
         # Create typed output
-        refiner_output = RefinerState(
+        refiner_state = RefinerState(
             refined_question=refiner_raw_output,
             topics=result_context.execution_state.get("topics", []),
             confidence=result_context.execution_state.get("confidence", 0.8),
@@ -543,8 +543,8 @@ async def refiner_node(
                 "node_type": "refiner",
                 "thread_id": thread_id,
                 "execution_id": execution_id,
-                "confidence": refiner_output["confidence"],
-                "topics_count": len(refiner_output["topics"]),
+                "confidence": refiner_state["confidence"],
+                "topics_count": len(refiner_state["topics"]),
                 # Add token usage to output context for WebSocket events
                 "input_tokens": refiner_token_usage["input_tokens"],
                 "output_tokens": refiner_token_usage["output_tokens"],
@@ -561,9 +561,9 @@ async def refiner_node(
                     "original_query": original_query,
                 },
                 "output_metadata": {
-                    "confidence": refiner_output["confidence"],
-                    "topics_identified": len(refiner_output["topics"]),
-                    "processing_notes": bool(refiner_output["processing_notes"]),
+                    "confidence": refiner_state["confidence"],
+                    "topics_identified": len(refiner_state["topics"]),
+                    "processing_notes": bool(refiner_state["processing_notes"]),
                 },
                 # Add token usage to metadata as well for comprehensive tracking
                 "token_usage": refiner_token_usage,
@@ -577,14 +577,14 @@ async def refiner_node(
                 "thread_id": thread_id,
                 "execution_id": execution_id,
                 "correlation_id": correlation_id,
-                "confidence": refiner_output["confidence"],
-                "topics_count": len(refiner_output["topics"]),
+                "confidence": refiner_state["confidence"],
+                "topics_count": len(refiner_state["topics"]),
                 "query_length": len(original_query or ""),
                 "checkpoint_enabled": checkpoint_enabled,
             },
         )
         return {
-            "refiner": refiner_output,
+            "refiner": refiner_state,
             "successful_agents": ["refiner"],
         }
 
@@ -719,7 +719,7 @@ async def critic_node(
         critic_raw_output = result_context.agent_outputs.get("critic", "")
 
         # Create typed output
-        critic_output = CriticState(
+        critic_state = CriticState(
             critique=critic_raw_output,
             suggestions=result_context.execution_state.get("suggestions", []),
             severity=result_context.execution_state.get("severity", "medium"),
@@ -745,7 +745,7 @@ async def critic_node(
                 "node_type": "critic",
                 "thread_id": thread_id,
                 "runtime_context": True,
-                "confidence": critic_output["confidence"],
+                "confidence": critic_state["confidence"],
                 # Add token usage to output context for WebSocket events
                 "input_tokens": critic_token_usage["input_tokens"],
                 "output_tokens": critic_token_usage["output_tokens"],
@@ -764,7 +764,7 @@ async def critic_node(
         # Return state update with agent output and success tracking
         logger.info("Critic node completed successfully")
         return {
-            "critic": critic_output,
+            "critic": critic_state,
             "successful_agents": ["critic"],
         }
 
@@ -888,7 +888,7 @@ async def historian_node(
             topics_found = result_context.execution_state.get("topics_found", [])
 
         # Create typed output
-        historian_output = HistorianState(
+        historian_state = HistorianState(
             historical_summary=historian_raw_output,
             retrieved_notes=retrieved_notes,
             search_results_count=result_context.execution_state.get(
@@ -925,8 +925,8 @@ async def historian_node(
                 "node_type": "historian",
                 "thread_id": thread_id,
                 "runtime_context": True,
-                "confidence": historian_output["confidence"],
-                "search_strategy": historian_output["search_strategy"],
+                "confidence": historian_state["confidence"],
+                "search_strategy": historian_state["search_strategy"],
                 # Add token usage to output context for WebSocket events
                 "input_tokens": historian_token_usage["input_tokens"],
                 "output_tokens": historian_token_usage["output_tokens"],
@@ -945,7 +945,7 @@ async def historian_node(
         # Return state update with agent output and success tracking
         logger.info("Historian node completed successfully")
         return {
-            "historian": historian_output,
+            "historian": historian_state,
             "successful_agents": ["historian"],
         }
 
@@ -1074,7 +1074,7 @@ async def synthesis_node(
             sources_used.append("historian")
 
         # Create typed output
-        synthesis_output = SynthesisState(
+        synthesis_state = SynthesisState(
             final_analysis=synthesis_raw_output,
             key_insights=result_context.execution_state.get("key_insights", []),
             sources_used=sources_used,
@@ -1103,8 +1103,8 @@ async def synthesis_node(
                 "node_type": "synthesis",
                 "thread_id": thread_id,
                 "runtime_context": True,
-                "confidence": synthesis_output["confidence"],
-                "sources_used": synthesis_output["sources_used"],
+                "confidence": synthesis_state["confidence"],
+                "sources_used": synthesis_state["sources_used"],
                 # Add token usage to output context for WebSocket events
                 "input_tokens": synthesis_token_usage["input_tokens"],
                 "output_tokens": synthesis_token_usage["output_tokens"],
@@ -1123,7 +1123,7 @@ async def synthesis_node(
         # Return state update with agent output and success tracking
         logger.info("Synthesis node completed successfully")
         return {
-            "synthesis": synthesis_output,
+            "synthesis": synthesis_state,
             "successful_agents": ["synthesis"],
         }
 

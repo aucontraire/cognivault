@@ -80,7 +80,7 @@ class PydanticAIWrapper:
             agent_system_prompt = system_prompt if system_prompt is not None else ""
             self._agent_cache[cache_key] = Agent(
                 model=self.model,
-                result_type=response_model,
+                output_type=response_model,
                 system_prompt=agent_system_prompt,
             )
 
@@ -293,7 +293,7 @@ class PydanticAIWrapper:
                 )
 
                 return StructuredLLMResponse(
-                    content=result.data,
+                    content=result.output,
                     raw_response=getattr(result, "raw_response", None),
                     tokens_used=tokens_used,
                     cost_usd=cost_usd,
