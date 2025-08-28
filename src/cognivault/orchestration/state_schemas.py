@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import operator
 
 
-class RefinerOutput(TypedDict):
+class RefinerState(TypedDict):
     """
     Output schema for the RefinerAgent.
 
@@ -42,7 +42,7 @@ class RefinerOutput(TypedDict):
     """ISO timestamp when refinement was completed."""
 
 
-class CriticOutput(TypedDict):
+class CriticState(TypedDict):
     """
     Output schema for the CriticAgent.
 
@@ -72,7 +72,7 @@ class CriticOutput(TypedDict):
     """ISO timestamp when critique was completed."""
 
 
-class HistorianOutput(TypedDict):
+class HistorianState(TypedDict):
     """
     Output schema for the HistorianAgent.
 
@@ -111,7 +111,7 @@ class HistorianOutput(TypedDict):
     """ISO timestamp when historical analysis was completed."""
 
 
-class SynthesisOutput(TypedDict):
+class SynthesisState(TypedDict):
     """
     Output schema for the SynthesisAgent.
 
@@ -144,7 +144,7 @@ class SynthesisOutput(TypedDict):
     """ISO timestamp when synthesis was completed."""
 
 
-class ExecutionMetadata(TypedDict):
+class ExecutionState(TypedDict):
     """
     Metadata about the LangGraph execution process.
     """
@@ -181,11 +181,11 @@ class CogniVaultState(TypedDict):
 
     State Flow:
     1. Initial state created with query and metadata
-    2. Refiner adds RefinerOutput to state["refiner"]
+    2. Refiner adds RefinerState to state["refiner"]
     3. Critic and Historian run in parallel after refiner
-    4. Critic adds CriticOutput to state["critic"]
-    5. Historian adds HistorianOutput to state["historian"]
-    6. Synthesis adds SynthesisOutput to state["synthesis"]
+    4. Critic adds CriticState to state["critic"]
+    5. Historian adds HistorianState to state["historian"]
+    6. Synthesis adds SynthesisState to state["synthesis"]
     7. Final state contains all agent outputs
     """
 
@@ -194,20 +194,20 @@ class CogniVaultState(TypedDict):
     """The original user query to process."""
 
     # Agent outputs (populated during execution)
-    refiner: Optional[RefinerOutput]
-    """Output from the RefinerAgent (populated after refiner node)."""
+    refiner: Optional[RefinerState]
+    """RefinerState from the RefinerAgent (populated after refiner node)."""
 
-    critic: Optional[CriticOutput]
+    critic: Optional[CriticState]
     """Output from the CriticAgent (populated after critic node)."""
 
-    historian: Optional[HistorianOutput]
+    historian: Optional[HistorianState]
     """Output from the HistorianAgent (populated after historian node)."""
 
-    synthesis: Optional[SynthesisOutput]
+    synthesis: Optional[SynthesisState]
     """Output from the SynthesisAgent (populated after synthesis node)."""
 
     # Execution tracking
-    execution_metadata: ExecutionMetadata
+    execution_metadata: ExecutionState
     """Metadata about the current execution."""
 
     # Error handling
@@ -226,7 +226,7 @@ class CogniVaultState(TypedDict):
 LangGraphState = CogniVaultState
 """Alias for CogniVaultState to improve code readability."""
 
-AgentOutput = Union[RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutput]
+AgentOutput = Union[RefinerState, CriticState, HistorianState, SynthesisState]
 """Union type for any agent output schema."""
 
 
@@ -256,7 +256,7 @@ def create_initial_state(
         critic=None,
         historian=None,
         synthesis=None,
-        execution_metadata=ExecutionMetadata(
+        execution_metadata=ExecutionState(
             execution_id=execution_id,
             correlation_id=correlation_id,
             start_time=now,
@@ -304,7 +304,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
 
         # Validate agent outputs if present
         if state.get("refiner"):
-            refiner: Optional[RefinerOutput] = state["refiner"]
+            refiner: Optional[RefinerState] = state["refiner"]
             if (
                 refiner is None
                 or not refiner.get("refined_question")
@@ -313,7 +313,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
                 return False
 
         if state.get("critic"):
-            critic: Optional[CriticOutput] = state["critic"]
+            critic: Optional[CriticState] = state["critic"]
             if (
                 critic is None
                 or not critic.get("critique")
@@ -322,7 +322,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
                 return False
 
         if state.get("historian"):
-            historian: Optional[HistorianOutput] = state["historian"]
+            historian: Optional[HistorianState] = state["historian"]
             if (
                 historian is None
                 or not historian.get("historical_summary")
@@ -331,7 +331,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
                 return False
 
         if state.get("synthesis"):
-            synthesis: Optional[SynthesisOutput] = state["synthesis"]
+            synthesis: Optional[SynthesisState] = state["synthesis"]
             if (
                 synthesis is None
                 or not synthesis.get("final_analysis")
@@ -493,12 +493,12 @@ class CogniVaultContext:
 __all__ = [
     "CogniVaultState",
     "LangGraphState",
-    "RefinerOutput",
-    "CriticOutput",
-    "HistorianOutput",
-    "SynthesisOutput",
+    "RefinerState",
+    "CriticState",
+    "HistorianState",
+    "SynthesisState",
     "AgentOutput",
-    "ExecutionMetadata",
+    "ExecutionState",
     "CogniVaultContext",
     "create_initial_state",
     "validate_state_integrity",

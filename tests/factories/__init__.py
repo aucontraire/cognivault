@@ -2,11 +2,11 @@
 
 Factory Organization:
 - agent_context_factories: AgentContext factory methods for reducing test boilerplate
-- agent_output_factories: RefinerOutput, CriticOutput, SynthesisOutput, HistorianOutput
+- agent_output_factories: RefinerState, CriticState, SynthesisState, HistorianState
 - agent_config_factories: Configuration factory methods for RefinerConfig, CriticConfig, etc.
 - api_model_factories: WorkflowRequest, WorkflowResponse via APIModelPatterns facade eliminating execution_config unfilled parameter warnings
 - mock_llm_factories: Mock LLM infrastructure eliminating 118+ repetitive mock setups
-- orchestration_factories: ExecutionMetadata and future orchestration objects
+- orchestration_factories: ExecutionState and future orchestration objects
 - advanced_orchestrator_factories: ResourceConstraint, OrchestratorConfig, ExecutionResults, ResourceAllocationResult, PipelineStage, DependencyNode eliminating 50+ orchestration parameter unfilled warnings
 - state_container_factories: CogniVaultState and complete workflow state objects
 - resource_scheduler_factories: ResourcePool, ResourceRequest, ResourceAllocation eliminating 14+ unfilled parameter warnings
@@ -36,10 +36,10 @@ from .agent_context_factories import (
 
 # Agent output factories
 from .agent_output_factories import (
-    RefinerOutputFactory,
-    CriticOutputFactory,
-    SynthesisOutputFactory,
-    HistorianOutputFactory,
+    RefinerStateFactory,
+    CriticStateFactory,
+    SynthesisStateFactory,
+    HistorianStateFactory,
 )
 
 # Agent configuration factories
@@ -57,7 +57,7 @@ from .agent_config_factories import (
 
 # Orchestration factories
 from .orchestration_factories import (
-    ExecutionMetadataFactory,
+    ExecutionStateFactory,
 )
 
 # Advanced orchestrator factories
@@ -136,10 +136,10 @@ __all__ = [
     "AgentContextFactory",
     "AgentContextPatterns",
     # Agent outputs
-    "RefinerOutputFactory",
-    "CriticOutputFactory",
-    "SynthesisOutputFactory",
-    "HistorianOutputFactory",
+    "RefinerStateFactory",
+    "CriticStateFactory",
+    "SynthesisStateFactory",
+    "HistorianStateFactory",
     # Agent configuration factories
     "PromptConfigFactory",
     "BehavioralConfigFactory",
@@ -151,7 +151,7 @@ __all__ = [
     "HistorianConfigFactory",
     "AgentConfigFactorySelector",
     # Orchestration
-    "ExecutionMetadataFactory",
+    "ExecutionStateFactory",
     # Advanced orchestrator factories
     "AdvancedResourceConstraintFactory",
     "OrchestratorConfigFactory",

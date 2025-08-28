@@ -19,28 +19,28 @@ All factories include three convenience methods to reduce verbose parameter pass
 
 Usage Examples:
     # Simple usage - zero parameters
-    output = CriticOutputFactory.generate_valid_data()
+    output = CriticStateFactory.generate_valid_data()
 
     # With customization - only specify what you need
-    output = CriticOutputFactory.generate_valid_data(severity="high", confidence=0.95)
+    output = CriticStateFactory.generate_valid_data(severity="high", confidence=0.95)
 
     # Realistic timestamps for integration tests
-    output = RefinerOutputFactory.generate_with_current_timestamp()
+    output = RefinerStateFactory.generate_with_current_timestamp()
 """
 
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
 from cognivault.orchestration.state_schemas import (
-    RefinerOutput,
-    CriticOutput,
-    SynthesisOutput,
-    HistorianOutput,
+    RefinerState,
+    CriticState,
+    SynthesisState,
+    HistorianState,
 )
 
 
-class RefinerOutputFactory:
-    """Factory for creating RefinerOutput test objects."""
+class RefinerStateFactory:
+    """Factory for creating RefinerState test objects."""
 
     @staticmethod
     def basic(
@@ -50,15 +50,15 @@ class RefinerOutputFactory:
         processing_notes: Optional[str] = "Clear question",
         timestamp: Optional[str] = None,
         **overrides: Any,
-    ) -> RefinerOutput:
-        """Create basic RefinerOutput with sensible defaults."""
+    ) -> RefinerState:
+        """Create basic RefinerState with sensible defaults."""
         if topics is None:
             topics = ["artificial intelligence", "technology"]
 
         if timestamp is None:
             timestamp = "2023-01-01T00:00:00"
 
-        result: RefinerOutput = {
+        result: RefinerState = {
             "refined_question": refined_question,
             "topics": topics,
             "confidence": confidence,
@@ -74,29 +74,29 @@ class RefinerOutputFactory:
         return result
 
     @staticmethod
-    def with_none_processing_notes(**overrides: Any) -> RefinerOutput:
-        """Create RefinerOutput with None processing_notes."""
-        return RefinerOutputFactory.basic(processing_notes=None, **overrides)
+    def with_none_processing_notes(**overrides: Any) -> RefinerState:
+        """Create RefinerState with None processing_notes."""
+        return RefinerStateFactory.basic(processing_notes=None, **overrides)
 
     @staticmethod
-    def high_confidence(**overrides: Any) -> RefinerOutput:
-        """Create RefinerOutput with high confidence score."""
-        return RefinerOutputFactory.basic(
+    def high_confidence(**overrides: Any) -> RefinerState:
+        """Create RefinerState with high confidence score."""
+        return RefinerStateFactory.basic(
             confidence=0.95, processing_notes="High confidence refinement", **overrides
         )
 
     @staticmethod
-    def low_confidence(**overrides: Any) -> RefinerOutput:
-        """Create RefinerOutput with low confidence score."""
-        return RefinerOutputFactory.basic(
+    def low_confidence(**overrides: Any) -> RefinerState:
+        """Create RefinerState with low confidence score."""
+        return RefinerStateFactory.basic(
             confidence=0.6, processing_notes="Low confidence refinement", **overrides
         )
 
     @staticmethod
-    def generate_valid_data(**overrides: Any) -> RefinerOutput:
-        """Generate standard valid RefinerOutput for most test scenarios.
+    def generate_valid_data(**overrides: Any) -> RefinerState:
+        """Generate standard valid RefinerState for most test scenarios.
 
-        Returns a RefinerOutput with sensible defaults that work for the majority
+        Returns a RefinerState with sensible defaults that work for the majority
         of test cases. Use this as the default factory method unless specific
         values are required.
 
@@ -104,9 +104,9 @@ class RefinerOutputFactory:
             **overrides: Override any field with custom values
 
         Returns:
-            RefinerOutput with typical valid data
+            RefinerState with typical valid data
         """
-        return RefinerOutputFactory.basic(
+        return RefinerStateFactory.basic(
             refined_question="What are the key concepts in machine learning?",
             topics=["machine learning", "AI", "data science"],
             confidence=0.85,
@@ -115,19 +115,19 @@ class RefinerOutputFactory:
         )
 
     @staticmethod
-    def generate_minimal_data(**overrides: Any) -> RefinerOutput:
-        """Generate minimal valid RefinerOutput for lightweight test scenarios.
+    def generate_minimal_data(**overrides: Any) -> RefinerState:
+        """Generate minimal valid RefinerState for lightweight test scenarios.
 
-        Returns a RefinerOutput with minimal data that still passes validation.
+        Returns a RefinerState with minimal data that still passes validation.
         Use for tests that don't need complex data structures.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            RefinerOutput with minimal valid data
+            RefinerState with minimal valid data
         """
-        return RefinerOutputFactory.basic(
+        return RefinerStateFactory.basic(
             refined_question="Simple query",
             topics=["general"],
             confidence=0.7,
@@ -136,19 +136,19 @@ class RefinerOutputFactory:
         )
 
     @staticmethod
-    def generate_with_current_timestamp(**overrides: Any) -> RefinerOutput:
-        """Generate RefinerOutput with current timestamp for realistic test scenarios.
+    def generate_with_current_timestamp(**overrides: Any) -> RefinerState:
+        """Generate RefinerState with current timestamp for realistic test scenarios.
 
-        Returns a RefinerOutput using the current timestamp instead of a fixed one.
+        Returns a RefinerState using the current timestamp instead of a fixed one.
         Perfect for integration tests that need realistic timing data.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            RefinerOutput with current timestamp
+            RefinerState with current timestamp
         """
-        return RefinerOutputFactory.basic(
+        return RefinerStateFactory.basic(
             refined_question="What are the applications of neural networks?",
             topics=["neural networks", "deep learning", "applications"],
             confidence=0.88,
@@ -159,7 +159,7 @@ class RefinerOutputFactory:
 
     @staticmethod
     def invalid_missing_required_fields() -> Dict[str, Any]:
-        """Create invalid RefinerOutput missing required fields (for testing validation)."""
+        """Create invalid RefinerState missing required fields (for testing validation)."""
         return {
             "topics": ["test"],
             "confidence": 0.9,
@@ -167,8 +167,8 @@ class RefinerOutputFactory:
         }
 
 
-class CriticOutputFactory:
-    """Factory for creating CriticOutput test objects."""
+class CriticStateFactory:
+    """Factory for creating CriticState test objects."""
 
     @staticmethod
     def basic(
@@ -180,8 +180,8 @@ class CriticOutputFactory:
         confidence: float = 0.8,
         timestamp: Optional[str] = None,
         **overrides: Any,
-    ) -> CriticOutput:
-        """Create basic CriticOutput with sensible defaults."""
+    ) -> CriticState:
+        """Create basic CriticState with sensible defaults."""
         if suggestions is None:
             suggestions = ["Add more details", "Consider edge cases"]
 
@@ -194,7 +194,7 @@ class CriticOutputFactory:
         if timestamp is None:
             timestamp = "2023-01-01T00:00:00"
 
-        result: CriticOutput = {
+        result: CriticState = {
             "critique": critique,
             "suggestions": suggestions,
             "severity": severity,
@@ -212,9 +212,9 @@ class CriticOutputFactory:
         return result
 
     @staticmethod
-    def high_severity(**overrides: Any) -> CriticOutput:
-        """Create CriticOutput with high severity."""
-        return CriticOutputFactory.basic(
+    def high_severity(**overrides: Any) -> CriticState:
+        """Create CriticState with high severity."""
+        return CriticStateFactory.basic(
             critique="Critical issues identified",
             severity="critical",
             suggestions=["Major revision needed", "Rethink approach"],
@@ -224,9 +224,9 @@ class CriticOutputFactory:
         )
 
     @staticmethod
-    def low_severity(**overrides: Any) -> CriticOutput:
-        """Create CriticOutput with low severity."""
-        return CriticOutputFactory.basic(
+    def low_severity(**overrides: Any) -> CriticState:
+        """Create CriticState with low severity."""
+        return CriticStateFactory.basic(
             critique="Minor improvements suggested",
             severity="low",
             suggestions=["Small tweaks", "Minor clarifications"],
@@ -236,10 +236,10 @@ class CriticOutputFactory:
         )
 
     @staticmethod
-    def generate_valid_data(**overrides: Any) -> CriticOutput:
-        """Generate standard valid CriticOutput for most test scenarios.
+    def generate_valid_data(**overrides: Any) -> CriticState:
+        """Generate standard valid CriticState for most test scenarios.
 
-        Returns a CriticOutput with sensible defaults that work for the majority
+        Returns a CriticState with sensible defaults that work for the majority
         of test cases. Use this as the default factory method unless specific
         values are required.
 
@@ -247,9 +247,9 @@ class CriticOutputFactory:
             **overrides: Override any field with custom values
 
         Returns:
-            CriticOutput with typical valid data
+            CriticState with typical valid data
         """
-        return CriticOutputFactory.basic(
+        return CriticStateFactory.basic(
             critique="The analysis shows good structure but could benefit from more depth",
             suggestions=[
                 "Add quantitative analysis",
@@ -268,19 +268,19 @@ class CriticOutputFactory:
         )
 
     @staticmethod
-    def generate_minimal_data(**overrides: Any) -> CriticOutput:
-        """Generate minimal valid CriticOutput for lightweight test scenarios.
+    def generate_minimal_data(**overrides: Any) -> CriticState:
+        """Generate minimal valid CriticState for lightweight test scenarios.
 
-        Returns a CriticOutput with minimal data that still passes validation.
+        Returns a CriticState with minimal data that still passes validation.
         Use for tests that don't need complex data structures.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            CriticOutput with minimal valid data
+            CriticState with minimal valid data
         """
-        return CriticOutputFactory.basic(
+        return CriticStateFactory.basic(
             critique="Basic critique",
             suggestions=["Improve"],
             severity="low",
@@ -291,19 +291,19 @@ class CriticOutputFactory:
         )
 
     @staticmethod
-    def generate_with_current_timestamp(**overrides: Any) -> CriticOutput:
-        """Generate CriticOutput with current timestamp for realistic test scenarios.
+    def generate_with_current_timestamp(**overrides: Any) -> CriticState:
+        """Generate CriticState with current timestamp for realistic test scenarios.
 
-        Returns a CriticOutput using the current timestamp instead of a fixed one.
+        Returns a CriticState using the current timestamp instead of a fixed one.
         Perfect for integration tests that need realistic timing data.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            CriticOutput with current timestamp
+            CriticState with current timestamp
         """
-        return CriticOutputFactory.basic(
+        return CriticStateFactory.basic(
             critique="Comprehensive critique with contextual analysis",
             suggestions=[
                 "Consider recent developments",
@@ -324,7 +324,7 @@ class CriticOutputFactory:
 
     @staticmethod
     def invalid_missing_required_fields() -> Dict[str, Any]:
-        """Create invalid CriticOutput missing required fields (for testing validation)."""
+        """Create invalid CriticState missing required fields (for testing validation)."""
         return {
             "suggestions": ["improve"],
             "confidence": 0.8,
@@ -332,8 +332,8 @@ class CriticOutputFactory:
         }
 
 
-class SynthesisOutputFactory:
-    """Factory for creating SynthesisOutput test objects."""
+class SynthesisStateFactory:
+    """Factory for creating SynthesisState test objects."""
 
     @staticmethod
     def basic(
@@ -346,8 +346,8 @@ class SynthesisOutputFactory:
         metadata: Optional[Dict[str, Any]] = None,
         timestamp: Optional[str] = None,
         **overrides: Any,
-    ) -> SynthesisOutput:
-        """Create basic SynthesisOutput with sensible defaults."""
+    ) -> SynthesisState:
+        """Create basic SynthesisState with sensible defaults."""
         if key_insights is None:
             key_insights = ["Insight 1", "Insight 2"]
 
@@ -363,7 +363,7 @@ class SynthesisOutputFactory:
         if timestamp is None:
             timestamp = "2023-01-01T00:00:00"
 
-        result: SynthesisOutput = {
+        result: SynthesisState = {
             "final_analysis": final_analysis,
             "key_insights": key_insights,
             "sources_used": sources_used,
@@ -382,9 +382,9 @@ class SynthesisOutputFactory:
         return result
 
     @staticmethod
-    def complete_analysis(**overrides: Any) -> SynthesisOutput:
-        """Create SynthesisOutput for complete analysis scenario."""
-        return SynthesisOutputFactory.basic(
+    def complete_analysis(**overrides: Any) -> SynthesisState:
+        """Create SynthesisState for complete analysis scenario."""
+        return SynthesisStateFactory.basic(
             final_analysis="AI is a broad field of computer science",
             key_insights=["AI encompasses many subfields", "Growing rapidly"],
             sources_used=["refiner", "critic", "historian"],
@@ -396,9 +396,9 @@ class SynthesisOutputFactory:
         )
 
     @staticmethod
-    def minimal_analysis(**overrides: Any) -> SynthesisOutput:
-        """Create SynthesisOutput for minimal analysis scenario."""
-        return SynthesisOutputFactory.basic(
+    def minimal_analysis(**overrides: Any) -> SynthesisState:
+        """Create SynthesisState for minimal analysis scenario."""
+        return SynthesisStateFactory.basic(
             final_analysis="Basic analysis completed",
             key_insights=["Single insight"],
             sources_used=["refiner"],
@@ -410,10 +410,10 @@ class SynthesisOutputFactory:
         )
 
     @staticmethod
-    def generate_valid_data(**overrides: Any) -> SynthesisOutput:
-        """Generate standard valid SynthesisOutput for most test scenarios.
+    def generate_valid_data(**overrides: Any) -> SynthesisState:
+        """Generate standard valid SynthesisState for most test scenarios.
 
-        Returns a SynthesisOutput with sensible defaults that work for the majority
+        Returns a SynthesisState with sensible defaults that work for the majority
         of test cases. Use this as the default factory method unless specific
         values are required.
 
@@ -421,9 +421,9 @@ class SynthesisOutputFactory:
             **overrides: Override any field with custom values
 
         Returns:
-            SynthesisOutput with typical valid data
+            SynthesisState with typical valid data
         """
-        return SynthesisOutputFactory.basic(
+        return SynthesisStateFactory.basic(
             final_analysis="Machine learning represents a powerful subset of AI that enables systems to learn from data without explicit programming",
             key_insights=[
                 "ML algorithms can identify patterns in large datasets",
@@ -448,19 +448,19 @@ class SynthesisOutputFactory:
         )
 
     @staticmethod
-    def generate_minimal_data(**overrides: Any) -> SynthesisOutput:
-        """Generate minimal valid SynthesisOutput for lightweight test scenarios.
+    def generate_minimal_data(**overrides: Any) -> SynthesisState:
+        """Generate minimal valid SynthesisState for lightweight test scenarios.
 
-        Returns a SynthesisOutput with minimal data that still passes validation.
+        Returns a SynthesisState with minimal data that still passes validation.
         Use for tests that don't need complex data structures.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            SynthesisOutput with minimal valid data
+            SynthesisState with minimal valid data
         """
-        return SynthesisOutputFactory.basic(
+        return SynthesisStateFactory.basic(
             final_analysis="Simple analysis",
             key_insights=["Basic insight"],
             sources_used=["refiner"],
@@ -472,19 +472,19 @@ class SynthesisOutputFactory:
         )
 
     @staticmethod
-    def generate_with_current_timestamp(**overrides: Any) -> SynthesisOutput:
-        """Generate SynthesisOutput with current timestamp for realistic test scenarios.
+    def generate_with_current_timestamp(**overrides: Any) -> SynthesisState:
+        """Generate SynthesisState with current timestamp for realistic test scenarios.
 
-        Returns a SynthesisOutput using the current timestamp instead of a fixed one.
+        Returns a SynthesisState using the current timestamp instead of a fixed one.
         Perfect for integration tests that need realistic timing data.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            SynthesisOutput with current timestamp
+            SynthesisState with current timestamp
         """
-        return SynthesisOutputFactory.basic(
+        return SynthesisStateFactory.basic(
             final_analysis="Current analysis incorporating the latest developments in AI and machine learning research",
             key_insights=[
                 "Recent advances show promising developments",
@@ -509,7 +509,7 @@ class SynthesisOutputFactory:
 
     @staticmethod
     def invalid_missing_required_fields() -> Dict[str, Any]:
-        """Create invalid SynthesisOutput missing required fields (for testing validation)."""
+        """Create invalid SynthesisState missing required fields (for testing validation)."""
         return {
             "key_insights": ["insight1"],
             "confidence": 0.85,
@@ -517,8 +517,8 @@ class SynthesisOutputFactory:
         }
 
 
-class HistorianOutputFactory:
-    """Factory for creating HistorianOutput test objects."""
+class HistorianStateFactory:
+    """Factory for creating HistorianState test objects."""
 
     @staticmethod
     def basic(
@@ -533,8 +533,8 @@ class HistorianOutputFactory:
         metadata: Optional[Dict[str, Any]] = None,
         timestamp: Optional[str] = None,
         **overrides: Any,
-    ) -> HistorianOutput:
-        """Create basic HistorianOutput with sensible defaults."""
+    ) -> HistorianState:
+        """Create basic HistorianState with sensible defaults."""
         if retrieved_notes is None:
             retrieved_notes = ["note1.md", "note2.md"]
 
@@ -547,7 +547,7 @@ class HistorianOutputFactory:
         if timestamp is None:
             timestamp = "2023-01-01T00:00:00"
 
-        result: HistorianOutput = {
+        result: HistorianState = {
             "historical_summary": historical_summary,
             "retrieved_notes": retrieved_notes,
             "search_results_count": search_results_count,
@@ -568,10 +568,10 @@ class HistorianOutputFactory:
         return result
 
     @staticmethod
-    def generate_valid_data(**overrides: Any) -> HistorianOutput:
-        """Generate standard valid HistorianOutput for most test scenarios.
+    def generate_valid_data(**overrides: Any) -> HistorianState:
+        """Generate standard valid HistorianState for most test scenarios.
 
-        Returns a HistorianOutput with sensible defaults that work for the majority
+        Returns a HistorianState with sensible defaults that work for the majority
         of test cases. Use this as the default factory method unless specific
         values are required.
 
@@ -579,9 +579,9 @@ class HistorianOutputFactory:
             **overrides: Override any field with custom values
 
         Returns:
-            HistorianOutput with typical valid data
+            HistorianState with typical valid data
         """
-        return HistorianOutputFactory.basic(
+        return HistorianStateFactory.basic(
             historical_summary="Retrieved comprehensive historical context covering key developments and milestones",
             retrieved_notes=["ml_history.md", "ai_timeline.md", "key_papers.md"],
             search_results_count=25,
@@ -604,19 +604,19 @@ class HistorianOutputFactory:
         )
 
     @staticmethod
-    def generate_minimal_data(**overrides: Any) -> HistorianOutput:
-        """Generate minimal valid HistorianOutput for lightweight test scenarios.
+    def generate_minimal_data(**overrides: Any) -> HistorianState:
+        """Generate minimal valid HistorianState for lightweight test scenarios.
 
-        Returns a HistorianOutput with minimal data that still passes validation.
+        Returns a HistorianState with minimal data that still passes validation.
         Use for tests that don't need complex data structures.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            HistorianOutput with minimal valid data
+            HistorianState with minimal valid data
         """
-        return HistorianOutputFactory.basic(
+        return HistorianStateFactory.basic(
             historical_summary="Basic historical context",
             retrieved_notes=["note.md"],
             search_results_count=5,
@@ -630,19 +630,19 @@ class HistorianOutputFactory:
         )
 
     @staticmethod
-    def generate_with_current_timestamp(**overrides: Any) -> HistorianOutput:
-        """Generate HistorianOutput with current timestamp for realistic test scenarios.
+    def generate_with_current_timestamp(**overrides: Any) -> HistorianState:
+        """Generate HistorianState with current timestamp for realistic test scenarios.
 
-        Returns a HistorianOutput using the current timestamp instead of a fixed one.
+        Returns a HistorianState using the current timestamp instead of a fixed one.
         Perfect for integration tests that need realistic timing data.
 
         Args:
             **overrides: Override any field with custom values
 
         Returns:
-            HistorianOutput with current timestamp
+            HistorianState with current timestamp
         """
-        return HistorianOutputFactory.basic(
+        return HistorianStateFactory.basic(
             historical_summary="Current historical analysis incorporating recent developments and latest context",
             retrieved_notes=[
                 "recent_developments.md",

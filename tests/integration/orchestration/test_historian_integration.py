@@ -2,7 +2,7 @@
 Comprehensive tests for historian integration in Phase 2.1.
 
 This test suite covers:
-- HistorianOutput TypedDict schema validation
+- HistorianState TypedDict schema validation
 - historian_node() function behavior
 - State management with historian support
 - Full DAG execution with historian
@@ -19,9 +19,9 @@ from cognivault.agents.base_agent import BaseAgent
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     CogniVaultContext,
-    HistorianOutput,
-    RefinerOutput,
-    CriticOutput,
+    HistorianState,
+    RefinerState,
+    CriticState,
     create_initial_state,
     validate_state_integrity,
     get_agent_output,
@@ -96,12 +96,12 @@ class MockHistorianAgent(BaseAgent):
         return context
 
 
-class TestHistorianOutputSchema:
-    """Test HistorianOutput TypedDict schema validation."""
+class TestHistorianStateSchema:
+    """Test HistorianState TypedDict schema validation."""
 
     def test_historian_output_schema_complete(self) -> None:
-        """Test complete HistorianOutput schema."""
-        output: HistorianOutput = {
+        """Test complete HistorianState schema."""
+        output: HistorianState = {
             "historical_summary": "Comprehensive historical context for AI query",
             "retrieved_notes": ["/notes/ai_history.md", "/notes/ml_basics.md"],
             "search_results_count": 15,
@@ -134,8 +134,8 @@ class TestHistorianOutputSchema:
         assert output["timestamp"] == "2023-01-01T00:00:00Z"
 
     def test_historian_output_schema_minimal(self) -> None:
-        """Test minimal HistorianOutput schema."""
-        output: HistorianOutput = {
+        """Test minimal HistorianState schema."""
+        output: HistorianState = {
             "historical_summary": "Basic historical context",
             "retrieved_notes": [],
             "search_results_count": 0,
@@ -161,9 +161,9 @@ class TestHistorianOutputSchema:
         assert output["timestamp"] == "2023-01-01T00:00:00Z"
 
     def test_historian_output_schema_edge_cases(self) -> None:
-        """Test HistorianOutput schema with edge cases."""
+        """Test HistorianState schema with edge cases."""
         # Test with empty summary
-        output: HistorianOutput = {
+        output: HistorianState = {
             "historical_summary": "",
             "retrieved_notes": [],
             "search_results_count": 0,
@@ -184,11 +184,11 @@ class TestHistorianOutputSchema:
         assert output["confidence"] == 1.0
 
     def test_historian_output_search_strategies(self) -> None:
-        """Test different search strategies in HistorianOutput."""
+        """Test different search strategies in HistorianState."""
         strategies = ["hybrid", "tag-based", "keyword", "semantic"]
 
         for strategy in strategies:
-            output: HistorianOutput = {
+            output: HistorianState = {
                 "historical_summary": f"Results from {strategy} search",
                 "retrieved_notes": [],
                 "search_results_count": 5,
@@ -205,8 +205,8 @@ class TestHistorianOutputSchema:
             assert output["metadata"]["strategy"] == strategy
 
     def test_historian_output_complex_metadata(self) -> None:
-        """Test HistorianOutput with complex metadata."""
-        output: HistorianOutput = {
+        """Test HistorianState with complex metadata."""
+        output: HistorianState = {
             "historical_summary": "Complex historical analysis",
             "retrieved_notes": ["/notes/complex_topic.md"],
             "search_results_count": 25,
@@ -260,7 +260,7 @@ class TestHistorianStateIntegration:
         """Test setting historian output in state."""
         state = create_initial_state("Test query", "exec-123")
 
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Test historical context",
             "retrieved_notes": ["/notes/test.md"],
             "search_results_count": 10,
@@ -286,7 +286,7 @@ class TestHistorianStateIntegration:
         """Test getting historian output from state."""
         state = create_initial_state("Test query", "exec-123")
 
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Retrieved historical context",
             "retrieved_notes": ["/notes/history.md"],
             "search_results_count": 8,
@@ -305,7 +305,7 @@ class TestHistorianStateIntegration:
 
         # Verify retrieval
         assert retrieved_output is not None
-        historian_result = cast(HistorianOutput, retrieved_output)
+        historian_result = cast(HistorianState, retrieved_output)
 
         assert historian_result["historical_summary"] == "Retrieved historical context"
         assert historian_result["search_strategy"] == "tag-based"
@@ -333,7 +333,7 @@ class TestHistorianStateIntegration:
         assert validate_state_integrity(state) is True
 
         # Add historian output
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Valid historical context",
             "retrieved_notes": [],
             "search_results_count": 0,
@@ -352,7 +352,7 @@ class TestHistorianStateIntegration:
         assert validate_state_integrity(state_with_historian) is True
 
         # Test invalid historian output
-        invalid_historian_output: HistorianOutput = {
+        invalid_historian_output: HistorianState = {
             "historical_summary": "",  # Empty summary
             "retrieved_notes": [],
             "search_results_count": 0,
@@ -396,7 +396,7 @@ class TestHistorianNode:
         state = create_initial_state("What is artificial intelligence?", "exec-123")
 
         # Add refiner output (required for historian)
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "What is artificial intelligence and its applications?",
             "topics": ["artificial_intelligence", "applications"],
             "confidence": 0.9,
@@ -506,7 +506,7 @@ class TestHistorianNode:
             return_value=mock_agent,
         ):
             # Add some existing agent outputs to test context conversion
-            critic_output: CriticOutput = {
+            critic_output: CriticState = {
                 "critique": "Good analysis approach",
                 "suggestions": ["Consider broader scope"],
                 "severity": "low",
@@ -545,7 +545,7 @@ class TestHistorianNodeDependencies:
         """Test node input validation for historian."""
         # Test with refiner output (should pass)
         state = create_initial_state("Test query", "exec-123")
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Refined test query",
             "topics": ["test"],
             "confidence": 0.8,
@@ -564,7 +564,7 @@ class TestHistorianNodeDependencies:
         state = create_initial_state("Test query", "exec-123")
 
         # Add refiner output
-        refiner_output: RefinerOutput = {
+        refiner_output: RefinerState = {
             "refined_question": "Test refined query",
             "topics": ["test"],
             "confidence": 0.8,
@@ -574,7 +574,7 @@ class TestHistorianNodeDependencies:
         state_with_refiner = set_agent_output(state, "refiner", refiner_output)
 
         # Add critic output
-        critic_output: CriticOutput = {
+        critic_output: CriticState = {
             "critique": "Test critique",
             "suggestions": ["test"],
             "severity": "low",
@@ -591,7 +591,7 @@ class TestHistorianNodeDependencies:
         assert validate_node_input(state_with_critic, "synthesis") is False
 
         # Add historian output
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Test historical context",
             "retrieved_notes": [],
             "search_results_count": 0,
@@ -649,7 +649,7 @@ class TestHistorianDAGVisualization:
         # Verify configuration
         assert "Phase 2.1" in diagram
         assert 'state["historian"]' in diagram
-        assert "HistorianOutput" in diagram
+        assert "HistorianState" in diagram
 
     def test_dag_visualization_historian_metadata(self) -> None:
         """Test that historian metadata is included in visualization."""
@@ -659,7 +659,7 @@ class TestHistorianDAGVisualization:
         diagram = visualizer.generate_mermaid_diagram(agents)
 
         # Verify historian-specific metadata
-        assert "Historian adds HistorianOutput" in diagram
+        assert "Historian adds HistorianState" in diagram
         assert 'state["historian"]' in diagram
 
 
@@ -672,7 +672,7 @@ class TestHistorianStateConversion:
         state = create_initial_state("Test query", "exec-123")
 
         # Add historian output
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "Test historical context with retrieved notes",
             "retrieved_notes": ["/notes/ai_history.md", "/notes/ml_overview.md"],
             "search_results_count": 20,
@@ -725,7 +725,7 @@ class TestHistorianStateConversion:
         state = create_initial_state("Test query", "exec-123")
 
         # Add historian output with empty summary
-        historian_output: HistorianOutput = {
+        historian_output: HistorianState = {
             "historical_summary": "",  # Empty summary
             "retrieved_notes": [],
             "search_results_count": 0,

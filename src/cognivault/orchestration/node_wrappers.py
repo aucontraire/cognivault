@@ -43,10 +43,10 @@ from cognivault.orchestration.state_bridge import AgentContextStateBridge
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     CogniVaultContext,
-    RefinerOutput,
-    CriticOutput,
-    HistorianOutput,
-    SynthesisOutput,
+    RefinerState,
+    CriticState,
+    HistorianState,
+    SynthesisState,
     record_agent_error,
 )
 from cognivault.observability import get_logger
@@ -347,7 +347,7 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
 
     # Add any existing agent outputs to context with proper keys
     if state.get("refiner"):
-        refiner_output: Optional[RefinerOutput] = state["refiner"]
+        refiner_output: Optional[RefinerState] = state["refiner"]
         if refiner_output is not None:
             refined_question = refiner_output.get("refined_question", "")
             # Add with both 'refiner' and 'Refiner' keys for compatibility
@@ -369,7 +369,7 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
                 )
 
     if state.get("critic"):
-        critic_output: Optional[CriticOutput] = state["critic"]
+        critic_output: Optional[CriticState] = state["critic"]
         if critic_output is not None:
             critique = critic_output.get("critique", "")
             # Add with both 'critic' and 'Critic' keys for compatibility
@@ -387,7 +387,7 @@ async def convert_state_to_context(state: CogniVaultState) -> AgentContext:
                 logger.warning("Critic output found in state but critique is empty")
 
     if state.get("historian"):
-        historian_output: Optional[HistorianOutput] = state["historian"]
+        historian_output: Optional[HistorianState] = state["historian"]
         if historian_output is not None:
             historical_summary = historian_output.get("historical_summary", "")
             # Add with both 'historian' and 'Historian' keys for compatibility
@@ -446,7 +446,7 @@ async def refiner_node(
     LangGraph node wrapper for RefinerAgent.
 
     Transforms the raw user query into a structured, clarified prompt
-    and updates the state with typed RefinerOutput.
+    and updates the state with typed RefinerState.
 
     Parameters
     ----------
@@ -458,7 +458,7 @@ async def refiner_node(
     Returns
     -------
     CogniVaultState
-        Updated state with RefinerOutput
+        Updated state with RefinerState
     """
     # ✅ Type-safe context access (LangGraph 0.6.x Runtime API)
     thread_id = runtime.context.thread_id
@@ -519,7 +519,7 @@ async def refiner_node(
         refiner_raw_output = result_context.agent_outputs.get("refiner", "")
 
         # Create typed output
-        refiner_output = RefinerOutput(
+        refiner_output = RefinerState(
             refined_question=refiner_raw_output,
             topics=result_context.execution_state.get("topics", []),
             confidence=result_context.execution_state.get("confidence", 0.8),
@@ -659,7 +659,7 @@ async def critic_node(
     Returns
     -------
     CogniVaultState
-        Updated state with CriticOutput
+        Updated state with CriticState
     """
     # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
@@ -719,7 +719,7 @@ async def critic_node(
         critic_raw_output = result_context.agent_outputs.get("critic", "")
 
         # Create typed output
-        critic_output = CriticOutput(
+        critic_output = CriticState(
             critique=critic_raw_output,
             suggestions=result_context.execution_state.get("suggestions", []),
             severity=result_context.execution_state.get("severity", "medium"),
@@ -820,7 +820,7 @@ async def historian_node(
     Returns
     -------
     CogniVaultState
-        Updated state with HistorianOutput
+        Updated state with HistorianState
     """
     # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
@@ -888,7 +888,7 @@ async def historian_node(
             topics_found = result_context.execution_state.get("topics_found", [])
 
         # Create typed output
-        historian_output = HistorianOutput(
+        historian_output = HistorianState(
             historical_summary=historian_raw_output,
             retrieved_notes=retrieved_notes,
             search_results_count=result_context.execution_state.get(
@@ -1001,7 +1001,7 @@ async def synthesis_node(
     Returns
     -------
     CogniVaultState
-        Updated state with SynthesisOutput
+        Updated state with SynthesisState
     """
     # Extract context data from LangGraph 0.6.x Runtime Context API
     thread_id = runtime.context.thread_id
@@ -1074,7 +1074,7 @@ async def synthesis_node(
             sources_used.append("historian")
 
         # Create typed output
-        synthesis_output = SynthesisOutput(
+        synthesis_output = SynthesisState(
             final_analysis=synthesis_raw_output,
             key_insights=result_context.execution_state.get("key_insights", []),
             sources_used=sources_used,
