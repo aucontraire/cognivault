@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from cognivault.diagnostics.execution_tracer import (
     ExecutionTracer,
     TraceLevel,
-    ExecutionState,
+    ExecutionStatus,
     TraceEvent,
     ExecutionTrace,
     TracingSession,
@@ -38,17 +38,17 @@ class TestTraceLevel:
         assert TraceLevel.DEBUG.value == "debug"
 
 
-class TestExecutionState:
-    """Test suite for ExecutionState enum."""
+class TestExecutionStatus:
+    """Test suite for ExecutionStatus enum."""
 
-    def test_execution_states(self) -> None:
-        """Test execution state values."""
-        assert ExecutionState.PENDING.value == "pending"
-        assert ExecutionState.RUNNING.value == "running"
-        assert ExecutionState.COMPLETED.value == "completed"
-        assert ExecutionState.FAILED.value == "failed"
-        assert ExecutionState.SKIPPED.value == "skipped"
-        assert ExecutionState.TIMEOUT.value == "timeout"
+    def test_execution_status_values(self) -> None:
+        """Test ExecutionStatus enum values."""
+        assert ExecutionStatus.PENDING.value == "pending"
+        assert ExecutionStatus.RUNNING.value == "running"
+        assert ExecutionStatus.COMPLETED.value == "completed"
+        assert ExecutionStatus.FAILED.value == "failed"
+        assert ExecutionStatus.SKIPPED.value == "skipped"
+        assert ExecutionStatus.TIMEOUT.value == "timeout"
 
 
 class TestTraceEvent:
@@ -63,7 +63,7 @@ class TestTraceEvent:
             event_type="agent_start",
             node_name="refiner",
             agent_name="RefinerAgent",
-            state=ExecutionState.RUNNING,
+            state=ExecutionStatus.RUNNING,
             duration=1.5,
             input_data={"query": "test"},
             output_data={"result": "refined"},
@@ -76,7 +76,7 @@ class TestTraceEvent:
         assert event.event_type == "agent_start"
         assert event.node_name == "refiner"
         assert event.agent_name == "RefinerAgent"
-        assert event.state == ExecutionState.RUNNING
+        assert event.state == ExecutionStatus.RUNNING
         assert event.duration == 1.5
         assert event.input_data == {"query": "test"}
         assert event.output_data == {"result": "refined"}
@@ -92,7 +92,7 @@ class TestTraceEvent:
             event_type="simple",
             node_name="test_node",
             agent_name=None,
-            state=ExecutionState.COMPLETED,
+            state=ExecutionStatus.COMPLETED,
         )
 
         assert event.event_id == "evt_min"
@@ -141,7 +141,7 @@ class TestExecutionTrace:
                     event_type="start",
                     node_name="start",
                     agent_name=None,
-                    state=ExecutionState.COMPLETED,
+                    state=ExecutionStatus.COMPLETED,
                 )
             ],
         )
@@ -214,7 +214,7 @@ class TestExecutionTracer:
                     event_type="agent_start",
                     node_name="refiner",
                     agent_name="RefinerAgent",
-                    state=ExecutionState.COMPLETED,
+                    state=ExecutionStatus.COMPLETED,
                     duration=1.5,
                 )
             ],
@@ -757,7 +757,7 @@ class TestExecutionTracerPerformance:
                     event_type="test_event",
                     node_name=f"node_{i}",
                     agent_name="TestAgent",
-                    state=ExecutionState.COMPLETED,
+                    state=ExecutionStatus.COMPLETED,
                 )
             )
 
@@ -787,7 +787,7 @@ class TestExecutionTracerPerformance:
                 event_type="performance_event",
                 node_name=f"node_{i % 10}",
                 agent_name="PerfAgent",
-                state=ExecutionState.COMPLETED,
+                state=ExecutionStatus.COMPLETED,
             )
             for i in range(50)
         ]

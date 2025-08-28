@@ -6,7 +6,7 @@ Factory Organization:
 - agent_config_factories: Configuration factory methods for RefinerConfig, CriticConfig, etc.
 - api_model_factories: WorkflowRequest, WorkflowResponse via APIModelPatterns facade eliminating execution_config unfilled parameter warnings
 - mock_llm_factories: Mock LLM infrastructure eliminating 118+ repetitive mock setups
-- orchestration_factories: ExecutionState and future orchestration objects
+- orchestration_factories: ExecutionMetadata and future orchestration objects
 - advanced_orchestrator_factories: ResourceConstraint, OrchestratorConfig, ExecutionResults, ResourceAllocationResult, PipelineStage, DependencyNode eliminating 50+ orchestration parameter unfilled warnings
 - state_container_factories: CogniVaultState and complete workflow state objects
 - resource_scheduler_factories: ResourcePool, ResourceRequest, ResourceAllocation eliminating 14+ unfilled parameter warnings
@@ -57,7 +57,7 @@ from .agent_config_factories import (
 
 # Orchestration factories
 from .orchestration_factories import (
-    ExecutionStateFactory,
+    ExecutionMetadataFactory,
 )
 
 # Advanced orchestrator factories
@@ -151,7 +151,7 @@ __all__ = [
     "HistorianConfigFactory",
     "AgentConfigFactorySelector",
     # Orchestration
-    "ExecutionStateFactory",
+    "ExecutionMetadataFactory",
     # Advanced orchestrator factories
     "AdvancedResourceConstraintFactory",
     "OrchestratorConfigFactory",

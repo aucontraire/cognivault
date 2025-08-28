@@ -12,9 +12,7 @@ This test suite covers all aspects of the enhanced Pydantic-based AgentContext:
 """
 
 import pytest
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
-from typing import Any, Dict
 
 from pydantic import ValidationError
 
@@ -369,8 +367,8 @@ class TestAgentContextBasicFunctionality:
         assert "_clone_" in cloned.context_id
 
 
-class TestAgentContextExecutionStateManagement:
-    """Test AgentContext execution state management features."""
+class TestAgentContextWorkflowStateManagement:
+    """Test AgentContext workflow state management features."""
 
     def test_start_agent_execution(self) -> None:
         """Test starting agent execution."""

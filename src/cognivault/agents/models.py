@@ -295,8 +295,13 @@ class SynthesisOutput(BaseAgentOutput):
     )
 
 
-class ExecutionMetadata(BaseModel):
-    """Complete execution metadata structure for JSONB storage."""
+class DatabaseExecutionMetadata(BaseModel):
+    """Complete execution metadata structure for JSONB database storage.
+
+    This model defines the schema for storing execution metadata in PostgreSQL
+    JSONB columns. It's designed for database persistence, not for LangGraph
+    state management (which uses the TypedDict ExecutionMetadata).
+    """
 
     execution_id: str = Field(..., description="Unique execution identifier")
     correlation_id: Optional[str] = Field(
@@ -356,11 +361,13 @@ class ExecutionMetadata(BaseModel):
 
 
 # Type aliases for convenience
-AgentOutputType = Union[RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutput]
+AgentStructuredOutput = Union[
+    RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutput
+]
 
 
 # Factory function for creating agent outputs
-def create_agent_output(agent_name: str, **kwargs: Any) -> AgentOutputType:
+def create_agent_output(agent_name: str, **kwargs: Any) -> AgentStructuredOutput:
     """
     Factory function to create the appropriate agent output based on agent name.
 
@@ -387,4 +394,4 @@ def create_agent_output(agent_name: str, **kwargs: Any) -> AgentOutputType:
         )
 
     output_class = output_classes[agent_name]
-    return cast(AgentOutputType, output_class(agent_name=agent_name, **kwargs))
+    return cast(AgentStructuredOutput, output_class(agent_name=agent_name, **kwargs))

@@ -144,7 +144,7 @@ class SynthesisState(TypedDict):
     """ISO timestamp when synthesis was completed."""
 
 
-class ExecutionState(TypedDict):
+class ExecutionMetadata(TypedDict):
     """
     Metadata about the LangGraph execution process.
     """
@@ -207,7 +207,7 @@ class CogniVaultState(TypedDict):
     """Output from the SynthesisAgent (populated after synthesis node)."""
 
     # Execution tracking
-    execution_metadata: ExecutionState
+    execution_metadata: ExecutionMetadata
     """Metadata about the current execution."""
 
     # Error handling
@@ -226,7 +226,7 @@ class CogniVaultState(TypedDict):
 LangGraphState = CogniVaultState
 """Alias for CogniVaultState to improve code readability."""
 
-AgentOutput = Union[RefinerState, CriticState, HistorianState, SynthesisState]
+AgentStateUnion = Union[RefinerState, CriticState, HistorianState, SynthesisState]
 """Union type for any agent output schema."""
 
 
@@ -256,7 +256,7 @@ def create_initial_state(
         critic=None,
         historian=None,
         synthesis=None,
-        execution_metadata=ExecutionState(
+        execution_metadata=ExecutionMetadata(
             execution_id=execution_id,
             correlation_id=correlation_id,
             start_time=now,
@@ -345,9 +345,11 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
         return False
 
 
-def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentOutput]:
+def get_agent_state(
+    state: CogniVaultState, agent_name: str
+) -> Optional[AgentStateUnion]:
     """
-    Get typed agent output from state.
+    Get typed agent state from state.
 
     Parameters
     ----------
@@ -358,8 +360,8 @@ def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentO
 
     Returns
     -------
-    AgentOutput or None
-        Typed agent output if available
+    AgentState or None
+        Typed agent state if available
     """
     agent_name = agent_name.lower()
 
@@ -375,11 +377,11 @@ def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentO
         return None
 
 
-def set_agent_output(
-    state: CogniVaultState, agent_name: str, output: AgentOutput
+def set_agent_state(
+    state: CogniVaultState, agent_name: str, output: AgentStateUnion
 ) -> CogniVaultState:
     """
-    Set typed agent output in state.
+    Set typed agent state in state.
 
     Parameters
     ----------
@@ -387,13 +389,13 @@ def set_agent_output(
         Current state
     agent_name : str
         Name of agent ('refiner', 'critic', 'historian', 'synthesis')
-    output : AgentOutput
-        Typed agent output to set
+    output : AgentState
+        Typed agent state to set
 
     Returns
     -------
     CogniVaultState
-        Updated state with agent output
+        Updated state with agent state
     """
     # Create a deep copy to avoid mutations
     new_state = state.copy()
@@ -497,12 +499,12 @@ __all__ = [
     "CriticState",
     "HistorianState",
     "SynthesisState",
-    "AgentOutput",
-    "ExecutionState",
+    "AgentStateUnion",
+    "ExecutionMetadata",
     "CogniVaultContext",
     "create_initial_state",
     "validate_state_integrity",
-    "get_agent_output",
-    "set_agent_output",
+    "get_agent_state",
+    "set_agent_state",
     "record_agent_error",
 ]

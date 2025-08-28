@@ -79,12 +79,12 @@ class TestLangGraphInstallation:
         from langgraph.graph import StateGraph, END
         from typing import Any, Dict, List, Optional
 
-        class ExecutionState(TypedDict):
+        class TestWorkflowState(TypedDict):
             input: str
             output: str
             step_count: int
 
-        def process_node(state: ExecutionState) -> ExecutionState:
+        def process_node(state: TestWorkflowState) -> TestWorkflowState:
             return {
                 "input": state["input"],
                 "output": f"Processed: {state['input']}",
@@ -92,7 +92,7 @@ class TestLangGraphInstallation:
             }
 
         # Build graph
-        graph = StateGraph(ExecutionState)
+        graph = StateGraph(TestWorkflowState)
         graph.add_node("process", process_node)
         graph.add_edge("process", END)
         graph.set_entry_point("process")

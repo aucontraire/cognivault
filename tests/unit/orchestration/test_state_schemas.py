@@ -11,8 +11,8 @@ from cognivault.orchestration.state_schemas import (
     SynthesisState,
     create_initial_state,
     validate_state_integrity,
-    get_agent_output,
-    set_agent_output,
+    get_agent_state,
+    set_agent_state,
     record_agent_error,
 )
 from tests.factories import (
@@ -20,7 +20,7 @@ from tests.factories import (
     RefinerStateFactory,
     CriticStateFactory,
     HistorianStateFactory,
-    ExecutionStateFactory,
+    ExecutionMetadataFactory,
     CogniVaultStateFactory,
 )
 
@@ -30,68 +30,68 @@ class TestTypeDefinitions:
 
     def test_refiner_output_schema(self) -> None:
         """Test RefinerState schema structure."""
-        output = RefinerStateFactory.generate_valid_data()
+        refiner_state = RefinerStateFactory.generate_valid_data()
 
         # Test schema structure, not specific values
-        assert isinstance(output["refined_question"], str)
-        assert len(output["refined_question"]) > 0
-        assert isinstance(output["topics"], list)
-        assert len(output["topics"]) > 0
-        assert isinstance(output["confidence"], float)
-        assert 0.0 <= output["confidence"] <= 1.0
-        assert output["processing_notes"] is None or isinstance(
-            output["processing_notes"], str
+        assert isinstance(refiner_state["refined_question"], str)
+        assert len(refiner_state["refined_question"]) > 0
+        assert isinstance(refiner_state["topics"], list)
+        assert len(refiner_state["topics"]) > 0
+        assert isinstance(refiner_state["confidence"], float)
+        assert 0.0 <= refiner_state["confidence"] <= 1.0
+        assert refiner_state["processing_notes"] is None or isinstance(
+            refiner_state["processing_notes"], str
         )
-        assert isinstance(output["timestamp"], str)
+        assert isinstance(refiner_state["timestamp"], str)
 
     def test_refiner_output_optional_fields(self) -> None:
         """Test RefinerState with optional fields as None."""
         # Use specialized factory method for None processing_notes
-        output = RefinerStateFactory.with_none_processing_notes()
+        refiner_state = RefinerStateFactory.with_none_processing_notes()
 
-        assert output["processing_notes"] is None
+        assert refiner_state["processing_notes"] is None
 
-    def test_critic_output_schema(self) -> None:
+    def test_critic_state_schema(self) -> None:
         """Test CriticState schema structure."""
-        output = CriticStateFactory.generate_valid_data()
+        critic_state = CriticStateFactory.generate_valid_data()
 
         # Test schema structure, not specific values
-        assert isinstance(output["critique"], str)
-        assert len(output["critique"]) > 0
-        assert isinstance(output["suggestions"], list)
-        assert len(output["suggestions"]) > 0
-        assert output["severity"] in ["low", "medium", "high", "critical"]
-        assert isinstance(output["strengths"], list)
-        assert len(output["strengths"]) > 0
-        assert isinstance(output["weaknesses"], list)
-        assert len(output["weaknesses"]) > 0
-        assert isinstance(output["confidence"], float)
-        assert 0.0 <= output["confidence"] <= 1.0
-        assert isinstance(output["timestamp"], str)
+        assert isinstance(critic_state["critique"], str)
+        assert len(critic_state["critique"]) > 0
+        assert isinstance(critic_state["suggestions"], list)
+        assert len(critic_state["suggestions"]) > 0
+        assert critic_state["severity"] in ["low", "medium", "high", "critical"]
+        assert isinstance(critic_state["strengths"], list)
+        assert len(critic_state["strengths"]) > 0
+        assert isinstance(critic_state["weaknesses"], list)
+        assert len(critic_state["weaknesses"]) > 0
+        assert isinstance(critic_state["confidence"], float)
+        assert 0.0 <= critic_state["confidence"] <= 1.0
+        assert isinstance(critic_state["timestamp"], str)
 
-    def test_synthesis_output_schema(self) -> None:
+    def test_synthesis_state_schema(self) -> None:
         """Test SynthesisState schema structure."""
-        output = SynthesisStateFactory.generate_valid_data()
+        synthesis_state = SynthesisStateFactory.generate_valid_data()
 
         # Test schema structure, not specific values
-        assert isinstance(output["final_analysis"], str)
-        assert len(output["final_analysis"]) > 0
-        assert isinstance(output["key_insights"], list)
-        assert len(output["key_insights"]) > 0
-        assert isinstance(output["sources_used"], list)
-        assert len(output["sources_used"]) > 0
-        assert isinstance(output["themes_identified"], list)
-        assert len(output["themes_identified"]) > 0
-        assert isinstance(output["conflicts_resolved"], int)
-        assert output["conflicts_resolved"] >= 0
-        assert isinstance(output["confidence"], float)
-        assert 0.0 <= output["confidence"] <= 1.0
-        assert isinstance(output["metadata"], dict)
-        assert isinstance(output["timestamp"], str)
+        assert isinstance(synthesis_state["final_analysis"], str)
+        assert len(synthesis_state["final_analysis"]) > 0
+        assert isinstance(synthesis_state["key_insights"], list)
+        assert len(synthesis_state["key_insights"]) > 0
+        assert isinstance(synthesis_state["sources_used"], list)
+        assert len(synthesis_state["sources_used"]) > 0
+        assert isinstance(synthesis_state["themes_identified"], list)
+        assert len(synthesis_state["themes_identified"]) > 0
+        assert isinstance(synthesis_state["conflicts_resolved"], int)
+        assert synthesis_state["conflicts_resolved"] >= 0
+        assert isinstance(synthesis_state["confidence"], float)
+        assert 0.0 <= synthesis_state["confidence"] <= 1.0
+        assert isinstance(synthesis_state["metadata"], dict)
+        assert isinstance(synthesis_state["timestamp"], str)
 
     def test_execution_metadata_schema(self) -> None:
-        """Test ExecutionState schema structure."""
-        metadata = ExecutionStateFactory.generate_valid_data()
+        """Test ExecutionMetadata schema structure."""
+        metadata = ExecutionMetadataFactory.generate_valid_data()
 
         # Test schema structure, not specific values
         assert isinstance(metadata["execution_id"], str)
@@ -297,130 +297,130 @@ class TestValidateStateIntegrity:
 class TestGetAgentOutput:
     """Test get_agent_output function."""
 
-    def test_get_refiner_output(self) -> None:
+    def test_get_refiner_state(self) -> None:
         """Test getting refiner output."""
         state = create_initial_state("test", "exec-123")
-        refiner_output = RefinerStateFactory.generate_valid_data()
-        state["refiner"] = refiner_output
+        refiner_state = RefinerStateFactory.generate_valid_data()
+        state["refiner"] = refiner_state
 
-        result = get_agent_output(state, "refiner")
-        assert result == refiner_output
+        result = get_agent_state(state, "refiner")
+        assert result == refiner_state
 
-    def test_get_critic_output(self) -> None:
-        """Test getting critic output."""
+    def test_get_critic_state(self) -> None:
+        """Test getting critic state."""
         state = create_initial_state("test", "exec-123")
-        critic_output = CriticStateFactory.generate_valid_data()
-        state["critic"] = critic_output
+        critic_state = CriticStateFactory.generate_valid_data()
+        state["critic"] = critic_state
 
-        result = get_agent_output(state, "critic")
-        assert result == critic_output
+        result = get_agent_state(state, "critic")
+        assert result == critic_state
 
-    def test_get_synthesis_output(self) -> None:
-        """Test getting synthesis output."""
+    def test_get_synthesis_state(self) -> None:
+        """Test getting synthesis state."""
         state = create_initial_state("test", "exec-123")
-        synthesis_output = SynthesisStateFactory.generate_valid_data()
-        state["synthesis"] = synthesis_output
+        synthesis_state = SynthesisStateFactory.generate_valid_data()
+        state["synthesis"] = synthesis_state
 
-        result = get_agent_output(state, "synthesis")
-        assert result == synthesis_output
+        result = get_agent_state(state, "synthesis")
+        assert result == synthesis_state
 
-    def test_get_agent_output_case_insensitive(self) -> None:
+    def test_get_agent_state_case_insensitive(self) -> None:
         """Test that agent names are case insensitive."""
         state = create_initial_state("test", "exec-123")
-        refiner_output = RefinerStateFactory.generate_minimal_data()
-        state["refiner"] = refiner_output
+        refiner_state = RefinerStateFactory.generate_minimal_data()
+        state["refiner"] = refiner_state
 
-        assert get_agent_output(state, "REFINER") == refiner_output
-        assert get_agent_output(state, "Refiner") == refiner_output
-        assert get_agent_output(state, "refiner") == refiner_output
+        assert get_agent_state(state, "REFINER") == refiner_state
+        assert get_agent_state(state, "Refiner") == refiner_state
+        assert get_agent_state(state, "refiner") == refiner_state
 
     def test_get_agent_output_none_values(self) -> None:
         """Test getting agent output when values are None."""
         state = create_initial_state("test", "exec-123")
 
-        assert get_agent_output(state, "refiner") is None
-        assert get_agent_output(state, "critic") is None
-        assert get_agent_output(state, "synthesis") is None
+        assert get_agent_state(state, "refiner") is None
+        assert get_agent_state(state, "critic") is None
+        assert get_agent_state(state, "synthesis") is None
 
     def test_get_agent_output_invalid_agent(self) -> None:
         """Test getting output for invalid agent name."""
         state = create_initial_state("test", "exec-123")
 
-        assert get_agent_output(state, "invalid") is None
-        assert get_agent_output(state, "historian") is None
-        assert get_agent_output(state, "") is None
+        assert get_agent_state(state, "invalid") is None
+        assert get_agent_state(state, "historian") is None
+        assert get_agent_state(state, "") is None
 
 
 class TestSetAgentOutput:
     """Test set_agent_output function."""
 
-    def test_set_refiner_output(self) -> None:
+    def test_set_refiner_state(self) -> None:
         """Test setting refiner output."""
         state = create_initial_state("test", "exec-123")
-        refiner_output = RefinerStateFactory.generate_valid_data()
+        refiner_state = RefinerStateFactory.generate_valid_data()
 
-        new_state = set_agent_output(state, "refiner", refiner_output)
+        new_state = set_agent_state(state, "refiner", refiner_state)
 
-        assert new_state["refiner"] == refiner_output
+        assert new_state["refiner"] == refiner_state
         assert "refiner" in new_state["successful_agents"]
         assert new_state is not state  # Should return new state
 
-    def test_set_critic_output(self) -> None:
-        """Test setting critic output."""
+    def test_set_critic_state(self) -> None:
+        """Test setting critic state."""
         state = create_initial_state("test", "exec-123")
-        critic_output = CriticStateFactory.generate_valid_data()
+        critic_state = CriticStateFactory.generate_valid_data()
 
-        new_state = set_agent_output(state, "critic", critic_output)
+        new_state = set_agent_state(state, "critic", critic_state)
 
-        assert new_state["critic"] == critic_output
+        assert new_state["critic"] == critic_state
         assert "critic" in new_state["successful_agents"]
 
-    def test_set_synthesis_output(self) -> None:
-        """Test setting synthesis output."""
+    def test_set_synthesis_state(self) -> None:
+        """Test setting synthesis state."""
         state = create_initial_state("test", "exec-123")
-        synthesis_output = SynthesisStateFactory.generate_valid_data()
+        synthesis_state = SynthesisStateFactory.generate_valid_data()
 
-        new_state = set_agent_output(state, "synthesis", synthesis_output)
+        new_state = set_agent_state(state, "synthesis", synthesis_state)
 
-        assert new_state["synthesis"] == synthesis_output
+        assert new_state["synthesis"] == synthesis_state
         assert "synthesis" in new_state["successful_agents"]
 
-    def test_set_agent_output_case_insensitive(self) -> None:
+    def test_set_agent_state_case_insensitive(self) -> None:
         """Test that setting agent output is case-insensitive."""
         state = create_initial_state("test", "exec-123")
-        refiner_output = RefinerStateFactory.generate_minimal_data()
+        refiner_state = RefinerStateFactory.generate_minimal_data()
 
-        new_state = set_agent_output(state, "REFINER", refiner_output)
+        new_state = set_agent_state(state, "REFINER", refiner_state)
 
-        assert new_state["refiner"] == refiner_output
+        assert new_state["refiner"] == refiner_state
         assert "refiner" in new_state["successful_agents"]
 
-    def test_set_agent_output_no_duplicates(self) -> None:
+    def test_set_agent_state_no_duplicates(self) -> None:
         """Test that successful agents list doesn't contain duplicates."""
         state = create_initial_state("test", "exec-123")
-        refiner_output = RefinerStateFactory.generate_minimal_data()
+        refiner_state = RefinerStateFactory.generate_minimal_data()
 
-        # Set same agent output twice
-        new_state = set_agent_output(state, "refiner", refiner_output)
-        new_state = set_agent_output(new_state, "refiner", refiner_output)
+        # Set same agent state twice
+        new_state = set_agent_state(state, "refiner", refiner_state)
+        new_state = set_agent_state(new_state, "refiner", refiner_state)
 
         assert new_state["successful_agents"].count("refiner") == 1
 
-    def test_set_agent_output_preserves_original_state(self) -> None:
-        """Test that setting agent output doesn't modify original state."""
+    def test_set_agent_state_preserves_original_state(self) -> None:
+        """Test that setting agent state doesn't modify original state."""
         state = create_initial_state("test", "exec-123")
         original_successful = state["successful_agents"].copy()
 
-        refiner_output = RefinerStateFactory.generate_minimal_data()
+        refiner_state = RefinerStateFactory.generate_minimal_data()
 
-        new_state = set_agent_output(state, "refiner", refiner_output)
+        new_state = set_agent_state(state, "refiner", refiner_state)
 
         # Original state should be unchanged
         assert state["successful_agents"] == original_successful
         assert state["refiner"] is None
 
         # New state should have changes
-        assert new_state["refiner"] == refiner_output
+        assert new_state["refiner"] == refiner_state
         assert "refiner" in new_state["successful_agents"]
 
 
@@ -531,29 +531,29 @@ class TestIntegration:
         # Validate initial state
         assert validate_state_integrity(state) is True
 
-        # Add refiner output - using current timestamp for integration test
-        refiner_output = RefinerStateFactory.generate_with_current_timestamp()
-        state = set_agent_output(state, "refiner", refiner_output)
+        # Add refiner state - using current timestamp for integration test
+        refiner_state = RefinerStateFactory.generate_with_current_timestamp()
+        state = set_agent_state(state, "refiner", refiner_state)
 
         # Validate after refiner
         assert validate_state_integrity(state) is True
-        assert get_agent_output(state, "refiner") == refiner_output
+        assert get_agent_state(state, "refiner") == refiner_state
 
         # Add critic output - using current timestamp for integration test
-        critic_output = CriticStateFactory.generate_with_current_timestamp()
-        state = set_agent_output(state, "critic", critic_output)
+        critic_state = CriticStateFactory.generate_with_current_timestamp()
+        state = set_agent_state(state, "critic", critic_state)
 
         # Validate after critic
         assert validate_state_integrity(state) is True
-        assert get_agent_output(state, "critic") == critic_output
+        assert get_agent_state(state, "critic") == critic_state
 
-        # Add synthesis output - using current timestamp for integration test
-        synthesis_output = SynthesisStateFactory.generate_with_current_timestamp()
-        state = set_agent_output(state, "synthesis", synthesis_output)
+        # Add synthesis state - using current timestamp for integration test
+        synthesis_state = SynthesisStateFactory.generate_with_current_timestamp()
+        state = set_agent_state(state, "synthesis", synthesis_state)
 
         # Validate final state
         assert validate_state_integrity(state) is True
-        assert get_agent_output(state, "synthesis") == synthesis_output
+        assert get_agent_state(state, "synthesis") == synthesis_state
 
         # Check all successful agents
         assert "refiner" in state["successful_agents"]
@@ -567,16 +567,16 @@ class TestIntegration:
         state = create_initial_state("Complex query", "exec-partial")
 
         # Successful refiner - using current timestamp for integration test
-        refiner_output = RefinerStateFactory.generate_with_current_timestamp()
-        state = set_agent_output(state, "refiner", refiner_output)
+        refiner_state = RefinerStateFactory.generate_with_current_timestamp()
+        state = set_agent_state(state, "refiner", refiner_state)
 
         # Failed critic
         critic_error = RuntimeError("Critic processing failed")
         state = record_agent_error(state, "critic", critic_error)
 
         # Successful synthesis (despite critic failure) - using current timestamp for integration test
-        synthesis_output = SynthesisStateFactory.generate_with_current_timestamp()
-        state = set_agent_output(state, "synthesis", synthesis_output)
+        synthesis_state = SynthesisStateFactory.generate_with_current_timestamp()
+        state = set_agent_state(state, "synthesis", synthesis_state)
 
         # Validate final state
         assert validate_state_integrity(state) is True
@@ -585,23 +585,23 @@ class TestIntegration:
         assert "critic" in state["failed_agents"]
         assert len(state["errors"]) == 1
         assert state["errors"][0]["agent"] == "critic"
-        assert get_agent_output(state, "critic") is None
+        assert get_agent_state(state, "critic") is None
 
     def test_state_type_consistency(self) -> None:
         """Test that state maintains type consistency throughout workflow."""
         state = create_initial_state("Type test", "exec-types")
 
-        # Add outputs and verify they maintain their types - using current timestamp for integration test
-        refiner_output = RefinerStateFactory.generate_with_current_timestamp()
+        # Add states and verify they maintain their types - using current timestamp for integration test
+        refiner_state = RefinerStateFactory.generate_with_current_timestamp()
 
-        state = set_agent_output(state, "refiner", refiner_output)
-        retrieved_output = get_agent_output(state, "refiner")
+        state = set_agent_state(state, "refiner", refiner_state)
+        retrieved_state = get_agent_state(state, "refiner")
 
         # Verify type consistency
-        assert isinstance(retrieved_output, dict)
-        assert retrieved_output is not None
+        assert isinstance(retrieved_state, dict)
+        assert retrieved_state is not None
 
-        refiner_result = cast(RefinerState, retrieved_output)
+        refiner_result = cast(RefinerState, retrieved_state)
         assert isinstance(refiner_result["refined_question"], str)
         assert len(refiner_result["refined_question"]) > 0
         assert isinstance(refiner_result["topics"], list)

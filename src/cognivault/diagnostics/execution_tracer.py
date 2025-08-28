@@ -47,7 +47,7 @@ class TraceLevel(Enum):
     DEBUG = "debug"
 
 
-class ExecutionState(Enum):
+class ExecutionStatus(Enum):
     """Execution states for tracing."""
 
     PENDING = "pending"
@@ -73,7 +73,7 @@ class TraceEvent(BaseModel):
     agent_name: Optional[str] = Field(
         None, description="Name of the agent if applicable"
     )
-    state: ExecutionState = Field(..., description="Current execution state")
+    state: ExecutionStatus = Field(..., description="Current execution state")
     duration: Optional[float] = Field(
         None, ge=0.0, description="Event duration in seconds"
     )
@@ -627,9 +627,9 @@ class ExecutionTracer:
                     node_name=agent_name,
                     agent_name=agent_name,
                     state=(
-                        ExecutionState.COMPLETED
+                        ExecutionStatus.COMPLETED
                         if agent_name not in context.failed_agents
-                        else ExecutionState.FAILED
+                        else ExecutionStatus.FAILED
                     ),
                     duration=1.0,  # Would be real timing data
                     output_data={"output": output} if session.capture_io else None,
@@ -719,7 +719,7 @@ class ExecutionTracer:
 
             if event:
                 status_color = (
-                    "green" if event.state == ExecutionState.COMPLETED else "red"
+                    "green" if event.state == ExecutionStatus.COMPLETED else "red"
                 )
                 duration_text = f" ({event.duration:.3f}s)" if event.duration else ""
                 step_text = f"[{status_color}]{step}{duration_text}[/{status_color}]"
@@ -747,10 +747,10 @@ class ExecutionTracer:
 
         for event in trace.events:
             state_color = {
-                ExecutionState.COMPLETED: "green",
-                ExecutionState.FAILED: "red",
-                ExecutionState.RUNNING: "yellow",
-                ExecutionState.PENDING: "blue",
+                ExecutionStatus.COMPLETED: "green",
+                ExecutionStatus.FAILED: "red",
+                ExecutionStatus.RUNNING: "yellow",
+                ExecutionStatus.PENDING: "blue",
             }.get(event.state, "white")
 
             events_table.add_row(
@@ -820,7 +820,7 @@ class ExecutionTracer:
                 event_type=event_data["event_type"],
                 node_name=event_data["node_name"],
                 agent_name=event_data.get("agent_name"),
-                state=ExecutionState(event_data["state"]),
+                state=ExecutionStatus(event_data["state"]),
                 duration=event_data.get("duration"),
                 error=event_data.get("error"),
             )
@@ -973,7 +973,7 @@ class ExecutionTracer:
     def _analyze_errors(self, trace: ExecutionTrace) -> Dict[str, Any]:
         """Analyze errors and failure patterns."""
         error_events = [
-            e for e in trace.events if e.state == ExecutionState.FAILED or e.error
+            e for e in trace.events if e.state == ExecutionStatus.FAILED or e.error
         ]
 
         return {
@@ -1013,9 +1013,9 @@ class ExecutionTracer:
             if event.duration:
                 stats["total_duration"] += event.duration
 
-            if event.state == ExecutionState.COMPLETED:
+            if event.state == ExecutionStatus.COMPLETED:
                 stats["success_count"] += 1
-            elif event.state == ExecutionState.FAILED:
+            elif event.state == ExecutionStatus.FAILED:
                 stats["error_count"] += 1
 
         # Calculate averages
@@ -1041,7 +1041,7 @@ class ExecutionTracer:
             )
 
         # Error-based suggestions
-        error_events = [e for e in trace.events if e.state == ExecutionState.FAILED]
+        error_events = [e for e in trace.events if e.state == ExecutionStatus.FAILED]
         if error_events:
             suggestions.append("Review error handling and implement retry mechanisms")
 
@@ -1261,7 +1261,7 @@ class ExecutionTracer:
         if not event:
             return
 
-        status_color = "green" if event.state == ExecutionState.COMPLETED else "red"
+        status_color = "green" if event.state == ExecutionStatus.COMPLETED else "red"
         self.console.print(
             f"[{status_color}]{event.timestamp.strftime('%H:%M:%S.%f')[:-3]} - {event.agent_name}: {event.state.value}[/{status_color}]"
         )
