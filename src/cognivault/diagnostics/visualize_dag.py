@@ -472,7 +472,7 @@ class DAGVisualizer:
         ]
 
         for agent in agents:
-            output_type = f"{agent.title()}Output"
+            output_type = f"{agent.title()}State"
             annotations.append(
                 f'%% - {agent.title()} adds {output_type} to state["{agent}"]'
             )
@@ -513,7 +513,7 @@ class DAGVisualizer:
         annotations.append("")
 
         for agent in agents:
-            output_type = f"{agent.title()}Output"
+            output_type = f"{agent.title()}State"
             annotations.append(
                 f'%% - {agent.title()} adds {output_type} to state["{agent}"]'
             )
