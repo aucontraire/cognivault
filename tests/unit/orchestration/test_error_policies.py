@@ -12,6 +12,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+from cognivault.common import CircuitState
 from cognivault.orchestration.error_policies import (
     ErrorPolicyType,
     FallbackStrategy,
@@ -19,7 +20,6 @@ from cognivault.orchestration.error_policies import (
     CircuitBreakerConfig,
     ErrorPolicy,
     LangGraphExecutionError,
-    CircuitBreakerState,
     CircuitBreaker,
     ErrorPolicyManager,
     get_error_policy_manager,
@@ -50,10 +50,10 @@ class TestEnums:
         assert FallbackStrategy.PARTIAL_RESULT.value == "partial_result"
 
     def test_circuit_breaker_state_values(self) -> None:
-        """Test CircuitBreakerState enum values."""
-        assert CircuitBreakerState.CLOSED.value == "closed"
-        assert CircuitBreakerState.OPEN.value == "open"
-        assert CircuitBreakerState.HALF_OPEN.value == "half_open"
+        """Test CircuitState enum values."""
+        assert CircuitState.CLOSED.value == "closed"
+        assert CircuitState.OPEN.value == "open"
+        assert CircuitState.HALF_OPEN.value == "half_open"
 
 
 class TestPolicyRetryConfig:
@@ -205,7 +205,7 @@ class TestCircuitBreaker:
 
     def test_initial_state(self, circuit_breaker: CircuitBreaker) -> None:
         """Test circuit breaker initial state."""
-        assert circuit_breaker.state == CircuitBreakerState.CLOSED
+        assert circuit_breaker.state == CircuitState.CLOSED
         assert circuit_breaker.failure_count == 0
         assert circuit_breaker.success_count == 0
         assert circuit_breaker.can_execute() is True
@@ -216,7 +216,7 @@ class TestCircuitBreaker:
         for _ in range(3):
             circuit_breaker.record_failure()
 
-        assert circuit_breaker.state == CircuitBreakerState.OPEN
+        assert circuit_breaker.state == CircuitState.OPEN
         assert circuit_breaker.failure_count == 3
         assert circuit_breaker.can_execute() is False
 
@@ -226,7 +226,7 @@ class TestCircuitBreaker:
         for _ in range(3):
             circuit_breaker.record_failure()
 
-        assert circuit_breaker.state == CircuitBreakerState.OPEN
+        assert circuit_breaker.state == CircuitState.OPEN
 
         # Wait for timeout (using small timeout for test)
         time.sleep(1.1)
@@ -237,7 +237,7 @@ class TestCircuitBreaker:
         assert can_execute_result is True
         # After calling can_execute(), the state should be HALF_OPEN
         # Note: This is correct behavior - can_execute() transitions OPEN -> HALF_OPEN
-        assert circuit_breaker.state == CircuitBreakerState.HALF_OPEN  # type: ignore[comparison-overlap]
+        assert circuit_breaker.state == CircuitState.HALF_OPEN  # type: ignore[comparison-overlap]
 
     def test_half_open_success_recovery(self, circuit_breaker: CircuitBreaker) -> None:
         """Test recovery from half-open state with successes."""
@@ -253,7 +253,7 @@ class TestCircuitBreaker:
         for _ in range(2):
             circuit_breaker.record_success()
 
-        assert circuit_breaker.state == CircuitBreakerState.CLOSED
+        assert circuit_breaker.state == CircuitState.CLOSED
         assert circuit_breaker.failure_count == 0
 
     def test_half_open_failure_reopens(self, circuit_breaker: CircuitBreaker) -> None:
@@ -269,7 +269,7 @@ class TestCircuitBreaker:
         # Record failure - should reopen
         circuit_breaker.record_failure()
 
-        assert circuit_breaker.state == CircuitBreakerState.OPEN
+        assert circuit_breaker.state == CircuitState.OPEN
         assert circuit_breaker.can_execute() is False
 
     def test_half_open_call_limit(self, circuit_breaker: CircuitBreaker) -> None:
@@ -298,7 +298,7 @@ class TestCircuitBreaker:
         # Record success - should reset
         circuit_breaker.record_success()
         assert circuit_breaker.failure_count == 0
-        assert circuit_breaker.state == CircuitBreakerState.CLOSED
+        assert circuit_breaker.state == CircuitState.CLOSED
 
 
 class TestErrorPolicyManager:

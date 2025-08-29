@@ -23,6 +23,7 @@ from cognivault.diagnostics.pattern_validator import (
     PatternValidationResult,
     ValidationIssue,
     PatternValidationReport,
+    _create_validation_issue,
 )
 from cognivault.langgraph_backend.graph_patterns.base import GraphPattern
 
@@ -69,8 +70,11 @@ class TestValidationIssue:
 
     def test_validation_issue_creation(self) -> None:
         """Test ValidationIssue creation."""
+        # Use the new PatternValidationIssue API
+        from cognivault.validation.base import ValidationSeverity
+
         issue = ValidationIssue(
-            level=PatternValidationResult.WARN,
+            severity=ValidationSeverity.WARNING,
             category="structure",
             message="Test warning message",
             location="test_method",
@@ -78,7 +82,8 @@ class TestValidationIssue:
             code="V001",
         )
 
-        assert issue.level == PatternValidationResult.WARN
+        # Check the new API fields
+        assert issue.severity == ValidationSeverity.WARNING
         assert issue.category == "structure"
         assert issue.message == "Test warning message"
         assert issue.location == "test_method"
@@ -87,13 +92,15 @@ class TestValidationIssue:
 
     def test_validation_issue_minimal(self) -> None:
         """Test ValidationIssue with minimal fields."""
+        from cognivault.validation.base import ValidationSeverity
+
         issue = ValidationIssue(
-            level=PatternValidationResult.FAIL,
+            severity=ValidationSeverity.FAIL,
             category="semantic",
             message="Test error",
         )
 
-        assert issue.level == PatternValidationResult.FAIL
+        assert issue.severity == ValidationSeverity.FAIL
         assert issue.category == "semantic"
         assert issue.message == "Test error"
         assert issue.location is None
@@ -106,12 +113,14 @@ class TestPatternValidationReport:
 
     def test_validation_report_creation(self) -> None:
         """Test PatternValidationReport creation."""
+        from cognivault.validation.base import ValidationSeverity
+
         issues = [
             ValidationIssue(
-                level=PatternValidationResult.WARN, category="test", message="warning"
+                severity=ValidationSeverity.WARNING, category="test", message="warning"
             ),
             ValidationIssue(
-                level=PatternValidationResult.FAIL, category="test", message="error"
+                severity=ValidationSeverity.FAIL, category="test", message="error"
             ),
         ]
 
@@ -628,13 +637,13 @@ class TestPatternValidationFramework:
     def test_display_validation_report_with_issues(self, framework: Any) -> None:
         """Test validation report display with issues."""
         issues = [
-            ValidationIssue(
+            _create_validation_issue(
                 level=PatternValidationResult.WARN,
                 category="test",
                 message="warning message",
                 suggestion="fix it",
             ),
-            ValidationIssue(
+            _create_validation_issue(
                 level=PatternValidationResult.FAIL,
                 category="test",
                 message="error message",
@@ -864,7 +873,7 @@ class TestPatternValidationFrameworkIntegration:
         # Add custom validator
         custom_validator: Mock = Mock()
         custom_validator.validate.return_value = [
-            ValidationIssue(
+            _create_validation_issue(
                 level=PatternValidationResult.WARN,
                 category="custom",
                 message="Custom validation warning",
@@ -966,7 +975,7 @@ class TestPatternValidationFrameworkErrorHandling:
     def test_format_report_with_unicode(self, framework: Any) -> None:
         """Test report formatting with unicode characters."""
         issues = [
-            ValidationIssue(
+            _create_validation_issue(
                 level=PatternValidationResult.WARN,
                 category="test",
                 message="Unicode message: 测试",

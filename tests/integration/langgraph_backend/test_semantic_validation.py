@@ -64,9 +64,11 @@ class TestSemanticValidationResult:
         result = SemanticValidationResult(
             is_valid=False,
             issues=[
-                ValidationIssue(ValidationSeverity.ERROR, "Error 1"),
-                ValidationIssue(ValidationSeverity.ERROR, "Error 2"),
-                ValidationIssue(ValidationSeverity.WARNING, "Warning 1"),
+                ValidationIssue(severity=ValidationSeverity.ERROR, message="Error 1"),
+                ValidationIssue(severity=ValidationSeverity.ERROR, message="Error 2"),
+                ValidationIssue(
+                    severity=ValidationSeverity.WARNING, message="Warning 1"
+                ),
             ],
         )
 
@@ -273,7 +275,9 @@ class TestValidationError:
         """Test creating ValidationError."""
         result = SemanticValidationResult(
             is_valid=False,
-            issues=[ValidationIssue(ValidationSeverity.ERROR, "Test error")],
+            issues=[
+                ValidationIssue(severity=ValidationSeverity.ERROR, message="Test error")
+            ],
         )
 
         error = ValidationError("Validation failed", result)

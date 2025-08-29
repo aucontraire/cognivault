@@ -23,6 +23,10 @@ from cognivault.workflows.definition import (
     AdvancedNodeType,
     BaseNodeType,
 )
+from cognivault.validation.base import (
+    WorkflowValidationIssue,
+    ValidationSeverity,
+)
 
 
 class WorkflowValidationLevel(str, Enum):
@@ -43,21 +47,8 @@ class ValidationIssueType(str, Enum):
     STYLE = "style"  # Style and convention recommendations
 
 
-class ValidationIssue(BaseModel):
-    """Individual validation issue with detailed context."""
-
-    issue_type: ValidationIssueType = Field(description="Type of validation issue")
-    severity: int = Field(
-        ge=1, le=10, description="Severity level (1-10, 10 being most severe)"
-    )
-    message: str = Field(description="Human-readable description of the issue")
-    location: str = Field(description="Location of the issue in the workflow")
-    suggestion: Optional[str] = Field(
-        default=None, description="Suggested fix or improvement"
-    )
-    rule_id: str = Field(description="Unique identifier for the validation rule")
-
-    model_config = ConfigDict(extra="forbid")
+# Use WorkflowValidationIssue from base module with backward compatibility alias
+ValidationIssue = WorkflowValidationIssue
 
 
 class WorkflowValidationResult(BaseModel):
@@ -67,7 +58,7 @@ class WorkflowValidationResult(BaseModel):
     validation_level: WorkflowValidationLevel = Field(
         description="Level of validation performed"
     )
-    issues: List[ValidationIssue] = Field(
+    issues: List[WorkflowValidationIssue] = Field(
         default_factory=list, description="List of validation issues found"
     )
     summary: Dict[str, int] = Field(
@@ -93,15 +84,16 @@ class WorkflowValidationResult(BaseModel):
 
     def get_issues_by_type(
         self, issue_type: ValidationIssueType
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Get all issues of a specific type."""
-        return [issue for issue in self.issues if issue.issue_type == issue_type]
+        return [issue for issue in self.issues if issue.issue_type == issue_type.value]
 
     def get_highest_severity(self) -> int:
         """Get the highest severity level found."""
         if not self.issues:
             return 0
-        return max(issue.severity for issue in self.issues)
+        # Use get_numeric_severity from WorkflowValidationIssue
+        return max(issue.get_numeric_severity() for issue in self.issues)
 
 
 class WorkflowValidationConfig(BaseModel):
@@ -161,6 +153,34 @@ class WorkflowValidator(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    def _create_issue(
+        self,
+        issue_type: ValidationIssueType,
+        severity_level: int,
+        message: str,
+        location: str,
+        rule_id: str,
+        suggestion: Optional[str] = None,
+    ) -> WorkflowValidationIssue:
+        """Helper to create ValidationIssue with proper severity mapping."""
+        # Map issue_type to ValidationSeverity enum
+        severity_map = {
+            ValidationIssueType.ERROR: ValidationSeverity.ERROR,
+            ValidationIssueType.WARNING: ValidationSeverity.WARNING,
+            ValidationIssueType.INFO: ValidationSeverity.INFO,
+            ValidationIssueType.STYLE: ValidationSeverity.STYLE,
+        }
+
+        return WorkflowValidationIssue(
+            severity=severity_map[issue_type],
+            severity_level=severity_level,
+            issue_type=issue_type.value,
+            message=message,
+            location=location,
+            rule_id=rule_id,
+            suggestion=suggestion,
+        )
+
     def validate_workflow(
         self, workflow: WorkflowDefinition
     ) -> WorkflowValidationResult:
@@ -177,7 +197,7 @@ class WorkflowValidator(BaseModel):
         ValidationResult
             Comprehensive validation result with all issues found
         """
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         # Basic structural validation (always performed)
         issues.extend(self._validate_basic_structure(workflow))
@@ -251,16 +271,16 @@ class WorkflowValidator(BaseModel):
 
     def _validate_basic_structure(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate basic workflow structure."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         # Check required fields
         if not workflow.name or not workflow.name.strip():
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=10,
+                    severity_level=10,
                     message="Workflow name is required and cannot be empty",
                     location="workflow.name",
                     suggestion="Provide a descriptive name for the workflow",
@@ -270,9 +290,9 @@ class WorkflowValidator(BaseModel):
 
         if not workflow.workflow_id or not workflow.workflow_id.strip():
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=10,
+                    severity_level=10,
                     message="Workflow ID is required and cannot be empty",
                     location="workflow.workflow_id",
                     suggestion="Provide a unique identifier for the workflow",
@@ -283,9 +303,9 @@ class WorkflowValidator(BaseModel):
         # Check nodes exist
         if not workflow.nodes:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=10,
+                    severity_level=10,
                     message="Workflow must contain at least one node",
                     location="workflow.nodes",
                     suggestion="Add at least one node to the workflow",
@@ -296,9 +316,9 @@ class WorkflowValidator(BaseModel):
         # Check flow exists
         if not workflow.flow:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=10,
+                    severity_level=10,
                     message="Workflow must have a flow definition",
                     location="workflow.flow",
                     suggestion="Define the execution flow for the workflow",
@@ -310,9 +330,9 @@ class WorkflowValidator(BaseModel):
 
     def _validate_flow_integrity(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate flow definition integrity."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         if not workflow.flow:
             return issues
@@ -320,9 +340,9 @@ class WorkflowValidator(BaseModel):
         # Check entry point
         if not workflow.flow.entry_point:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=9,
+                    severity_level=9,
                     message="Flow must have an entry point",
                     location="workflow.flow.entry_point",
                     suggestion="Specify which node should be executed first",
@@ -333,9 +353,9 @@ class WorkflowValidator(BaseModel):
         # Check terminal nodes if required
         if self.config.require_terminal_nodes and not workflow.flow.terminal_nodes:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.WARNING,
-                    severity=5,
+                    severity_level=5,
                     message="Flow should have terminal nodes defined",
                     location="workflow.flow.terminal_nodes",
                     suggestion="Define which nodes can end the workflow execution",
@@ -347,9 +367,9 @@ class WorkflowValidator(BaseModel):
 
     def _validate_node_references(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate that all node references are valid."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         if not workflow.nodes or not workflow.flow:
             return issues
@@ -359,9 +379,9 @@ class WorkflowValidator(BaseModel):
         # Check entry point exists
         if workflow.flow.entry_point and workflow.flow.entry_point not in node_ids:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=9,
+                    severity_level=9,
                     message=f"Entry point '{workflow.flow.entry_point}' references non-existent node",
                     location="workflow.flow.entry_point",
                     suggestion=f"Use one of the existing node IDs: {', '.join(sorted(node_ids))}",
@@ -374,9 +394,9 @@ class WorkflowValidator(BaseModel):
             for terminal_node in workflow.flow.terminal_nodes:
                 if terminal_node not in node_ids:
                     issues.append(
-                        ValidationIssue(
+                        self._create_issue(
                             issue_type=ValidationIssueType.ERROR,
-                            severity=8,
+                            severity_level=8,
                             message=f"Terminal node '{terminal_node}' references non-existent node",
                             location="workflow.flow.terminal_nodes",
                             suggestion=f"Use one of the existing node IDs: {', '.join(sorted(node_ids))}",
@@ -388,9 +408,9 @@ class WorkflowValidator(BaseModel):
         for i, edge in enumerate(workflow.flow.edges):
             if edge.from_node not in node_ids:
                 issues.append(
-                    ValidationIssue(
+                    self._create_issue(
                         issue_type=ValidationIssueType.ERROR,
-                        severity=8,
+                        severity_level=8,
                         message=f"Edge {i} references non-existent from_node '{edge.from_node}'",
                         location=f"workflow.flow.edges[{i}].from_node",
                         suggestion=f"Use one of the existing node IDs: {', '.join(sorted(node_ids))}",
@@ -400,9 +420,9 @@ class WorkflowValidator(BaseModel):
 
             if edge.to_node not in node_ids:
                 issues.append(
-                    ValidationIssue(
+                    self._create_issue(
                         issue_type=ValidationIssueType.ERROR,
-                        severity=8,
+                        severity_level=8,
                         message=f"Edge {i} references non-existent to_node '{edge.to_node}'",
                         location=f"workflow.flow.edges[{i}].to_node",
                         suggestion=f"Use one of the existing node IDs: {', '.join(sorted(node_ids))}",
@@ -414,9 +434,9 @@ class WorkflowValidator(BaseModel):
 
     def _validate_business_rules(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate business logic and workflow rules."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         # Check for duplicate node IDs
         node_ids = [node.node_id for node in workflow.nodes]
@@ -425,9 +445,9 @@ class WorkflowValidator(BaseModel):
         )
         for duplicate in duplicates:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=9,
+                    severity_level=9,
                     message=f"Duplicate node ID found: '{duplicate}'",
                     location="workflow.nodes",
                     suggestion="Ensure all node IDs are unique within the workflow",
@@ -438,9 +458,9 @@ class WorkflowValidator(BaseModel):
         # Check size limits
         if len(workflow.nodes) > self.config.max_nodes:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=6,
+                    severity_level=6,
                     message=f"Workflow has too many nodes ({len(workflow.nodes)} > {self.config.max_nodes})",
                     location="workflow.nodes",
                     suggestion=f"Reduce the number of nodes to {self.config.max_nodes} or less",
@@ -450,9 +470,9 @@ class WorkflowValidator(BaseModel):
 
         if len(workflow.flow.edges) > self.config.max_edges:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=6,
+                    severity_level=6,
                     message=f"Workflow has too many edges ({len(workflow.flow.edges)} > {self.config.max_edges})",
                     location="workflow.flow.edges",
                     suggestion=f"Reduce the number of edges to {self.config.max_edges} or less",
@@ -463,9 +483,9 @@ class WorkflowValidator(BaseModel):
         # Check for cycles if not allowed
         if not self.config.allow_cycles and self._has_cycles(workflow):
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.ERROR,
-                    severity=7,
+                    severity_level=7,
                     message="Workflow contains cycles, which are not allowed",
                     location="workflow.flow.edges",
                     suggestion="Remove edges that create cycles or enable cycle detection",
@@ -477,17 +497,17 @@ class WorkflowValidator(BaseModel):
 
     def _validate_advanced_constraints(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate advanced workflow constraints."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         # Check workflow depth
         max_depth = self._calculate_max_depth(workflow)
         if max_depth > self.config.max_depth:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.WARNING,
-                    severity=4,
+                    severity_level=4,
                     message=f"Workflow depth ({max_depth}) exceeds recommended maximum ({self.config.max_depth})",
                     location="workflow.flow",
                     suggestion="Consider reducing workflow complexity or increasing max_depth limit",
@@ -502,9 +522,9 @@ class WorkflowValidator(BaseModel):
 
         for unreachable_node in unreachable:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.WARNING,
-                    severity=6,
+                    severity_level=6,
                     message=f"Node '{unreachable_node}' is unreachable from the entry point",
                     location=f"workflow.nodes[{unreachable_node}]",
                     suggestion="Add edges to make this node reachable or remove it",
@@ -516,9 +536,9 @@ class WorkflowValidator(BaseModel):
 
     def _validate_performance_considerations(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate performance-related aspects."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         if not self.config.validate_performance_hints:
             return issues
@@ -534,9 +554,9 @@ class WorkflowValidator(BaseModel):
         for node_id, incoming in node_incoming.items():
             if len(incoming) > 1:
                 issues.append(
-                    ValidationIssue(
+                    self._create_issue(
                         issue_type=ValidationIssueType.INFO,
-                        severity=2,
+                        severity_level=2,
                         message=f"Node '{node_id}' has multiple incoming edges - consider parallel execution",
                         location=f"workflow.nodes[{node_id}]",
                         suggestion="This node could benefit from parallel input processing",
@@ -548,9 +568,9 @@ class WorkflowValidator(BaseModel):
 
     def _validate_style_conventions(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate style and naming conventions."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         if not self.config.validate_naming_conventions:
             return issues
@@ -559,9 +579,9 @@ class WorkflowValidator(BaseModel):
         for node in workflow.nodes:
             if not node.node_id.replace("_", "").replace("-", "").isalnum():
                 issues.append(
-                    ValidationIssue(
+                    self._create_issue(
                         issue_type=ValidationIssueType.STYLE,
-                        severity=1,
+                        severity_level=1,
                         message=f"Node ID '{node.node_id}' should use alphanumeric characters, underscores, or hyphens only",
                         location=f"workflow.nodes[{node.node_id}].node_id",
                         suggestion="Use snake_case or kebab-case for node IDs",
@@ -573,16 +593,16 @@ class WorkflowValidator(BaseModel):
 
     def _validate_best_practices(
         self, workflow: WorkflowDefinition
-    ) -> List[ValidationIssue]:
+    ) -> List[WorkflowValidationIssue]:
         """Validate adherence to best practices."""
-        issues: List[ValidationIssue] = []
+        issues: List[WorkflowValidationIssue] = []
 
         # Check for workflow description
         if not workflow.description or len(workflow.description.strip()) < 10:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.INFO,
-                    severity=2,
+                    severity_level=2,
                     message="Workflow should have a meaningful description",
                     location="workflow.description",
                     suggestion="Add a description explaining the workflow's purpose and behavior",
@@ -599,9 +619,9 @@ class WorkflowValidator(BaseModel):
 
         if nodes_without_description:
             issues.append(
-                ValidationIssue(
+                self._create_issue(
                     issue_type=ValidationIssueType.INFO,
-                    severity=1,
+                    severity_level=1,
                     message=f"Nodes without descriptions: {', '.join(nodes_without_description)}",
                     location="workflow.nodes",
                     suggestion="Add description in node metadata to help understand each node's purpose",

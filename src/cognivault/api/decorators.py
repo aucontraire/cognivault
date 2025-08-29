@@ -7,13 +7,13 @@ and circuit breaker patterns for API resilience.
 
 import time
 from dataclasses import dataclass, field
-from enum import Enum
 from functools import wraps
 from typing import Callable, Dict, Any, Optional, TypeVar, Awaitable
 
 T = TypeVar("T")
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator
+from cognivault.common import CircuitState
 from cognivault.observability import get_logger
 
 logger = get_logger(__name__)
@@ -157,14 +157,6 @@ def rate_limited(
         return wrapper
 
     return decorator
-
-
-class CircuitState(Enum):
-    """Circuit breaker states."""
-
-    CLOSED = "closed"  # Normal operation
-    OPEN = "open"  # Circuit is open, calls fail fast
-    HALF_OPEN = "half_open"  # Testing if service has recovered
 
 
 class APICircuitBreaker(BaseModel):
