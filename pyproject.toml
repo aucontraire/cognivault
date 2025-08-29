@@ -25,11 +25,11 @@ packages = [{include = "cognivault", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.12"
 # Core Dependencies
-openai = "1.92.3"
+openai = "^1.102.0"
 tiktoken = "*"
 typer = {extras = ["all"], version = "*"}
 pydantic = ">=2.0"
-pydantic-ai = "^0.0.14"
+pydantic-ai = "^0.8.1"
 
 # FastAPI and API Dependencies
 fastapi = "*"
@@ -40,7 +40,7 @@ alembic = "*"
 redis = "*"
 
 # LangGraph Integration
-langgraph = "0.6.4"
+langgraph = "^0.6.6"
 langgraph-checkpoint = "2.1.1"
 langgraph-prebuilt = "0.6.4"
 langgraph-checkpoint-postgres = "^2.0.23"
@@ -70,6 +70,10 @@ python-dotenv = "*"
 psutil = "*"
 pgvector = "^0.4.1"
 psycopg2-binary = "^2.9.10"
+langchain-openai = "^0.3.32"
+langchain-anthropic = "^0.3.19"
+instructor = "^1.11.2"
+griffe = "*"
 
 [tool.poetry.group.dev.dependencies]
 # Testing
