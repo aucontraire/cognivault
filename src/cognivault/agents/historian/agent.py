@@ -21,6 +21,10 @@ from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 from cognivault.database.session_factory import DatabaseSessionFactory
 from cognivault.database.repositories import RepositoryFactory
 
+# Structured output imports
+from cognivault.agents.models import HistorianOutput, HistoricalReference
+from cognivault.services.langchain_service import LangChainService
+
 logger = logging.getLogger(__name__)
 
 
@@ -82,6 +86,10 @@ class HistorianAgent(BaseAgent):
         self._db_session_factory: Optional[DatabaseSessionFactory] = None
         self._repository_factory: Optional[RepositoryFactory] = None
 
+        # Initialize LangChain service for structured output (following RefinerAgent pattern)
+        self.structured_service: Optional[LangChainService] = None
+        self._setup_structured_service()
+
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
 
@@ -101,6 +109,34 @@ class HistorianAgent(BaseAgent):
         except Exception as e:
             logger.warning(f"Failed to create OpenAI LLM: {e}. Using mock LLM.")
             return None
+
+    def _setup_structured_service(self) -> None:
+        """Initialize the LangChain service for structured output support."""
+        try:
+            # Only set up if we have an LLM
+            if self.llm is None:
+                self.logger.info(
+                    f"[{self.name}] No LLM available, structured service disabled"
+                )
+                self.structured_service = None
+                return
+
+            # Get model configuration from LLM interface
+            model_name = getattr(self.llm, "model", "gpt-4")
+            api_key = getattr(self.llm, "api_key", None)
+
+            self.structured_service = LangChainService(
+                model=model_name,
+                api_key=api_key,
+                temperature=0.1,  # Use low temperature for consistent historical analysis
+            )
+            self.logger.info(f"[{self.name}] Structured output service initialized")
+        except Exception as e:
+            self.logger.warning(
+                f"[{self.name}] Failed to initialize structured service: {e}. "
+                f"Will use traditional LLM interface only."
+            )
+            self.structured_service = None
 
     def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
@@ -185,6 +221,9 @@ class HistorianAgent(BaseAgent):
         """
         Executes the enhanced Historian agent with intelligent search and LLM analysis.
 
+        Uses structured output when available for improved consistency and content
+        pollution prevention, with graceful fallback to traditional implementation.
+
         Parameters
         ----------
         context : AgentContext
@@ -207,26 +246,25 @@ class HistorianAgent(BaseAgent):
         context.start_agent_execution(self.name)
 
         try:
-            # Step 1: Search for relevant historical content
-            search_results = await self._search_historical_content(query, context)
+            # Try structured output first, fallback to traditional method
+            if self.structured_service:
+                try:
+                    historical_summary = await self._run_structured(query, context)
+                except Exception as e:
+                    self.logger.warning(
+                        f"[{self.name}] Structured output failed, falling back to traditional: {e}"
+                    )
+                    historical_summary = await self._run_traditional(query, context)
+            else:
+                historical_summary = await self._run_traditional(query, context)
 
-            # Step 2: Analyze and filter results with LLM
-            filtered_results = await self._analyze_relevance(
-                query, search_results, context
-            )
-
-            # Step 3: Synthesize findings into contextual summary
-            historical_summary = await self._synthesize_historical_context(
-                query, filtered_results, context
-            )
-
-            # Step 4: Update context with results
-            context.retrieved_notes = [result.filepath for result in filtered_results]
+            # Add agent output
             context.add_agent_output(self.name, historical_summary)
 
             # Log successful execution
+            num_notes = len(context.retrieved_notes) if context.retrieved_notes else 0
             self.logger.info(
-                f"[{self.name}] Found {len(filtered_results)} relevant historical notes"
+                f"[{self.name}] Found {num_notes} relevant historical notes"
             )
             context.log_trace(
                 self.name, input_data=query, output_data=historical_summary
@@ -749,6 +787,153 @@ HISTORICAL SYNTHESIS:"""
             summary_parts.append("")
 
         return "\n".join(summary_parts)
+
+    async def _run_structured(self, query: str, context: AgentContext) -> str:
+        """
+        Run with structured output using LangChain service.
+
+        This method orchestrates the entire historian process using structured output,
+        returning a properly formatted HistorianOutput that prevents content pollution.
+        """
+        import time
+
+        start_time = time.time()
+
+        if not self.structured_service:
+            raise ValueError("Structured service not available")
+
+        try:
+            # Step 1: Search for relevant historical content (same as before)
+            search_results = await self._search_historical_content(query, context)
+
+            # Step 2: Analyze and filter results with LLM (same as before)
+            filtered_results = await self._analyze_relevance(
+                query, search_results, context
+            )
+
+            # Step 3: Prepare historical references for structured output
+            # Note: HistoricalReference model is simpler than our SearchResult
+            # We'll include the rich metadata in the prompt for synthesis
+
+            # Create structured prompt for historical synthesis
+            system_prompt = self._get_system_prompt()
+
+            # Build comprehensive prompt with all context
+            historical_context = self._format_historical_context(filtered_results)
+            prompt = f"""Query: {query}
+
+Historical Context Found:
+{historical_context}
+
+Number of Sources Searched: {len(search_results)}
+Number of Relevant Sources: {len(filtered_results)}
+
+Please provide a comprehensive historical synthesis according to the system instructions.
+Focus on the content synthesis only - do not describe your analysis process."""
+
+            # Get structured output
+            from cognivault.services.langchain_service import StructuredOutputResult
+
+            result = await self.structured_service.get_structured_output(
+                prompt=prompt,
+                output_class=HistorianOutput,
+                system_prompt=system_prompt,
+                max_retries=3,
+            )
+
+            # Handle both HistorianOutput and StructuredOutputResult types
+            if isinstance(result, HistorianOutput):
+                structured_result = result
+            else:
+                # It's a StructuredOutputResult, extract the parsed result
+                if isinstance(result, StructuredOutputResult):
+                    parsed_result = result.parsed
+                    if not isinstance(parsed_result, HistorianOutput):
+                        raise ValueError(
+                            f"Expected HistorianOutput, got {type(parsed_result)}"
+                        )
+                    structured_result = parsed_result
+                else:
+                    raise ValueError(f"Unexpected result type: {type(result)}")
+
+            processing_time_ms = (time.time() - start_time) * 1000
+
+            # Store structured output in execution_state for future use
+            if "structured_outputs" not in context.execution_state:
+                context.execution_state["structured_outputs"] = {}
+            context.execution_state["structured_outputs"][self.name] = (
+                structured_result.model_dump()
+            )
+
+            # Update context with retrieved notes (backward compatibility)
+            context.retrieved_notes = [result.filepath for result in filtered_results]
+
+            # Record token usage for structured output
+            # Since structured output doesn't directly expose token usage,
+            # we record minimal usage to ensure event emission doesn't fail
+            existing_usage = context.get_agent_token_usage(self.name)
+            context.add_agent_token_usage(
+                agent_name=self.name,
+                input_tokens=existing_usage[
+                    "input_tokens"
+                ],  # Keep existing from search/filter
+                output_tokens=existing_usage["output_tokens"],  # Keep existing
+                total_tokens=existing_usage["total_tokens"],  # Keep existing
+            )
+
+            self.logger.info(
+                f"[{self.name}] Structured output successful - "
+                f"processing_time: {processing_time_ms:.1f}ms, "
+                f"sources_searched: {structured_result.sources_searched}, "
+                f"relevant_sources: {len(structured_result.relevant_sources)}, "
+                f"themes: {len(structured_result.themes_identified)}"
+            )
+
+            # Return the historical synthesis for backward compatibility
+            return structured_result.historical_synthesis
+
+        except Exception as e:
+            self.logger.error(f"[{self.name}] Structured output failed: {e}")
+            raise  # Let caller handle fallback
+
+    async def _run_traditional(self, query: str, context: AgentContext) -> str:
+        """
+        Run with traditional LLM interface (original implementation).
+
+        This is the fallback method that uses the existing implementation
+        when structured output is not available or fails.
+        """
+        # Step 1: Search for relevant historical content
+        search_results = await self._search_historical_content(query, context)
+
+        # Step 2: Analyze and filter results with LLM
+        filtered_results = await self._analyze_relevance(query, search_results, context)
+
+        # Step 3: Synthesize findings into contextual summary
+        historical_summary = await self._synthesize_historical_context(
+            query, filtered_results, context
+        )
+
+        # Step 4: Update context with results
+        context.retrieved_notes = [result.filepath for result in filtered_results]
+
+        return historical_summary
+
+    def _format_historical_context(self, filtered_results: List[SearchResult]) -> str:
+        """Format historical search results for structured output prompt."""
+        if not filtered_results:
+            return "No relevant historical context found."
+
+        context_parts = []
+        for i, result in enumerate(filtered_results, 1):
+            context_parts.append(
+                f"{i}. {result.title} ({result.date})\n"
+                f"   Topics: {', '.join(result.topics)}\n"
+                f"   Excerpt: {result.excerpt}\n"
+                f"   Source: {result.filename}"
+            )
+
+        return "\n\n".join(context_parts)
 
     async def _create_fallback_output(self, query: str, mock_history: List[str]) -> str:
         """Create fallback output using mock history data."""

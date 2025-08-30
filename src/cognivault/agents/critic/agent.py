@@ -9,16 +9,18 @@ from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.critic.prompts import CRITIC_SYSTEM_PROMPT
 
 # Configuration system imports
-from typing import Optional, cast
+from typing import Optional, cast, Type
 from cognivault.config.agent_configs import CriticConfig
 from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
-# Structured LLM integration
-from cognivault.llm.structured import StructuredLLMFactory
+# Structured output integration using LangChain service pattern
+from cognivault.services.langchain_service import LangChainService
 from cognivault.agents.models import CriticOutput, ProcessingMode, ConfidenceLevel
 
+import asyncio
 import logging
 from typing import Dict, Any
+from cognivault.config.app_config import get_config
 
 
 class CriticAgent(BaseAgent):
@@ -61,13 +63,34 @@ class CriticAgent(BaseAgent):
         # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else CriticConfig()
         self._prompt_composer = PromptComposer()
-        self._composed_prompt: Optional[ComposedPrompt]
+        self._composed_prompt: Optional[ComposedPrompt] = None
 
-        # Initialize structured LLM wrapper for Pydantic AI integration
-        self._structured_llm = StructuredLLMFactory.create_from_llm(llm)
+        # Initialize LangChain service for structured output (following RefinerAgent pattern)
+        self.structured_service: Optional[LangChainService] = None
+        self._setup_structured_service()
 
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
+
+    def _setup_structured_service(self) -> None:
+        """Initialize the LangChain service for structured output support."""
+        try:
+            # Get model configuration from LLM interface
+            model_name = getattr(self.llm, "model", "gpt-4")
+            api_key = getattr(self.llm, "api_key", None)
+
+            self.structured_service = LangChainService(
+                model=model_name,
+                api_key=api_key,
+                temperature=0.0,  # Use deterministic output for critiques
+            )
+            self.logger.info(f"[{self.name}] Structured output service initialized")
+        except Exception as e:
+            self.logger.warning(
+                f"[{self.name}] Failed to initialize structured service: {e}. "
+                f"Will use traditional LLM interface only."
+            )
+            self.structured_service = None
 
     def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
@@ -111,7 +134,12 @@ class CriticAgent(BaseAgent):
         )
 
     async def run(self, context: AgentContext) -> AgentContext:
-        """Run the CriticAgent's logic to provide feedback on refined queries.
+        """
+        Execute the critique process on the provided agent context.
+
+        Analyzes the refined query from RefinerAgent and provides constructive
+        critique using structured output when available for improved consistency
+        and content pollution prevention.
 
         Parameters
         ----------
@@ -123,6 +151,11 @@ class CriticAgent(BaseAgent):
         AgentContext
             The updated context including this agent's critique output.
         """
+        # Use configurable simulation delay if enabled
+        config = get_config()
+        if config.execution.enable_simulation_delay:
+            await asyncio.sleep(config.execution.simulation_delay_seconds)
+
         self.logger.info(f"[{self.name}] Processing query: {context.query}")
 
         refined_output = context.agent_outputs.get("refiner", "")
@@ -136,199 +169,178 @@ class CriticAgent(BaseAgent):
                 f"[{self.name}] Analyzing refined query: {refined_output}"
             )
 
-            # Use LLM to generate critique with configurable system prompt
             system_prompt = self._get_system_prompt()
-            response = self.llm.generate(
-                prompt=refined_output, system_prompt=system_prompt
-            )
-            if hasattr(response, "text"):
-                critique = response.text.strip()
 
-                # Record token usage if available from LLM response
-                if (
-                    hasattr(response, "tokens_used")
-                    and response.tokens_used is not None
-                ):
-                    # Use detailed token breakdown if available, otherwise fall back to total
-                    input_tokens = getattr(response, "input_tokens", None) or 0
-                    output_tokens = getattr(response, "output_tokens", None) or 0
-                    total_tokens = response.tokens_used
-
-                    # Ensure consistency: if we have detailed breakdown, use it for total
-                    if input_tokens and output_tokens:
-                        total_tokens = input_tokens + output_tokens
-
-                    context.add_agent_token_usage(
-                        agent_name=self.name,
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        total_tokens=total_tokens,
+            # Try structured output first, fallback to traditional method
+            if self.structured_service:
+                try:
+                    critique = await self._run_structured(
+                        refined_output, system_prompt, context
                     )
-                    self.logger.debug(
-                        f"[{self.name}] Token usage recorded - "
-                        f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
+                except Exception as e:
+                    self.logger.warning(
+                        f"[{self.name}] Structured output failed, falling back to traditional: {e}"
                     )
-                else:
-                    self.logger.debug(
-                        f"[{self.name}] No token usage information available from LLM response"
+                    critique = await self._run_traditional(
+                        refined_output, system_prompt, context
                     )
             else:
-                # Handle streaming response (shouldn't happen with current usage)
-                critique = "Error: received streaming response instead of text response"
-            self.logger.debug(f"[{self.name}] Generated critique: {critique}")
+                critique = await self._run_traditional(
+                    refined_output, system_prompt, context
+                )
 
+        self.logger.debug(f"[{self.name}] Generated critique: {critique}")
+
+        # Add agent output
         context.add_agent_output(self.name, critique)
         context.log_trace(self.name, input_data=refined_output, output_data=critique)
-        self.logger.debug(
-            f"[{self.name}] Updated context with {self.name} output: {critique}"
-        )
+
         return context
 
-    async def run_structured(self, context: AgentContext) -> AgentContext:
-        """
-        Enhanced version of run() that uses structured Pydantic AI outputs.
-
-        This method demonstrates the integration of Pydantic AI for structured
-        responses while maintaining backward compatibility with the existing
-        run() method.
-
-        Parameters
-        ----------
-        context : AgentContext
-            The shared context containing outputs from other agents.
-
-        Returns
-        -------
-        AgentContext
-            The updated context including structured critique output.
-        """
+    async def _run_structured(
+        self, refined_output: str, system_prompt: str, context: AgentContext
+    ) -> str:
+        """Run with structured output using LangChain service."""
         import time
 
         start_time = time.time()
 
-        self.logger.info(
-            f"[{self.name}] Processing query with structured output: {context.query}"
-        )
+        if not self.structured_service:
+            raise ValueError("Structured service not available")
 
-        refined_output = context.agent_outputs.get("refiner", "")
+        try:
+            # Build the critique prompt
+            prompt = f"Refined query to critique: {refined_output}\n\nPlease provide a comprehensive critique according to the system instructions."
 
-        if not refined_output:
-            # Create structured fallback response
-            critique_output = CriticOutput(
-                agent_name=self.name,
-                processing_mode=ProcessingMode.PASSIVE,
-                confidence=ConfidenceLevel.HIGH,
-                processing_time_ms=0,
-                critique_summary="No refined output available from RefinerAgent to critique.",
-                issues_detected=0,
-                no_issues_found=False,
+            # Get structured output
+            result = await self.structured_service.get_structured_output(
+                prompt=prompt,
+                output_class=CriticOutput,
+                system_prompt=system_prompt,
+                max_retries=3,
             )
-            self.logger.warning(
-                f"[{self.name}] No refined output available to critique."
-            )
-        else:
-            try:
-                self.logger.debug(
-                    f"[{self.name}] Analyzing refined query with structured LLM: {refined_output}"
-                )
 
-                # Enhanced system prompt for structured output
-                structured_system_prompt = (
-                    self._get_system_prompt()
-                    + """
+            # Handle both CriticOutput and StructuredOutputResult types
+            if isinstance(result, CriticOutput):
+                structured_result = result
+            else:
+                # It's a StructuredOutputResult, extract the parsed result
+                from cognivault.services.langchain_service import StructuredOutputResult
 
-For your response, provide a structured analysis in JSON format with the following fields:
-- assumptions: List of implicit assumptions identified
-- logical_gaps: List of logical gaps or under-specified concepts  
-- biases: List of bias types (temporal, cultural, methodological, scale)
-- bias_details: Object mapping bias types to explanations
-- alternate_framings: List of suggested alternate framings
-- critique_summary: Overall critique summary
-- issues_detected: Number of issues found
-- confidence: Confidence level (high, medium, low)
-- processing_mode: Processing mode used (active, passive)
-"""
-                )
-
-                # Use structured LLM to get validated response
-                structured_response = await self._structured_llm.generate_structured(
-                    prompt=refined_output,
-                    response_model=CriticOutput,
-                    system_prompt=structured_system_prompt,
-                    on_log=lambda msg: self.logger.debug(f"[{self.name}] {msg}"),
-                )
-
-                # Extract the validated Pydantic model
-                # MyPy doesn't know the specific type, but we know it's CriticOutput based on response_model
-                critique_output = cast(CriticOutput, structured_response.content)
-                critique_output.processing_time_ms = (
-                    structured_response.processing_time_ms
-                )
-
-                self.logger.info(
-                    f"[{self.name}] Generated structured critique with {critique_output.issues_detected} issues "
-                    f"(confidence: {critique_output.confidence})"
-                )
-
-            except Exception as e:
-                # Fallback to unstructured response if structured fails
-                self.logger.warning(
-                    f"[{self.name}] Structured LLM failed, falling back to basic response: {e}"
-                )
-
-                # Use original LLM method as fallback
-                system_prompt = self._get_system_prompt()
-                response = self.llm.generate(
-                    prompt=refined_output, system_prompt=system_prompt
-                )
-
-                if hasattr(response, "text"):
-                    critique_text = response.text.strip()
+                if isinstance(result, StructuredOutputResult):
+                    parsed_result = result.parsed
+                    if not isinstance(parsed_result, CriticOutput):
+                        raise ValueError(
+                            f"Expected CriticOutput, got {type(parsed_result)}"
+                        )
+                    structured_result = parsed_result
                 else:
-                    critique_text = (
-                        "Error: received streaming response instead of text response"
-                    )
+                    raise ValueError(f"Unexpected result type: {type(result)}")
 
-                # Create a basic structured response from unstructured output
-                critique_output = CriticOutput(
+            processing_time_ms = (time.time() - start_time) * 1000
+
+            # Store structured output in execution_state for future use
+            # This follows a pattern where structured outputs can be accessed later
+            if "structured_outputs" not in context.execution_state:
+                context.execution_state["structured_outputs"] = {}
+            context.execution_state["structured_outputs"][self.name] = (
+                structured_result.model_dump()
+            )
+
+            # Record token usage - for structured output, we need to record some usage
+            # Since structured output doesn't directly expose token usage from LangChain,
+            # we'll check if we can get it from the underlying LLM response or estimate
+            token_usage_recorded = False
+
+            # Try to get token usage from LangChain service metrics
+            if hasattr(self.structured_service, "get_metrics"):
+                metrics = self.structured_service.get_metrics()
+                self.logger.debug(f"[{self.name}] Service metrics: {metrics}")
+
+            # For testing scenarios where mock LLMs are used, we need to ensure token usage is recorded
+            # Check if this is a fallback scenario where traditional LLM was used
+            if hasattr(structured_result, "_token_usage"):
+                # If the structured result carries token usage info, use it
+                usage = structured_result._token_usage
+                context.add_agent_token_usage(
                     agent_name=self.name,
-                    processing_mode=ProcessingMode.ACTIVE,
-                    confidence=ConfidenceLevel.MEDIUM,
-                    processing_time_ms=(time.time() - start_time) * 1000,
-                    critique_summary=critique_text,
-                    issues_detected=(
-                        1 if critique_text != "No significant critique needed." else 0
-                    ),
-                    no_issues_found=critique_text.startswith("Query is well-scoped"),
+                    input_tokens=usage.get("input_tokens", 0),
+                    output_tokens=usage.get("output_tokens", 0),
+                    total_tokens=usage.get("total_tokens", 0),
+                )
+                token_usage_recorded = True
+                self.logger.debug(
+                    f"[{self.name}] Token usage from structured result: {usage}"
                 )
 
-        # Store both structured and unstructured outputs for compatibility
-        context.add_agent_output(self.name, critique_output.critique_summary)
+            if not token_usage_recorded:
+                # For structured output without explicit token usage, record minimal usage
+                # This ensures event emission doesn't fail
+                context.add_agent_token_usage(
+                    agent_name=self.name,
+                    input_tokens=0,  # LangChain structured output doesn't expose detailed tokens
+                    output_tokens=0,
+                    total_tokens=0,
+                )
+                self.logger.debug(
+                    f"[{self.name}] Recorded zero token usage for structured output (token details not available)"
+                )
 
-        # Store structured output in execution state
-        if "structured_outputs" not in context.execution_state:
-            context.execution_state["structured_outputs"] = {}
-        context.execution_state["structured_outputs"][self.name] = critique_output
+            self.logger.info(
+                f"[{self.name}] Structured output successful - "
+                f"processing_time: {processing_time_ms:.1f}ms, "
+                f"confidence: {structured_result.confidence}, "
+                f"issues_detected: {structured_result.issues_detected}"
+            )
 
-        # Enhanced logging with structured data
-        context.log_trace(
-            self.name,
-            input_data=refined_output,
-            output_data={
-                "critique_summary": critique_output.critique_summary,
-                "issues_detected": critique_output.issues_detected,
-                "confidence": critique_output.confidence,
-                "processing_mode": critique_output.processing_mode,
-                "processing_time_ms": critique_output.processing_time_ms,
-            },
+            # Return the critique summary directly for backward compatibility
+            return structured_result.critique_summary
+
+        except Exception as e:
+            self.logger.error(f"[{self.name}] Structured output processing failed: {e}")
+            raise
+
+    async def _run_traditional(
+        self, refined_output: str, system_prompt: str, context: AgentContext
+    ) -> str:
+        """Fallback to traditional LLM interface."""
+        self.logger.info(f"[{self.name}] Using traditional LLM interface")
+
+        response = self.llm.generate(prompt=refined_output, system_prompt=system_prompt)
+
+        if not hasattr(response, "text"):
+            # For backward compatibility with tests, return error message instead of raising
+            self.logger.error(f"[{self.name}] LLM response missing 'text' field")
+            # Still record minimal token usage to avoid downstream issues
+            context.add_agent_token_usage(
+                agent_name=self.name,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+            )
+            return "Error: received streaming response instead of text response"
+
+        # Record token usage from traditional LLM response
+        input_tokens = getattr(response, "input_tokens", None) or 0
+        output_tokens = getattr(response, "output_tokens", None) or 0
+        total_tokens = getattr(response, "tokens_used", None) or 0
+
+        context.add_agent_token_usage(
+            agent_name=self.name,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
         )
 
         self.logger.debug(
-            f"[{self.name}] Updated context with structured output: "
-            f"{critique_output.issues_detected} issues, {critique_output.confidence} confidence"
+            f"[{self.name}] Traditional LLM token usage - "
+            f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
         )
 
-        return context
+        critique = response.text.strip()
+
+        # Return the critique as-is for backward compatibility
+        return critique
 
     def define_node_metadata(self) -> Dict[str, Any]:
         """

@@ -207,6 +207,10 @@ class TestHistorianAgentExecution:
         # Create agent with mock LLM and mock search
         agent = HistorianAgent(llm=mock_llm)
 
+        # Disable structured service to avoid the extra LLM call
+        # This preserves the original test behavior
+        agent.structured_service = None
+
         # Mock the search engine
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = self.mock_search_results
