@@ -14,6 +14,10 @@ from cognivault.llm.llm_interface import LLMInterface
 from cognivault.config.agent_configs import SynthesisConfig
 from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
+# Structured output integration using LangChain service pattern
+from cognivault.services.langchain_service import LangChainService
+from cognivault.agents.models import SynthesisOutput, SynthesisTheme, ConfidenceLevel
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,6 +68,10 @@ class SynthesisAgent(BaseAgent):
             else:
                 self.llm = None
 
+        # Initialize LangChain service for structured output (following RefinerAgent pattern)
+        self.structured_service: Optional[LangChainService] = None
+        self._setup_structured_service()
+
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
 
@@ -85,6 +93,34 @@ class SynthesisAgent(BaseAgent):
                 f"Failed to create OpenAI LLM: {e}. Using fallback synthesis."
             )
             return None
+
+    def _setup_structured_service(self) -> None:
+        """Initialize the LangChain service for structured output support."""
+        try:
+            # Only set up if we have an LLM
+            if self.llm is None:
+                logger.info(
+                    f"[{self.name}] No LLM available, structured service disabled"
+                )
+                self.structured_service = None
+                return
+
+            # Get model configuration from LLM interface
+            model_name = getattr(self.llm, "model", "gpt-4")
+            api_key = getattr(self.llm, "api_key", None)
+
+            self.structured_service = LangChainService(
+                model=model_name,
+                api_key=api_key,
+                temperature=0.2,  # Use low temperature for consistent synthesis
+            )
+            logger.info(f"[{self.name}] Structured output service initialized")
+        except Exception as e:
+            logger.warning(
+                f"[{self.name}] Failed to initialize structured service: {e}. "
+                f"Will use traditional LLM interface only."
+            )
+            self.structured_service = None
 
     def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
@@ -163,23 +199,47 @@ class SynthesisAgent(BaseAgent):
         context.start_agent_execution(self.name)
 
         try:
-            # Step 1: Analyze agent outputs for themes and conflicts
-            analysis = await self._analyze_agent_outputs(query, outputs, context)
-
-            # Step 2: Perform sophisticated synthesis
-            if self.llm:
-                synthesis_result = await self._llm_powered_synthesis(
-                    query, outputs, analysis, context
-                )
+            # Try structured output first if available, otherwise use traditional approach
+            if self.structured_service:
+                try:
+                    final_synthesis = await self._run_structured(
+                        query, outputs, context
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[{self.name}] Structured output failed, falling back to traditional: {e}"
+                    )
+                    # Fall back to traditional synthesis
+                    analysis = await self._analyze_agent_outputs(
+                        query, outputs, context
+                    )
+                    if self.llm:
+                        synthesis_result = await self._llm_powered_synthesis(
+                            query, outputs, analysis, context
+                        )
+                    else:
+                        synthesis_result = await self._fallback_synthesis(
+                            query, outputs, context
+                        )
+                    final_synthesis = await self._format_final_output(
+                        query, synthesis_result, analysis
+                    )
             else:
-                synthesis_result = await self._fallback_synthesis(
-                    query, outputs, context
-                )
+                # Traditional synthesis path (backward compatible)
+                analysis = await self._analyze_agent_outputs(query, outputs, context)
 
-            # Step 3: Format final output
-            final_synthesis = await self._format_final_output(
-                query, synthesis_result, analysis
-            )
+                if self.llm:
+                    synthesis_result = await self._llm_powered_synthesis(
+                        query, outputs, analysis, context
+                    )
+                else:
+                    synthesis_result = await self._fallback_synthesis(
+                        query, outputs, context
+                    )
+
+                final_synthesis = await self._format_final_output(
+                    query, synthesis_result, analysis
+                )
 
             # Step 4: Update context
             context.add_agent_output(self.name, final_synthesis)
@@ -275,6 +335,154 @@ class SynthesisAgent(BaseAgent):
         except Exception as e:
             logger.error(f"[{self.name}] Analysis failed: {e}")
             return analysis  # Return default analysis
+
+    async def _run_structured(
+        self, query: str, outputs: Dict[str, Any], context: AgentContext
+    ) -> str:
+        """
+        Run with structured output using LangChain service.
+
+        This method performs the entire synthesis process using structured output,
+        ensuring content pollution prevention and consistent formatting.
+        """
+        import time
+
+        start_time = time.time()
+
+        if not self.structured_service:
+            raise ValueError("Structured service not available")
+
+        try:
+            # Step 1: Analyze agent outputs (this remains the same)
+            analysis = await self._analyze_agent_outputs(query, outputs, context)
+
+            # Step 2: Create structured synthesis prompt
+            system_prompt = self._get_system_prompt()
+
+            # Format agent outputs for the prompt
+            outputs_text = "\n\n".join(
+                [
+                    f"### {agent.upper()} OUTPUT:\n{str(output)}"
+                    for agent, output in outputs.items()
+                    if agent != self.name
+                ]
+            )
+
+            # Extract contributing agents
+            contributing_agents = [
+                agent for agent in outputs.keys() if agent != self.name
+            ]
+
+            # Build comprehensive prompt for structured output
+            prompt = f"""Original Query: {query}
+
+Agent Outputs:
+{outputs_text}
+
+Contributing Agents: {", ".join(contributing_agents)}
+Themes Identified: {", ".join(analysis.get("themes", [])[:5])}
+Key Topics: {", ".join(analysis.get("key_topics", [])[:10])}
+Conflicts Found: {", ".join(analysis.get("conflicts", ["None"])[:5])}
+Complementary Insights: {", ".join(analysis.get("complementary_insights", [])[:10])}
+Knowledge Gaps: {", ".join(analysis.get("gaps", [])[:8])}
+Meta Insights: {", ".join(analysis.get("meta_insights", [])[:5])}
+
+Please provide a comprehensive synthesis according to the system instructions.
+Focus on the synthesized content only - do not describe your synthesis process.
+The word_count field should reflect the actual word count of your final_synthesis field.
+The contributing_agents field should list: {", ".join(contributing_agents)}"""
+
+            # Get structured output
+            from cognivault.services.langchain_service import StructuredOutputResult
+
+            result = await self.structured_service.get_structured_output(
+                prompt=prompt,
+                output_class=SynthesisOutput,
+                system_prompt=system_prompt,
+                max_retries=3,
+            )
+
+            # Handle both SynthesisOutput and StructuredOutputResult types
+            if isinstance(result, SynthesisOutput):
+                structured_result = result
+            else:
+                # It's a StructuredOutputResult, extract the parsed result
+                if isinstance(result, StructuredOutputResult):
+                    parsed_result = result.parsed
+                    if not isinstance(parsed_result, SynthesisOutput):
+                        raise ValueError(
+                            f"Expected SynthesisOutput, got {type(parsed_result)}"
+                        )
+                    structured_result = parsed_result
+                else:
+                    raise ValueError(f"Unexpected result type: {type(result)}")
+
+            processing_time_ms = (time.time() - start_time) * 1000
+
+            # Store structured output in execution_state for future use
+            if "structured_outputs" not in context.execution_state:
+                context.execution_state["structured_outputs"] = {}
+            context.execution_state["structured_outputs"][self.name] = (
+                structured_result.model_dump()
+            )
+
+            # Record token usage - for structured output, we record minimal usage
+            # since LangChain doesn't expose detailed token counts
+            context.add_agent_token_usage(
+                agent_name=self.name,
+                input_tokens=0,  # LangChain structured output doesn't expose detailed tokens
+                output_tokens=0,
+                total_tokens=0,
+            )
+
+            logger.info(
+                f"[{self.name}] Structured output successful - "
+                f"processing_time: {processing_time_ms:.1f}ms, "
+                f"themes: {len(structured_result.key_themes)}, "
+                f"word_count: {structured_result.word_count}"
+            )
+
+            # Format the final output with metadata
+            return await self._format_structured_output(
+                query, structured_result, analysis
+            )
+
+        except Exception as e:
+            logger.error(f"[{self.name}] Structured output processing failed: {e}")
+            raise
+
+    async def _format_structured_output(
+        self, query: str, structured_result: SynthesisOutput, analysis: Dict[str, Any]
+    ) -> str:
+        """Format the structured output into the final synthesis text."""
+        formatted_parts = [
+            f"# Comprehensive Analysis: {query}\n",
+        ]
+
+        # Add topic summary
+        if structured_result.topics_extracted:
+            formatted_parts.append(
+                f"**Key Topics:** {', '.join(structured_result.topics_extracted[:5])}\n"
+            )
+
+        # Add theme overview
+        if structured_result.key_themes:
+            theme_names = [
+                theme.theme_name for theme in structured_result.key_themes[:3]
+            ]
+            formatted_parts.append(f"**Primary Themes:** {', '.join(theme_names)}\n")
+
+        # Add the main synthesis content
+        formatted_parts.append("## Synthesis\n")
+        formatted_parts.append(structured_result.final_synthesis)
+
+        # Add meta-insights if available
+        if structured_result.meta_insights:
+            formatted_parts.append("\n## Meta-Insights\n")
+            for insight in structured_result.meta_insights[:3]:
+                formatted_parts.append(f"- {insight}")
+
+        return "\n".join(formatted_parts)
 
     async def _llm_powered_synthesis(
         self,
