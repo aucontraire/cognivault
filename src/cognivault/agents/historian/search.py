@@ -213,8 +213,19 @@ class NotesDirectoryParser:
 class TagBasedSearch(HistorianSearchInterface):
     """Search based on frontmatter topics and tags."""
 
-    def __init__(self, notes_directory: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        notes_directory: Optional[str] = None,
+        title_generator: Optional[Any] = None,
+    ) -> None:
         self.parser = NotesDirectoryParser(notes_directory)
+        # Import here to avoid circular imports
+        if title_generator is None:
+            from cognivault.agents.historian.title_generator import TitleGenerator
+
+            self.title_generator = TitleGenerator(llm_client=None)
+        else:
+            self.title_generator = title_generator
 
     async def search(self, query: str, limit: int = 10) -> List[SearchResult]:
         """Search based on topic matching."""
@@ -239,10 +250,16 @@ class TagBasedSearch(HistorianSearchInterface):
                 else:
                     date_value = str(date_value)
 
+                # Generate safe title to avoid validation errors
+                original_title = frontmatter.get("title", "Untitled")
+                safe_title = await self.title_generator.generate_safe_title(
+                    original_title, content, frontmatter
+                )
+
                 result = SearchResult(
                     filepath=filepath,
                     filename=os.path.basename(filepath),
-                    title=frontmatter.get("title", "Untitled"),
+                    title=safe_title,
                     date=date_value,
                     relevance_score=score,
                     match_type=match_type,
@@ -393,8 +410,19 @@ class TagBasedSearch(HistorianSearchInterface):
 class KeywordSearch(HistorianSearchInterface):
     """Enhanced keyword search with TF-IDF-like scoring."""
 
-    def __init__(self, notes_directory: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        notes_directory: Optional[str] = None,
+        title_generator: Optional[Any] = None,
+    ) -> None:
         self.parser = NotesDirectoryParser(notes_directory)
+        # Import here to avoid circular imports
+        if title_generator is None:
+            from cognivault.agents.historian.title_generator import TitleGenerator
+
+            self.title_generator = TitleGenerator(llm_client=None)
+        else:
+            self.title_generator = title_generator
 
     async def search(self, query: str, limit: int = 10) -> List[SearchResult]:
         """Search based on keyword matching with relevance scoring."""
@@ -425,10 +453,16 @@ class KeywordSearch(HistorianSearchInterface):
                 else:
                     date_value = str(date_value)
 
+                # Generate safe title to avoid validation errors
+                original_title = frontmatter.get("title", "Untitled")
+                safe_title = await self.title_generator.generate_safe_title(
+                    original_title, content, frontmatter
+                )
+
                 result = SearchResult(
                     filepath=filepath,
                     filename=os.path.basename(filepath),
-                    title=frontmatter.get("title", "Untitled"),
+                    title=safe_title,
                     date=date_value,
                     relevance_score=score,
                     match_type="keyword",

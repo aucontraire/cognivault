@@ -66,11 +66,32 @@ class RefinerAgent(BaseAgent):
         self._update_composed_prompt()
 
     def _setup_structured_service(self) -> None:
-        """Setup LangChain structured output service if possible."""
+        """Setup LangChain structured output service with model discovery."""
         try:
-            # Try to create LangChainService for structured output
-            self.structured_service = LangChainService()
-            logger.info(f"[{self.name}] Structured output service initialized")
+            # Get API key from LLM interface
+            api_key = getattr(self.llm, "api_key", None)
+
+            # Create LangChain service with model discovery for RefinerAgent
+            # This will automatically select the best model (preferring gpt-5-nano/mini)
+            self.structured_service = LangChainService(
+                model=None,  # Let discovery service choose
+                api_key=api_key,
+                temperature=0.1,  # Low temperature for consistent refinement
+                agent_name="refiner",  # Critical: enables agent-specific model selection
+                use_discovery=True,  # Enable model discovery
+            )
+
+            # Log the selected model
+            selected_model = self.structured_service.model_name
+            logger.info(
+                f"[{self.name}] Structured output service initialized with discovered model: {selected_model}"
+            )
+
+            # Special handling for ultra-fast models
+            if "nano" in selected_model.lower() or "mini" in selected_model.lower():
+                logger.info(
+                    f"[{self.name}] Using optimized fast model '{selected_model}' for improved performance"
+                )
         except Exception as e:
             logger.warning(
                 f"[{self.name}] Could not initialize structured output service: {e}"

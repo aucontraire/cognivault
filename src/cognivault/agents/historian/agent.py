@@ -125,16 +125,28 @@ class HistorianAgent(BaseAgent):
                 self.structured_service = None
                 return
 
-            # Get model configuration from LLM interface
-            model_name = getattr(self.llm, "model", "gpt-4")
+            # Get API key from LLM interface
             api_key = getattr(self.llm, "api_key", None)
 
+            # Let discovery service choose the best model for HistorianAgent
+            # Discovery will prefer GPT-4o for its superior json_schema support
+            self.logger.info(
+                f"[{self.name}] Initializing structured output service with discovery"
+            )
+
             self.structured_service = LangChainService(
-                model=model_name,
+                model=None,  # Let discovery service choose
                 api_key=api_key,
                 temperature=0.1,  # Use low temperature for consistent historical analysis
+                agent_name="historian",  # Enable agent-specific model selection
+                use_discovery=True,  # Enable model discovery
             )
-            self.logger.info(f"[{self.name}] Structured output service initialized")
+
+            # Log the selected model
+            selected_model = self.structured_service.model_name
+            self.logger.info(
+                f"[{self.name}] Structured output service initialized with discovered model: {selected_model}"
+            )
         except Exception as e:
             self.logger.warning(
                 f"[{self.name}] Failed to initialize structured service: {e}. "

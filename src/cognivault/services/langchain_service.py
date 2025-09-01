@@ -6,6 +6,7 @@ This service implements the patterns from the LangChain structured output articl
 - Provider-specific method selection
 - Fallback to PydanticOutputParser
 - Rich Pydantic validation
+- Dynamic model discovery and selection
 """
 
 import json
@@ -20,6 +21,20 @@ from langchain_core.output_parsers import PydanticOutputParser
 
 from cognivault.observability import get_logger, get_observability_context
 from cognivault.exceptions import LLMError, LLMValidationError
+from cognivault.services.model_discovery_service import (
+    get_model_discovery_service,
+    ModelDiscoveryService,
+    ModelCategory,
+    ModelSpeed,
+)
+
+# Import pool for eliminating redundancy
+try:
+    from cognivault.services.llm_pool import LLMServicePool
+
+    POOL_AVAILABLE = True
+except ImportError:
+    POOL_AVAILABLE = False
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -52,12 +67,17 @@ class LangChainService:
     - Provider-specific optimizations (json_schema, function_calling, etc.)
     - Fallback to PydanticOutputParser for models that don't support structured output
     - Rich validation and error handling
+    - Dynamic model discovery and intelligent selection
     """
 
     # Provider-specific method mapping from article
     PROVIDER_METHODS = {
         "gpt-5": "json_schema",  # GPT-5 has full json_schema support
-        "gpt-4o": "json_schema",
+        "gpt-5-mini": "json_schema",  # GPT-5 variants have json_schema
+        "gpt-5-nano": "json_schema",
+        "gpt-4o": "json_schema",  # GPT-4o supports json_schema
+        "gpt-4o-mini": "json_schema",  # GPT-4o-mini supports json_schema
+        "gpt-4-turbo": "json_schema",  # GPT-4-turbo supports json_schema
         "gpt-4": "function_calling",  # GPT-4 does NOT support json_schema
         "gpt-3.5": "function_calling",
         "claude-3": "function_calling",
@@ -69,25 +89,165 @@ class LangChainService:
 
     def __init__(
         self,
-        model: str = "gpt-5",
+        model: Optional[str] = None,
         temperature: float = 0.1,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        use_discovery: bool = True,
+        use_pool: bool = True,  # NEW: Use pool when available
     ):
-        """Initialize LangChain service with model."""
-        self.model_name = model
+        """
+        Initialize LangChain service with model.
+
+        Args:
+            model: Model name (if None, uses discovery service or pool)
+            temperature: Model temperature
+            api_key: OpenAI API key
+            base_url: Optional base URL for API
+            agent_name: Agent name for model selection (e.g., "refiner")
+            use_discovery: Whether to use model discovery service
+            use_pool: Whether to use the LLMServicePool (eliminates redundancy)
+        """
         self.logger = get_logger("services.langchain")
+        self.agent_name = agent_name
+        self.use_discovery = use_discovery
+        self.use_pool = use_pool and POOL_AVAILABLE
+        self.api_key = api_key
+        self.temperature = temperature
 
-        # Create appropriate LLM instance based on provider
-        self.llm = self._create_llm_instance(model, temperature, api_key, base_url)
+        # Type declarations for pool client
+        self._pool_client: Optional[BaseChatModel] = None
+        self._use_pool_client = False
+        self.llm: Optional[BaseChatModel] = None
 
-        # Metrics tracking
-        self.metrics = {
+        # Try to use pool first (eliminates redundancy)
+        if self.use_pool and self.agent_name and not model:
+            try:
+                self.logger.info(f"Using LLMServicePool for {self.agent_name}")
+                pool = LLMServicePool.get_instance()
+
+                # Use async-safe method to get client (will be called later)
+                self._use_pool_client = True
+                self.model_name = (
+                    "pooled"  # Temporary, will be set when client is created
+                )
+
+            except Exception as e:
+                self.logger.warning(f"Could not use LLMServicePool: {e}, falling back")
+                self._use_pool_client = False
+        else:
+            self._use_pool_client = False
+
+        # Fallback to original logic if not using pool
+        if not self._use_pool_client:
+            # Initialize model discovery service if enabled
+            self.discovery_service: Optional[ModelDiscoveryService] = None
+            if use_discovery:
+                try:
+                    self.discovery_service = get_model_discovery_service(
+                        api_key=api_key
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Could not initialize discovery service: {e}")
+
+            # Determine model to use
+            self.model_name = model or self._select_best_model()
+            self.logger.info(
+                f"Using model: {self.model_name} for agent: {agent_name or 'default'}"
+            )
+
+            # Create appropriate LLM instance based on provider
+            self.llm = self._create_llm_instance(
+                self.model_name, temperature, api_key, base_url
+            )
+
+        # Metrics tracking with proper typing
+        self.metrics: Dict[str, Union[int, str]] = {
             "total_calls": 0,
             "successful_structured": 0,
             "fallback_used": 0,
             "validation_failures": 0,
+            "model_selected": (
+                self.model_name if hasattr(self, "model_name") else "unknown"
+            ),
         }
+
+    async def _ensure_pooled_client(self) -> None:
+        """Ensure pooled client is initialized (async-safe)."""
+        if self._use_pool_client and not self._pool_client:
+            try:
+                pool = LLMServicePool.get_instance()
+                if self.agent_name:  # Type guard
+                    (
+                        self._pool_client,
+                        self.model_name,
+                    ) = await pool.get_optimal_client_for_agent(
+                        self.agent_name, self.temperature
+                    )
+                    self.llm = self._pool_client
+                else:
+                    raise ValueError("agent_name is required for pooled client")
+                self.logger.info(
+                    f"Initialized pooled client: {self.model_name} for {self.agent_name}"
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to get pooled client: {e}")
+                # Fallback to traditional client creation
+                self._use_pool_client = False
+                self.model_name = self._select_best_model()
+                self.llm = self._create_llm_instance(
+                    self.model_name, self.temperature, self.api_key, None
+                )
+
+    def _select_best_model(self) -> str:
+        """Select the best available model using discovery service."""
+        if not self.discovery_service or not self.agent_name:
+            # Default fallback
+            return "gpt-4o"
+
+        try:
+            # Check if we're already in an async context
+            import asyncio
+
+            try:
+                # Try to get the current running loop
+                loop = asyncio.get_running_loop()
+                # We're in an async context, can't use run_until_complete
+                # Use sync fallback for now
+                self.logger.info(
+                    f"In async context, using fallback model selection for '{self.agent_name}'"
+                )
+            except RuntimeError:
+                # No running loop, we can create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    best_model = loop.run_until_complete(
+                        self.discovery_service.get_best_model_for_agent(self.agent_name)
+                    )
+                    if best_model:
+                        self.logger.info(
+                            f"Discovery service selected '{best_model}' for agent '{self.agent_name}'"
+                        )
+                        return best_model
+                finally:
+                    loop.close()
+        except Exception as e:
+            self.logger.warning(f"Model discovery failed: {e}")
+
+        # Improved fallbacks based on agent type - use models that actually exist
+        agent_fallbacks = {
+            "refiner": "gpt-4o-mini",  # Fast model for refinement
+            "historian": "gpt-4o",  # Balanced model for search
+            "critic": "gpt-4o-mini",  # Fast model for critique
+            "synthesis": "gpt-4o",  # Strong model for synthesis
+        }
+        fallback = agent_fallbacks.get(self.agent_name, "gpt-4o")
+        self.logger.info(
+            f"Using fallback model '{fallback}' for agent '{self.agent_name}'"
+        )
+        return fallback
 
     def _create_llm_instance(
         self,
@@ -166,7 +326,14 @@ class LangChainService:
 
         start_time = time.time()
 
-        self.metrics["total_calls"] += 1
+        # Ensure pooled client is ready if we're using pool
+        await self._ensure_pooled_client()
+
+        # Ensure we have an LLM instance
+        if self.llm is None:
+            raise ValueError("LLM instance not initialized")
+
+        self.metrics["total_calls"] = int(self.metrics["total_calls"]) + 1
         obs_context = get_observability_context()
 
         # Build messages
@@ -184,7 +351,9 @@ class LangChainService:
 
                 processing_time_ms = (time.time() - start_time) * 1000
 
-                self.metrics["successful_structured"] += 1
+                self.metrics["successful_structured"] = (
+                    int(self.metrics["successful_structured"]) + 1
+                )
 
                 self.logger.info(
                     "Structured output successful",
@@ -228,7 +397,7 @@ class LangChainService:
 
             processing_time_ms = (time.time() - start_time) * 1000
 
-            self.metrics["fallback_used"] += 1
+            self.metrics["fallback_used"] = int(self.metrics["fallback_used"]) + 1
 
             self.logger.info(
                 "Fallback parser successful",
@@ -250,7 +419,9 @@ class LangChainService:
             return result
 
         except Exception as e:
-            self.metrics["validation_failures"] += 1
+            self.metrics["validation_failures"] = (
+                int(self.metrics["validation_failures"]) + 1
+            )
             processing_time_ms = (time.time() - start_time) * 1000
 
             raise LLMValidationError(
@@ -278,6 +449,7 @@ class LangChainService:
 
         # Create structured LLM (article's core pattern)
         try:
+            assert self.llm is not None  # Type assertion - already checked above
             structured_llm = self.llm.with_structured_output(
                 output_class,
                 method=method,
@@ -322,6 +494,7 @@ class LangChainService:
         enhanced_messages = messages[:-1] + [("human", enhanced_prompt)]
 
         # Get raw response
+        assert self.llm is not None  # Type assertion - already checked above
         response = await self.llm.ainvoke(enhanced_messages)
 
         # Parse response content (article's pattern)
@@ -349,18 +522,16 @@ class LangChainService:
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get service usage statistics."""
-        total = self.metrics["total_calls"]
+        total = int(self.metrics["total_calls"])
+        successful = int(self.metrics["successful_structured"])
+        fallback = int(self.metrics["fallback_used"])
+        failures = int(self.metrics["validation_failures"])
+
         return {
             "total_calls": total,
-            "success_rate": (
-                self.metrics["successful_structured"] / total if total > 0 else 0.0
-            ),
-            "fallback_rate": (
-                self.metrics["fallback_used"] / total if total > 0 else 0.0
-            ),
-            "validation_failure_rate": (
-                self.metrics["validation_failures"] / total if total > 0 else 0.0
-            ),
+            "success_rate": (successful / total if total > 0 else 0.0),
+            "fallback_rate": (fallback / total if total > 0 else 0.0),
+            "validation_failure_rate": (failures / total if total > 0 else 0.0),
             "metrics": self.metrics,
         }
 
@@ -371,4 +542,7 @@ class LangChainService:
             "successful_structured": 0,
             "fallback_used": 0,
             "validation_failures": 0,
+            "model_selected": (
+                self.model_name if hasattr(self, "model_name") else "unknown"
+            ),
         }

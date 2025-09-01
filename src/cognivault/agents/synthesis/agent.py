@@ -105,16 +105,23 @@ class SynthesisAgent(BaseAgent):
                 self.structured_service = None
                 return
 
-            # Get model configuration from LLM interface
-            model_name = getattr(self.llm, "model", "gpt-4")
+            # Get API key from LLM interface
             api_key = getattr(self.llm, "api_key", None)
 
+            # Let discovery service choose the best model for SynthesisAgent
             self.structured_service = LangChainService(
-                model=model_name,
+                model=None,  # Let discovery service choose
                 api_key=api_key,
                 temperature=0.2,  # Use low temperature for consistent synthesis
+                agent_name="synthesis",  # Enable agent-specific model selection
+                use_discovery=True,  # Enable model discovery
             )
-            logger.info(f"[{self.name}] Structured output service initialized")
+
+            # Log the selected model
+            selected_model = self.structured_service.model_name
+            logger.info(
+                f"[{self.name}] Structured output service initialized with discovered model: {selected_model}"
+            )
         except Exception as e:
             logger.warning(
                 f"[{self.name}] Failed to initialize structured service: {e}. "

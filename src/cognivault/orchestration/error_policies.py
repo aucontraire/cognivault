@@ -290,13 +290,13 @@ class ErrorPolicyManager:
         historian_cb_config = CircuitBreakerConfig(
             failure_threshold=3,
             success_threshold=2,
-            timeout_seconds=30.0,
+            timeout_seconds=45.0,
         )
         self.policies["historian"] = ErrorPolicy(
             policy_type=ErrorPolicyType.CIRCUIT_BREAKER,
             circuit_breaker_config=historian_cb_config,
             fallback_strategy=FallbackStrategy.USE_CACHED_RESULT,
-            timeout_seconds=25.0,
+            timeout_seconds=45.0,
         )
         # Initialize circuit breaker for historian
         self.circuit_breakers["historian"] = CircuitBreaker(historian_cb_config)

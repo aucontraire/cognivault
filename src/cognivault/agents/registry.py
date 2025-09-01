@@ -647,7 +647,7 @@ class AgentRegistry:
         self.register(
             name="historian",
             agent_class=HistorianAgent,
-            requires_llm=False,
+            requires_llm=True,
             description="Retrieves relevant historical context and information",
             dependencies=[],
             is_critical=False,  # Historian is helpful but not essential
@@ -666,7 +666,7 @@ class AgentRegistry:
         self.register(
             name="synthesis",
             agent_class=SynthesisAgent,
-            requires_llm=False,
+            requires_llm=True,
             description="Synthesizes outputs from multiple agents into final response",
             dependencies=[],  # Synthesis can work with any combination of agents
             is_critical=True,  # Synthesis is needed for final output

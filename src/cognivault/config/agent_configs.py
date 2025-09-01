@@ -258,7 +258,9 @@ class HistorianConfig(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
-    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=45)
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "HistorianConfig":
@@ -334,7 +336,9 @@ class SynthesisConfig(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
-    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=45)
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "SynthesisConfig":

@@ -75,16 +75,23 @@ class CriticAgent(BaseAgent):
     def _setup_structured_service(self) -> None:
         """Initialize the LangChain service for structured output support."""
         try:
-            # Get model configuration from LLM interface
-            model_name = getattr(self.llm, "model", "gpt-4")
+            # Get API key from LLM interface
             api_key = getattr(self.llm, "api_key", None)
 
+            # Let discovery service choose the best model for CriticAgent
             self.structured_service = LangChainService(
-                model=model_name,
+                model=None,  # Let discovery service choose
                 api_key=api_key,
                 temperature=0.0,  # Use deterministic output for critiques
+                agent_name="critic",  # Enable agent-specific model selection
+                use_discovery=True,  # Enable model discovery
             )
-            self.logger.info(f"[{self.name}] Structured output service initialized")
+
+            # Log the selected model
+            selected_model = self.structured_service.model_name
+            self.logger.info(
+                f"[{self.name}] Structured output service initialized with model: {selected_model}"
+            )
         except Exception as e:
             self.logger.warning(
                 f"[{self.name}] Failed to initialize structured service: {e}. "

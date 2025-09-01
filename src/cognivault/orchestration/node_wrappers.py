@@ -293,7 +293,7 @@ def node_metrics(func: F) -> F:
 
 async def create_agent_with_llm(agent_name: str) -> BaseAgent:
     """
-    Create an agent instance with LLM configuration.
+    Create an agent instance with LLM configuration and agent-specific settings.
 
     Parameters
     ----------
@@ -303,7 +303,7 @@ async def create_agent_with_llm(agent_name: str) -> BaseAgent:
     Returns
     -------
     BaseAgent
-        Configured agent instance
+        Configured agent instance with agent-specific timeout settings
     """
     registry = get_agent_registry()
 
@@ -315,8 +315,42 @@ async def create_agent_with_llm(agent_name: str) -> BaseAgent:
         base_url=llm_config.base_url,
     )
 
-    # Create agent
-    agent = registry.create_agent(agent_name.lower(), llm=llm)
+    # Load agent-specific configuration
+    agent_config_kwargs: Dict[str, Any] = {}
+
+    # Import agent config classes
+    from cognivault.config.agent_configs import (
+        HistorianConfig,
+        RefinerConfig,
+        CriticConfig,
+        SynthesisConfig,
+    )
+
+    # Apply agent-specific configuration
+    agent_name_lower = agent_name.lower()
+    if agent_name_lower == "historian":
+        agent_config_kwargs["config"] = HistorianConfig()
+    elif agent_name_lower == "refiner":
+        agent_config_kwargs["config"] = RefinerConfig()
+    elif agent_name_lower == "critic":
+        agent_config_kwargs["config"] = CriticConfig()
+    elif agent_name_lower == "synthesis":
+        agent_config_kwargs["config"] = SynthesisConfig()
+
+    # Create agent with configuration
+    agent = registry.create_agent(agent_name_lower, llm=llm, **agent_config_kwargs)
+
+    # Apply timeout from configuration after agent creation
+    # This ensures the agent has the correct timeout setting for run_with_retry
+    if agent_name_lower == "historian":
+        agent.timeout_seconds = HistorianConfig().execution_config.timeout_seconds
+    elif agent_name_lower == "refiner":
+        agent.timeout_seconds = RefinerConfig().execution_config.timeout_seconds
+    elif agent_name_lower == "critic":
+        agent.timeout_seconds = CriticConfig().execution_config.timeout_seconds
+    elif agent_name_lower == "synthesis":
+        agent.timeout_seconds = SynthesisConfig().execution_config.timeout_seconds
+
     return agent
 
 
