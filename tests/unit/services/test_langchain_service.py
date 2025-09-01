@@ -61,7 +61,7 @@ class TestLangChainServiceInit:
         """Test initialization with default parameters."""
         service = LangChainService()
 
-        assert service.model_name == "gpt-4o"
+        assert service.model_name == "gpt-5"
         assert service.llm is not None
         assert service.metrics["total_calls"] == 0
 
@@ -82,7 +82,10 @@ class TestLangChainServiceInit:
         assert (
             langchain_service._get_structured_output_method("gpt-4o") == "json_schema"
         )
-        assert langchain_service._get_structured_output_method("gpt-4") == "json_schema"
+        assert (
+            langchain_service._get_structured_output_method("gpt-4")
+            == "function_calling"
+        )
 
         # Test Claude models
         assert (

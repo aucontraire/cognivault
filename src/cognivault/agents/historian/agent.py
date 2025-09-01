@@ -12,6 +12,7 @@ from cognivault.context import AgentContext
 from cognivault.config.app_config import get_config
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.historian.search import SearchFactory, SearchResult
+from cognivault.agents.historian.title_generator import TitleGenerator
 
 # Configuration system imports
 from cognivault.config.agent_configs import HistorianConfig
@@ -85,6 +86,9 @@ class HistorianAgent(BaseAgent):
         # Database components for hybrid search
         self._db_session_factory: Optional[DatabaseSessionFactory] = None
         self._repository_factory: Optional[RepositoryFactory] = None
+
+        # Initialize title generator for database search title handling
+        self._title_generator = TitleGenerator(llm_client=self.llm)
 
         # Initialize LangChain service for structured output (following RefinerAgent pattern)
         self.structured_service: Optional[LangChainService] = None
@@ -449,8 +453,15 @@ class HistorianAgent(BaseAgent):
                     # Create SearchResult compatible with existing code
                     # Ensure content is not None before indexing or measuring length
                     content_text = doc.content or ""
+
+                    # Generate safe title using TitleGenerator to avoid validation errors
+                    original_title = doc.title or "Untitled Document"
+                    safe_title = await self._title_generator.generate_safe_title(
+                        original_title, content_text, metadata
+                    )
+
                     search_result = SearchResult(
-                        title=doc.title,
+                        title=safe_title,  # Use safe title instead of raw doc.title
                         excerpt=(
                             content_text[:200] + "..."
                             if len(content_text) > 200

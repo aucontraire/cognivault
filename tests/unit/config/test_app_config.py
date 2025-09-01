@@ -63,7 +63,7 @@ class TestModelConfig:
         config = ModelConfig()
 
         assert config.default_provider == "openai"
-        assert config.default_model == "gpt-4"
+        assert config.default_model == "gpt-5"
         assert config.max_tokens_per_request == 4096
         assert config.temperature == 0.7
         assert config.mock_tokens_used == 10

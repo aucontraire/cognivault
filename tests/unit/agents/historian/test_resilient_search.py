@@ -17,12 +17,13 @@ from pydantic import ValidationError
 
 from cognivault.agents.historian.resilient_search import (
     ResilientSearchProcessor,
-    TitleGenerator,
     FailedDocument,
     ProcessingStats,
     DocumentProcessingReport,
     BatchResult,
 )
+from cognivault.agents.historian.title_generator import TitleGenerator
+
 from cognivault.agents.historian.search import (
     SearchResult,
     HistorianSearchInterface,
