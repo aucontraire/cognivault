@@ -204,10 +204,10 @@ class ModelConfig(BaseModel):
         json_schema_extra={"example": "openai"},
     )
     default_model: str = Field(
-        "gpt-4",
+        "gpt-5",
         description="Default model name to use",
         min_length=1,
-        json_schema_extra={"example": "gpt-4"},
+        json_schema_extra={"example": "gpt-5"},
     )
 
     # Token limits and processing
@@ -460,7 +460,7 @@ class ApplicationConfig(BaseModel):
 
         # Model configuration
         config.models.default_provider = os.getenv("COGNIVAULT_LLM", "openai")
-        config.models.default_model = os.getenv("OPENAI_MODEL", "gpt-4")
+        config.models.default_model = os.getenv("OPENAI_MODEL", "gpt-5")
         config.models.max_tokens_per_request = int(
             os.getenv("COGNIVAULT_MAX_TOKENS", "4096")
         )

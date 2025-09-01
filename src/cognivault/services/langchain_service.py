@@ -56,8 +56,9 @@ class LangChainService:
 
     # Provider-specific method mapping from article
     PROVIDER_METHODS = {
+        "gpt-5": "json_schema",  # GPT-5 has full json_schema support
         "gpt-4o": "json_schema",
-        "gpt-4": "json_schema",
+        "gpt-4": "function_calling",  # GPT-4 does NOT support json_schema
         "gpt-3.5": "function_calling",
         "claude-3": "function_calling",
         "claude-2": "function_calling",
@@ -68,7 +69,7 @@ class LangChainService:
 
     def __init__(
         self,
-        model: str = "gpt-4o",
+        model: str = "gpt-5",
         temperature: float = 0.1,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
