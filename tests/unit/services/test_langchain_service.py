@@ -59,9 +59,10 @@ class TestLangChainServiceInit:
 
     def test_init_with_defaults(self) -> None:
         """Test initialization with default parameters."""
-        service = LangChainService()
+        service = LangChainService(use_pool=False, use_discovery=False)
 
-        assert service.model_name == "gpt-5"
+        # The service uses gpt-4o as the default fallback model
+        assert service.model_name == "gpt-4o"
         assert service.llm is not None
         assert service.metrics["total_calls"] == 0
 

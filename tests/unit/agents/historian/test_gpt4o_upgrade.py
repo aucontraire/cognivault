@@ -26,23 +26,27 @@ class TestHistorianGPT4oUpgrade:
         return context
 
     def test_historian_uses_gpt4o_model(self, mock_llm: Mock) -> None:
-        """Verify HistorianAgent initializes with GPT-4o for structured output."""
+        """Verify HistorianAgent initializes with discovery service for structured output."""
         with patch(
             "cognivault.agents.historian.agent.LangChainService"
         ) as mock_service:
             # Create agent with mock LLM
             agent = HistorianAgent(llm=mock_llm)
 
-            # Verify LangChainService was called with GPT-4o
+            # Verify LangChainService was called with discovery service parameters
             mock_service.assert_called_once_with(
-                model="gpt-4o", api_key="test-api-key", temperature=0.1
+                model=None,  # Let discovery service choose
+                api_key="test-api-key",
+                temperature=0.1,
+                agent_name="historian",
+                use_discovery=True,
             )
 
             # Verify structured service was initialized
             assert agent.structured_service is not None
 
     def test_historian_logs_gpt4o_override(self, mock_llm: Mock, caplog: Any) -> None:
-        """Verify HistorianAgent logs the GPT-4o model override."""
+        """Verify HistorianAgent logs discovery service initialization."""
         import logging
 
         caplog.set_level(logging.INFO)
@@ -50,10 +54,11 @@ class TestHistorianGPT4oUpgrade:
         with patch("cognivault.agents.historian.agent.LangChainService"):
             agent = HistorianAgent(llm=mock_llm)
 
-            # Check for model override log message
+            # Check for discovery service initialization log message
             log_messages = [record.message for record in caplog.records]
             assert any(
-                "Using gpt-4o for structured output" in msg for msg in log_messages
+                "Initializing structured output service with discovery" in msg
+                for msg in log_messages
             ), f"Expected log message not found. Actual logs: {log_messages}"
 
     def test_langchain_service_uses_json_schema_for_gpt4o(self) -> None:

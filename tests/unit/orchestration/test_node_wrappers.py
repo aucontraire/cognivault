@@ -343,9 +343,14 @@ class TestCreateAgentWithLLM:
                         model="gpt-3.5-turbo",
                         base_url="https://api.openai.com/v1",
                     )
-                    mock_registry.create_agent.assert_called_once_with(
-                        "refiner", llm=mock_llm
-                    )
+                    # Verify the call was made with LLM and config parameters
+                    mock_registry.create_agent.assert_called_once()
+                    call_args = mock_registry.create_agent.call_args
+                    assert call_args[0] == ("refiner",)  # Positional args
+                    assert "llm" in call_args[1]  # Keyword args include llm
+                    assert call_args[1]["llm"] == mock_llm
+                    # Should also include agent config
+                    assert "config" in call_args[1]
                     assert result == mock_agent
 
     @pytest.mark.asyncio
@@ -376,10 +381,13 @@ class TestCreateAgentWithLLM:
 
                     await create_agent_with_llm("REFINER")
 
-                    # Should convert to lowercase
-                    mock_registry.create_agent.assert_called_once_with(
-                        "refiner", llm=mock_llm_instance
-                    )
+                    # Should convert to lowercase and include config
+                    mock_registry.create_agent.assert_called_once()
+                    call_args = mock_registry.create_agent.call_args
+                    assert call_args[0] == ("refiner",)  # Converted to lowercase
+                    assert "llm" in call_args[1]
+                    assert call_args[1]["llm"] == mock_llm_instance
+                    assert "config" in call_args[1]
 
 
 class TestConvertStateToContext:
