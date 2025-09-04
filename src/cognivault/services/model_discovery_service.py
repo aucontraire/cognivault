@@ -112,7 +112,7 @@ class ModelDiscoveryService:
     - Integration with CogniVault's service architecture
     """
 
-    # Hardcoded fallback configurations for Phase 1
+    # Hardcoded fallback configurations - SIMPLIFIED to prioritize base models
     FALLBACK_MODELS = {
         "gpt-5": ModelInfo(
             id="gpt-5",
@@ -125,6 +125,7 @@ class ModelDiscoveryService:
             supports_structured_output=True,
             capabilities={"reasoning", "analysis", "code", "multimodal"},
         ),
+        # Removed gpt-5-chat-latest - we don't want chat variants
         "gpt-5-mini": ModelInfo(
             id="gpt-5-mini",
             category=ModelCategory.GPT5_MINI,
@@ -182,28 +183,32 @@ class ModelDiscoveryService:
         ),
     }
 
-    # Agent-specific model preferences with proper typing
+    # Agent-specific model preferences - SIMPLIFIED to prefer base models
     AGENT_MODEL_PREFERENCES: Dict[str, Dict[str, Any]] = {
         "refiner": {
-            "preferred_categories": [ModelCategory.GPT5_NANO, ModelCategory.GPT5_MINI],
+            # Keep nano for ultra_fast requirement, but prefer base over variants
+            "preferred_categories": [ModelCategory.GPT5_NANO, ModelCategory.GPT5],
             "required_speed": ModelSpeed.ULTRA_FAST,
             "max_acceptable_speed": ModelSpeed.FAST,
             "required_capabilities": {"refinement"},
         },
         "historian": {
-            "preferred_categories": [ModelCategory.GPT5, ModelCategory.GPT4_TURBO],
+            # Use base GPT-5 - no variants needed
+            "preferred_categories": [ModelCategory.GPT5],
             "required_speed": ModelSpeed.STANDARD,
             "max_acceptable_speed": ModelSpeed.SLOW,
             "required_capabilities": {"reasoning", "analysis"},
         },
         "critic": {
-            "preferred_categories": [ModelCategory.GPT5, ModelCategory.GPT5_MINI],
+            # Use base GPT-5 - no variants needed
+            "preferred_categories": [ModelCategory.GPT5],
             "required_speed": ModelSpeed.FAST,
             "max_acceptable_speed": ModelSpeed.STANDARD,
             "required_capabilities": {"reasoning", "analysis"},
         },
         "synthesis": {
-            "preferred_categories": [ModelCategory.GPT5, ModelCategory.GPT4_TURBO],
+            # Use base GPT-5 - no variants needed
+            "preferred_categories": [ModelCategory.GPT5],
             "required_speed": ModelSpeed.STANDARD,
             "max_acceptable_speed": ModelSpeed.SLOW,
             "required_capabilities": {"reasoning", "analysis", "code"},
@@ -381,6 +386,22 @@ class ModelDiscoveryService:
                     model_info.capabilities.update(capabilities)
                 else:
                     # Create new ModelInfo for discovered model
+                    # SIMPLIFIED: Treat base models as first-class citizens
+                    is_base_model = model_id.lower() in [
+                        "gpt-5",
+                        "gpt-5-nano",
+                        "gpt-5-mini",
+                    ]
+                    is_variant = "-" in model_id and not is_base_model
+                    is_gpt5_family = "gpt-5" in model_id.lower()
+
+                    # Log variant discovery to encourage base model usage
+                    if is_variant and is_gpt5_family:
+                        self.logger.info(
+                            f"Discovered GPT-5 variant '{model_id}'. "
+                            f"Consider using base 'gpt-5' model for simplicity."
+                        )
+
                     model_info = ModelInfo(
                         id=model_id,
                         category=category,
@@ -390,8 +411,10 @@ class ModelDiscoveryService:
                             16384 if "gpt-5" in model_id.lower() else 4096
                         ),
                         supports_json_mode=True,
-                        supports_function_calling=True,
-                        supports_structured_output="gpt-5" in model_id.lower(),
+                        # Base models have full support, variants are questionable
+                        supports_function_calling=is_base_model or not is_variant,
+                        supports_structured_output=is_base_model
+                        or (is_gpt5_family and not is_variant),
                         capabilities=capabilities,
                         created_at=(
                             datetime.fromtimestamp(model_data.created)
@@ -550,22 +573,45 @@ class ModelDiscoveryService:
                     return all_models[0].id
                 return None
 
-        # Rank models by preference
+        # Rank models by preference - SIMPLIFIED to prefer base models
         def rank_model(model: ModelInfo) -> int:
             score = 0
 
-            # Category preference
+            # HIGHEST PRIORITY: Prefer base models over variants
+            is_base_model = model.id.lower() in ["gpt-5", "gpt-5-nano", "gpt-5-mini"]
+            is_variant = "-" in model.id and not is_base_model
+
+            if is_base_model:
+                # Huge bonus for base models
+                score += 2000
+                self.logger.debug(f"Preferring base model {model.id} (+2000 score)")
+            elif is_variant:
+                # Penalize ALL variants (chat, dated, etc.)
+                score -= 1500
+                self.logger.debug(
+                    f"Penalizing variant {model.id} (-1500 score) - prefer base models"
+                )
+
+            # Category preference (secondary consideration)
             preferred_cats = prefs.get("preferred_categories", [])
             if isinstance(preferred_cats, list) and model.category in preferred_cats:
                 score += 100 * (
                     len(preferred_cats) - preferred_cats.index(model.category)
                 )
 
-            # Speed preference
+            # Speed preference (tertiary consideration)
             if "required_speed" in prefs and model.speed == prefs["required_speed"]:
                 score += 50
 
-            # Capability count (more capabilities = better)
+            # Structured output support bonus (still important)
+            if model.supports_structured_output:
+                score += 200
+
+            # Function calling support bonus
+            if model.supports_function_calling:
+                score += 100
+
+            # Capability count (minor consideration)
             score += len(model.capabilities)
 
             return score
@@ -614,6 +660,10 @@ class ModelDiscoveryService:
         speed = self._determine_speed(model_id, category)
         capabilities = self._extract_capabilities(model_id, category)
 
+        # Handle chat variants properly
+        is_chat_variant = "-chat" in model_id.lower()
+        is_gpt5_family = "gpt-5" in model_id.lower()
+
         return ModelInfo(
             id=model_id,
             category=category,
@@ -621,8 +671,9 @@ class ModelDiscoveryService:
             context_window=128000 if "gpt-5" in model_id.lower() else 32000,
             max_output_tokens=16384 if "gpt-5" in model_id.lower() else 4096,
             supports_json_mode=True,
-            supports_function_calling=True,
-            supports_structured_output="gpt-5" in model_id.lower(),
+            supports_function_calling=not is_chat_variant,  # Chat variants don't support this
+            supports_structured_output=is_gpt5_family
+            and not is_chat_variant,  # Only non-chat GPT-5
             capabilities=capabilities,
         )
 

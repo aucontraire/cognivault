@@ -146,8 +146,20 @@ class LLMServicePool:
 
         This is the key optimization - clients are reused across agents.
         """
-        # Use model + temperature as key for client caching
-        client_key = f"{model}@{temperature}"
+        # CRITICAL FIX: GPT-5 models only support temperature=1 (default)
+        # For GPT-5, ignore temperature parameter and use default
+        model_lower = model.lower()
+        if "gpt-5" in model_lower:
+            # For GPT-5, always use default temperature (1.0) - ignore passed temperature
+            client_key = f"{model}@default"
+            effective_temperature = None  # Will be excluded from ChatOpenAI kwargs
+            logger.info(
+                f"Using default temperature for {model} (GPT-5 only supports temperature=1)"
+            )
+        else:
+            # Use model + temperature as key for client caching
+            client_key = f"{model}@{temperature}"
+            effective_temperature = temperature
 
         if client_key in self._llm_clients:
             self.metrics["clients_reused"] += 1
@@ -157,13 +169,19 @@ class LLMServicePool:
         # Create new client
         logger.info(f"Creating new ChatOpenAI client for {client_key}")
 
-        client = ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            api_key=self._api_key,
-            max_retries=3,
-            timeout=30.0,
-        )
+        # Build kwargs for ChatOpenAI
+        kwargs = {
+            "model": model,
+            "api_key": self._api_key,
+            "max_retries": 3,
+            "timeout": 30.0,
+        }
+
+        # Only add temperature for non-GPT-5 models
+        if effective_temperature is not None:
+            kwargs["temperature"] = effective_temperature
+
+        client = ChatOpenAI(**kwargs)
 
         self._llm_clients[client_key] = client
         self.metrics["clients_created"] += 1

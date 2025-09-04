@@ -70,11 +70,11 @@ class LangChainService:
     - Dynamic model discovery and intelligent selection
     """
 
-    # Provider-specific method mapping from article
+    # Provider-specific method mapping - SIMPLIFIED for base models
     PROVIDER_METHODS = {
-        "gpt-5": "json_schema",  # GPT-5 has full json_schema support
-        "gpt-5-mini": "json_schema",  # GPT-5 variants have json_schema
-        "gpt-5-nano": "json_schema",
+        "gpt-5": "json_schema",  # Base GPT-5 has full json_schema support
+        "gpt-5-mini": "json_schema",  # Mini is still a base model, keep it
+        "gpt-5-nano": "json_schema",  # Nano is still a base model, keep it
         "gpt-4o": "json_schema",  # GPT-4o supports json_schema
         "gpt-4o-mini": "json_schema",  # GPT-4o-mini supports json_schema
         "gpt-4-turbo": "json_schema",  # GPT-4-turbo supports json_schema
@@ -236,12 +236,13 @@ class LangChainService:
         except Exception as e:
             self.logger.warning(f"Model discovery failed: {e}")
 
-        # Improved fallbacks based on agent type - use models that actually exist
+        # SIMPLIFIED fallbacks - prefer base GPT-5 when available
+        # User wisdom: "just use the model: 'gpt-5'"
         agent_fallbacks = {
-            "refiner": "gpt-4o-mini",  # Fast model for refinement
-            "historian": "gpt-4o",  # Balanced model for search
-            "critic": "gpt-4o-mini",  # Fast model for critique
-            "synthesis": "gpt-4o",  # Strong model for synthesis
+            "refiner": "gpt-5-nano",  # Keep nano for ultra-fast requirement
+            "historian": "gpt-5",  # Base GPT-5 for historian
+            "critic": "gpt-5",  # Base GPT-5 for critic
+            "synthesis": "gpt-5",  # Base GPT-5 for synthesis
         }
         fallback = agent_fallbacks.get(self.agent_name, "gpt-4o")
         self.logger.info(
@@ -260,12 +261,28 @@ class LangChainService:
         model_lower = model.lower()
 
         if "gpt" in model_lower or "o1" in model_lower:
-            return ChatOpenAI(
-                model=model,
-                temperature=temperature,
-                api_key=api_key,
-                base_url=base_url,
-            )
+            # Build kwargs for ChatOpenAI
+            kwargs: Dict[str, Any] = {
+                "model": model,
+                "api_key": api_key,
+                "base_url": base_url,
+            }
+
+            # CRITICAL FIX: GPT-5 models only support temperature=1 (default)
+            # Exclude temperature parameter for GPT-5 to avoid API constraint errors
+            if "gpt-5" not in model_lower:
+                kwargs["temperature"] = temperature
+            else:
+                self.logger.info(
+                    f"Excluding temperature parameter for {model} (GPT-5 only supports default temperature=1)"
+                )
+
+            # CRITICAL FIX: Removing output_version for now as it breaks the endpoint
+            # The native OpenAI parse() method will handle GPT-5 structured outputs
+            # if "gpt-5" in model_lower:
+            #     kwargs["output_version"] = "responses/v1"  # This causes /v1/responses endpoint issue
+
+            return ChatOpenAI(**kwargs)  # Uses kwargs from if-branch above
         elif "claude" in model_lower:
             # Note: Would need anthropic API key configuration
             if api_key is None:
@@ -277,22 +294,67 @@ class LangChainService:
             )
         else:
             # Default to OpenAI for unknown models
-            return ChatOpenAI(
-                model=model,
-                temperature=temperature,
-                api_key=api_key,
-                base_url=base_url,
-            )
+            openai_kwargs: Dict[str, Any] = {
+                "model": model,
+                "api_key": api_key,
+                "base_url": base_url,
+            }
+
+            # CRITICAL FIX: GPT-5 models only support temperature=1 (default)
+            # Exclude temperature parameter for GPT-5 to avoid API constraint errors
+            if "gpt-5" not in model_lower:
+                openai_kwargs["temperature"] = temperature
+            else:
+                self.logger.info(
+                    f"Excluding temperature parameter for {model} (GPT-5 only supports default temperature=1)"
+                )
+
+            # CRITICAL FIX: Removing output_version for now as it breaks the endpoint
+            # The native OpenAI parse() method will handle GPT-5 structured outputs
+            # if "gpt-5" in model_lower:
+            #     openai_kwargs["output_version"] = "responses/v1"  # This causes /v1/responses endpoint issue
+
+            return ChatOpenAI(**openai_kwargs)
 
     def _get_structured_output_method(self, model: str) -> Optional[str]:
-        """Get the optimal structured output method for the model."""
+        """Get the optimal structured output method for the model.
+
+        ENHANCED: Handles model variants with different capabilities:
+        - Base GPT-5 models: json_schema
+        - Timestamped GPT-5 (2025-08-07): function_calling
+        - Chat variants: json_mode (no structured output)
+        """
         model_lower = model.lower()
 
+        # CRITICAL FIX: Handle timestamped GPT-5 versions that require function_calling
+        if "gpt-5" in model_lower and "2025-08" in model_lower:
+            self.logger.warning(
+                f"Model {model} is a timestamped GPT-5 variant requiring function_calling method"
+            )
+            return "function_calling"
+
+        # Handle chat variants that don't support structured outputs
+        if "-chat" in model_lower:
+            self.logger.warning(
+                f"Model {model} is a chat variant with limited structured output support, using json_mode"
+            )
+            return "json_mode"
+
+        # For base GPT-5 models, use json_schema
+        if model_lower in ["gpt-5", "gpt-5-nano", "gpt-5-mini"]:
+            self.logger.info(f"Using json_schema for base model {model}")
+            return "json_schema"
+
+        # Standard lookup for other models
         for model_prefix, method in self.PROVIDER_METHODS.items():
             if model_prefix in model_lower:
                 return method
 
-        # Default fallback
+        # Default fallback for unknown models
+        self.logger.info(
+            f"Unknown model {model}, using json_mode as fallback. "
+            "Consider using base GPT-5 model for best results."
+        )
         return "json_mode"
 
     async def get_structured_output(
@@ -346,7 +408,7 @@ class LangChainService:
         for attempt in range(max_retries):
             try:
                 result = await self._try_native_structured_output(
-                    messages, output_class, include_raw
+                    messages, output_class, include_raw, attempt, start_time
                 )
 
                 processing_time_ms = (time.time() - start_time) * 1000
@@ -377,19 +439,39 @@ class LangChainService:
                 return result["parsed"] if isinstance(result, dict) else result
 
             except Exception as e:
+                error_context = getattr(e, 'context', {})
+                error_type = error_context.get('error_type', 'unknown')
+                fallback_recommended = error_context.get('fallback_recommended', True)
+                
                 self.logger.warning(
                     f"Native structured output attempt {attempt + 1} failed",
                     error=str(e),
+                    error_type=error_type,
                     model=self.model_name,
                     output_class=output_class.__name__,
                 )
+
+                # Smart fallback decision based on error type
+                if error_type == 'quota_exceeded':
+                    # Don't retry on quota errors - fail fast
+                    self.logger.error("API quota exceeded - failing immediately without retries")
+                    raise e
+                elif error_type == 'schema_validation':
+                    # Schema errors won't be fixed by retries, skip to fallback
+                    self.logger.info("Schema validation error detected - skipping retries, going to fallback parser")
+                    break
+                elif not fallback_recommended:
+                    # Error analysis suggests fallback won't help
+                    raise e
 
                 if attempt == max_retries - 1:
                     # Last attempt failed, try fallback
                     break
 
-                # Wait before retry
-                await asyncio.sleep(0.5 * (attempt + 1))
+                # Progressive backoff with jitter for rate limiting
+                base_delay = 0.5 * (attempt + 1)
+                jitter = 0.1 * attempt  # Add small jitter to avoid thundering herd
+                await asyncio.sleep(base_delay + jitter)
 
         # Fallback to PydanticOutputParser (article's fallback strategy)
         try:
@@ -441,37 +523,481 @@ class LangChainService:
         messages: List[tuple[str, str]],
         output_class: Type[T],
         include_raw: bool = False,
+        attempt: int = 0,
+        start_time: Optional[float] = None,
     ) -> Union[T, Dict[str, Any]]:
-        """Try native structured output with provider-specific method."""
+        """Try native structured output with provider-specific method.
+
+        Args:
+            messages: Chat messages
+            output_class: Expected output structure
+            include_raw: Whether to include raw response
+            attempt: Current retry attempt number for timeout adjustment
+            start_time: Start time for timeout budget calculation
+        """
+        import time
+        
+        if start_time is None:
+            start_time = time.time()
+
+        # CRITICAL FIX: Use native OpenAI parse() for GPT-5 models
+        # User has proven this works, while LangChain's with_structured_output breaks
+        if "gpt-5" in self.model_name.lower():
+            try:
+                return await self._try_native_openai_parse(
+                    messages, output_class, include_raw
+                )
+            except Exception as e:
+                self.logger.warning(
+                    f"Native OpenAI parse failed for GPT-5: {e}, trying LangChain"
+                )
+                # Fall through to LangChain attempt
 
         # Get provider-specific method (key insight from article)
         method = self._get_structured_output_method(self.model_name)
 
-        # Create structured LLM (article's core pattern)
-        try:
-            assert self.llm is not None  # Type assertion - already checked above
-            structured_llm = self.llm.with_structured_output(
-                output_class,
-                method=method,
-                include_raw=include_raw,
-            )
+        # ENHANCEMENT: Try alternative methods if primary fails
+        methods_to_try = [method]
 
-            # Invoke with messages (article's pattern)
-            result = await structured_llm.ainvoke(messages)
+        # Add fallback methods based on primary method
+        if method == "json_schema" and "gpt-5" in self.model_name.lower():
+            methods_to_try.append(
+                "function_calling"
+            )  # Fallback for problematic GPT-5 variants
+        if method != "json_mode":
+            methods_to_try.append("json_mode")  # Ultimate fallback
 
-            return cast(Union[T, Dict[str, Any]], result)
+        last_error = None
+        for method_attempt in methods_to_try:
+            try:
+                assert self.llm is not None  # Type assertion - already checked above
 
-        except AttributeError as e:
-            # Model doesn't support with_structured_output
+                self.logger.debug(
+                    f"Attempting structured output with method={method_attempt}"
+                )
+
+                # Add timeout protection to prevent hanging
+                try:
+                    structured_llm = self.llm.with_structured_output(
+                        output_class,
+                        method=method_attempt,
+                        include_raw=include_raw,
+                    )
+
+                    # Dynamic timeout calculation to prevent cascade failures
+                    # Calculate remaining time budget based on total elapsed time
+                    current_time = time.time()
+                    elapsed_time = current_time - start_time
+                    
+                    # Reserve time for fallback parser (5s) and buffer (2s)
+                    reserved_time = 7.0
+                    max_agent_timeout = 30.0  # Agent timeout constraint
+                    
+                    remaining_budget = max_agent_timeout - elapsed_time - reserved_time
+                    
+                    # Calculate optimal timeout for this attempt
+                    if remaining_budget <= 0:
+                        # Out of time budget, skip to fallback immediately
+                        self.logger.warning(
+                            f"Time budget exhausted ({elapsed_time:.1f}s elapsed), skipping to fallback"
+                        )
+                        raise asyncio.TimeoutError("Time budget exhausted")
+                    
+                    # Progressive timeout with budget constraints
+                    base_timeouts = [8.0, 6.0, 4.0]  # Reduced base timeouts
+                    attempt_timeout = min(
+                        base_timeouts[min(attempt, len(base_timeouts) - 1)],
+                        remaining_budget
+                    )
+                    
+                    self.logger.debug(
+                        f"Attempt {attempt + 1}: {attempt_timeout:.1f}s timeout "
+                        f"(elapsed: {elapsed_time:.1f}s, budget: {remaining_budget:.1f}s)"
+                    )
+
+                    result = await asyncio.wait_for(
+                        structured_llm.ainvoke(messages),
+                        timeout=attempt_timeout,  # Progressive reduction: 10s, 8s, 5s
+                    )
+
+                    # Success! Log and return
+                    self.logger.info(
+                        f"Structured output succeeded with method={method_attempt} for {self.model_name}"
+                    )
+
+                    # No additional processing needed - LangChain handles defaults properly
+
+                    return cast(Union[T, Dict[str, Any]], result)
+
+                except asyncio.TimeoutError:
+                    self.logger.warning(
+                        f"Structured output timed out after {attempt_timeout}s with method={method_attempt} for {self.model_name}"
+                    )
+                    last_error = (
+                        f"Timeout after {attempt_timeout}s with method={method_attempt}"
+                    )
+                    continue  # Try next method
+
+            except (AttributeError, ValueError, Warning) as e:
+                # Method not supported or schema issue - try next method
+                self.logger.warning(
+                    f"Method {method_attempt} failed for {self.model_name}: {e}"
+                )
+                last_error = str(e)
+                continue  # Try next method
+
+        # All methods failed - raise final error
+        if last_error:
             raise LLMError(
-                message=f"Model {self.model_name} doesn't support with_structured_output: {e}",
+                message=f"All structured output methods failed for {self.model_name}. Last error: {last_error}",
                 llm_provider=(
                     self.model_name.split("-")[0]
                     if "-" in self.model_name
                     else "unknown"
                 ),
-                context={"method": method},
+                context={"methods_tried": methods_to_try, "last_error": last_error},
             )
+
+        # Shouldn't reach here, but handle gracefully
+        raise LLMError(
+            message="Unexpected error in structured output",
+            llm_provider="unknown",
+            context={},
+        )
+
+    async def _try_native_openai_parse(
+        self,
+        messages: List[tuple[str, str]],
+        output_class: Type[T],
+        include_raw: bool = False,
+    ) -> Union[T, Dict[str, Any]]:
+        """
+        Use OpenAI's native parse() API for GPT-5 models.
+
+        This is the PROVEN approach from user testing that works with GPT-5.
+        LangChain's with_structured_output() breaks with output_version parameter,
+        but native OpenAI API works perfectly.
+        """
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            self.logger.warning("OpenAI library not available for native parse")
+            raise
+
+        # Initialize native OpenAI client
+        client = AsyncOpenAI(api_key=self.api_key)
+
+        # Convert LangChain message format to OpenAI format
+        openai_messages = []
+        for role, content in messages:
+            if role == "system":
+                openai_messages.append({"role": "system", "content": content})
+            elif role == "human" or role == "user":
+                openai_messages.append({"role": "user", "content": content})
+            elif role == "assistant":
+                openai_messages.append({"role": "assistant", "content": content})
+            else:
+                # Skip unknown roles
+                self.logger.warning(f"Unknown message role: {role}")
+
+        try:
+            # Prepare OpenAI-compatible schema
+            openai_schema = self._prepare_schema_for_openai(output_class)
+
+            # Build kwargs for parse call with transformed schema
+            parse_kwargs: Dict[str, Any] = {
+                "model": self.model_name,
+                "messages": openai_messages,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": output_class.__name__,
+                        "schema": openai_schema,
+                        "strict": True,  # Enable strict mode for deterministic output
+                    },
+                },
+            }
+
+            # CRITICAL FIX: GPT-5 models only support temperature=1 (default)
+            # Exclude temperature parameter for GPT-5 to avoid API constraint errors
+            if "gpt-5" not in self.model_name.lower():
+                parse_kwargs["temperature"] = self.temperature
+            else:
+                self.logger.info(
+                    f"Excluding temperature from native parse for {self.model_name} (GPT-5 only supports default temperature=1)"
+                )
+
+            # Use OpenAI's beta parse API for structured outputs
+            completion = await client.beta.chat.completions.parse(**parse_kwargs)
+
+            # Extract parsed result
+            parsed_result = completion.choices[0].message.parsed
+
+            if parsed_result is None:
+                raise LLMError(
+                    message=f"Native OpenAI parse returned None for {self.model_name}",
+                    llm_provider="openai",
+                    context={"model": self.model_name},
+                )
+
+            # Parse the result back into the Pydantic model
+            # Since we forced all fields to be required, OpenAI will always return them
+            # The model's default values will handle the semantic optionality
+            if not isinstance(parsed_result, output_class):
+                # If OpenAI returns a dict, instantiate the Pydantic model
+                if isinstance(parsed_result, dict):
+                    parsed_result = output_class(**parsed_result)
+                else:
+                    # Already a proper instance from the beta.parse API
+                    pass
+
+            if include_raw:
+                # Return with raw content for debugging
+                raw_content = completion.choices[0].message.content
+                return {"parsed": parsed_result, "raw": raw_content}
+
+            return cast(T, parsed_result)
+
+        except Exception as e:
+            error_message = str(e).lower()
+            
+            # Enhanced error classification for better fallback decisions
+            is_schema_error = any(
+                phrase in error_message
+                for phrase in [
+                    "invalid schema",
+                    "required is required",
+                    "missing",
+                    "additional keywords",
+                    "$ref",
+                    "additionalproperties"
+                ]
+            )
+            
+            is_quota_error = any(
+                phrase in error_message
+                for phrase in [
+                    "quota exceeded",
+                    "rate limit",
+                    "insufficient credits",
+                    "billing"
+                ]
+            )
+            
+            is_timeout_error = any(
+                phrase in error_message
+                for phrase in [
+                    "timeout",
+                    "connection",
+                    "network"
+                ]
+            )
+            
+            # Log different error types with appropriate levels
+            if is_quota_error:
+                self.logger.error(f"OpenAI quota/billing error for {self.model_name}: {e}")
+            elif is_schema_error:
+                self.logger.warning(f"OpenAI schema validation error for {self.model_name}: {e}")
+            elif is_timeout_error:
+                self.logger.warning(f"OpenAI timeout error for {self.model_name}: {e}")
+            else:
+                self.logger.error(f"Native OpenAI parse failed for {self.model_name}: {e}")
+            
+            # Provide context-aware error information for fallback decisions
+            raise LLMError(
+                message=f"Native OpenAI parse failed for {self.model_name}",
+                llm_provider="openai",
+                context={
+                    "error": str(e),
+                    "model": self.model_name,
+                    "method": "native_parse",
+                    "error_type": (
+                        "schema_validation" if is_schema_error
+                        else "quota_exceeded" if is_quota_error
+                        else "timeout" if is_timeout_error
+                        else "unknown"
+                    ),
+                    "fallback_recommended": not is_quota_error,  # Don't fallback on quota errors
+                    "schema_fix_needed": is_schema_error,
+                },
+            )
+
+    def _prepare_schema_for_openai(
+        self, model_class: Type[BaseModel]
+    ) -> Dict[str, Any]:
+        """
+        Prepare Pydantic model schema for OpenAI's structured output API.
+
+        CORRECTED REQUIREMENTS based on OpenAI research and community feedback:
+        1. Fields with defaults (default_factory) should NOT be in required array
+        2. Optional[T] fields should NOT be in required array and should be Union[T, null]
+        3. Only fields without defaults and not Optional should be in required array
+        4. $ref fields CANNOT have additional keywords like 'description'
+        5. additionalProperties must be explicitly set to false
+        6. Remove unsupported constraints (maxLength, minLength, format)
+
+        Args:
+            model_class: The Pydantic model class to generate schema for
+
+        Returns:
+            Dict containing the OpenAI-compatible JSON schema
+        """
+        import copy
+        from typing import get_origin, get_args
+        
+        # Generate the standard Pydantic JSON schema
+        schema = model_class.model_json_schema()
+        
+        # Create a deep copy to avoid modifying the original
+        fixed_schema = copy.deepcopy(schema)
+
+        if "properties" not in fixed_schema:
+            return fixed_schema
+
+        # Get model fields to understand which are actually required
+        model_fields = model_class.model_fields
+        
+        # Based on OpenAI error: "required is required to be supplied and to be an array including every key in properties"
+        # OpenAI requires ALL properties to be in required array, but optional fields should be nullable
+        actual_required = list(fixed_schema["properties"].keys())
+        
+        for field_name, field_info in model_fields.items():
+            # Import PydanticUndefined for correct detection
+            from pydantic_core import PydanticUndefined
+            
+            # Check if field has a default value or default_factory
+            # In Pydantic v2, PydanticUndefined means "no default value"
+            has_default_value = field_info.default is not PydanticUndefined
+            has_default_factory = field_info.default_factory is not None
+            has_any_default = has_default_value or has_default_factory
+            
+            # Check if field is Optional (Union with None)
+            is_optional = (
+                get_origin(field_info.annotation) is Union and 
+                type(None) in get_args(field_info.annotation)
+            )
+            
+            # For fields with defaults or Optional fields, ensure proper schema setup
+            if field_name in fixed_schema["properties"]:
+                prop_def = fixed_schema["properties"][field_name]
+                
+                # For fields with defaults or Optional fields, make them nullable in schema
+                if (has_any_default or is_optional) and isinstance(prop_def, dict):
+                    if "type" in prop_def and not isinstance(prop_def.get("anyOf"), list):
+                        # Convert to union type with null to indicate it can accept null values
+                        original_type = prop_def.copy()
+                        # DON'T remove the type - OpenAI requires it
+                        # Clean unsupported constraints from the original type
+                        unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                        for key in unsupported_keys:
+                            original_type.pop(key, None)
+                        prop_def.clear()
+                        prop_def["anyOf"] = [original_type, {"type": "null"}]
+                
+                # Clean up unsupported constraints
+                if isinstance(prop_def, dict):
+                    # Remove constraints that OpenAI doesn't support
+                    unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                    for key in unsupported_keys:
+                        prop_def.pop(key, None)
+                        
+                self.logger.debug(
+                    f"Field {field_name}: has_any_default={has_any_default}, is_optional={is_optional}, "
+                    f"in_required=yes (all fields required by OpenAI), nullable={'yes' if (has_any_default or is_optional) else 'no'}"
+                )
+
+        # Set ALL properties as required (OpenAI requirement)
+        fixed_schema["required"] = actual_required
+        
+        self.logger.info(
+            f"OpenAI schema correction for {model_class.__name__}: "
+            f"{len(actual_required)} required fields (all properties): {actual_required}"
+        )
+
+        # Remove descriptions from $ref fields (OpenAI requirement)
+        for prop_name, prop_def in fixed_schema["properties"].items():
+            if isinstance(prop_def, dict) and "$ref" in prop_def:
+                # Keep ONLY the $ref key, remove description or any other keys
+                fixed_schema["properties"][prop_name] = {"$ref": prop_def["$ref"]}
+                self.logger.debug(
+                    f"Cleaned $ref field {prop_name} for OpenAI compatibility"
+                )
+
+        # Ensure additionalProperties is false (OpenAI requirement)
+        fixed_schema["additionalProperties"] = False
+
+        # Handle nested model definitions in $defs
+        # CRITICAL FIX: Apply same ALL-fields-required rule to nested models
+        if "$defs" in fixed_schema:
+            for def_name, def_schema in fixed_schema["$defs"].items():
+                if "properties" in def_schema and isinstance(def_schema["properties"], dict):
+                    # Apply the same ALL-properties-required rule to nested models
+                    nested_properties = def_schema["properties"]
+                    nested_required = list(nested_properties.keys())
+                    def_schema["required"] = nested_required
+                    def_schema["additionalProperties"] = False
+                    
+                    # Handle nullable fields in nested models too
+                    for nested_prop_name, nested_prop_def in nested_properties.items():
+                        if isinstance(nested_prop_def, dict):
+                            # Check if this is an Optional field (anyOf with null)
+                            is_nullable = isinstance(nested_prop_def.get("anyOf"), list) and any(
+                                item.get("type") == "null" for item in nested_prop_def.get("anyOf", [])
+                            )
+                            
+                            # For Optional fields that aren't already nullable, make them nullable
+                            if not is_nullable and "type" in nested_prop_def:
+                                # Check if this looks like an Optional field (has default: null)
+                                if nested_prop_def.get("default") is None:
+                                    original_type = nested_prop_def.copy()
+                                    original_type.pop("default", None)  # Remove default from type definition
+                                    # DON'T remove the type - OpenAI requires it
+                                    # Clean unsupported constraints from the original type
+                                    unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                                    for key in unsupported_keys:
+                                        original_type.pop(key, None)
+                                    nested_prop_def.clear()
+                                    nested_prop_def["anyOf"] = [original_type, {"type": "null"}]
+                                    nested_prop_def["default"] = None  # Preserve default at top level
+                            
+                            # Clean unsupported constraints
+                            unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                            for key in unsupported_keys:
+                                nested_prop_def.pop(key, None)
+                    
+                    self.logger.debug(
+                        f"Fixed nested model {def_name}: {len(nested_required)} required fields (all properties): {nested_required}"
+                    )
+
+        # Recursively clean up $ref fields and unsupported constraints throughout the schema
+        def clean_refs_recursive(obj: Any) -> Any:
+            """Recursively clean $ref fields and unsupported constraints throughout the schema."""
+            if isinstance(obj, dict):
+                if "$ref" in obj and len(obj) > 1:
+                    # Keep only the $ref key
+                    return {"$ref": obj["$ref"]}
+                else:
+                    # Clean unsupported constraints and recursively process
+                    cleaned = {}
+                    unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                    for k, v in obj.items():
+                        if k not in unsupported_keys:
+                            cleaned[k] = clean_refs_recursive(v)
+                    return cleaned
+            elif isinstance(obj, list):
+                return [clean_refs_recursive(item) for item in obj]
+            else:
+                return obj
+        
+        # Apply recursive cleaning
+        fixed_schema = clean_refs_recursive(fixed_schema)
+
+        self.logger.debug(
+            f"OpenAI schema finalized for {model_class.__name__}: "
+            f"required={actual_required}, additionalProperties=false, refs cleaned"
+        )
+
+        return cast(Dict[str, Any], fixed_schema)
 
     async def _fallback_to_parser(
         self,

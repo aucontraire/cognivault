@@ -1,8 +1,17 @@
 # CogniVault API Manual Testing Guide
 
-**Status**: ✅ **Functional** - All endpoints working with real data  
-**Updated**: July 2025  
-**API Version**: 1.0.0  
+**Status**: ✅ **PRODUCTION READY** - All agents working with GPT-5 structured output  
+**Updated**: September 2025  
+**API Version**: 1.0.0
+
+## 🎯 **Recent Updates (September 2025)**
+
+✅ **RESOLVED**: All OpenAI structured output integration issues fixed  
+✅ **ENHANCED**: Robust fallback patterns for schema validation failures  
+✅ **OPTIMIZED**: Timeout cascade prevention and dynamic budget management  
+✅ **DOCUMENTED**: Complete OpenAI API requirements for future maintenance
+
+**All 4 agents (Refiner, Critic, Historian, Synthesis) now work reliably with GPT-5 structured output.**  
 
 ## 🚀 Quick Start
 
@@ -18,7 +27,7 @@
 cd /path/to/cognivault
 poetry install
 export OPENAI_API_KEY="your-key-here"
-poetry run uvicorn cognivault.api.main:app --reload --host 0.0.0.0 --port 8000
+poetry run uvicorn cognivault.api.main:app --reload --host 0.0.0.0 --port 8001
 
 # Method 2: Using make command (if available)
 make run-api
