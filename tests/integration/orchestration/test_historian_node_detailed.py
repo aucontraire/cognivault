@@ -378,9 +378,9 @@ class TestHistorianNodeMetrics:
                     for call in mock_logger.error.call_args_list
                     if "Controlled failure for testing" in str(call)
                 ]
-                assert len(error_calls) > 0, (
-                    f"Expected error call with 'Controlled failure for testing' not found in {mock_logger.error.call_args_list}"
-                )
+                assert (
+                    len(error_calls) > 0
+                ), f"Expected error call with 'Controlled failure for testing' not found in {mock_logger.error.call_args_list}"
 
                 # Check for failure log with timing
                 failure_calls = [

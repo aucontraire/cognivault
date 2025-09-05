@@ -345,7 +345,9 @@ class TestHistorianAgentExecution:
         with patch(
             "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
         ) as mock_parser:
-            mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
+            mock_parser.return_value.get_all_notes.return_value = (
+                []
+            )  # No notes to process
 
             context = AgentContextPatterns.simple_query()
             result_context = await agent.run(context)
@@ -475,7 +477,9 @@ class TestHistorianAgentSearchIntegration:
         with patch(
             "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
         ) as mock_parser:
-            mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
+            mock_parser.return_value.get_all_notes.return_value = (
+                []
+            )  # No notes to process
 
             context = AgentContextPatterns.simple_query()
             results = await agent._search_historical_content("test query", context)
@@ -926,7 +930,9 @@ class TestHistorianAgentErrorHandling:
         with patch(
             "cognivault.agents.historian.resilient_search.NotesDirectoryParser"
         ) as mock_parser:
-            mock_parser.return_value.get_all_notes.return_value = []  # No notes to process
+            mock_parser.return_value.get_all_notes.return_value = (
+                []
+            )  # No notes to process
 
             context = AgentContextPatterns.simple_query()
 

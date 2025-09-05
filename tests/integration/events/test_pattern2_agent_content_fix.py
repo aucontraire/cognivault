@@ -133,35 +133,35 @@ async def test_pattern2_refiner_agent_content_integration() -> None:
             output_context = completion_event.output_context
 
             # Key assertions for PATTERN 2 fix
-            assert "agent_output" in output_context, (
-                "Agent-level event must include actual agent output"
-            )
-            assert output_context["agent_output"] == refined_content, (
-                "Event content must match agent output"
-            )
-            assert len(output_context["agent_output"]) > 50, (
-                "Content should be substantial, not empty"
-            )
-            assert "fundamental principles" in output_context["agent_output"], (
-                "Event should contain actual refined content"
-            )
+            assert (
+                "agent_output" in output_context
+            ), "Agent-level event must include actual agent output"
+            assert (
+                output_context["agent_output"] == refined_content
+            ), "Event content must match agent output"
+            assert (
+                len(output_context["agent_output"]) > 50
+            ), "Content should be substantial, not empty"
+            assert (
+                "fundamental principles" in output_context["agent_output"]
+            ), "Event should contain actual refined content"
 
             # Verify content length is accurate
             expected_length = len(refined_content)
-            assert output_context["output_length"] == expected_length, (
-                f"Output length should be {expected_length}"
-            )
+            assert (
+                output_context["output_length"] == expected_length
+            ), f"Output length should be {expected_length}"
 
             # Verify token usage is included (from PATTERN 1 fix)
-            assert output_context["input_tokens"] == 120, (
-                "Input tokens should be from mock LLM"
-            )
-            assert output_context["output_tokens"] == 80, (
-                "Output tokens should be from mock LLM"
-            )
-            assert output_context["total_tokens"] == 200, (
-                "Total tokens should be from mock LLM"
-            )
+            assert (
+                output_context["input_tokens"] == 120
+            ), "Input tokens should be from mock LLM"
+            assert (
+                output_context["output_tokens"] == 80
+            ), "Output tokens should be from mock LLM"
+            assert (
+                output_context["total_tokens"] == 200
+            ), "Total tokens should be from mock LLM"
 
             # Verify other event metadata
             assert completion_event.agent_name == "refiner"
@@ -239,24 +239,24 @@ async def test_pattern2_critic_agent_content_integration() -> None:
             output_context = completion_event.output_context
 
             # Key assertions for PATTERN 2 fix
-            assert "agent_output" in output_context, (
-                "Critic agent-level event must include actual critique"
-            )
-            assert output_context["agent_output"] == critique_content, (
-                "Event critique must match agent output"
-            )
-            assert "well-structured" in output_context["agent_output"], (
-                "Event should contain actual critique content"
-            )
-            assert "comprehensive response" in output_context["agent_output"], (
-                "Event should contain full critique analysis"
-            )
+            assert (
+                "agent_output" in output_context
+            ), "Critic agent-level event must include actual critique"
+            assert (
+                output_context["agent_output"] == critique_content
+            ), "Event critique must match agent output"
+            assert (
+                "well-structured" in output_context["agent_output"]
+            ), "Event should contain actual critique content"
+            assert (
+                "comprehensive response" in output_context["agent_output"]
+            ), "Event should contain full critique analysis"
 
             # Verify content length matches
             expected_length = len(critique_content)
-            assert output_context["output_length"] == expected_length, (
-                f"Critic output length should be {expected_length}"
-            )
+            assert (
+                output_context["output_length"] == expected_length
+            ), f"Critic output length should be {expected_length}"
 
             # Verify event metadata
             assert completion_event.agent_name == "critic"
@@ -323,22 +323,22 @@ async def test_pattern2_content_truncation_for_large_outputs() -> None:
             output_context = completion_event.output_context
 
             # Content should be truncated to 1000 chars as per implementation
-            assert len(output_context["agent_output"]) <= 1000, (
-                "Event content should be truncated to 1000 chars max"
-            )
+            assert (
+                len(output_context["agent_output"]) <= 1000
+            ), "Event content should be truncated to 1000 chars max"
             assert output_context["agent_output"].startswith(
                 "This is a very long"
-            ) or output_context["agent_output"].startswith("Refined query:"), (
-                "Truncated content should start correctly"
-            )
+            ) or output_context["agent_output"].startswith(
+                "Refined query:"
+            ), "Truncated content should start correctly"
 
             # But output_length should reflect the actual full length
-            assert output_context["output_length"] == len(agent_content), (
-                "Output length should reflect full content size"
-            )
-            assert output_context["output_length"] > 1000, (
-                "Full content should be larger than truncated version"
-            )
+            assert output_context["output_length"] == len(
+                agent_content
+            ), "Output length should reflect full content size"
+            assert (
+                output_context["output_length"] > 1000
+            ), "Full content should be larger than truncated version"
 
 
 if __name__ == "__main__":

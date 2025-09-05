@@ -223,9 +223,9 @@ class TestCogniVaultErrorBase:
                 error_code=f"no_cb_{policy.value}",
                 retry_policy=policy,
             )
-            assert not error.should_use_circuit_breaker(), (
-                f"Policy {policy.value} should not use circuit breaker"
-            )
+            assert (
+                not error.should_use_circuit_breaker()
+            ), f"Policy {policy.value} should not use circuit breaker"
 
     def test_get_user_message_default(self) -> None:
         """Test default user-friendly error message."""

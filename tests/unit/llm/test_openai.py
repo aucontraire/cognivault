@@ -97,9 +97,9 @@ def test_generate_streaming(mock_openai_chat_completion: Any) -> None:
     llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
     result = llm.generate(prompt="Hi", stream=True)
     # Type narrowing: when stream=True, generate returns Iterator[str]
-    assert not isinstance(result, LLMResponse), (
-        "Stream mode should return Iterator[str]"
-    )
+    assert not isinstance(
+        result, LLMResponse
+    ), "Stream mode should return Iterator[str]"
     output = "".join(result)
 
     assert output == "Hello!"
@@ -162,9 +162,9 @@ def test_streaming_with_logging_hook(mock_openai_chat_completion: Any) -> None:
     llm = OpenAIChatLLM(api_key="test-key", model="gpt-4")
     result = llm.generate(prompt="Log stream", stream=True, on_log=log_hook)
     # Type narrowing: when stream=True, generate returns Iterator[str]
-    assert not isinstance(result, LLMResponse), (
-        "Stream mode should return Iterator[str]"
-    )
+    assert not isinstance(
+        result, LLMResponse
+    ), "Stream mode should return Iterator[str]"
     _ = "".join(result)
 
     assert any("[OpenAIChatLLM][streaming] Test" in log for log in logs)

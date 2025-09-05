@@ -277,6 +277,14 @@ class LangChainService:
                     f"Excluding temperature parameter for {model} (GPT-5 only supports default temperature=1)"
                 )
 
+            # CRITICAL FIX: GPT-5 models require max_completion_tokens instead of max_tokens
+            # Transform parameter for GPT-5 models to avoid "Unsupported parameter" errors
+            if "max_tokens" in kwargs and "gpt-5" in model_lower:
+                kwargs["max_completion_tokens"] = kwargs.pop("max_tokens")
+                self.logger.info(
+                    f"Transformed max_tokens → max_completion_tokens for {model} (GPT-5 parameter requirement)"
+                )
+
             # CRITICAL FIX: Removing output_version for now as it breaks the endpoint
             # The native OpenAI parse() method will handle GPT-5 structured outputs
             # if "gpt-5" in model_lower:
@@ -307,6 +315,14 @@ class LangChainService:
             else:
                 self.logger.info(
                     f"Excluding temperature parameter for {model} (GPT-5 only supports default temperature=1)"
+                )
+
+            # CRITICAL FIX: GPT-5 models require max_completion_tokens instead of max_tokens
+            # Transform parameter for GPT-5 models to avoid "Unsupported parameter" errors
+            if "max_tokens" in openai_kwargs and "gpt-5" in model_lower:
+                openai_kwargs["max_completion_tokens"] = openai_kwargs.pop("max_tokens")
+                self.logger.info(
+                    f"Transformed max_tokens → max_completion_tokens for {model} (GPT-5 parameter requirement)"
                 )
 
             # CRITICAL FIX: Removing output_version for now as it breaks the endpoint
@@ -439,10 +455,10 @@ class LangChainService:
                 return result["parsed"] if isinstance(result, dict) else result
 
             except Exception as e:
-                error_context = getattr(e, 'context', {})
-                error_type = error_context.get('error_type', 'unknown')
-                fallback_recommended = error_context.get('fallback_recommended', True)
-                
+                error_context = getattr(e, "context", {})
+                error_type = error_context.get("error_type", "unknown")
+                fallback_recommended = error_context.get("fallback_recommended", True)
+
                 self.logger.warning(
                     f"Native structured output attempt {attempt + 1} failed",
                     error=str(e),
@@ -452,13 +468,17 @@ class LangChainService:
                 )
 
                 # Smart fallback decision based on error type
-                if error_type == 'quota_exceeded':
+                if error_type == "quota_exceeded":
                     # Don't retry on quota errors - fail fast
-                    self.logger.error("API quota exceeded - failing immediately without retries")
+                    self.logger.error(
+                        "API quota exceeded - failing immediately without retries"
+                    )
                     raise e
-                elif error_type == 'schema_validation':
+                elif error_type == "schema_validation":
                     # Schema errors won't be fixed by retries, skip to fallback
-                    self.logger.info("Schema validation error detected - skipping retries, going to fallback parser")
+                    self.logger.info(
+                        "Schema validation error detected - skipping retries, going to fallback parser"
+                    )
                     break
                 elif not fallback_recommended:
                     # Error analysis suggests fallback won't help
@@ -536,13 +556,14 @@ class LangChainService:
             start_time: Start time for timeout budget calculation
         """
         import time
-        
+
         if start_time is None:
             start_time = time.time()
 
-        # CRITICAL FIX: Use native OpenAI parse() for GPT-5 models
-        # User has proven this works, while LangChain's with_structured_output breaks
-        if "gpt-5" in self.model_name.lower():
+        # CRITICAL FIX: OpenAI beta.chat.completions.parse has bugs returning None
+        # Testing shows LangChain's json_schema method works reliably for GPT-5
+        # Skip the buggy native parse API and use proven LangChain implementation
+        if False and "gpt-5" in self.model_name.lower():  # Disabled - beta API is buggy
             try:
                 return await self._try_native_openai_parse(
                     messages, output_class, include_raw
@@ -588,13 +609,13 @@ class LangChainService:
                     # Calculate remaining time budget based on total elapsed time
                     current_time = time.time()
                     elapsed_time = current_time - start_time
-                    
+
                     # Reserve time for fallback parser (5s) and buffer (2s)
                     reserved_time = 7.0
                     max_agent_timeout = 30.0  # Agent timeout constraint
-                    
+
                     remaining_budget = max_agent_timeout - elapsed_time - reserved_time
-                    
+
                     # Calculate optimal timeout for this attempt
                     if remaining_budget <= 0:
                         # Out of time budget, skip to fallback immediately
@@ -602,14 +623,14 @@ class LangChainService:
                             f"Time budget exhausted ({elapsed_time:.1f}s elapsed), skipping to fallback"
                         )
                         raise asyncio.TimeoutError("Time budget exhausted")
-                    
+
                     # Progressive timeout with budget constraints
                     base_timeouts = [8.0, 6.0, 4.0]  # Reduced base timeouts
                     attempt_timeout = min(
                         base_timeouts[min(attempt, len(base_timeouts) - 1)],
-                        remaining_budget
+                        remaining_budget,
                     )
-                    
+
                     self.logger.debug(
                         f"Attempt {attempt + 1}: {attempt_timeout:.1f}s timeout "
                         f"(elapsed: {elapsed_time:.1f}s, budget: {remaining_budget:.1f}s)"
@@ -760,7 +781,7 @@ class LangChainService:
 
         except Exception as e:
             error_message = str(e).lower()
-            
+
             # Enhanced error classification for better fallback decisions
             is_schema_error = any(
                 phrase in error_message
@@ -770,39 +791,41 @@ class LangChainService:
                     "missing",
                     "additional keywords",
                     "$ref",
-                    "additionalproperties"
+                    "additionalproperties",
                 ]
             )
-            
+
             is_quota_error = any(
                 phrase in error_message
                 for phrase in [
                     "quota exceeded",
                     "rate limit",
                     "insufficient credits",
-                    "billing"
+                    "billing",
                 ]
             )
-            
+
             is_timeout_error = any(
                 phrase in error_message
-                for phrase in [
-                    "timeout",
-                    "connection",
-                    "network"
-                ]
+                for phrase in ["timeout", "connection", "network"]
             )
-            
+
             # Log different error types with appropriate levels
             if is_quota_error:
-                self.logger.error(f"OpenAI quota/billing error for {self.model_name}: {e}")
+                self.logger.error(
+                    f"OpenAI quota/billing error for {self.model_name}: {e}"
+                )
             elif is_schema_error:
-                self.logger.warning(f"OpenAI schema validation error for {self.model_name}: {e}")
+                self.logger.warning(
+                    f"OpenAI schema validation error for {self.model_name}: {e}"
+                )
             elif is_timeout_error:
                 self.logger.warning(f"OpenAI timeout error for {self.model_name}: {e}")
             else:
-                self.logger.error(f"Native OpenAI parse failed for {self.model_name}: {e}")
-            
+                self.logger.error(
+                    f"Native OpenAI parse failed for {self.model_name}: {e}"
+                )
+
             # Provide context-aware error information for fallback decisions
             raise LLMError(
                 message=f"Native OpenAI parse failed for {self.model_name}",
@@ -812,10 +835,13 @@ class LangChainService:
                     "model": self.model_name,
                     "method": "native_parse",
                     "error_type": (
-                        "schema_validation" if is_schema_error
-                        else "quota_exceeded" if is_quota_error
-                        else "timeout" if is_timeout_error
-                        else "unknown"
+                        "schema_validation"
+                        if is_schema_error
+                        else (
+                            "quota_exceeded"
+                            if is_quota_error
+                            else "timeout" if is_timeout_error else "unknown"
+                        )
                     ),
                     "fallback_recommended": not is_quota_error,  # Don't fallback on quota errors
                     "schema_fix_needed": is_schema_error,
@@ -828,13 +854,13 @@ class LangChainService:
         """
         Prepare Pydantic model schema for OpenAI's structured output API.
 
-        CORRECTED REQUIREMENTS based on OpenAI research and community feedback:
-        1. Fields with defaults (default_factory) should NOT be in required array
-        2. Optional[T] fields should NOT be in required array and should be Union[T, null]
-        3. Only fields without defaults and not Optional should be in required array
+        CORRECTED REQUIREMENTS based on OpenAI beta.parse API testing:
+        1. ALL properties MUST be in required array (OpenAI requirement)
+        2. Optional/default fields should use anyOf with null type for nullable values
+        3. Dict fields need explicit additionalProperties: false in all definitions
         4. $ref fields CANNOT have additional keywords like 'description'
-        5. additionalProperties must be explicitly set to false
-        6. Remove unsupported constraints (maxLength, minLength, format)
+        5. All unsupported constraints must be removed (maxLength, minLength, format, etc.)
+        6. Nested models need same treatment as root model
 
         Args:
             model_class: The Pydantic model class to generate schema for
@@ -844,10 +870,10 @@ class LangChainService:
         """
         import copy
         from typing import get_origin, get_args
-        
+
         # Generate the standard Pydantic JSON schema
         schema = model_class.model_json_schema()
-        
+
         # Create a deep copy to avoid modifying the original
         fixed_schema = copy.deepcopy(schema)
 
@@ -856,51 +882,70 @@ class LangChainService:
 
         # Get model fields to understand which are actually required
         model_fields = model_class.model_fields
-        
+
         # Based on OpenAI error: "required is required to be supplied and to be an array including every key in properties"
         # OpenAI requires ALL properties to be in required array, but optional fields should be nullable
         actual_required = list(fixed_schema["properties"].keys())
-        
+
         for field_name, field_info in model_fields.items():
             # Import PydanticUndefined for correct detection
             from pydantic_core import PydanticUndefined
-            
+
             # Check if field has a default value or default_factory
             # In Pydantic v2, PydanticUndefined means "no default value"
             has_default_value = field_info.default is not PydanticUndefined
             has_default_factory = field_info.default_factory is not None
             has_any_default = has_default_value or has_default_factory
-            
+
             # Check if field is Optional (Union with None)
-            is_optional = (
-                get_origin(field_info.annotation) is Union and 
-                type(None) in get_args(field_info.annotation)
-            )
-            
+            is_optional = get_origin(field_info.annotation) is Union and type(
+                None
+            ) in get_args(field_info.annotation)
+
             # For fields with defaults or Optional fields, ensure proper schema setup
             if field_name in fixed_schema["properties"]:
                 prop_def = fixed_schema["properties"][field_name]
-                
+
                 # For fields with defaults or Optional fields, make them nullable in schema
                 if (has_any_default or is_optional) and isinstance(prop_def, dict):
-                    if "type" in prop_def and not isinstance(prop_def.get("anyOf"), list):
+                    if "type" in prop_def and not isinstance(
+                        prop_def.get("anyOf"), list
+                    ):
                         # Convert to union type with null to indicate it can accept null values
                         original_type = prop_def.copy()
                         # DON'T remove the type - OpenAI requires it
                         # Clean unsupported constraints from the original type
-                        unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                        unsupported_keys = [
+                            "maxLength",
+                            "minLength",
+                            "format",
+                            "pattern",
+                            "maxItems",
+                            "minItems",
+                            "maximum",
+                            "minimum",
+                        ]
                         for key in unsupported_keys:
                             original_type.pop(key, None)
                         prop_def.clear()
                         prop_def["anyOf"] = [original_type, {"type": "null"}]
-                
+
                 # Clean up unsupported constraints
                 if isinstance(prop_def, dict):
                     # Remove constraints that OpenAI doesn't support
-                    unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                    unsupported_keys = [
+                        "maxLength",
+                        "minLength",
+                        "format",
+                        "pattern",
+                        "maxItems",
+                        "minItems",
+                        "maximum",
+                        "minimum",
+                    ]
                     for key in unsupported_keys:
                         prop_def.pop(key, None)
-                        
+
                 self.logger.debug(
                     f"Field {field_name}: has_any_default={has_any_default}, is_optional={is_optional}, "
                     f"in_required=yes (all fields required by OpenAI), nullable={'yes' if (has_any_default or is_optional) else 'no'}"
@@ -908,7 +953,7 @@ class LangChainService:
 
         # Set ALL properties as required (OpenAI requirement)
         fixed_schema["required"] = actual_required
-        
+
         self.logger.info(
             f"OpenAI schema correction for {model_class.__name__}: "
             f"{len(actual_required)} required fields (all properties): {actual_required}"
@@ -930,41 +975,88 @@ class LangChainService:
         # CRITICAL FIX: Apply same ALL-fields-required rule to nested models
         if "$defs" in fixed_schema:
             for def_name, def_schema in fixed_schema["$defs"].items():
-                if "properties" in def_schema and isinstance(def_schema["properties"], dict):
+                if "properties" in def_schema and isinstance(
+                    def_schema["properties"], dict
+                ):
                     # Apply the same ALL-properties-required rule to nested models
                     nested_properties = def_schema["properties"]
                     nested_required = list(nested_properties.keys())
                     def_schema["required"] = nested_required
                     def_schema["additionalProperties"] = False
                     
+                    # CRITICAL FIX: Dict fields need special handling
+                    # If this is a dict-type field, ensure it has proper schema structure
+                    if def_schema.get("type") == "object" and not nested_properties:
+                        # Empty object schema - this is likely a Dict field
+                        def_schema["additionalProperties"] = False
+                        # Don't require any fields for generic Dict types
+                        def_schema["required"] = []
+
                     # Handle nullable fields in nested models too
                     for nested_prop_name, nested_prop_def in nested_properties.items():
                         if isinstance(nested_prop_def, dict):
                             # Check if this is an Optional field (anyOf with null)
-                            is_nullable = isinstance(nested_prop_def.get("anyOf"), list) and any(
-                                item.get("type") == "null" for item in nested_prop_def.get("anyOf", [])
+                            is_nullable = isinstance(
+                                nested_prop_def.get("anyOf"), list
+                            ) and any(
+                                item.get("type") == "null"
+                                for item in nested_prop_def.get("anyOf", [])
                             )
-                            
+
                             # For Optional fields that aren't already nullable, make them nullable
                             if not is_nullable and "type" in nested_prop_def:
                                 # Check if this looks like an Optional field (has default: null)
                                 if nested_prop_def.get("default") is None:
                                     original_type = nested_prop_def.copy()
-                                    original_type.pop("default", None)  # Remove default from type definition
+                                    original_type.pop(
+                                        "default", None
+                                    )  # Remove default from type definition
                                     # DON'T remove the type - OpenAI requires it
                                     # Clean unsupported constraints from the original type
-                                    unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                                    unsupported_keys = [
+                                        "maxLength",
+                                        "minLength",
+                                        "format",
+                                        "pattern",
+                                        "maxItems",
+                                        "minItems",
+                                        "maximum",
+                                        "minimum",
+                                    ]
                                     for key in unsupported_keys:
                                         original_type.pop(key, None)
                                     nested_prop_def.clear()
-                                    nested_prop_def["anyOf"] = [original_type, {"type": "null"}]
-                                    nested_prop_def["default"] = None  # Preserve default at top level
-                            
+                                    nested_prop_def["anyOf"] = [
+                                        original_type,
+                                        {"type": "null"},
+                                    ]
+                                    nested_prop_def["default"] = (
+                                        None  # Preserve default at top level
+                                    )
+
                             # Clean unsupported constraints
-                            unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                            unsupported_keys = [
+                                "maxLength",
+                                "minLength",
+                                "format",
+                                "pattern",
+                                "maxItems",
+                                "minItems",
+                                "maximum",
+                                "minimum",
+                            ]
                             for key in unsupported_keys:
                                 nested_prop_def.pop(key, None)
-                    
+                                
+                            # CRITICAL FIX: Handle Dict fields in nested models
+                            # If this is a dict field (type: object with additionalProperties)
+                            if (
+                                nested_prop_def.get("type") == "object" 
+                                and "properties" not in nested_prop_def
+                            ):
+                                # This is a Dict field - ensure additionalProperties is explicitly false
+                                nested_prop_def["additionalProperties"] = False
+
                     self.logger.debug(
                         f"Fixed nested model {def_name}: {len(nested_required)} required fields (all properties): {nested_required}"
                     )
@@ -979,16 +1071,38 @@ class LangChainService:
                 else:
                     # Clean unsupported constraints and recursively process
                     cleaned = {}
-                    unsupported_keys = ["maxLength", "minLength", "format", "pattern", "maxItems", "minItems", "maximum", "minimum"]
+                    unsupported_keys = [
+                        "maxLength",
+                        "minLength",
+                        "format",
+                        "pattern",
+                        "maxItems",
+                        "minItems",
+                        "maximum",
+                        "minimum",
+                    ]
                     for k, v in obj.items():
                         if k not in unsupported_keys:
                             cleaned[k] = clean_refs_recursive(v)
+                    
+                    # CRITICAL FIX: Ensure all object types have additionalProperties: false
+                    if cleaned.get("type") == "object" and "additionalProperties" not in cleaned:
+                        cleaned["additionalProperties"] = False
+                    
+                    # CRITICAL FIX: For Dict-like objects without properties, still need additionalProperties: false
+                    if (
+                        cleaned.get("type") == "object" 
+                        and "properties" not in cleaned
+                        and "$ref" not in cleaned
+                    ):
+                        cleaned["additionalProperties"] = False
+                        
                     return cleaned
             elif isinstance(obj, list):
                 return [clean_refs_recursive(item) for item in obj]
             else:
                 return obj
-        
+
         # Apply recursive cleaning
         fixed_schema = clean_refs_recursive(fixed_schema)
 

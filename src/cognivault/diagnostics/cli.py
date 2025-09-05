@@ -491,9 +491,7 @@ class DiagnosticsCLI:
         status_icon = (
             "✅"
             if overall_status == "healthy"
-            else "⚠️"
-            if overall_status == "degraded"
-            else "❌"
+            else "⚠️" if overall_status == "degraded" else "❌"
         )
         self.console.print(
             f"Overall Status: {status_icon} [{status_color}]{overall_status.upper()}[/{status_color}]"

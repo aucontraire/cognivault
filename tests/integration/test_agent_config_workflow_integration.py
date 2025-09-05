@@ -339,9 +339,9 @@ class TestAgentConfigWorkflowIntegration:
             if config_name in configs:
                 config = configs[config_name]
                 if hasattr(config, "behavioral_config"):
-                    assert len(config.behavioral_config.custom_constraints) > 0, (
-                        f"{config_name} should have custom constraints"
-                    )
+                    assert (
+                        len(config.behavioral_config.custom_constraints) > 0
+                    ), f"{config_name} should have custom constraints"
 
     def test_workflow_flow_definition_with_configurations(
         self, workflow_definition: WorkflowDefinition

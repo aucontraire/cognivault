@@ -884,9 +884,9 @@ Focus on the content synthesis only - do not describe your analysis process."""
             # Store structured output in execution_state for future use
             if "structured_outputs" not in context.execution_state:
                 context.execution_state["structured_outputs"] = {}
-            context.execution_state["structured_outputs"][self.name] = (
-                structured_result.model_dump()
-            )
+            context.execution_state["structured_outputs"][
+                self.name
+            ] = structured_result.model_dump()
 
             # Update context with retrieved notes (backward compatibility)
             context.retrieved_notes = [result.filepath for result in filtered_results]

@@ -161,14 +161,14 @@ def assert_execution_success(
     assert results.total_agents_executed > 0, "Should execute at least one agent"
 
     if expected_agents is not None:
-        assert results.total_agents_executed == expected_agents, (
-            f"Expected {expected_agents} agents executed"
-        )
+        assert (
+            results.total_agents_executed == expected_agents
+        ), f"Expected {expected_agents} agents executed"
 
     if min_successful is not None:
-        assert results.successful_agents >= min_successful, (
-            f"Expected at least {min_successful} successful agents"
-        )
+        assert (
+            results.successful_agents >= min_successful
+        ), f"Expected at least {min_successful} successful agents"
 
     # Check pipeline stages
     assert len(results.pipeline_stages) > 0, "Should have pipeline stages"
@@ -181,9 +181,9 @@ def assert_execution_success(
         ExecutionPhase.EXECUTION,
         ExecutionPhase.CLEANUP,
     }
-    assert phases_executed == expected_phases, (
-        f"Missing phases: {expected_phases - phases_executed}"
-    )
+    assert (
+        phases_executed == expected_phases
+    ), f"Missing phases: {expected_phases - phases_executed}"
 
 
 def assert_execution_failure(
@@ -194,9 +194,9 @@ def assert_execution_failure(
     assert results.failed_agents > 0, "Should have at least one failure"
 
     if expected_failures is not None:
-        assert results.failed_agents == expected_failures, (
-            f"Expected {expected_failures} failures"
-        )
+        assert (
+            results.failed_agents == expected_failures
+        ), f"Expected {expected_failures} failures"
 
     if recovery_actions:
         assert len(results.failure_recovery_actions) > 0, "Should have recovery actions"
@@ -209,9 +209,9 @@ def assert_specific_agents_executed(results: Any, agent_names: Any) -> None:
         executed_agents.update(stage.agents_executed)
 
     for agent_name in agent_names:
-        assert agent_name in executed_agents, (
-            f"Agent {agent_name} should have been executed"
-        )
+        assert (
+            agent_name in executed_agents
+        ), f"Agent {agent_name} should have been executed"
 
 
 def get_executed_agents(results: Any) -> Any:

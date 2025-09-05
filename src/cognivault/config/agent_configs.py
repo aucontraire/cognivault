@@ -89,7 +89,7 @@ class AgentExecutionConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
     timeout_seconds: int = Field(
-        30, ge=1, le=300, description="Maximum execution time in seconds"
+        60, ge=1, le=300, description="Maximum execution time in seconds"
     )
     max_retries: int = Field(
         3, ge=0, le=10, description="Maximum retry attempts on failure"
@@ -259,7 +259,7 @@ class HistorianConfig(BaseModel):
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
     execution_config: AgentExecutionConfig = Field(
-        default_factory=lambda: AgentExecutionConfig(timeout_seconds=45)
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=90)
     )
 
     @classmethod
@@ -337,7 +337,7 @@ class SynthesisConfig(BaseModel):
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
     execution_config: AgentExecutionConfig = Field(
-        default_factory=lambda: AgentExecutionConfig(timeout_seconds=45)
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=90)
     )
 
     @classmethod

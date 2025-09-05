@@ -804,6 +804,6 @@ class TestIntegration:
 
         for error, expected_type in test_cases:
             result = failure_manager._classify_failure(error)
-            assert result == expected_type, (
-                f"Failed for {error}: expected {expected_type}, got {result}"
-            )
+            assert (
+                result == expected_type
+            ), f"Failed for {error}: expected {expected_type}, got {result}"

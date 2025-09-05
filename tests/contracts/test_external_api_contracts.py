@@ -52,9 +52,9 @@ class TestOrchestrationAPIContract:
         }
 
         for method_name in expected_methods:
-            assert hasattr(OrchestrationAPI, method_name), (
-                f"OrchestrationAPI missing method {method_name}"
-            )
+            assert hasattr(
+                OrchestrationAPI, method_name
+            ), f"OrchestrationAPI missing method {method_name}"
 
     def test_real_implementation_complete(self) -> None:
         """Test that LangGraphOrchestrationAPI implements all required methods."""
@@ -82,9 +82,9 @@ class TestOrchestrationAPIContract:
 
             # Check that method doesn't just raise NotImplementedError
             source = inspect.getsource(method)
-            assert "raise NotImplementedError" not in source, (
-                f"{method_name} still raises NotImplementedError"
-            )
+            assert (
+                "raise NotImplementedError" not in source
+            ), f"{method_name} still raises NotImplementedError"
 
     def test_mock_implementation_complete(self) -> None:
         """Test that MockOrchestrationAPI implements all required methods."""
@@ -110,9 +110,9 @@ class TestOrchestrationAPIContract:
 
             # Mock methods should not just raise NotImplementedError
             source = inspect.getsource(method)
-            assert "raise NotImplementedError" not in source, (
-                f"Mock {method_name} still raises NotImplementedError"
-            )
+            assert (
+                "raise NotImplementedError" not in source
+            ), f"Mock {method_name} still raises NotImplementedError"
 
         # These methods should exist and be callable (may have basic implementations)
         basic_methods = ["get_workflow_history", "get_status_by_correlation_id"]
@@ -132,9 +132,9 @@ class TestOrchestrationAPIContract:
 
             # Should have return type annotation (unless it's a property)
             if not name.startswith("@"):
-                assert "return" in hints, (
-                    f"Method {name} missing return type annotation"
-                )
+                assert (
+                    "return" in hints
+                ), f"Method {name} missing return type annotation"
 
 
 class TestLLMGatewayAPIContract:
@@ -264,9 +264,9 @@ class TestLLMGatewayAPIContract:
                 pass  # Skip modules that can't be imported
 
         # Should be empty until we implement the gateway
-        assert len(gateway_subclasses) == 0, (
-            f"Found unexpected LLMGatewayAPI implementations: {gateway_subclasses}"
-        )
+        assert (
+            len(gateway_subclasses) == 0
+        ), f"Found unexpected LLMGatewayAPI implementations: {gateway_subclasses}"
 
 
 class TestAPIContractConsistency:
