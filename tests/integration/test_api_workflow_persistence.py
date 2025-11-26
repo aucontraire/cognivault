@@ -95,9 +95,9 @@ async def test_workflow_persistence_end_to_end_success(
                         persisted_question = q
                         break
 
-                assert (
-                    persisted_question is not None
-                ), "Workflow was not persisted to database"
+                assert persisted_question is not None, (
+                    "Workflow was not persisted to database"
+                )
 
                 # Verify database record structure
                 assert (
@@ -201,9 +201,9 @@ async def test_failed_workflow_persistence_end_to_end(
                         persisted_question = q
                         break
 
-                assert (
-                    persisted_question is not None
-                ), "Failed workflow was not persisted to database"
+                assert persisted_question is not None, (
+                    "Failed workflow was not persisted to database"
+                )
 
                 # Verify failed workflow metadata
                 metadata = persisted_question.execution_metadata
@@ -286,9 +286,9 @@ async def test_workflow_history_database_integration(
             # Verify our executed workflows are in the history
             history_workflow_ids = {item["workflow_id"] for item in history}
             for request, response in executed_workflows:
-                assert (
-                    response.workflow_id in history_workflow_ids
-                ), f"Workflow {response.workflow_id} not found in history"
+                assert response.workflow_id in history_workflow_ids, (
+                    f"Workflow {response.workflow_id} not found in history"
+                )
 
             # Verify history item structure
             for history_item in history[:3]:  # Check first 3 items
@@ -327,9 +327,9 @@ async def test_workflow_history_database_integration(
             if len(history_page1) == 2 and len(history_page2) > 0:
                 page1_ids = {item["workflow_id"] for item in history_page1}
                 page2_ids = {item["workflow_id"] for item in history_page2}
-                assert (
-                    len(page1_ids.intersection(page2_ids)) == 0
-                ), "Pages should not overlap"
+                assert len(page1_ids.intersection(page2_ids)) == 0, (
+                    "Pages should not overlap"
+                )
 
     finally:
         api._session_factory = original_session_factory
@@ -579,9 +579,9 @@ async def test_complex_execution_metadata_structure(
                     "orchestrator_type",
                 ]
                 for field in required_fields:
-                    assert (
-                        field in metadata
-                    ), f"Required field {field} missing from metadata"
+                    assert field in metadata, (
+                        f"Required field {field} missing from metadata"
+                    )
 
                 # Verify complex agent outputs preserved
                 stored_outputs = metadata["agent_outputs"]

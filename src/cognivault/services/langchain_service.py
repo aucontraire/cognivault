@@ -560,17 +560,20 @@ class LangChainService:
         if start_time is None:
             start_time = time.time()
 
-        # CRITICAL FIX: OpenAI beta.chat.completions.parse has bugs returning None
-        # Testing shows LangChain's json_schema method works reliably for GPT-5
-        # Skip the buggy native parse API and use proven LangChain implementation
-        if False and "gpt-5" in self.model_name.lower():  # Disabled - beta API is buggy
+        # TESTING: Re-enabling native OpenAI parse to check if bugs are fixed
+        # Previous issue: beta.chat.completions.parse was returning None
+        # Testing if OpenAI has fixed these bugs as of Nov 2025
+        if "gpt-5" in self.model_name.lower():  # Re-enabled for testing
             try:
+                self.logger.info(
+                    f"[NATIVE PARSE TEST] Attempting native OpenAI parse for {self.model_name}"
+                )
                 return await self._try_native_openai_parse(
                     messages, output_class, include_raw
                 )
             except Exception as e:
                 self.logger.warning(
-                    f"Native OpenAI parse failed for GPT-5: {e}, trying LangChain"
+                    f"[NATIVE PARSE TEST] Native OpenAI parse failed for GPT-5: {e}, falling back to LangChain"
                 )
                 # Fall through to LangChain attempt
 
@@ -599,11 +602,59 @@ class LangChainService:
 
                 # Add timeout protection to prevent hanging
                 try:
-                    structured_llm = self.llm.with_structured_output(
-                        output_class,
-                        method=method_attempt,
-                        include_raw=include_raw,
+                    # CRITICAL FIX: Use schema transformation for GPT-5 strict mode
+                    # GPT-5 requires ALL properties in required array (strict mode)
+                    use_schema_transformation = (
+                        "gpt-5" in self.model_name.lower()
+                        and method_attempt == "json_schema"
                     )
+
+                    if use_schema_transformation:
+                        # Transform schema for OpenAI strict mode compatibility
+                        openai_schema = self._prepare_schema_for_openai(output_class)
+
+                        # DEBUGGING: Log the transformed schema
+                        schema_preview = {
+                            "title": openai_schema.get("title", "N/A"),
+                            "type": openai_schema.get("type", "N/A"),
+                            "properties_count": len(
+                                openai_schema.get("properties", {})
+                            ),
+                            "required_count": len(openai_schema.get("required", [])),
+                            "has_defs": "$defs" in openai_schema,
+                        }
+                        self.logger.info(
+                            f"[SCHEMA DEBUG] Transformed schema for {output_class.__name__}: {schema_preview}"
+                        )
+
+                        # CRITICAL FIX: Wrap schema with name for OpenAI API
+                        # OpenAI requires: {"type": "json_schema", "json_schema": {"name": "...", "schema": {...}, "strict": true}}
+                        # But LangChain's with_structured_output() expects just the schema
+                        # Try adding title to help LangChain identify the schema
+                        if "title" not in openai_schema:
+                            openai_schema["title"] = output_class.__name__
+                            self.logger.info(
+                                f"[SCHEMA DEBUG] Added title '{output_class.__name__}' to schema"
+                            )
+
+                        self.logger.info(
+                            f"[SCHEMA DEBUG] Calling with_structured_output(schema=dict, method={method_attempt})"
+                        )
+                        structured_llm = self.llm.with_structured_output(
+                            schema=openai_schema,
+                            method=method_attempt,
+                            include_raw=include_raw,
+                        )
+                        self.logger.info(
+                            f"[SCHEMA DEBUG] with_structured_output() created, about to invoke..."
+                        )
+                    else:
+                        # Use standard Pydantic class for non-GPT-5 models
+                        structured_llm = self.llm.with_structured_output(
+                            output_class,
+                            method=method_attempt,
+                            include_raw=include_raw,
+                        )
 
                     # Dynamic timeout calculation to prevent cascade failures
                     # Calculate remaining time budget based on total elapsed time
@@ -646,7 +697,21 @@ class LangChainService:
                         f"Structured output succeeded with method={method_attempt} for {self.model_name}"
                     )
 
-                    # No additional processing needed - LangChain handles defaults properly
+                    # CRITICAL FIX: Convert dict to Pydantic when using schema transformation
+                    # LangChain returns plain dict when given schema dict instead of class
+                    if use_schema_transformation and isinstance(result, dict):
+                        # Handle include_raw case where result is {"parsed": ..., "raw": ...}
+                        if "parsed" in result and isinstance(result["parsed"], dict):
+                            result["parsed"] = output_class(**result["parsed"])
+                            self.logger.debug(
+                                f"Converted schema dict result to {output_class.__name__} (include_raw=True)"
+                            )
+                        else:
+                            # Plain dict result, convert to Pydantic
+                            result = output_class(**result)
+                            self.logger.debug(
+                                f"Converted schema dict result to {output_class.__name__}"
+                            )
 
                     return cast(Union[T, Dict[str, Any]], result)
 
@@ -722,11 +787,17 @@ class LangChainService:
                 self.logger.warning(f"Unknown message role: {role}")
 
         try:
-            # Prepare OpenAI-compatible schema
+            # CORRECTED FIX: Use stable create() API with MANUAL schema transformation
+            # Why: OpenAI SDK's automatic Pydantic->schema conversion has bugs with Dict fields (Issue #2004)
+            # Solution: Use our manually-fixed schema transformation with create() API + manual parsing
+            # CRITICAL: .parse() API only accepts Pydantic classes directly, NOT manual schema dicts!
+            #           .create() API accepts manual schema dicts and returns JSON string
+
+            # Prepare OpenAI-compatible schema with Dict field fix (PR #2003)
             openai_schema = self._prepare_schema_for_openai(output_class)
 
-            # Build kwargs for parse call with transformed schema
-            parse_kwargs: Dict[str, Any] = {
+            # Build kwargs for create call with manual schema
+            create_kwargs: Dict[str, Any] = {
                 "model": self.model_name,
                 "messages": openai_messages,
                 "response_format": {
@@ -734,7 +805,7 @@ class LangChainService:
                     "json_schema": {
                         "name": output_class.__name__,
                         "schema": openai_schema,
-                        "strict": True,  # Enable strict mode for deterministic output
+                        "strict": True,
                     },
                 },
             }
@@ -742,39 +813,94 @@ class LangChainService:
             # CRITICAL FIX: GPT-5 models only support temperature=1 (default)
             # Exclude temperature parameter for GPT-5 to avoid API constraint errors
             if "gpt-5" not in self.model_name.lower():
-                parse_kwargs["temperature"] = self.temperature
+                create_kwargs["temperature"] = self.temperature
             else:
                 self.logger.info(
-                    f"Excluding temperature from native parse for {self.model_name} (GPT-5 only supports default temperature=1)"
+                    f"Excluding temperature from native create for {self.model_name} (GPT-5 only supports default temperature=1)"
                 )
 
-            # Use OpenAI's beta parse API for structured outputs
-            completion = await client.beta.chat.completions.parse(**parse_kwargs)
+            self.logger.info(
+                f"[STABLE CREATE API] Using stable create() with manual schema for {self.model_name}"
+            )
 
-            # Extract parsed result
-            parsed_result = completion.choices[0].message.parsed
+            # Use stable create() API (NOT parse) with our fixed schema
+            completion = await client.chat.completions.create(**create_kwargs)
 
-            if parsed_result is None:
+            # Check for refusals (safety-based model refusals)
+            if completion.choices[0].message.refusal:
                 raise LLMError(
-                    message=f"Native OpenAI parse returned None for {self.model_name}",
+                    message=f"Model refused request: {completion.choices[0].message.refusal}",
                     llm_provider="openai",
-                    context={"model": self.model_name},
+                    context={
+                        "model": self.model_name,
+                        "refusal": completion.choices[0].message.refusal,
+                    },
                 )
 
-            # Parse the result back into the Pydantic model
-            # Since we forced all fields to be required, OpenAI will always return them
-            # The model's default values will handle the semantic optionality
-            if not isinstance(parsed_result, output_class):
-                # If OpenAI returns a dict, instantiate the Pydantic model
-                if isinstance(parsed_result, dict):
-                    parsed_result = output_class(**parsed_result)
-                else:
-                    # Already a proper instance from the beta.parse API
-                    pass
+            # Extract raw JSON content
+            raw_content = completion.choices[0].message.content
+
+            if not raw_content:
+                raise LLMError(
+                    message=f"Stable create() returned empty content for {self.model_name}",
+                    llm_provider="openai",
+                    context={
+                        "model": self.model_name,
+                        "method": "stable_create_manual_schema",
+                    },
+                )
+
+            # Parse JSON manually
+            response_dict = json.loads(raw_content)
+
+            # === PHASE 1 MEASUREMENT LOGGING - NO BEHAVIOR CHANGES ===
+            self.logger.info(f"[BASELINE] Parsing {output_class.__name__} from OpenAI")
+
+            # Priority 1: Length constraint violations
+            LENGTH_CONSTRAINED_FIELDS = {
+                "alternate_framings": 150,  # per item
+                "critique_summary": 300,
+                "logical_gaps": 150,  # per item
+                "changes_made": 100,  # per item
+                "assumptions": 150,  # per item
+                "biases": 150,  # per item
+            }
+
+            for field_name, max_length in LENGTH_CONSTRAINED_FIELDS.items():
+                if field_name in response_dict:
+                    value = response_dict[field_name]
+                    if isinstance(value, str):
+                        actual_length = len(value)
+                        violation = actual_length > max_length
+                        self.logger.info(
+                            f"[LENGTH] {field_name}: {actual_length} chars "
+                            f"(limit: {max_length}) {'❌ VIOLATION' if violation else '✅ OK'}"
+                        )
+                    elif isinstance(value, list):
+                        self.logger.info(f"[LENGTH] {field_name}: {len(value)} items")
+                        for i, item in enumerate(value):
+                            if isinstance(item, str):
+                                actual_length = len(item)
+                                violation = actual_length > max_length
+                                self.logger.info(
+                                    f"[LENGTH]   [{i}]: {actual_length} chars "
+                                    f"(limit: {max_length}) {'❌ VIOLATION' if violation else '✅ OK'}"
+                                )
+
+            # Priority 2: None values for required fields
+            for field_name, field_value in response_dict.items():
+                if field_value is None:
+                    self.logger.warning(f"[NONE] Field '{field_name}' returned as None")
+
+            # Validate and instantiate Pydantic model manually
+            parsed_result = output_class(**response_dict)
+
+            self.logger.info(
+                f"[STABLE CREATE API] Successfully parsed {output_class.__name__} for {self.model_name}"
+            )
 
             if include_raw:
                 # Return with raw content for debugging
-                raw_content = completion.choices[0].message.content
                 return {"parsed": parsed_result, "raw": raw_content}
 
             return cast(T, parsed_result)
@@ -840,7 +966,9 @@ class LangChainService:
                         else (
                             "quota_exceeded"
                             if is_quota_error
-                            else "timeout" if is_timeout_error else "unknown"
+                            else "timeout"
+                            if is_timeout_error
+                            else "unknown"
                         )
                     ),
                     "fallback_recommended": not is_quota_error,  # Don't fallback on quota errors
@@ -906,8 +1034,15 @@ class LangChainService:
             if field_name in fixed_schema["properties"]:
                 prop_def = fixed_schema["properties"][field_name]
 
-                # For fields with defaults or Optional fields, make them nullable in schema
-                if (has_any_default or is_optional) and isinstance(prop_def, dict):
+                # CRITICAL FIX: Distinguish default_factory from default=None
+                # Only make nullable if: Optional[T] OR has default=None
+                # Fields with default_factory should NOT be nullable (they have value generators)
+                should_be_nullable = is_optional or (
+                    has_default_value and field_info.default is None
+                )
+
+                # For truly nullable fields, make them nullable in schema
+                if should_be_nullable and isinstance(prop_def, dict):
                     if "type" in prop_def and not isinstance(
                         prop_def.get("anyOf"), list
                     ):
@@ -947,8 +1082,10 @@ class LangChainService:
                         prop_def.pop(key, None)
 
                 self.logger.debug(
-                    f"Field {field_name}: has_any_default={has_any_default}, is_optional={is_optional}, "
-                    f"in_required=yes (all fields required by OpenAI), nullable={'yes' if (has_any_default or is_optional) else 'no'}"
+                    f"Field {field_name}: has_default_value={has_default_value}, has_default_factory={has_default_factory}, "
+                    f"is_optional={is_optional}, in_required=yes (all fields required by OpenAI), "
+                    f"nullable={'yes' if should_be_nullable else 'no'} "
+                    f"(default_factory fields are NOT nullable)"
                 )
 
         # Set ALL properties as required (OpenAI requirement)
@@ -983,12 +1120,16 @@ class LangChainService:
                     nested_required = list(nested_properties.keys())
                     def_schema["required"] = nested_required
                     def_schema["additionalProperties"] = False
-                    
-                    # CRITICAL FIX: Dict fields need special handling
+
+                    # CRITICAL FIX: Dict fields need special handling (PR #2003 fix)
                     # If this is a dict-type field, ensure it has proper schema structure
                     if def_schema.get("type") == "object" and not nested_properties:
                         # Empty object schema - this is likely a Dict field
-                        def_schema["additionalProperties"] = False
+                        # Per OpenAI Issue #2004 and PR #2003:
+                        # DO NOT set additionalProperties: false for Dict fields
+                        # This was preventing LLMs from populating dictionaries
+                        # Instead, remove the constraint entirely to allow arbitrary key-value pairs
+                        def_schema.pop("additionalProperties", None)
                         # Don't require any fields for generic Dict types
                         def_schema["required"] = []
 
@@ -1047,11 +1188,11 @@ class LangChainService:
                             ]
                             for key in unsupported_keys:
                                 nested_prop_def.pop(key, None)
-                                
+
                             # CRITICAL FIX: Handle Dict fields in nested models
                             # If this is a dict field (type: object with additionalProperties)
                             if (
-                                nested_prop_def.get("type") == "object" 
+                                nested_prop_def.get("type") == "object"
                                 and "properties" not in nested_prop_def
                             ):
                                 # This is a Dict field - ensure additionalProperties is explicitly false
@@ -1084,19 +1225,22 @@ class LangChainService:
                     for k, v in obj.items():
                         if k not in unsupported_keys:
                             cleaned[k] = clean_refs_recursive(v)
-                    
+
                     # CRITICAL FIX: Ensure all object types have additionalProperties: false
-                    if cleaned.get("type") == "object" and "additionalProperties" not in cleaned:
+                    if (
+                        cleaned.get("type") == "object"
+                        and "additionalProperties" not in cleaned
+                    ):
                         cleaned["additionalProperties"] = False
-                    
+
                     # CRITICAL FIX: For Dict-like objects without properties, still need additionalProperties: false
                     if (
-                        cleaned.get("type") == "object" 
+                        cleaned.get("type") == "object"
                         and "properties" not in cleaned
                         and "$ref" not in cleaned
                     ):
                         cleaned["additionalProperties"] = False
-                        
+
                     return cleaned
             elif isinstance(obj, list):
                 return [clean_refs_recursive(item) for item in obj]
@@ -1138,6 +1282,7 @@ class LangChainService:
         response = await self.llm.ainvoke(enhanced_messages)
 
         # Parse response content (article's pattern)
+        content_str = ""  # Initialize for error handling
         try:
             # Ensure content is a string for parser
             content_str = str(response.content) if response.content is not None else ""

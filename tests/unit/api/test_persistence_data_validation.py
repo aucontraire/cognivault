@@ -110,9 +110,9 @@ class TestPersistenceDataValidation:
             ]
 
             for field in required_fields:
-                assert (
-                    field in execution_metadata
-                ), f"Required field '{field}' missing from metadata"
+                assert field in execution_metadata, (
+                    f"Required field '{field}' missing from metadata"
+                )
 
             # Verify field values match expected types and content
             assert isinstance(execution_metadata["workflow_id"], str)
@@ -323,9 +323,9 @@ class TestPersistenceDataValidation:
                 nodes_executed = call_args.kwargs["nodes_executed"]
 
                 # Verify nodes_executed matches expected
-                assert (
-                    nodes_executed == case["expected_nodes"]
-                ), f"Failed for case: {case['name']}"
+                assert nodes_executed == case["expected_nodes"], (
+                    f"Failed for case: {case['name']}"
+                )
 
                 # Verify nodes_executed is always a list
                 assert isinstance(nodes_executed, list)
@@ -386,9 +386,9 @@ class TestPersistenceDataValidation:
             ]
 
             for field in required_failed_fields:
-                assert (
-                    field in execution_metadata
-                ), f"Required failed workflow field '{field}' missing"
+                assert field in execution_metadata, (
+                    f"Required failed workflow field '{field}' missing"
+                )
 
             # Verify failed workflow specific fields
             assert execution_metadata["status"] == "failed"
@@ -447,9 +447,9 @@ class TestPersistenceDataValidation:
                 assert api_version == "1.0.0"  # Expected version
 
         # Verify all workflows have same API version
-        assert (
-            len(set(captured_versions)) == 1
-        ), "API version should be consistent across workflows"
+        assert len(set(captured_versions)) == 1, (
+            "API version should be consistent across workflows"
+        )
 
     @pytest.mark.asyncio
     async def test_orchestrator_type_validation(

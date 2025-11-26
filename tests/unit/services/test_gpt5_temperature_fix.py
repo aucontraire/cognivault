@@ -118,21 +118,21 @@ class TestGPT5TemperatureHandling:
 
     @pytest.mark.asyncio
     async def test_native_parse_excludes_temperature_for_gpt5(self) -> None:
-        """Test that native OpenAI parse excludes temperature for GPT-5."""
+        """Test that native OpenAI create API excludes temperature for GPT-5."""
         with patch("openai.AsyncOpenAI") as mock_openai_class:
             mock_client = MagicMock()
             mock_openai_class.return_value = mock_client
 
-            # Mock the parse response
+            # Mock the create response (not parse - we use stable create API now)
             mock_completion = MagicMock()
             mock_completion.choices = [MagicMock()]
-            mock_completion.choices[0].message.parsed = {"test": "result"}
-            mock_completion.choices[0].message.content = "raw content"
+            mock_completion.choices[0].message.content = '{"test": "result"}'
+            mock_completion.choices[0].message.refusal = None  # No refusal
 
-            # Make the parse method async
+            # Make the create method async
             from unittest.mock import AsyncMock
 
-            mock_client.beta.chat.completions.parse = AsyncMock(
+            mock_client.chat.completions.create = AsyncMock(
                 return_value=mock_completion
             )
 
@@ -145,7 +145,7 @@ class TestGPT5TemperatureHandling:
                 use_pool=False,
             )
 
-            # Call native parse
+            # Call native parse (which uses create internally)
             from pydantic import BaseModel
 
             class TestModel(BaseModel):
@@ -156,9 +156,9 @@ class TestGPT5TemperatureHandling:
                 messages=messages, output_class=TestModel, include_raw=False
             )
 
-            # Verify parse was called WITHOUT temperature
-            mock_client.beta.chat.completions.parse.assert_called_once()
-            call_kwargs = mock_client.beta.chat.completions.parse.call_args[1]
+            # Verify create was called WITHOUT temperature
+            mock_client.chat.completions.create.assert_called_once()
+            call_kwargs = mock_client.chat.completions.create.call_args[1]
             assert "temperature" not in call_kwargs
             assert call_kwargs["model"] == "gpt-5"
 

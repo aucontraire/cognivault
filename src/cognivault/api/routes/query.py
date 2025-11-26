@@ -145,10 +145,10 @@ async def get_query_history(
         orchestration_api = get_orchestration_api()
 
         # Get workflow history from database
-        raw_history: List[Dict[str, Any]] = (
-            await orchestration_api.get_workflow_history_from_database(
-                limit=limit, offset=offset
-            )
+        raw_history: List[
+            Dict[str, Any]
+        ] = await orchestration_api.get_workflow_history_from_database(
+            limit=limit, offset=offset
         )
 
         logger.debug(f"Raw history retrieved: {len(raw_history)} workflows")

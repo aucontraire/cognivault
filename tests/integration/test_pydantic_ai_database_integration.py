@@ -544,9 +544,9 @@ class TestPydanticAIDatabaseIntegration:
             )
 
             # Basic performance assertions
-            assert (
-                structured_success_rate >= 60
-            ), f"Structured success rate too low: {structured_success_rate}%"
+            assert structured_success_rate >= 60, (
+                f"Structured success rate too low: {structured_success_rate}%"
+            )
 
             # For mock LLMs, timing might be very different, so use a more lenient assertion
             # Check if we're using mock LLM by looking at the critic agent's LLM type

@@ -232,9 +232,9 @@ async def test_main_empty_query_exits(
     # Check that sys.exit was called with 1
     assert mock_exit.call_count >= 1
     exit_calls = [call for call in mock_exit.call_args_list if call[0] == (1,)]
-    assert (
-        len(exit_calls) >= 1
-    ), f"Expected at least one call with exit code 1, got: {mock_exit.call_args_list}"
+    assert len(exit_calls) >= 1, (
+        f"Expected at least one call with exit code 1, got: {mock_exit.call_args_list}"
+    )
 
 
 @pytest.mark.asyncio

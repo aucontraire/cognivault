@@ -237,9 +237,9 @@ class RefinerAgent(BaseAgent):
                 context.execution_metadata["agent_outputs"] = (
                     context.execution_metadata.get("agent_outputs", {})
                 )
-                context.execution_metadata["agent_outputs"][
-                    self.name
-                ] = structured_result.dict()
+                context.execution_metadata["agent_outputs"][self.name] = (
+                    structured_result.dict()
+                )
 
             # Record token usage - for structured output, we need to record some usage
             # Since structured output doesn't directly expose token usage from LangChain,

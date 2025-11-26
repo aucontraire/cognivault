@@ -429,9 +429,9 @@ The contributing_agents field should list: {", ".join(contributing_agents)}"""
             # Store structured output in execution_state for future use
             if "structured_outputs" not in context.execution_state:
                 context.execution_state["structured_outputs"] = {}
-            context.execution_state["structured_outputs"][
-                self.name
-            ] = structured_result.model_dump()
+            context.execution_state["structured_outputs"][self.name] = (
+                structured_result.model_dump()
+            )
 
             # Record token usage - for structured output, we record minimal usage
             # since LangChain doesn't expose detailed token counts

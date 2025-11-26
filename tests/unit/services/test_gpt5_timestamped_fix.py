@@ -30,9 +30,9 @@ class TestGPT5TimestampedFix:
 
         # Test method detection
         method = service._get_structured_output_method("gpt-5-2025-08-07")
-        assert (
-            method == "function_calling"
-        ), "Timestamped GPT-5 should use function_calling"
+        assert method == "function_calling", (
+            "Timestamped GPT-5 should use function_calling"
+        )
 
     def test_base_gpt5_uses_json_schema(self) -> None:
         """Test that base GPT-5 models still use json_schema."""
@@ -106,9 +106,9 @@ class TestGPT5TimestampedFix:
         )
 
         assert isinstance(result, MockOutput)
-        assert (
-            mock_llm.with_structured_output.call_count >= 2
-        ), "Should try multiple methods"
+        assert mock_llm.with_structured_output.call_count >= 2, (
+            "Should try multiple methods"
+        )
 
     def test_temperature_excluded_for_all_gpt5_variants(self) -> None:
         """Test that temperature is excluded for all GPT-5 variants."""
@@ -134,8 +134,8 @@ class TestGPT5TimestampedFix:
 
                 # Check ChatOpenAI was called without temperature
                 call_kwargs = mock_openai.call_args[1]
-                assert (
-                    "temperature" not in call_kwargs
-                ), f"Temperature should be excluded for {model}"
+                assert "temperature" not in call_kwargs, (
+                    f"Temperature should be excluded for {model}"
+                )
                 assert call_kwargs["model"] == model
                 assert call_kwargs["api_key"] == "test-key"

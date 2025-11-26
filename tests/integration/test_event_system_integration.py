@@ -222,12 +222,12 @@ async def test_agent_event_emission_with_correlation(
     started_events = event_sink.get_events(event_type="agent.execution.started")
     completed_events = event_sink.get_events(event_type="agent.execution.completed")
 
-    assert (
-        len(started_events) == 1
-    ), f"Expected 1 started event, got {len(started_events)}"
-    assert (
-        len(completed_events) == 1
-    ), f"Expected 1 completed event, got {len(completed_events)}"
+    assert len(started_events) == 1, (
+        f"Expected 1 started event, got {len(started_events)}"
+    )
+    assert len(completed_events) == 1, (
+        f"Expected 1 completed event, got {len(completed_events)}"
+    )
 
     # Verify correlation context in events
     started_event = started_events[0]
