@@ -172,8 +172,11 @@ class TestLLMPoolGPT5Handling:
             mock_instance = Mock()
             mock_openai.return_value = mock_instance
 
+            # Reset pool and clear cache to ensure clean state
+            LLMServicePool.reset_instance()
             pool = LLMServicePool.get_instance()
             pool._api_key = "test-key"
+            pool._llm_clients.clear()  # Ensure no cached clients
 
             # Get client for GPT-5
             client = pool.get_or_create_client("gpt-5", temperature=0.1)
