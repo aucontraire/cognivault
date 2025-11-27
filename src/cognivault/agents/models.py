@@ -35,6 +35,25 @@ class BiasType(str, Enum):
     ANCHORING = "anchoring"
 
 
+class BiasDetail(BaseModel):
+    """Structured detail about a specific bias identified by the Critic agent.
+
+    This model replaces the Dict[str, str] bias_details field to ensure
+    compatibility with OpenAI's structured output API, which requires
+    all fields to have predefined schemas (additionalProperties: false).
+    """
+
+    bias_type: BiasType = Field(
+        ..., description="Type of bias identified"
+    )
+    explanation: str = Field(
+        ...,
+        min_length=10,
+        max_length=200,
+        description="Detailed explanation of how this bias manifests in the query",
+    )
+
+
 class ProcessingMode(str, Enum):
     """Processing modes for agents."""
 
@@ -197,9 +216,10 @@ class CriticOutput(BaseAgentOutput):
         max_length=7,
         description="Types of biases identified in the framing",
     )
-    bias_details: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Detailed explanations for each bias type identified",
+    bias_details: List[BiasDetail] = Field(
+        default_factory=list,
+        max_length=7,
+        description="Detailed explanations for each bias type identified - structured for OpenAI compatibility",
     )
     alternate_framings: List[str] = Field(
         default_factory=list,
@@ -213,7 +233,7 @@ class CriticOutput(BaseAgentOutput):
         description="Overall critique summary - analytical content only, no process description",
     )
     issues_detected: int = Field(
-        ..., ge=0, le=50, description="Number of issues detected"
+        ..., ge=0, le=100, description="Number of issues detected"
     )
     no_issues_found: bool = Field(
         default=False, description="True if query is well-scoped and neutral"
@@ -266,9 +286,9 @@ class CriticOutput(BaseAgentOutput):
             item = item.strip()
             if len(item) < 10:
                 raise ValueError(f"Analysis item too short: '{item}'")
-            if len(item) > 150:
+            if len(item) > 250:
                 raise ValueError(
-                    f"Analysis item too long (max 150 chars): '{item[:50]}...'"
+                    f"Analysis item too long (max 250 chars): '{item[:50]}...'"
                 )
 
             # Check for process pollution
@@ -286,19 +306,19 @@ class CriticOutput(BaseAgentOutput):
 
     @model_validator(mode="after")
     def validate_issues_consistency(self) -> Self:
-        """Ensure issues_detected count is consistent with actual findings."""
-        actual_issues = (
-            len(self.assumptions)
-            + len(self.logical_gaps)
-            + len(self.biases)
-            + len(self.alternate_framings)
-        )
+        """Ensure issues_detected count is within reasonable bounds.
 
-        # Allow some flexibility (±2) for subjective counting
-        if abs(self.issues_detected - actual_issues) > 2:
+        NOTE: We do NOT enforce strict matching with actual array lengths because:
+        1. LLM counts semantically (conceptual issues) vs mechanically (array items)
+        2. Some issues may be mentioned in summary but not detailed
+        3. Some array items may combine multiple related issues
+
+        We only validate the count is reasonable (0-100 range).
+        """
+        # Validate reasonable range instead of strict matching
+        if self.issues_detected < 0 or self.issues_detected > 100:
             raise ValueError(
-                f"Inconsistent issue count: issues_detected={self.issues_detected}, "
-                f"actual items found={actual_issues}"
+                f"issues_detected out of reasonable range (0-100): {self.issues_detected}"
             )
 
         return self
@@ -314,9 +334,12 @@ class CriticOutput(BaseAgentOutput):
                 "assumptions": ["Presumes AI will have significant social impact"],
                 "logical_gaps": ["No definition of 'societal impacts' scope"],
                 "biases": ["temporal"],
-                "bias_details": {
-                    "temporal": "Assumes current AI trajectory will continue"
-                },
+                "bias_details": [
+                    {
+                        "bias_type": "temporal",
+                        "explanation": "Assumes current AI trajectory will continue without considering potential disruptions"
+                    }
+                ],
                 "alternate_framings": [
                     "Consider both positive and negative impacts separately"
                 ],
@@ -331,7 +354,7 @@ class CriticOutput(BaseAgentOutput):
 class HistoricalReference(BaseModel):
     """Reference to a historical document or context."""
 
-    source_id: Optional[UUID] = Field(None, description="ID of the source document")
+    source_id: Optional[str] = Field(None, description="ID, filename, or URL of the source document")
     title: Optional[str] = Field(None, description="Title of the historical source")
     relevance_score: float = Field(..., description="Relevance score (0.0 to 1.0)")
     content_snippet: str = Field(..., description="Relevant snippet from the source")
@@ -350,7 +373,7 @@ class HistorianOutput(BaseAgentOutput):
     historical_synthesis: str = Field(
         ...,
         min_length=50,
-        max_length=2000,
+        max_length=5000,  # Increased to accommodate comprehensive LLM synthesis
         description="Synthesized historical context - content only, no process description",
     )
     themes_identified: List[str] = Field(

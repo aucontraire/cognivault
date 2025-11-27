@@ -669,11 +669,13 @@ class LangChainService:
 
                     # Calculate optimal timeout for this attempt
                     if remaining_budget <= 0:
-                        # Out of time budget, skip to fallback immediately
+                        # Out of time budget, BREAK retry loop immediately
                         self.logger.warning(
-                            f"Time budget exhausted ({elapsed_time:.1f}s elapsed), skipping to fallback"
+                            f"Time budget exhausted ({elapsed_time:.1f}s elapsed), breaking retry loop"
                         )
-                        raise asyncio.TimeoutError("Time budget exhausted")
+                        # Set flag to break outer method loop
+                        last_error = f"Time budget exhausted after {elapsed_time:.1f}s"
+                        break  # Exit method retry loop
 
                     # Progressive timeout with budget constraints
                     base_timeouts = [8.0, 6.0, 4.0]  # Reduced base timeouts
@@ -858,7 +860,7 @@ class LangChainService:
 
             # Priority 1: Length constraint violations
             LENGTH_CONSTRAINED_FIELDS = {
-                "alternate_framings": 150,  # per item
+                "alternate_framings": 250,  # per item - increased to accommodate LLM natural language
                 "critique_summary": 300,
                 "logical_gaps": 150,  # per item
                 "changes_made": 100,  # per item
@@ -903,7 +905,7 @@ class LangChainService:
                 # Return with raw content for debugging
                 return {"parsed": parsed_result, "raw": raw_content}
 
-            return cast(T, parsed_result)
+            return parsed_result
 
         except Exception as e:
             error_message = str(e).lower()
@@ -1013,7 +1015,9 @@ class LangChainService:
 
         # Based on OpenAI error: "required is required to be supplied and to be an array including every key in properties"
         # OpenAI requires ALL properties to be in required array, but optional fields should be nullable
+        # EXCEPTION: Dict fields (with additionalProperties) should NOT be in required array
         actual_required = list(fixed_schema["properties"].keys())
+        dict_fields: list[str] = []  # Track Dict fields to exclude from required
 
         for field_name, field_info in model_fields.items():
             # Import PydanticUndefined for correct detection
@@ -1089,6 +1093,7 @@ class LangChainService:
                 )
 
         # Set ALL properties as required (OpenAI requirement)
+        # ALL properties MUST be in required array per OpenAI docs
         fixed_schema["required"] = actual_required
 
         self.logger.info(
@@ -1120,18 +1125,6 @@ class LangChainService:
                     nested_required = list(nested_properties.keys())
                     def_schema["required"] = nested_required
                     def_schema["additionalProperties"] = False
-
-                    # CRITICAL FIX: Dict fields need special handling (PR #2003 fix)
-                    # If this is a dict-type field, ensure it has proper schema structure
-                    if def_schema.get("type") == "object" and not nested_properties:
-                        # Empty object schema - this is likely a Dict field
-                        # Per OpenAI Issue #2004 and PR #2003:
-                        # DO NOT set additionalProperties: false for Dict fields
-                        # This was preventing LLMs from populating dictionaries
-                        # Instead, remove the constraint entirely to allow arbitrary key-value pairs
-                        def_schema.pop("additionalProperties", None)
-                        # Don't require any fields for generic Dict types
-                        def_schema["required"] = []
 
                     # Handle nullable fields in nested models too
                     for nested_prop_name, nested_prop_def in nested_properties.items():
@@ -1190,13 +1183,16 @@ class LangChainService:
                                 nested_prop_def.pop(key, None)
 
                             # CRITICAL FIX: Handle Dict fields in nested models
-                            # If this is a dict field (type: object with additionalProperties)
+                            # Dict fields should preserve their additionalProperties type information
+                            # Do NOT set to false - that breaks Dict field functionality
                             if (
                                 nested_prop_def.get("type") == "object"
                                 and "properties" not in nested_prop_def
+                                and "additionalProperties" in nested_prop_def
                             ):
-                                # This is a Dict field - ensure additionalProperties is explicitly false
-                                nested_prop_def["additionalProperties"] = False
+                                # This is a Dict field - preserve existing additionalProperties
+                                # Pydantic generates {"type": "string"} or similar for typed Dicts
+                                pass  # Keep the existing additionalProperties value
 
                     self.logger.debug(
                         f"Fixed nested model {def_name}: {len(nested_required)} required fields (all properties): {nested_required}"
@@ -1226,20 +1222,14 @@ class LangChainService:
                         if k not in unsupported_keys:
                             cleaned[k] = clean_refs_recursive(v)
 
-                    # CRITICAL FIX: Ensure all object types have additionalProperties: false
-                    if (
-                        cleaned.get("type") == "object"
-                        and "additionalProperties" not in cleaned
-                    ):
-                        cleaned["additionalProperties"] = False
+                    # CRITICAL FIX: Ensure structured objects have additionalProperties: false
+                    if cleaned.get("type") == "object":
+                        has_properties = "properties" in cleaned or "$ref" in cleaned
+                        has_additional_props = "additionalProperties" in cleaned
 
-                    # CRITICAL FIX: For Dict-like objects without properties, still need additionalProperties: false
-                    if (
-                        cleaned.get("type") == "object"
-                        and "properties" not in cleaned
-                        and "$ref" not in cleaned
-                    ):
-                        cleaned["additionalProperties"] = False
+                        if has_properties and not has_additional_props:
+                            # This is a structured object - set additionalProperties: false
+                            cleaned["additionalProperties"] = False
 
                     return cleaned
             elif isinstance(obj, list):
