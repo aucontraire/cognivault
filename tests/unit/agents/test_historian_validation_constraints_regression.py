@@ -152,9 +152,7 @@ class TestHistoricalSynthesisLength:
 
     def test_short_synthesis_valid(self) -> None:
         """Short synthesis (>50 chars, <1000 chars) should be valid."""
-        short_synthesis = (
-            "Historical context reveals relevant patterns from previous technological transitions."
-        )
+        short_synthesis = "Historical context reveals relevant patterns from previous technological transitions."
         assert 50 < len(short_synthesis) < 1000
 
         historian = HistorianOutputFactory.generate_valid_data(

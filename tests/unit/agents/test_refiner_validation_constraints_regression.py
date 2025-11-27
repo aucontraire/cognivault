@@ -48,9 +48,7 @@ class TestChangesMadeCharacterLimit:
         short_change = "Added temporal constraint"
         assert len(short_change) < 50
 
-        refiner = RefinerOutputFactory.generate_valid_data(
-            changes_made=[short_change]
-        )
+        refiner = RefinerOutputFactory.generate_valid_data(changes_made=[short_change])
         assert refiner.changes_made[0] == short_change
 
     def test_medium_changes_valid(self) -> None:
@@ -58,9 +56,7 @@ class TestChangesMadeCharacterLimit:
         medium_change = "Specified geographical scope to Western European democracies for consistency"
         assert 50 <= len(medium_change) <= 100
 
-        refiner = RefinerOutputFactory.generate_valid_data(
-            changes_made=[medium_change]
-        )
+        refiner = RefinerOutputFactory.generate_valid_data(changes_made=[medium_change])
         assert refiner.changes_made[0] == medium_change
 
     def test_long_changes_now_valid_after_fix(self) -> None:
@@ -76,9 +72,7 @@ class TestChangesMadeCharacterLimit:
         assert 100 < len(long_change) <= 150, f"Change is {len(long_change)} chars"
 
         # This would have raised ValidationError before the fix
-        refiner = RefinerOutputFactory.generate_valid_data(
-            changes_made=[long_change]
-        )
+        refiner = RefinerOutputFactory.generate_valid_data(changes_made=[long_change])
         assert refiner.changes_made[0] == long_change
 
     def test_multiple_long_changes_valid(self) -> None:
@@ -168,8 +162,12 @@ class TestRefinerProductionScenarios:
             "civil liberties, rule of law, media freedom, checks and balances)"
         )
         # Actual length is 128 chars, which is > 100 (the old limit)
-        assert len(production_change) > 100, "Production case exceeded old 100 char limit"
-        assert len(production_change) <= 150, "Production case fits in new 150 char limit"
+        assert len(production_change) > 100, (
+            "Production case exceeded old 100 char limit"
+        )
+        assert len(production_change) <= 150, (
+            "Production case fits in new 150 char limit"
+        )
 
         # This should now succeed after the fix
         refiner = RefinerOutputFactory.generate_valid_data(
@@ -189,8 +187,12 @@ class TestRefinerProductionScenarios:
             "analysis and comparative evaluation of institutional changes"
         )
         # Actual length is 128 chars, which is > 100 (the old limit)
-        assert len(production_change) > 100, "Production case exceeded old 100 char limit"
-        assert len(production_change) <= 150, "Production case fits in new 150 char limit"
+        assert len(production_change) > 100, (
+            "Production case exceeded old 100 char limit"
+        )
+        assert len(production_change) <= 150, (
+            "Production case fits in new 150 char limit"
+        )
 
         # This should now succeed after the fix
         refiner = RefinerOutputFactory.generate_valid_data(
@@ -211,7 +213,9 @@ class TestRefinerProductionScenarios:
         # the old limit in practice
         for change in refiner.changes_made:
             assert len(change) > 70, f"Change should be substantial, got {len(change)}"
-            assert len(change) <= 150, f"Change should fit in 150 char limit, got {len(change)}"
+            assert len(change) <= 150, (
+                f"Change should fit in 150 char limit, got {len(change)}"
+            )
 
         # Should be valid after the fix
         assert len(refiner.changes_made) > 0
@@ -364,7 +368,9 @@ class TestRefinerFactoryMethods:
         # Changes should be substantial and fit within the 150 char limit
         for change in refiner.changes_made:
             assert len(change) > 70, f"Change should be substantial, got {len(change)}"
-            assert len(change) <= 150, f"Change should fit in 150 char limit, got {len(change)}"
+            assert len(change) <= 150, (
+                f"Change should fit in 150 char limit, got {len(change)}"
+            )
 
     def test_generate_with_fallback(self) -> None:
         """Test generate_with_fallback factory method."""

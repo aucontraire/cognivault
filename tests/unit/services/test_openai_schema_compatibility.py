@@ -11,10 +11,11 @@ Prevent regression of OpenAI structured output schema issues that caused:
 VALIDATION COVERAGE:
 -------------------
 1. Schema Transformation Rules:
-   - ALL properties MUST be in required array (OpenAI requirement)
+   - ALL properties MUST be in required array (OpenAI requirement - including Dict fields)
+   - Dict fields must have additionalProperties: true (simplified, not complex type schemas)
    - Optional/default fields use anyOf with null for nullable values
    - $ref fields are clean (no description or other keywords)
-   - additionalProperties explicitly set to false
+   - additionalProperties explicitly set to false for Pydantic models
    - Nested models preserve these rules
 
 2. Agent Output Models:
@@ -59,6 +60,7 @@ from cognivault.agents.models import (
     BaseAgentOutput,
     HistoricalReference,
     BiasType,
+    BiasDetail,
     ConfidenceLevel,
     ProcessingMode,
 )
@@ -98,14 +100,15 @@ class OpenAISchemaValidator:
             OpenAISchemaValidator._validate_no_unsupported_constraints(schema)
         )
 
-        # RULE 6: Dict fields must have proper structure
-        errors.extend(OpenAISchemaValidator._validate_dict_fields(schema))
-
         return errors
 
     @staticmethod
     def _validate_required_fields(schema: Dict[str, Any]) -> List[str]:
-        """Validate that ALL properties are in required array."""
+        """
+        Validate that ALL properties are in required array.
+
+        OpenAI requires all properties to be in the required array.
+        """
         errors = []
 
         if "properties" not in schema:
@@ -114,6 +117,7 @@ class OpenAISchemaValidator:
         properties = set(schema.get("properties", {}).keys())
         required = set(schema.get("required", []))
 
+        # ALL properties should be in required
         missing_required = properties - required
         if missing_required:
             errors.append(
@@ -155,7 +159,12 @@ class OpenAISchemaValidator:
 
     @staticmethod
     def _validate_additional_properties(schema: Dict[str, Any]) -> List[str]:
-        """Validate that additionalProperties is explicitly false."""
+        """
+        Validate that additionalProperties is properly set.
+
+        - Pydantic models (objects with properties) should have additionalProperties: false
+        - Dict fields (objects without properties) can have additionalProperties with type info
+        """
         errors = []
 
         # Root level check
@@ -170,11 +179,17 @@ class OpenAISchemaValidator:
         def check_additional_properties(obj: Any, path: str = "root") -> None:
             if isinstance(obj, dict):
                 if obj.get("type") == "object" and "$ref" not in obj:
-                    if obj.get("additionalProperties") != False:
-                        errors.append(
-                            f"CRITICAL: additionalProperties at {path} must be false. "
-                            "All object types require additionalProperties: false for OpenAI."
-                        )
+                    # Distinguish between Pydantic models and Dict fields
+                    # Pydantic models have "properties" and need additionalProperties: false
+                    # Dict fields don't have "properties" and can have additionalProperties with type
+                    if "properties" in obj:
+                        # This is a Pydantic model - must have additionalProperties: false
+                        if obj.get("additionalProperties") != False:
+                            errors.append(
+                                f"CRITICAL: additionalProperties at {path} must be false. "
+                                "Pydantic models require additionalProperties: false for OpenAI."
+                            )
+                    # Dict fields (no "properties") are allowed to have additionalProperties with type info
                 for key, value in obj.items():
                     check_additional_properties(value, f"{path}.{key}")
             elif isinstance(obj, list):
@@ -186,7 +201,11 @@ class OpenAISchemaValidator:
 
     @staticmethod
     def _validate_nested_definitions(schema: Dict[str, Any]) -> List[str]:
-        """Validate that nested models in $defs follow ALL rules."""
+        """
+        Validate that nested models in $defs follow ALL rules.
+
+        ALL properties should be in required array.
+        """
         errors = []
 
         if "$defs" not in schema:
@@ -196,15 +215,15 @@ class OpenAISchemaValidator:
             if "properties" not in def_schema:
                 continue
 
-            # Apply same required field validation to nested models
             nested_props = set(def_schema["properties"].keys())
             nested_required = set(def_schema.get("required", []))
 
-            if nested_props != nested_required:
-                missing = nested_props - nested_required
+            # ALL properties should be in required
+            missing = nested_props - nested_required
+            if missing:
                 errors.append(
                     f"CRITICAL: Nested model '{def_name}' missing from required: {missing}. "
-                    "Nested models must also have ALL properties in required."
+                    "Nested models must have ALL properties in required."
                 )
 
             # Check additionalProperties in nested models
@@ -248,33 +267,6 @@ class OpenAISchemaValidator:
         check_unsupported(schema)
         return errors
 
-    @staticmethod
-    def _validate_dict_fields(schema: Dict[str, Any]) -> List[str]:
-        """Validate Dict fields have proper additionalProperties handling."""
-        errors = []
-
-        def check_dict_fields(obj: Any, path: str = "root") -> None:
-            if isinstance(obj, dict):
-                # Check if this looks like a Dict field (object without properties)
-                if (
-                    obj.get("type") == "object"
-                    and "properties" not in obj
-                    and "$ref" not in obj
-                ):
-                    if "additionalProperties" not in obj:
-                        errors.append(
-                            f"CRITICAL: Dict-like field at {path} missing additionalProperties. "
-                            "Dict fields must explicitly set additionalProperties: false."
-                        )
-                for key, value in obj.items():
-                    check_dict_fields(value, f"{path}.{key}")
-            elif isinstance(obj, list):
-                for i, item in enumerate(obj):
-                    check_dict_fields(item, f"{path}[{i}]")
-
-        check_dict_fields(schema)
-        return errors
-
 
 class TestOpenAISchemaTransformation:
     """Test schema transformation for OpenAI compatibility."""
@@ -292,7 +284,9 @@ class TestOpenAISchemaTransformation:
         return OpenAISchemaValidator()
 
     def test_all_properties_in_required_array(self, service: LangChainService) -> None:
-        """CRITICAL: Test that ALL properties are included in required array."""
+        """
+        Test that ALL properties are in required array.
+        """
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
@@ -301,6 +295,7 @@ class TestOpenAISchemaTransformation:
             properties = set(schema.get("properties", {}).keys())
             required = set(schema.get("required", []))
 
+            # ALL properties should be in required
             assert properties == required, (
                 f"{model.__name__}: ALL properties must be in required array. "
                 f"Missing: {properties - required}, Extra: {required - properties}"
@@ -413,26 +408,37 @@ class TestOpenAISchemaTransformation:
         """
         CRITICAL REGRESSION TEST: Prevent Critic agent failures.
 
-        The Critic agent completely failed due to schema issues.
-        This test validates the exact issues that caused the failure.
+        The Critic agent previously failed due to schema issues.
+        Now bias_details is List[BiasDetail] for OpenAI compatibility.
         """
         schema = service._prepare_schema_for_openai(CriticOutput)
 
-        # CRITICAL: bias_details was missing from required, causing failures
+        # bias_details should be in required (all properties required)
         assert "bias_details" in schema["required"], (
-            "REGRESSION: bias_details must be in required array. "
-            "This caused complete Critic agent failures in production."
+            "bias_details should be in required array (all properties required)."
         )
 
         # Validate bias_details field structure
-        assert "bias_details" in schema["properties"]
+        assert "bias_details" in schema["properties"], (
+            "bias_details must be in properties"
+        )
         bias_details_prop = schema["properties"]["bias_details"]
 
-        # Dict fields need proper additionalProperties handling
-        if bias_details_prop.get("type") == "object":
-            assert "additionalProperties" in bias_details_prop, (
-                "bias_details Dict field must have additionalProperties defined"
-            )
+        # bias_details is now an array of BiasDetail objects
+        assert bias_details_prop.get("type") == "array", (
+            "bias_details should be array type (List[BiasDetail])"
+        )
+
+        # Verify it has items definition
+        assert "items" in bias_details_prop, (
+            "bias_details array must have items definition"
+        )
+
+        # Items should reference BiasDetail model
+        items = bias_details_prop["items"]
+        assert "$ref" in items or "properties" in items, (
+            "bias_details items should reference BiasDetail model"
+        )
 
     def test_comprehensive_schema_validation(
         self, service: LangChainService, validator: OpenAISchemaValidator
@@ -503,33 +509,32 @@ class TestOpenAISchemaTransformation:
                         f"Enum field {field} should not have description with $ref"
                     )
 
-    def test_dict_fields_have_additional_properties_false(
-        self, service: LangChainService
-    ) -> None:
-        """Test that Dict fields explicitly set additionalProperties to false."""
+    def test_bias_details_is_array_of_objects(self, service: LangChainService) -> None:
+        """
+        Test that bias_details is properly structured as List[BiasDetail].
+
+        bias_details should be an array type with BiasDetail object schema.
+        """
         schema = service._prepare_schema_for_openai(CriticOutput)
 
-        # bias_details is a Dict[str, str] field
-        if "bias_details" in schema["properties"]:
-            bias_details = schema["properties"]["bias_details"]
+        # bias_details is a List[BiasDetail] field
+        assert "bias_details" in schema["properties"], (
+            "bias_details must be in properties"
+        )
+        bias_details = schema["properties"]["bias_details"]
 
-            # If it's an object type, must have additionalProperties
-            if bias_details.get("type") == "object" or "anyOf" in bias_details:
-                # Check all object definitions have additionalProperties: false
-                def check_object_props(obj: Dict[str, Any]) -> None:
-                    if isinstance(obj, dict):
-                        if obj.get("type") == "object":
-                            assert obj.get("additionalProperties") == False, (
-                                "Dict field must have additionalProperties: false"
-                            )
-                        for value in obj.values():
-                            if isinstance(value, (dict, list)):
-                                check_object_props(value)
-                    elif isinstance(obj, list):
-                        for item in obj:
-                            check_object_props(item)
+        # Must be an array type
+        assert bias_details.get("type") == "array", (
+            "bias_details should be array type (List[BiasDetail])"
+        )
 
-                check_object_props(bias_details)
+        # Must have items definition
+        assert "items" in bias_details, "bias_details array must have items definition"
+
+        # bias_details should be in required (all properties required)
+        assert "bias_details" in schema["required"], (
+            "bias_details should be in required array (all properties required)"
+        )
 
 
 class TestOpenAISchemaIntegration:
@@ -567,11 +572,16 @@ class TestOpenAISchemaIntegration:
                 confidence=ConfidenceLevel.HIGH,
                 assumptions=["Test assumption"],
                 logical_gaps=[],
-                biases=[],
-                bias_details={},
+                biases=[BiasType.CONFIRMATION],
+                bias_details=[
+                    BiasDetail(
+                        bias_type=BiasType.CONFIRMATION,
+                        explanation="Test bias explanation with sufficient length",
+                    )
+                ],
                 alternate_framings=[],
                 critique_summary="Test critique summary with sufficient length to meet minimum",
-                issues_detected=1,
+                issues_detected=2,
             )
 
             mock_completion = Mock()
@@ -685,19 +695,29 @@ class TestOpenAISchemaEdgeCases:
             nested_object: NestedModel
             list_of_strings: List[str]
             optional_nested: Optional[NestedModel] = None
-            dict_field: Dict[str, Any] = Field(default_factory=dict)
+            list_of_nested: List[NestedModel] = Field(default_factory=list)
 
         schema = service._prepare_schema_for_openai(ComplexModel)
 
-        # Validate all fields are required
+        # ALL fields should be in required
         expected_fields = {
             "simple_field",
             "nested_object",
             "list_of_strings",
             "optional_nested",
-            "dict_field",
+            "list_of_nested",
         }
-        assert set(schema["required"]) == expected_fields
+        assert set(schema["required"]) == expected_fields, (
+            f"ALL fields must be in required. "
+            f"Expected: {expected_fields}, Got: {set(schema['required'])}"
+        )
+
+        # Validate list_of_nested is an array type
+        assert "list_of_nested" in schema["properties"]
+        list_field_def = schema["properties"]["list_of_nested"]
+        assert list_field_def.get("type") == "array", (
+            "List fields should have type: array"
+        )
 
         # Validate nested model in $defs
         assert "$defs" in schema

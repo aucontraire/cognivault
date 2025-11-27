@@ -86,9 +86,7 @@ class HistorianOutputFactory:
             "agent_name": "historian",
             "processing_mode": ProcessingMode.ACTIVE,
             "confidence": ConfidenceLevel.MEDIUM,
-            "relevant_sources": [
-                HistoricalReferenceFactory.generate_valid_data()
-            ],
+            "relevant_sources": [HistoricalReferenceFactory.generate_valid_data()],
             "historical_synthesis": (
                 "Historical context reveals that similar patterns emerged during the industrial revolution, "
                 "when technological advancement created both opportunities and challenges. Key developments "
@@ -273,9 +271,14 @@ and diffuse losses.
                 "web resources, and database references reveals consistent patterns across multiple "
                 "historical periods and contexts, demonstrating the robustness of identified themes."
             ),
-            themes_identified=["Multi-source validation", "Cross-reference consistency"],
+            themes_identified=[
+                "Multi-source validation",
+                "Cross-reference consistency",
+            ],
             time_periods_covered=["Various"],
-            contextual_connections=["Source diversity strengthens historical conclusions"],
+            contextual_connections=[
+                "Source diversity strengthens historical conclusions"
+            ],
             sources_searched=75,
             relevant_sources_found=3,
             no_relevant_context=False,
@@ -313,7 +316,9 @@ if __name__ == "__main__":
     )
 
     multi_source = HistorianOutputFactory.generate_with_multiple_source_types()
-    print(f"Multi-source: {len(multi_source.relevant_sources)} sources with different ID types")
+    print(
+        f"Multi-source: {len(multi_source.relevant_sources)} sources with different ID types"
+    )
 
     print("\n=== Factory Benefits Demonstrated ===")
     print("✅ Zero parameters required for 85% of test cases")

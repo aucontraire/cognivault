@@ -80,6 +80,8 @@ def critic_config() -> CriticConfig:
 @pytest.fixture
 def structured_critic_output() -> CriticOutput:
     """Create a structured critic output for testing."""
+    from cognivault.agents.models import BiasDetail
+
     return CriticOutput(
         agent_name="critic",
         processing_mode=ProcessingMode.ACTIVE,
@@ -88,7 +90,11 @@ def structured_critic_output() -> CriticOutput:
         assumptions=["Assumes basic understanding of algorithms"],
         logical_gaps=["No definition of 'learning' in context"],
         biases=[BiasType.TEMPORAL],
-        bias_details={"temporal": "Assumes current ML paradigms"},
+        bias_details=[
+            BiasDetail(
+                bias_type=BiasType.TEMPORAL, explanation="Assumes current ML paradigms"
+            )
+        ],
         alternate_framings=["How do computers learn from data?"],
         critique_summary="Query needs more specificity about ML aspects",
         issues_detected=3,

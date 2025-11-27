@@ -2,10 +2,11 @@
 Unit tests for LangChainService schema generation for OpenAI compatibility.
 
 Tests verify that schemas are properly transformed to meet OpenAI's strict requirements:
-1. All properties must be in the required array
-2. $ref fields cannot have additional keywords
-3. additionalProperties must be false
-4. Nested models must also follow these rules
+1. All properties must be in the required array (including Dict fields)
+2. Dict fields must have additionalProperties: true (simplified, not complex type schemas)
+3. $ref fields cannot have additional keywords
+4. additionalProperties must be false for Pydantic models
+5. Nested models must also follow these rules
 """
 
 import pytest
@@ -40,18 +41,22 @@ class TestOpenAISchemaGeneration:
         Validate a schema against OpenAI's requirements.
 
         Returns a list of validation errors, or empty list if valid.
+
+        ALL properties should be in required array.
         """
         errors = []
 
-        # Rule 1: All properties must be in required
+        # Rule 1: ALL properties must be in required
         properties = schema.get("properties", {})
         required = schema.get("required", [])
 
-        missing_required = set(properties.keys()) - set(required)
+        # ALL properties should be in required
+        all_properties = set(properties.keys())
+        missing_required = all_properties - set(required)
         if missing_required:
             errors.append(f"Properties missing from required: {missing_required}")
 
-        extra_required = set(required) - set(properties.keys())
+        extra_required = set(required) - all_properties
         if extra_required:
             errors.append(f"Extra keys in required: {extra_required}")
 
@@ -83,6 +88,8 @@ class TestOpenAISchemaGeneration:
                 if "properties" in def_schema:
                     def_props = set(def_schema["properties"].keys())
                     def_required = set(def_schema.get("required", []))
+
+                    # ALL properties should be in required
                     if def_props != def_required:
                         missing = def_props - def_required
                         if missing:
@@ -93,17 +100,38 @@ class TestOpenAISchemaGeneration:
         return errors
 
     def test_critic_output_schema(self, service: LangChainService) -> None:
-        """Test CriticOutput schema generation."""
+        """
+        Test CriticOutput schema generation.
+
+        bias_details should be in required as List[BiasDetail].
+        """
         schema = service._prepare_schema_for_openai(CriticOutput)
 
         # Validate against OpenAI requirements
         errors = self.validate_openai_schema(schema)
         assert not errors, f"Schema validation failed: {errors}"
 
-        # Verify specific fields
-        assert "bias_details" in schema["required"], "bias_details must be in required"
+        # Verify bias_details field - it's a List[BiasDetail] field
         assert "properties" in schema
-        assert "bias_details" in schema["properties"]
+        assert "bias_details" in schema["properties"], (
+            "bias_details must be in properties"
+        )
+
+        # bias_details should be in required (all properties required)
+        assert "bias_details" in schema["required"], (
+            "bias_details should be in required (all properties required)"
+        )
+
+        # Validate bias_details is an array type
+        bias_details_def = schema["properties"]["bias_details"]
+        assert bias_details_def.get("type") == "array", (
+            "bias_details should be array type (List[BiasDetail])"
+        )
+
+        # Verify it has items definition
+        assert "items" in bias_details_def, (
+            "bias_details array must have items definition"
+        )
 
         # Check that $ref fields are clean
         for field in ["processing_mode", "confidence"]:
@@ -172,7 +200,9 @@ class TestOpenAISchemaGeneration:
         assert properties == required, "All properties must be in required array"
 
     def test_all_properties_in_required(self, service: LangChainService) -> None:
-        """Test that ALL properties are included in required array."""
+        """
+        Test that ALL properties are included in required array.
+        """
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
@@ -181,9 +211,10 @@ class TestOpenAISchemaGeneration:
             properties = set(schema.get("properties", {}).keys())
             required = set(schema.get("required", []))
 
+            # ALL properties should be in required
             assert properties == required, (
-                f"{model.__name__}: All properties must be in required. "
-                f"Missing: {properties - required}"
+                f"{model.__name__}: ALL properties must be in required. "
+                f"Missing: {properties - required}, Extra: {required - properties}"
             )
 
     def test_no_ref_with_description(self, service: LangChainService) -> None:

@@ -81,9 +81,7 @@ class TestAlternateFramingsCharacterLimit:
         too_long = "x" * 251
 
         with pytest.raises(ValidationError) as exc_info:
-            CriticOutputFactory.generate_valid_data(
-                alternate_framings=[too_long]
-            )
+            CriticOutputFactory.generate_valid_data(alternate_framings=[too_long])
 
         assert "too long" in str(exc_info.value).lower()
 
@@ -93,9 +91,7 @@ class TestAlternateFramingsCharacterLimit:
         assert len(too_short) < 10
 
         with pytest.raises(ValidationError) as exc_info:
-            CriticOutputFactory.generate_valid_data(
-                alternate_framings=[too_short]
-            )
+            CriticOutputFactory.generate_valid_data(alternate_framings=[too_short])
 
         assert "too short" in str(exc_info.value).lower()
 
@@ -122,9 +118,16 @@ class TestIssuesDetectedCountValidation:
         # This is valid because some items combine multiple issues
 
         # Generate long enough items (>10 chars each)
-        assumptions = [f"Assumption {i} with sufficient length for validation" for i in range(4)]
-        logical_gaps = [f"Logical gap {i} with sufficient length for validation" for i in range(3)]
-        alternate_framings = [f"Alternative framing {i} with sufficient length for validation" for i in range(3)]
+        assumptions = [
+            f"Assumption {i} with sufficient length for validation" for i in range(4)
+        ]
+        logical_gaps = [
+            f"Logical gap {i} with sufficient length for validation" for i in range(3)
+        ]
+        alternate_framings = [
+            f"Alternative framing {i} with sufficient length for validation"
+            for i in range(3)
+        ]
 
         critic = CriticOutputFactory.generate_valid_data(
             assumptions=assumptions,
@@ -179,9 +182,7 @@ class TestValidationEdgeCases:
         exact_250 = "x" * 250
         assert len(exact_250) == 250
 
-        critic = CriticOutputFactory.generate_valid_data(
-            alternate_framings=[exact_250]
-        )
+        critic = CriticOutputFactory.generate_valid_data(alternate_framings=[exact_250])
         assert len(critic.alternate_framings[0]) == 250
 
     def test_exact_10_char_alternate_framing(self) -> None:
@@ -189,9 +190,7 @@ class TestValidationEdgeCases:
         exact_10 = "x" * 10
         assert len(exact_10) == 10
 
-        critic = CriticOutputFactory.generate_valid_data(
-            alternate_framings=[exact_10]
-        )
+        critic = CriticOutputFactory.generate_valid_data(alternate_framings=[exact_10])
         assert len(critic.alternate_framings[0]) == 10
 
     def test_multiple_long_alternate_framings(self) -> None:

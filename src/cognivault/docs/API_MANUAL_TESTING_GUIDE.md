@@ -36,12 +36,12 @@ make run-api
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-**Server will be available at**: `http://localhost:8000`
+**Server will be available at**: `http://localhost:8001`
 
 ### API Documentation
-- **Interactive Docs**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI Schema**: http://localhost:8000/openapi.json
+- **Interactive Docs**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
+- **OpenAPI Schema**: http://localhost:8001/openapi.json
 
 ---
 
@@ -52,7 +52,7 @@ docker compose -f docker-compose.dev.yml up --build
 
 ```bash
 # Basic health check
-curl -X GET "http://localhost:8000/health"
+curl -X GET "http://localhost:8001/health"
 
 # Expected Response:
 {
@@ -67,14 +67,14 @@ curl -X GET "http://localhost:8000/health"
 
 ```bash
 # Basic workflow execution
-curl -X POST "http://localhost:8000/api/query" \
+curl -X POST "http://localhost:8001/api/query" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What are the key benefits of machine learning in healthcare?"
   }'
 
 # Advanced workflow with specific agents and correlation ID
-curl -X POST "http://localhost:8000/api/query" \
+curl -X POST "http://localhost:8001/api/query" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "Analyze the impact of AI on cybersecurity",
@@ -114,7 +114,7 @@ curl -X POST "http://localhost:8000/api/query" \
 
 ```bash
 # Get status by correlation ID
-curl -X GET "http://localhost:8000/api/query/status/test-manual-001"
+curl -X GET "http://localhost:8001/api/query/status/test-manual-001"
 
 # Expected Response:
 {
