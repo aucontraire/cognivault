@@ -43,9 +43,7 @@ class BiasDetail(BaseModel):
     all fields to have predefined schemas (additionalProperties: false).
     """
 
-    bias_type: BiasType = Field(
-        ..., description="Type of bias identified"
-    )
+    bias_type: BiasType = Field(..., description="Type of bias identified")
     explanation: str = Field(
         ...,
         min_length=10,
@@ -158,7 +156,11 @@ class RefinerOutput(BaseAgentOutput):
     @field_validator("changes_made")
     @classmethod
     def validate_changes_format(cls, v: List[str]) -> List[str]:
-        """Ensure changes are concise and properly formatted."""
+        """Ensure changes are concise and properly formatted.
+
+        Character limit increased from 100 → 150 chars (2025-01-26) to accommodate
+        natural LLM language patterns when describing query refinements.
+        """
         if not v:
             return v
 
@@ -167,9 +169,9 @@ class RefinerOutput(BaseAgentOutput):
             change = change.strip()
             if len(change) < 5:
                 raise ValueError(f"Change description too short: '{change}'")
-            if len(change) > 100:
+            if len(change) > 150:  # Increased to accommodate LLM natural language
                 raise ValueError(
-                    f"Change description too long (max 100 chars): '{change[:50]}...'"
+                    f"Change description too long (max 150 chars): '{change[:50]}...'"
                 )
             validated_changes.append(change)
 
@@ -337,7 +339,7 @@ class CriticOutput(BaseAgentOutput):
                 "bias_details": [
                     {
                         "bias_type": "temporal",
-                        "explanation": "Assumes current AI trajectory will continue without considering potential disruptions"
+                        "explanation": "Assumes current AI trajectory will continue without considering potential disruptions",
                     }
                 ],
                 "alternate_framings": [
@@ -354,7 +356,9 @@ class CriticOutput(BaseAgentOutput):
 class HistoricalReference(BaseModel):
     """Reference to a historical document or context."""
 
-    source_id: Optional[str] = Field(None, description="ID, filename, or URL of the source document")
+    source_id: Optional[str] = Field(
+        None, description="ID, filename, or URL of the source document"
+    )
     title: Optional[str] = Field(None, description="Title of the historical source")
     relevance_score: float = Field(..., description="Relevance score (0.0 to 1.0)")
     content_snippet: str = Field(..., description="Relevant snippet from the source")

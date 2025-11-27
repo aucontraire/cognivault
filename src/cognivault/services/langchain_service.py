@@ -863,7 +863,7 @@ class LangChainService:
                 "alternate_framings": 250,  # per item - increased to accommodate LLM natural language
                 "critique_summary": 300,
                 "logical_gaps": 150,  # per item
-                "changes_made": 100,  # per item
+                "changes_made": 150,  # per item - increased to accommodate LLM natural language
                 "assumptions": 150,  # per item
                 "biases": 150,  # per item
             }
