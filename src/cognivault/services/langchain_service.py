@@ -968,7 +968,9 @@ class LangChainService:
                         else (
                             "quota_exceeded"
                             if is_quota_error
-                            else "timeout" if is_timeout_error else "unknown"
+                            else "timeout"
+                            if is_timeout_error
+                            else "unknown"
                         )
                     ),
                     "fallback_recommended": not is_quota_error,  # Don't fallback on quota errors

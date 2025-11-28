@@ -294,9 +294,9 @@ class TestCompleteStructuredOutputPipeline:
         print(f"  🎯 Success rate: {len(successful_agents) / 4 * 100:.1f}%")
 
         # Validate minimum success requirements
-        assert (
-            len(successful_agents) >= 3
-        ), f"Expected at least 3 successful agents, got {len(successful_agents)}"
+        assert len(successful_agents) >= 3, (
+            f"Expected at least 3 successful agents, got {len(successful_agents)}"
+        )
 
         # Store results in database
         await self._store_pipeline_results_in_database(
@@ -385,9 +385,9 @@ class TestCompleteStructuredOutputPipeline:
         successful_count = sum(
             1 for result in fallback_results.values() if result["success"]
         )
-        assert (
-            successful_count >= 3
-        ), f"Expected at least 3 agents to handle fallback, got {successful_count}"
+        assert successful_count >= 3, (
+            f"Expected at least 3 agents to handle fallback, got {successful_count}"
+        )
 
         fallback_count = sum(
             1

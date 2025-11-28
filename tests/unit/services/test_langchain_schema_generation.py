@@ -113,25 +113,25 @@ class TestOpenAISchemaGeneration:
 
         # Verify bias_details field - it's a List[BiasDetail] field
         assert "properties" in schema
-        assert (
-            "bias_details" in schema["properties"]
-        ), "bias_details must be in properties"
+        assert "bias_details" in schema["properties"], (
+            "bias_details must be in properties"
+        )
 
         # bias_details should be in required (all properties required)
-        assert (
-            "bias_details" in schema["required"]
-        ), "bias_details should be in required (all properties required)"
+        assert "bias_details" in schema["required"], (
+            "bias_details should be in required (all properties required)"
+        )
 
         # Validate bias_details is an array type
         bias_details_def = schema["properties"]["bias_details"]
-        assert (
-            bias_details_def.get("type") == "array"
-        ), "bias_details should be array type (List[BiasDetail])"
+        assert bias_details_def.get("type") == "array", (
+            "bias_details should be array type (List[BiasDetail])"
+        )
 
         # Verify it has items definition
-        assert (
-            "items" in bias_details_def
-        ), "bias_details array must have items definition"
+        assert "items" in bias_details_def, (
+            "bias_details array must have items definition"
+        )
 
         # Check that $ref fields are clean
         for field in ["processing_mode", "confidence"]:
@@ -159,9 +159,9 @@ class TestOpenAISchemaGeneration:
         # All properties must be in required for nested models too
         hist_props = set(hist_ref["properties"].keys())
         hist_required = set(hist_ref["required"])
-        assert (
-            hist_props == hist_required
-        ), f"HistoricalReference properties {hist_props} != required {hist_required}"
+        assert hist_props == hist_required, (
+            f"HistoricalReference properties {hist_props} != required {hist_required}"
+        )
 
         # source_id should be in both properties and required
         assert "source_id" in hist_ref["properties"]
@@ -182,9 +182,9 @@ class TestOpenAISchemaGeneration:
                 if "$ref" in prop:
                     # Should only have $ref key, no description
                     assert len(prop) == 1, f"{field} has extra keys: {prop.keys()}"
-                    assert (
-                        "description" not in prop
-                    ), f"{field} should not have description with $ref"
+                    assert "description" not in prop, (
+                        f"{field} should not have description with $ref"
+                    )
 
     def test_synthesis_output_schema(self, service: LangChainService) -> None:
         """Test SynthesisOutput schema with complex nested structures."""
@@ -246,9 +246,9 @@ class TestOpenAISchemaGeneration:
 
         for model in models:
             schema = service._prepare_schema_for_openai(model)
-            assert (
-                schema.get("additionalProperties") == False
-            ), f"{model.__name__}: additionalProperties must be false"
+            assert schema.get("additionalProperties") == False, (
+                f"{model.__name__}: additionalProperties must be false"
+            )
 
     def test_nested_models_fixed(self, service: LangChainService) -> None:
         """Test that nested models in $defs are also fixed."""
@@ -267,9 +267,9 @@ class TestOpenAISchemaGeneration:
                     )
 
                     # Check additionalProperties
-                    assert (
-                        def_schema.get("additionalProperties") == False
-                    ), f"Nested model {def_name}: additionalProperties must be false"
+                    assert def_schema.get("additionalProperties") == False, (
+                        f"Nested model {def_name}: additionalProperties must be false"
+                    )
 
     def test_custom_model_with_optional_fields(self, service: LangChainService) -> None:
         """Test that Optional fields are still included in required."""
@@ -295,9 +295,9 @@ class TestOpenAISchemaGeneration:
         }
         actual_required = set(schema.get("required", []))
 
-        assert (
-            expected_fields == actual_required
-        ), f"All fields must be in required. Missing: {expected_fields - actual_required}"
+        assert expected_fields == actual_required, (
+            f"All fields must be in required. Missing: {expected_fields - actual_required}"
+        )
 
     def test_schema_does_not_modify_original(self, service: LangChainService) -> None:
         """Test that the original Pydantic schema is not modified."""
@@ -310,11 +310,11 @@ class TestOpenAISchemaGeneration:
 
         # Check original is unchanged
         current_original = CriticOutput.model_json_schema()
-        assert (
-            current_original.get("required", []) == original_required
-        ), "Original schema should not be modified"
+        assert current_original.get("required", []) == original_required, (
+            "Original schema should not be modified"
+        )
 
         # But OpenAI schema should have all properties in required
-        assert len(openai_schema["required"]) > len(
-            original_required
-        ), "OpenAI schema should have more required fields than original"
+        assert len(openai_schema["required"]) > len(original_required), (
+            "OpenAI schema should have more required fields than original"
+        )

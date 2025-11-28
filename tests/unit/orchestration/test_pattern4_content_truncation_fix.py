@@ -169,9 +169,9 @@ async def test_pattern4_short_content_no_truncation() -> None:
             output_context = event_data.get("output_context", {})
 
             # PATTERN 4 FIX VERIFICATION: Short content should NOT be truncated
-            assert (
-                "refined_question" in output_context
-            ), "Should have refined_question field"
+            assert "refined_question" in output_context, (
+                "Should have refined_question field"
+            )
             event_content = output_context["refined_question"]
 
             # Key assertion: Check if content is being truncated (refiner prepends "Refined query: ")
@@ -189,23 +189,23 @@ async def test_pattern4_short_content_no_truncation() -> None:
 
             if is_truncated_at_200:
                 # This is the current bad behavior - content is being truncated at 200 chars
-                assert (
-                    content_length == 200
-                ), "Currently showing 200-char truncation (this is the problem we're fixing)"
-                assert not event_content.endswith(
-                    "practices?"
-                ), "Content should be cut off due to 200-char limit"
+                assert content_length == 200, (
+                    "Currently showing 200-char truncation (this is the problem we're fixing)"
+                )
+                assert not event_content.endswith("practices?"), (
+                    "Content should be cut off due to 200-char limit"
+                )
             else:
                 # This would be the desired behavior after fix
-                assert (
-                    event_content == expected_with_prefix
-                ), "Content should be preserved completely after fix"
-                assert (
-                    "fundamental principles" in event_content
-                ), "Should contain full content"
-                assert (
-                    "software development practices" in event_content
-                ), "Should contain ending of content"
+                assert event_content == expected_with_prefix, (
+                    "Content should be preserved completely after fix"
+                )
+                assert "fundamental principles" in event_content, (
+                    "Should contain full content"
+                )
+                assert "software development practices" in event_content, (
+                    "Should contain ending of content"
+                )
 
 
 @pytest.mark.asyncio
@@ -309,9 +309,9 @@ async def test_pattern4_long_content_smart_truncation() -> None:
             output_context = event_data.get("output_context", {})
 
             # PATTERN 4 FIX VERIFICATION: Long content should be smartly truncated
-            assert (
-                "historical_summary" in output_context
-            ), "Should have historical_summary field"
+            assert "historical_summary" in output_context, (
+                "Should have historical_summary field"
+            )
             event_content = output_context["historical_summary"]
 
             # Key assertions for smart truncation
@@ -335,19 +335,19 @@ async def test_pattern4_long_content_smart_truncation() -> None:
                 assert event_length > 0, "Should have some content"
             else:
                 # Should be truncated (not full length) but more than old 200 char limit
-                assert (
-                    event_length < original_length
-                ), "Long content should be truncated"
-                assert (
-                    event_length > 200
-                ), "Should be more generous than old 200 char limit"
+                assert event_length < original_length, (
+                    "Long content should be truncated"
+                )
+                assert event_length > 200, (
+                    "Should be more generous than old 200 char limit"
+                )
             assert event_length <= 1000, "Should respect reasonable upper limit"
 
             # HistorianAgent uses fallback content instead of mock LLM content
             # This is expected behavior - focus on testing the truncation logic
-            assert (
-                "artificial intelligence" in event_content.lower()
-            ), "Should contain query topic"
+            assert "artificial intelligence" in event_content.lower(), (
+                "Should contain query topic"
+            )
 
             # Should not cut off mid-word (word boundary truncation)
             # The content should end with complete words, not mid-word
@@ -460,18 +460,18 @@ async def test_pattern4_medium_content_preserved() -> None:
             event_content = output_context["critique"]
 
             # Key assertion: Medium-length content should NOT be truncated
-            assert (
-                event_content == medium_content
-            ), "Medium content should be preserved completely"
-            assert len(event_content) == len(
-                medium_content
-            ), f"Should preserve full length of {len(medium_content)} chars"
-            assert (
-                "well-structured and specific" in event_content
-            ), "Should contain beginning"
-            assert (
-                "deepen their understanding" in event_content
-            ), "Should contain complete ending"
+            assert event_content == medium_content, (
+                "Medium content should be preserved completely"
+            )
+            assert len(event_content) == len(medium_content), (
+                f"Should preserve full length of {len(medium_content)} chars"
+            )
+            assert "well-structured and specific" in event_content, (
+                "Should contain beginning"
+            )
+            assert "deepen their understanding" in event_content, (
+                "Should contain complete ending"
+            )
             assert len(event_content) > 200, "Should be longer than old 200 char limit"
             assert len(event_content) < 1000, "Should be within reasonable bounds"
 

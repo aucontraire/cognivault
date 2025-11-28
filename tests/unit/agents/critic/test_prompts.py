@@ -113,9 +113,9 @@ def test_critic_system_prompt_length() -> None:
     """Test that the system prompt is substantial but not excessively long."""
     # Should be comprehensive but not overwhelming
     # Updated to allow for structured output format instructions
-    assert (
-        2000 <= len(CRITIC_SYSTEM_PROMPT) <= 10000
-    ), f"Prompt length: {len(CRITIC_SYSTEM_PROMPT)}"
+    assert 2000 <= len(CRITIC_SYSTEM_PROMPT) <= 10000, (
+        f"Prompt length: {len(CRITIC_SYSTEM_PROMPT)}"
+    )
 
 
 def test_critic_system_prompt_no_harmful_content() -> None:

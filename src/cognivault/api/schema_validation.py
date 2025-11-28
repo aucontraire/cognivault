@@ -50,9 +50,9 @@ class SchemaMigrator:
     """Handles schema migrations for external APIs."""
 
     def __init__(self) -> None:
-        self.migrations: Dict[str, List[Callable[[Dict[str, Any]], Dict[str, Any]]]] = (
-            {}
-        )
+        self.migrations: Dict[
+            str, List[Callable[[Dict[str, Any]], Dict[str, Any]]]
+        ] = {}
 
     def register_migration(
         self,

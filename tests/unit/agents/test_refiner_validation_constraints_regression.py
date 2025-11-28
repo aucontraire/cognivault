@@ -162,12 +162,12 @@ class TestRefinerProductionScenarios:
             "civil liberties, rule of law, media freedom, checks and balances)"
         )
         # Actual length is 128 chars, which is > 100 (the old limit)
-        assert (
-            len(production_change) > 100
-        ), "Production case exceeded old 100 char limit"
-        assert (
-            len(production_change) <= 150
-        ), "Production case fits in new 150 char limit"
+        assert len(production_change) > 100, (
+            "Production case exceeded old 100 char limit"
+        )
+        assert len(production_change) <= 150, (
+            "Production case fits in new 150 char limit"
+        )
 
         # This should now succeed after the fix
         refiner = RefinerOutputFactory.generate_valid_data(
@@ -187,12 +187,12 @@ class TestRefinerProductionScenarios:
             "analysis and comparative evaluation of institutional changes"
         )
         # Actual length is 128 chars, which is > 100 (the old limit)
-        assert (
-            len(production_change) > 100
-        ), "Production case exceeded old 100 char limit"
-        assert (
-            len(production_change) <= 150
-        ), "Production case fits in new 150 char limit"
+        assert len(production_change) > 100, (
+            "Production case exceeded old 100 char limit"
+        )
+        assert len(production_change) <= 150, (
+            "Production case fits in new 150 char limit"
+        )
 
         # This should now succeed after the fix
         refiner = RefinerOutputFactory.generate_valid_data(
@@ -213,9 +213,9 @@ class TestRefinerProductionScenarios:
         # the old limit in practice
         for change in refiner.changes_made:
             assert len(change) > 70, f"Change should be substantial, got {len(change)}"
-            assert (
-                len(change) <= 150
-            ), f"Change should fit in 150 char limit, got {len(change)}"
+            assert len(change) <= 150, (
+                f"Change should fit in 150 char limit, got {len(change)}"
+            )
 
         # Should be valid after the fix
         assert len(refiner.changes_made) > 0
@@ -368,9 +368,9 @@ class TestRefinerFactoryMethods:
         # Changes should be substantial and fit within the 150 char limit
         for change in refiner.changes_made:
             assert len(change) > 70, f"Change should be substantial, got {len(change)}"
-            assert (
-                len(change) <= 150
-            ), f"Change should fit in 150 char limit, got {len(change)}"
+            assert len(change) <= 150, (
+                f"Change should fit in 150 char limit, got {len(change)}"
+            )
 
     def test_generate_with_fallback(self) -> None:
         """Test generate_with_fallback factory method."""

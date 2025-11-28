@@ -485,12 +485,12 @@ class TestWorkflowValidator:
         ]
 
         # Ensure we found the expected errors
-        assert (
-            len(from_node_errors) >= 1
-        ), f"Expected from_node error not found. All errors: {[e.message for e in errors]}"
-        assert (
-            len(to_node_errors) >= 1
-        ), f"Expected to_node error not found. All errors: {[e.message for e in errors]}"
+        assert len(from_node_errors) >= 1, (
+            f"Expected from_node error not found. All errors: {[e.message for e in errors]}"
+        )
+        assert len(to_node_errors) >= 1, (
+            f"Expected to_node error not found. All errors: {[e.message for e in errors]}"
+        )
         assert any(error.rule_id == "REF_003" for error in from_node_errors)
         assert any(error.rule_id == "REF_004" for error in to_node_errors)
 
