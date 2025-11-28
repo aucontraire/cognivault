@@ -49,16 +49,22 @@ class RefinerAgent(BaseAgent):
             Configuration for agent behavior. If None, uses default configuration.
             Maintains backward compatibility - existing code continues to work.
         """
-        super().__init__("refiner")
+        # Configuration system - backward compatible
+        # All config classes have sensible defaults via Pydantic Field definitions
+        self.config = config if config is not None else RefinerConfig()
+
+        # Pass timeout from config to BaseAgent
+        super().__init__(
+            "refiner",
+            timeout_seconds=self.config.execution_config.timeout_seconds
+        )
+
         self.llm: LLMInterface = llm
 
         # Initialize structured output service
         self.structured_service: Optional[LangChainService] = None
         self._setup_structured_service()
 
-        # Configuration system - backward compatible
-        # All config classes have sensible defaults via Pydantic Field definitions
-        self.config = config if config is not None else RefinerConfig()
         self._prompt_composer = PromptComposer()
         self._composed_prompt: Optional[ComposedPrompt]
 

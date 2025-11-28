@@ -576,8 +576,8 @@ class SynthesisOutput(BaseAgentOutput):
     )
     topics_extracted: List[str] = Field(
         default_factory=list,
-        max_length=20,
-        description="Key topics/concepts mentioned in synthesis",
+        max_length=30,
+        description="Key topics/concepts mentioned in synthesis (up to 30 topics)",
     )
 
     @field_validator("final_synthesis")
@@ -662,7 +662,12 @@ class SynthesisOutput(BaseAgentOutput):
     @field_validator("topics_extracted")
     @classmethod
     def validate_topics_format(cls, v: List[str]) -> List[str]:
-        """Ensure topics are clean concepts without meta-commentary."""
+        """Validate and normalize topic formats.
+
+        Character limit increased from 50 → 100 chars (2025-01-27) to accommodate
+        LLM natural language topic extraction. Topics exceeding 100 chars are
+        truncated rather than rejected to prevent validation retry cascades.
+        """
         if not v:
             return v
 
@@ -671,8 +676,10 @@ class SynthesisOutput(BaseAgentOutput):
             topic = topic.strip().lower()
             if len(topic) < 2:
                 raise ValueError(f"Topic too short: '{topic}'")
-            if len(topic) > 50:
-                raise ValueError(f"Topic too long (max 50 chars): '{topic}'")
+
+            # Truncate instead of rejecting to avoid retry cascade
+            if len(topic) > 100:
+                topic = topic[:97] + "..."
 
             # Check for process pollution in topics
             if any(

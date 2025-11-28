@@ -337,7 +337,7 @@ class SynthesisConfig(BaseModel):
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
     execution_config: AgentExecutionConfig = Field(
-        default_factory=lambda: AgentExecutionConfig(timeout_seconds=90)
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=150)
     )
 
     @classmethod

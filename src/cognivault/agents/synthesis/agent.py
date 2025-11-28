@@ -48,11 +48,16 @@ class SynthesisAgent(BaseAgent):
         llm: Optional[Union[LLMInterface, str]] = "default",
         config: Optional[SynthesisConfig] = None,
     ) -> None:
-        super().__init__("synthesis")
-
         # Configuration system - backward compatible
         # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else SynthesisConfig()
+
+        # Pass timeout from config to BaseAgent
+        super().__init__(
+            "synthesis",
+            timeout_seconds=self.config.execution_config.timeout_seconds
+        )
+
         self._prompt_composer = PromptComposer()
         self._composed_prompt: Optional[ComposedPrompt]
 

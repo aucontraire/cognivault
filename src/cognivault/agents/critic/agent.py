@@ -56,12 +56,17 @@ class CriticAgent(BaseAgent):
             Configuration for agent behavior. If None, uses default configuration.
             Maintains backward compatibility - existing code continues to work.
         """
-        super().__init__("critic")
-        self.llm = llm
-
         # Configuration system - backward compatible
         # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else CriticConfig()
+
+        # Pass timeout from config to BaseAgent
+        super().__init__(
+            "critic",
+            timeout_seconds=self.config.execution_config.timeout_seconds
+        )
+
+        self.llm = llm
         self._prompt_composer = PromptComposer()
         self._composed_prompt: Optional[ComposedPrompt] = None
 
