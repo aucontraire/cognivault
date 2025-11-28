@@ -322,9 +322,9 @@ class TestOpenAISchemaTransformation:
 
         # Optional/default fields should be nullable
         optional_prop = schema["properties"]["optional_field"]
-        assert "anyOf" in optional_prop, (
-            "Optional field should use anyOf for nullability"
-        )
+        assert (
+            "anyOf" in optional_prop
+        ), "Optional field should use anyOf for nullability"
 
         # Check for null type in anyOf
         type_options = [opt.get("type") for opt in optional_prop["anyOf"]]
@@ -363,9 +363,9 @@ class TestOpenAISchemaTransformation:
             schema = service._prepare_schema_for_openai(model)
 
             # Root level check
-            assert schema.get("additionalProperties") == False, (
-                f"{model.__name__}: Root additionalProperties must be false"
-            )
+            assert (
+                schema.get("additionalProperties") == False
+            ), f"{model.__name__}: Root additionalProperties must be false"
 
             # Check nested definitions
             if "$defs" in schema:
@@ -382,9 +382,9 @@ class TestOpenAISchemaTransformation:
         schema = service._prepare_schema_for_openai(HistorianOutput)
 
         assert "$defs" in schema, "HistorianOutput should have nested definitions"
-        assert "HistoricalReference" in schema["$defs"], (
-            "HistoricalReference should be defined"
-        )
+        assert (
+            "HistoricalReference" in schema["$defs"]
+        ), "HistoricalReference should be defined"
 
         hist_ref = schema["$defs"]["HistoricalReference"]
 
@@ -398,9 +398,9 @@ class TestOpenAISchemaTransformation:
             )
 
         # Rule 2: additionalProperties is false
-        assert hist_ref.get("additionalProperties") == False, (
-            "HistoricalReference must have additionalProperties: false"
-        )
+        assert (
+            hist_ref.get("additionalProperties") == False
+        ), "HistoricalReference must have additionalProperties: false"
 
     def test_critic_output_schema_regression_prevention(
         self, service: LangChainService
@@ -414,31 +414,31 @@ class TestOpenAISchemaTransformation:
         schema = service._prepare_schema_for_openai(CriticOutput)
 
         # bias_details should be in required (all properties required)
-        assert "bias_details" in schema["required"], (
-            "bias_details should be in required array (all properties required)."
-        )
+        assert (
+            "bias_details" in schema["required"]
+        ), "bias_details should be in required array (all properties required)."
 
         # Validate bias_details field structure
-        assert "bias_details" in schema["properties"], (
-            "bias_details must be in properties"
-        )
+        assert (
+            "bias_details" in schema["properties"]
+        ), "bias_details must be in properties"
         bias_details_prop = schema["properties"]["bias_details"]
 
         # bias_details is now an array of BiasDetail objects
-        assert bias_details_prop.get("type") == "array", (
-            "bias_details should be array type (List[BiasDetail])"
-        )
+        assert (
+            bias_details_prop.get("type") == "array"
+        ), "bias_details should be array type (List[BiasDetail])"
 
         # Verify it has items definition
-        assert "items" in bias_details_prop, (
-            "bias_details array must have items definition"
-        )
+        assert (
+            "items" in bias_details_prop
+        ), "bias_details array must have items definition"
 
         # Items should reference BiasDetail model
         items = bias_details_prop["items"]
-        assert "$ref" in items or "properties" in items, (
-            "bias_details items should reference BiasDetail model"
-        )
+        assert (
+            "$ref" in items or "properties" in items
+        ), "bias_details items should reference BiasDetail model"
 
     def test_comprehensive_schema_validation(
         self, service: LangChainService, validator: OpenAISchemaValidator
@@ -487,9 +487,9 @@ class TestOpenAISchemaTransformation:
         current_schema = CriticOutput.model_json_schema()
         current_required = set(current_schema.get("required", []))
 
-        assert current_required == original_required, (
-            "Original Pydantic schema should not be modified by OpenAI transformation"
-        )
+        assert (
+            current_required == original_required
+        ), "Original Pydantic schema should not be modified by OpenAI transformation"
 
     def test_enum_references_are_clean(self, service: LangChainService) -> None:
         """Test that enum references in properties don't have additional keywords."""
@@ -502,12 +502,12 @@ class TestOpenAISchemaTransformation:
             if field in schema["properties"]:
                 prop = schema["properties"][field]
                 if "$ref" in prop:
-                    assert len(prop) == 1, (
-                        f"Enum field {field} has extra keys with $ref: {prop.keys()}"
-                    )
-                    assert "description" not in prop, (
-                        f"Enum field {field} should not have description with $ref"
-                    )
+                    assert (
+                        len(prop) == 1
+                    ), f"Enum field {field} has extra keys with $ref: {prop.keys()}"
+                    assert (
+                        "description" not in prop
+                    ), f"Enum field {field} should not have description with $ref"
 
     def test_bias_details_is_array_of_objects(self, service: LangChainService) -> None:
         """
@@ -518,23 +518,23 @@ class TestOpenAISchemaTransformation:
         schema = service._prepare_schema_for_openai(CriticOutput)
 
         # bias_details is a List[BiasDetail] field
-        assert "bias_details" in schema["properties"], (
-            "bias_details must be in properties"
-        )
+        assert (
+            "bias_details" in schema["properties"]
+        ), "bias_details must be in properties"
         bias_details = schema["properties"]["bias_details"]
 
         # Must be an array type
-        assert bias_details.get("type") == "array", (
-            "bias_details should be array type (List[BiasDetail])"
-        )
+        assert (
+            bias_details.get("type") == "array"
+        ), "bias_details should be array type (List[BiasDetail])"
 
         # Must have items definition
         assert "items" in bias_details, "bias_details array must have items definition"
 
         # bias_details should be in required (all properties required)
-        assert "bias_details" in schema["required"], (
-            "bias_details should be in required array (all properties required)"
-        )
+        assert (
+            "bias_details" in schema["required"]
+        ), "bias_details should be in required array (all properties required)"
 
 
 class TestOpenAISchemaIntegration:
@@ -611,9 +611,9 @@ class TestOpenAISchemaIntegration:
             validator = OpenAISchemaValidator()
             errors = validator.validate_schema(schema)
 
-            assert not errors, (
-                f"Schema sent to OpenAI API has validation errors: {errors}"
-            )
+            assert (
+                not errors
+            ), f"Schema sent to OpenAI API has validation errors: {errors}"
 
     @pytest.mark.asyncio
     async def test_timeout_cascade_prevention_with_proper_schema(
@@ -664,9 +664,9 @@ class TestOpenAISchemaIntegration:
             elapsed = time.time() - start
 
             # Should be very fast with mock (< 1 second)
-            assert elapsed < 1.0, (
-                f"Schema transformation should be fast, took {elapsed:.2f}s"
-            )
+            assert (
+                elapsed < 1.0
+            ), f"Schema transformation should be fast, took {elapsed:.2f}s"
 
 
 class TestOpenAISchemaEdgeCases:
@@ -715,9 +715,9 @@ class TestOpenAISchemaEdgeCases:
         # Validate list_of_nested is an array type
         assert "list_of_nested" in schema["properties"]
         list_field_def = schema["properties"]["list_of_nested"]
-        assert list_field_def.get("type") == "array", (
-            "List fields should have type: array"
-        )
+        assert (
+            list_field_def.get("type") == "array"
+        ), "List fields should have type: array"
 
         # Validate nested model in $defs
         assert "$defs" in schema
@@ -787,9 +787,9 @@ class TestSchemaValidationUtility:
         validator = OpenAISchemaValidator()
         errors = validator.validate_schema(invalid_schema)
 
-        assert any("field2" in error for error in errors), (
-            "Validator should detect field2 missing from required"
-        )
+        assert any(
+            "field2" in error for error in errors
+        ), "Validator should detect field2 missing from required"
 
     def test_validator_detects_ref_with_description(self) -> None:
         """Test that validator detects $ref with additional keywords."""
@@ -824,9 +824,9 @@ class TestSchemaValidationUtility:
         validator = OpenAISchemaValidator()
         errors = validator.validate_schema(invalid_schema)
 
-        assert any("additionalProperties" in error for error in errors), (
-            "Validator should detect missing additionalProperties"
-        )
+        assert any(
+            "additionalProperties" in error for error in errors
+        ), "Validator should detect missing additionalProperties"
 
     def test_validator_accepts_valid_schema(self) -> None:
         """Test that validator accepts a fully valid schema."""
@@ -845,9 +845,9 @@ class TestSchemaValidationUtility:
 
         # Filter out warnings (only check for critical errors)
         critical_errors = [e for e in errors if "CRITICAL" in e]
-        assert not critical_errors, (
-            f"Valid schema should not have critical errors: {critical_errors}"
-        )
+        assert (
+            not critical_errors
+        ), f"Valid schema should not have critical errors: {critical_errors}"
 
 
 class TestPerformanceRegressionPrevention:

@@ -450,9 +450,9 @@ class TestRealWorldValidationScenarios:
             result = factory.validate_workflow(
                 agents=list(workflow["agents"]), pattern=str(workflow["pattern"])
             )
-            assert not result.is_valid, (
-                f"Expected {workflow['description']} to be invalid"
-            )
+            assert (
+                not result.is_valid
+            ), f"Expected {workflow['description']} to be invalid"
 
     def test_validation_suggestions_quality(self) -> None:
         """Test that validation suggestions are helpful."""

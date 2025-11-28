@@ -79,7 +79,8 @@ class ResourceMonitor:
                     ),
                     "io_counters": (
                         self.process.io_counters()._asdict()
-                        if hasattr(self.process, "io_counters") and self.process.io_counters()
+                        if hasattr(self.process, "io_counters")
+                        and self.process.io_counters()
                         else {}
                     ),
                     "connections": (
@@ -493,7 +494,9 @@ class TestCPUBottlenecks:
             logger.info(f"Testing CPU scenario: {scenario['name']}")
 
             # Start CPU load in background
-            with ThreadPoolExecutor(max_workers=max(1, scenario["cpu_tasks"])) as executor:
+            with ThreadPoolExecutor(
+                max_workers=max(1, scenario["cpu_tasks"])
+            ) as executor:
                 # Submit CPU tasks (skip if no_load scenario)
                 if scenario["cpu_tasks"] == 0:
                     cpu_futures = []

@@ -54,8 +54,7 @@ class SynthesisAgent(BaseAgent):
 
         # Pass timeout from config to BaseAgent
         super().__init__(
-            "synthesis",
-            timeout_seconds=self.config.execution_config.timeout_seconds
+            "synthesis", timeout_seconds=self.config.execution_config.timeout_seconds
         )
 
         self._prompt_composer = PromptComposer()
@@ -434,9 +433,9 @@ The contributing_agents field should list: {", ".join(contributing_agents)}"""
             # Store structured output in execution_state for future use
             if "structured_outputs" not in context.execution_state:
                 context.execution_state["structured_outputs"] = {}
-            context.execution_state["structured_outputs"][self.name] = (
-                structured_result.model_dump()
-            )
+            context.execution_state["structured_outputs"][
+                self.name
+            ] = structured_result.model_dump()
 
             # Record token usage - for structured output, we record minimal usage
             # since LangChain doesn't expose detailed token counts

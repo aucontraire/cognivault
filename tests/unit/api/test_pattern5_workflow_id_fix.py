@@ -81,16 +81,16 @@ class TestPattern5WorkflowIdFix:
 
             assert query == "Test query for workflow ID consistency"
             assert config["correlation_id"] == "pattern5-test-correlation-001"
-            assert "workflow_id" in config, (
-                "workflow_id should be passed to orchestrator"
-            )
+            assert (
+                "workflow_id" in config
+            ), "workflow_id should be passed to orchestrator"
 
             orchestrator_workflow_id = config["workflow_id"]
 
             # PATTERN 5 FIX VERIFICATION: Both should use the same workflow_id
-            assert api_workflow_id == orchestrator_workflow_id, (
-                f"API workflow_id ({api_workflow_id}) should match orchestrator workflow_id ({orchestrator_workflow_id})"
-            )
+            assert (
+                api_workflow_id == orchestrator_workflow_id
+            ), f"API workflow_id ({api_workflow_id}) should match orchestrator workflow_id ({orchestrator_workflow_id})"
 
             # Verify event emissions use the same workflow_id
             mock_emit_started.assert_called_once()
@@ -138,9 +138,9 @@ class TestPattern5WorkflowIdFix:
             config = call_args[1]
 
             # PATTERN 5 verification: workflow_id should be in config
-            assert "workflow_id" in config, (
-                "Config should contain workflow_id to prevent duplicate generation"
-            )
+            assert (
+                "workflow_id" in config
+            ), "Config should contain workflow_id to prevent duplicate generation"
             assert "correlation_id" in config, "Config should contain correlation_id"
             assert config["correlation_id"] == "pattern5-config-test"
 
@@ -206,19 +206,19 @@ class TestPattern5WorkflowIdFix:
                 completed_workflow_id,
             }
 
-            assert len(all_workflow_ids) == 1, (
-                f"PATTERN 5 FAILED: Expected single workflow_id, got multiple: {all_workflow_ids}"
-            )
+            assert (
+                len(all_workflow_ids) == 1
+            ), f"PATTERN 5 FAILED: Expected single workflow_id, got multiple: {all_workflow_ids}"
 
             # Verify it's the same as what we tracked in event emissions
-            assert len(seen_workflow_ids) == 1, (
-                f"Event emissions used multiple workflow_ids: {seen_workflow_ids}"
-            )
+            assert (
+                len(seen_workflow_ids) == 1
+            ), f"Event emissions used multiple workflow_ids: {seen_workflow_ids}"
 
             expected_workflow_id = api_workflow_id
-            assert seen_workflow_ids == {expected_workflow_id}, (
-                f"Event workflow_ids {seen_workflow_ids} don't match API workflow_id {expected_workflow_id}"
-            )
+            assert seen_workflow_ids == {
+                expected_workflow_id
+            }, f"Event workflow_ids {seen_workflow_ids} don't match API workflow_id {expected_workflow_id}"
 
 
 if __name__ == "__main__":

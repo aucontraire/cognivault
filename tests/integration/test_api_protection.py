@@ -17,27 +17,27 @@ def test_openai_api_key_is_safe() -> None:
     """Test that OPENAI_API_KEY is set to a safe test value."""
     # Our conftest.py should set this to a safe test value
     api_key = os.getenv("OPENAI_API_KEY")
-    assert api_key == "test-key-safe-for-testing", (
-        f"OPENAI_API_KEY should be set to safe test value, got: {api_key}"
-    )
+    assert (
+        api_key == "test-key-safe-for-testing"
+    ), f"OPENAI_API_KEY should be set to safe test value, got: {api_key}"
 
 
 def test_openai_model_is_safe() -> None:
     """Test that OPENAI_MODEL is set to a safe test value."""
     # Our conftest.py should set this to a safe test value
     model = os.getenv("OPENAI_MODEL")
-    assert model == "gpt-3.5-turbo", (
-        f"OPENAI_MODEL should be set to safe test value, got: {model}"
-    )
+    assert (
+        model == "gpt-3.5-turbo"
+    ), f"OPENAI_MODEL should be set to safe test value, got: {model}"
 
 
 def test_openai_base_url_is_safe() -> None:
     """Test that OPENAI_BASE_URL is set to a safe test value."""
     # Our conftest.py should set this to a safe test value
     base_url = os.getenv("OPENAI_BASE_URL")
-    assert base_url == "https://api.openai.com/v1", (
-        f"OPENAI_BASE_URL should be set to safe test value, got: {base_url}"
-    )
+    assert (
+        base_url == "https://api.openai.com/v1"
+    ), f"OPENAI_BASE_URL should be set to safe test value, got: {base_url}"
 
 
 def test_agent_initialization_with_llm_none_is_safe() -> None:

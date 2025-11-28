@@ -1128,27 +1128,27 @@ async def test_agent_event_emission_includes_actual_content() -> None:
                 output_context = call_kwargs["output_context"]
 
                 # Key assertions for PATTERN 2 fix
-                assert "agent_output" in output_context, (
-                    "Agent-level event must include actual agent output"
-                )
+                assert (
+                    "agent_output" in output_context
+                ), "Agent-level event must include actual agent output"
                 assert (
                     output_context["agent_output"]
                     == "This is the actual agent output content that should appear in events"
                 ), "Agent output content must match what the agent produced"
-                assert output_context["output_length"] == 68, (
-                    "Output length must reflect actual content length (68 chars)"
-                )
+                assert (
+                    output_context["output_length"] == 68
+                ), "Output length must reflect actual content length (68 chars)"
 
                 # Verify token usage is included (from PATTERN 1 fix)
-                assert output_context["input_tokens"] == 150, (
-                    "Input token count must be included"
-                )
-                assert output_context["output_tokens"] == 75, (
-                    "Output token count must be included"
-                )
-                assert output_context["total_tokens"] == 225, (
-                    "Total token count must be included"
-                )
+                assert (
+                    output_context["input_tokens"] == 150
+                ), "Input token count must be included"
+                assert (
+                    output_context["output_tokens"] == 75
+                ), "Output token count must be included"
+                assert (
+                    output_context["total_tokens"] == 225
+                ), "Total token count must be included"
 
                 # Verify other expected metadata is still present
                 assert "step_id" in output_context
@@ -1216,12 +1216,12 @@ async def test_agent_event_emission_with_empty_content() -> None:
 
                 # Verify graceful handling of empty content
                 assert "agent_output" in output_context
-                assert output_context["agent_output"] == "", (
-                    "Empty content should be empty string"
-                )
-                assert output_context["output_length"] == 0, (
-                    "Empty content length should be 0"
-                )
+                assert (
+                    output_context["agent_output"] == ""
+                ), "Empty content should be empty string"
+                assert (
+                    output_context["output_length"] == 0
+                ), "Empty content length should be 0"
 
                 # Token usage should still be properly handled (defaults to 0)
                 assert output_context["input_tokens"] == 0

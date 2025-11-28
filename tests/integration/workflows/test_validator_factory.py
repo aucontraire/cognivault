@@ -269,9 +269,9 @@ def test_validator_factory_configurations() -> None:
     else:
         print("⚠️  Some ValidatorNode factory tests FAILED!")
 
-    assert success_count == total_count, (
-        f"ValidatorNode factory tests failed: {success_count}/{total_count} passed"
-    )
+    assert (
+        success_count == total_count
+    ), f"ValidatorNode factory tests failed: {success_count}/{total_count} passed"
 
 
 def test_validator_configuration_validation() -> None:

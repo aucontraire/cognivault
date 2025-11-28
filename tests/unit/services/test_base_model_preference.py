@@ -102,18 +102,18 @@ class TestBaseModelPreference:
             chat_score = rank_model(chat_variant)
 
             # Assert base model has highest score
-            assert base_score > variant_score, (
-                f"Base gpt-5 should score higher than timestamped variant for {agent_name}"
-            )
-            assert base_score > chat_score, (
-                f"Base gpt-5 should score higher than chat variant for {agent_name}"
-            )
+            assert (
+                base_score > variant_score
+            ), f"Base gpt-5 should score higher than timestamped variant for {agent_name}"
+            assert (
+                base_score > chat_score
+            ), f"Base gpt-5 should score higher than chat variant for {agent_name}"
 
             # Verify the score differences match our expectations
             # Base model gets +2000, variants get -1500, so difference should be ~3500
-            assert base_score - variant_score >= 3000, (
-                f"Score difference should be at least 3000 for {agent_name}"
-            )
+            assert (
+                base_score - variant_score >= 3000
+            ), f"Score difference should be at least 3000 for {agent_name}"
 
     @pytest.mark.asyncio
     async def test_get_best_model_selects_base(self) -> None:
@@ -162,9 +162,9 @@ class TestBaseModelPreference:
                 best_model = await service.get_best_model_for_agent(agent_name)
 
                 # Should select base gpt-5, not variants
-                assert best_model == "gpt-5", (
-                    f"Agent {agent_name} should select base gpt-5, got {best_model}"
-                )
+                assert (
+                    best_model == "gpt-5"
+                ), f"Agent {agent_name} should select base gpt-5, got {best_model}"
 
     def test_simplified_method_selection(self) -> None:
         """Test that method selection is simplified for base models."""

@@ -243,9 +243,9 @@ def test_configuration_parameter_preservation() -> None:
         if config_preserved:
             print("      ✅ All validator configurations preserved correctly")
 
-        assert config_preserved, (
-            "Configuration parameters were not preserved during round-trip"
-        )
+        assert (
+            config_preserved
+        ), "Configuration parameters were not preserved during round-trip"
 
     except Exception as e:
         print(f"   💥 Configuration preservation test ERROR: {e}")

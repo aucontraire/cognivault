@@ -80,7 +80,8 @@ class PerformanceProfiler:
             "duration_ms": self.duration_ms,
             "cpu_delta": (
                 self.cpu_percent_end - self.cpu_percent_start
-                if self.cpu_percent_start is not None and self.cpu_percent_end is not None
+                if self.cpu_percent_start is not None
+                and self.cpu_percent_end is not None
                 else 0
             ),
             "memory_delta_mb": self.memory_delta_mb,

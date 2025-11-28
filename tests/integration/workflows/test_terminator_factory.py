@@ -318,9 +318,9 @@ def test_terminator_factory_configurations() -> None:
     else:
         print("⚠️  Some TerminatorNode factory tests FAILED!")
 
-    assert success_count == total_count, (
-        f"TerminatorNode factory tests failed: {success_count}/{total_count} passed"
-    )
+    assert (
+        success_count == total_count
+    ), f"TerminatorNode factory tests failed: {success_count}/{total_count} passed"
 
 
 def test_terminator_strategy_variations() -> None:

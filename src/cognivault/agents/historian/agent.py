@@ -68,8 +68,7 @@ class HistorianAgent(BaseAgent):
 
         # Pass timeout from config to BaseAgent
         super().__init__(
-            "historian",
-            timeout_seconds=self.config.execution_config.timeout_seconds
+            "historian", timeout_seconds=self.config.execution_config.timeout_seconds
         )
 
         self._prompt_composer = PromptComposer()
@@ -898,9 +897,7 @@ HISTORICAL SYNTHESIS:"""
         if not self.structured_service:
             raise ValueError("Structured service not available")
 
-        self.logger.info(
-            f"[{self.name}] [DEBUG] Starting structured output workflow"
-        )
+        self.logger.info(f"[{self.name}] [DEBUG] Starting structured output workflow")
 
         try:
             # Step 1: Search for relevant historical content (same as before)
@@ -974,9 +971,9 @@ Focus on the content synthesis only - do not describe your analysis process."""
             # Store structured output in execution_state for future use
             if "structured_outputs" not in context.execution_state:
                 context.execution_state["structured_outputs"] = {}
-            context.execution_state["structured_outputs"][self.name] = (
-                structured_result.model_dump()
-            )
+            context.execution_state["structured_outputs"][
+                self.name
+            ] = structured_result.model_dump()
 
             # Update context with retrieved notes (backward compatibility)
             context.retrieved_notes = [result.filepath for result in filtered_results]

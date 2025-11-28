@@ -62,8 +62,7 @@ class CriticAgent(BaseAgent):
 
         # Pass timeout from config to BaseAgent
         super().__init__(
-            "critic",
-            timeout_seconds=self.config.execution_config.timeout_seconds
+            "critic", timeout_seconds=self.config.execution_config.timeout_seconds
         )
 
         self.llm = llm
@@ -255,9 +254,9 @@ class CriticAgent(BaseAgent):
             # This follows a pattern where structured outputs can be accessed later
             if "structured_outputs" not in context.execution_state:
                 context.execution_state["structured_outputs"] = {}
-            context.execution_state["structured_outputs"][self.name] = (
-                structured_result.model_dump()
-            )
+            context.execution_state["structured_outputs"][
+                self.name
+            ] = structured_result.model_dump()
 
             # Record token usage - for structured output, we need to record some usage
             # Since structured output doesn't directly expose token usage from LangChain,
