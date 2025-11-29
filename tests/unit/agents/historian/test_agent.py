@@ -1196,7 +1196,9 @@ class TestHistorianAgentLLMRelevanceFilterSafeguard:
         # Verify safeguard activated
         # Should have retrieved notes despite LLM filtering all results
         assert result_context.retrieved_notes is not None
-        assert len(result_context.retrieved_notes) == 3  # Default minimum_results_threshold
+        assert (
+            len(result_context.retrieved_notes) == 3
+        )  # Default minimum_results_threshold
 
         # Should have kept top results by relevance score
         assert result_context.retrieved_notes[0] == "/result1.md"
@@ -1213,7 +1215,9 @@ class TestHistorianAgentLLMRelevanceFilterSafeguard:
         from cognivault.config.agent_configs import HistorianConfig
 
         # Create config with custom threshold and disable hybrid search
-        config = HistorianConfig(minimum_results_threshold=2, hybrid_search_enabled=False)
+        config = HistorianConfig(
+            minimum_results_threshold=2, hybrid_search_enabled=False
+        )
 
         # Mock LLM that returns "NONE"
         mock_llm = MockLLM({"relevance": "NONE", "synthesis": "Test synthesis"})
@@ -1321,7 +1325,9 @@ class TestHistorianAgentLLMRelevanceFilterSafeguard:
         """Test safeguard when search returns fewer results than threshold."""
         from cognivault.config.agent_configs import HistorianConfig
 
-        config = HistorianConfig(minimum_results_threshold=5, hybrid_search_enabled=False)
+        config = HistorianConfig(
+            minimum_results_threshold=5, hybrid_search_enabled=False
+        )
         mock_llm = MockLLM({"relevance": "NONE", "synthesis": "Test synthesis"})
         agent = HistorianAgent(llm=mock_llm, config=config)
         # Disable structured output for this test
@@ -1480,6 +1486,4 @@ class TestHistorianAgentLLMRelevanceFilterSafeguard:
         await agent.run(context)
 
         # Check that warning was logged
-        assert any(
-            "SAFEGUARD ACTIVATED" in record.message for record in caplog.records
-        )
+        assert any("SAFEGUARD ACTIVATED" in record.message for record in caplog.records)

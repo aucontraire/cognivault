@@ -38,6 +38,7 @@ async def test_orchestration_api() -> AsyncGenerator[LangGraphOrchestrationAPI, 
 def sample_workflow_request() -> WorkflowRequest:
     """Create a sample workflow request for testing."""
     import uuid
+
     # Generate unique correlation ID for each test to avoid database conflicts
     correlation_id = f"test-correlation-{uuid.uuid4().hex[:8]}"
     return WorkflowRequest(
@@ -45,7 +46,7 @@ def sample_workflow_request() -> WorkflowRequest:
         agents=["refiner", "critic", "historian", "synthesis"],
         correlation_id=correlation_id,
         export_md=True,
-        execution_config={}
+        execution_config={},
     )
 
 
@@ -56,7 +57,7 @@ def mock_agent_outputs() -> Dict[str, str]:
         "refiner": "Refined question: Explain machine learning fundamentals and mechanisms. Confidence: 0.9",
         "critic": "Good question structure. Suggestions: Add specific ML algorithm examples. Severity: low",
         "historian": "Search results: ML is supervised learning, Neural networks. Found 2 relevant documents",
-        "synthesis": "Machine learning is a subset of AI with key insights: Supervised learning, Deep learning. Confidence: 0.85"
+        "synthesis": "Machine learning is a subset of AI with key insights: Supervised learning, Deep learning. Confidence: 0.85",
     }
 
 
@@ -69,7 +70,7 @@ class TestMarkdownDatabasePersistence:
         integration_db_session: AsyncSession,
         integration_repository_factory: RepositoryFactory,
         sample_workflow_request: WorkflowRequest,
-        mock_agent_outputs: Dict[str, str]
+        mock_agent_outputs: Dict[str, str],
     ) -> None:
         """Verify markdown is persisted to database after successful export."""
         # Arrange
@@ -85,19 +86,26 @@ class TestMarkdownDatabasePersistence:
         mock_topic_analysis.suggested_topics = [
             Mock(topic="machine learning"),
             Mock(topic="artificial intelligence"),
-            Mock(topic="neural networks")
+            Mock(topic="neural networks"),
         ]
         mock_topic_analysis.suggested_domain = "computer-science"
 
         try:
-            with patch.object(api._orchestrator, 'run', new_callable=AsyncMock) as mock_run, \
-                 patch('cognivault.store.topic_manager.TopicManager') as mock_topic_manager_class:
-
+            with (
+                patch.object(
+                    api._orchestrator, "run", new_callable=AsyncMock
+                ) as mock_run,
+                patch(
+                    "cognivault.store.topic_manager.TopicManager"
+                ) as mock_topic_manager_class,
+            ):
                 mock_run.return_value = mock_context
 
                 # Mock the TopicManager instance and its method
                 mock_topic_manager_instance = AsyncMock()
-                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(return_value=mock_topic_analysis)
+                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(
+                    return_value=mock_topic_analysis
+                )
                 mock_topic_manager_class.return_value = mock_topic_manager_instance
 
                 # Act
@@ -120,32 +128,39 @@ class TestMarkdownDatabasePersistence:
 
                 # Search by workflow_id in metadata
                 stmt = select(HistorianDocument).where(
-                    HistorianDocument.document_metadata['workflow_id'].astext == result.workflow_id
+                    HistorianDocument.document_metadata["workflow_id"].astext
+                    == result.workflow_id
                 )
                 db_result = await integration_db_session.execute(stmt)
                 doc = db_result.scalar_one_or_none()
 
                 assert doc is not None, "Document should be persisted to database"
                 assert doc.title.startswith(sample_workflow_request.query[:50])
-                assert doc.content is not None and len(doc.content) > 0, "Document should have content"
+                assert doc.content is not None and len(doc.content) > 0, (
+                    "Document should have content"
+                )
                 assert doc.source_path is not None
 
                 # Verify metadata structure
                 metadata = doc.document_metadata
-                assert metadata['workflow_id'] == result.workflow_id
-                assert metadata['correlation_id'] == sample_workflow_request.correlation_id
-                assert 'topics' in metadata
-                assert isinstance(metadata['topics'], list)
-                assert len(metadata['topics']) <= 5  # Max 5 topics
-                assert metadata['domain'] == "computer-science"
-                assert 'export_timestamp' in metadata
-                assert 'agents_executed' in metadata
-                assert isinstance(metadata['agents_executed'], list)
-                assert set(metadata['agents_executed']) == set(mock_agent_outputs.keys())
+                assert metadata["workflow_id"] == result.workflow_id
+                assert (
+                    metadata["correlation_id"] == sample_workflow_request.correlation_id
+                )
+                assert "topics" in metadata
+                assert isinstance(metadata["topics"], list)
+                assert len(metadata["topics"]) <= 5  # Max 5 topics
+                assert metadata["domain"] == "computer-science"
+                assert "export_timestamp" in metadata
+                assert "agents_executed" in metadata
+                assert isinstance(metadata["agents_executed"], list)
+                assert set(metadata["agents_executed"]) == set(
+                    mock_agent_outputs.keys()
+                )
 
                 # Verify timestamp format (ISO 8601)
                 try:
-                    datetime.fromisoformat(metadata['export_timestamp'])
+                    datetime.fromisoformat(metadata["export_timestamp"])
                 except ValueError:
                     pytest.fail("export_timestamp should be in ISO 8601 format")
 
@@ -160,7 +175,7 @@ class TestMarkdownDatabasePersistence:
         self,
         sample_workflow_request: WorkflowRequest,
         mock_agent_outputs: Dict[str, str],
-        caplog: pytest.LogCaptureFixture
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Verify workflow completes even if database persistence fails."""
         # Arrange
@@ -177,16 +192,24 @@ class TestMarkdownDatabasePersistence:
         md_file_created = None
 
         try:
-            with patch.object(api._orchestrator, 'run', new_callable=AsyncMock) as mock_run, \
-                 patch('cognivault.store.topic_manager.TopicManager') as mock_topic_manager_class, \
-                 patch.object(api, '_get_or_create_db_session_factory',
-                              new_callable=AsyncMock) as mock_db_factory:
-
+            with (
+                patch.object(
+                    api._orchestrator, "run", new_callable=AsyncMock
+                ) as mock_run,
+                patch(
+                    "cognivault.store.topic_manager.TopicManager"
+                ) as mock_topic_manager_class,
+                patch.object(
+                    api, "_get_or_create_db_session_factory", new_callable=AsyncMock
+                ) as mock_db_factory,
+            ):
                 mock_run.return_value = mock_context
 
                 # Mock the TopicManager instance
                 mock_topic_manager_instance = AsyncMock()
-                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(return_value=mock_topic_analysis)
+                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(
+                    return_value=mock_topic_analysis
+                )
                 mock_topic_manager_class.return_value = mock_topic_manager_instance
 
                 # Make database session factory raise an exception
@@ -207,8 +230,10 @@ class TestMarkdownDatabasePersistence:
                 md_file_created = md_path
 
                 # Verify error was logged
-                assert "Failed to persist markdown to database" in caplog.text or \
-                       "Failed to initialize database session factory" in caplog.text
+                assert (
+                    "Failed to persist markdown to database" in caplog.text
+                    or "Failed to initialize database session factory" in caplog.text
+                )
 
         finally:
             # Cleanup markdown file
@@ -220,7 +245,7 @@ class TestMarkdownDatabasePersistence:
         self,
         sample_workflow_request: WorkflowRequest,
         mock_agent_outputs: Dict[str, str],
-        caplog: pytest.LogCaptureFixture
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Verify workflow completes when database is unavailable."""
         # Arrange
@@ -237,16 +262,24 @@ class TestMarkdownDatabasePersistence:
         md_file_created = None
 
         try:
-            with patch.object(api._orchestrator, 'run', new_callable=AsyncMock) as mock_run, \
-                 patch('cognivault.store.topic_manager.TopicManager') as mock_topic_manager_class, \
-                 patch.object(api, '_get_or_create_db_session_factory',
-                              new_callable=AsyncMock) as mock_db_factory:
-
+            with (
+                patch.object(
+                    api._orchestrator, "run", new_callable=AsyncMock
+                ) as mock_run,
+                patch(
+                    "cognivault.store.topic_manager.TopicManager"
+                ) as mock_topic_manager_class,
+                patch.object(
+                    api, "_get_or_create_db_session_factory", new_callable=AsyncMock
+                ) as mock_db_factory,
+            ):
                 mock_run.return_value = mock_context
 
                 # Mock the TopicManager instance
                 mock_topic_manager_instance = AsyncMock()
-                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(return_value=mock_topic_analysis)
+                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(
+                    return_value=mock_topic_analysis
+                )
                 mock_topic_manager_class.return_value = mock_topic_manager_instance
 
                 # Database session factory returns None (unavailable)
@@ -256,7 +289,9 @@ class TestMarkdownDatabasePersistence:
                 result = await api.execute_workflow(sample_workflow_request)
 
                 # Assert
-                assert result is not None, "Workflow should complete when DB unavailable"
+                assert result is not None, (
+                    "Workflow should complete when DB unavailable"
+                )
                 assert result.status == "completed"
                 assert result.markdown_export is not None
 
@@ -266,8 +301,10 @@ class TestMarkdownDatabasePersistence:
                 md_file_created = md_path
 
                 # Verify warning was logged about database unavailability
-                assert "Database not available" in caplog.text or \
-                       "skipping markdown persistence" in caplog.text
+                assert (
+                    "Database not available" in caplog.text
+                    or "skipping markdown persistence" in caplog.text
+                )
 
         finally:
             # Cleanup markdown file
@@ -280,7 +317,7 @@ class TestMarkdownDatabasePersistence:
         integration_db_session: AsyncSession,
         integration_repository_factory: RepositoryFactory,
         sample_workflow_request: WorkflowRequest,
-        mock_agent_outputs: Dict[str, str]
+        mock_agent_outputs: Dict[str, str],
     ) -> None:
         """Verify deduplication works when running same workflow twice."""
         # Arrange
@@ -297,14 +334,21 @@ class TestMarkdownDatabasePersistence:
         md_files_created = []
 
         try:
-            with patch.object(api._orchestrator, 'run', new_callable=AsyncMock) as mock_run, \
-                 patch('cognivault.store.topic_manager.TopicManager') as mock_topic_manager_class:
-
+            with (
+                patch.object(
+                    api._orchestrator, "run", new_callable=AsyncMock
+                ) as mock_run,
+                patch(
+                    "cognivault.store.topic_manager.TopicManager"
+                ) as mock_topic_manager_class,
+            ):
                 mock_run.return_value = mock_context
 
                 # Mock the TopicManager instance
                 mock_topic_manager_instance = AsyncMock()
-                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(return_value=mock_topic_analysis)
+                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(
+                    return_value=mock_topic_analysis
+                )
                 mock_topic_manager_class.return_value = mock_topic_manager_instance
 
                 # Act - Run workflow twice with same content
@@ -337,7 +381,10 @@ class TestMarkdownDatabasePersistence:
                     if content1 == content2:
                         # Count documents with this content hash
                         import hashlib
-                        content_hash = hashlib.sha256(content1.encode("utf-8")).hexdigest()
+
+                        content_hash = hashlib.sha256(
+                            content1.encode("utf-8")
+                        ).hexdigest()
 
                         stmt = select(HistorianDocument).where(
                             HistorianDocument.content_hash == content_hash
@@ -345,7 +392,9 @@ class TestMarkdownDatabasePersistence:
                         db_result = await integration_db_session.execute(stmt)
                         docs = db_result.scalars().all()
 
-                        assert len(docs) == 1, "Should only have ONE database record for identical content (deduplication)"
+                        assert len(docs) == 1, (
+                            "Should only have ONE database record for identical content (deduplication)"
+                        )
 
         finally:
             # Cleanup markdown files
@@ -359,7 +408,7 @@ class TestMarkdownDatabasePersistence:
         integration_db_session: AsyncSession,
         integration_repository_factory: RepositoryFactory,
         sample_workflow_request: WorkflowRequest,
-        mock_agent_outputs: Dict[str, str]
+        mock_agent_outputs: Dict[str, str],
     ) -> None:
         """Verify document_metadata contains all expected keys and correct types."""
         # Arrange
@@ -376,21 +425,28 @@ class TestMarkdownDatabasePersistence:
             Mock(topic="topic3"),
             Mock(topic="topic4"),
             Mock(topic="topic5"),
-            Mock(topic="topic6")  # 6 topics to test max 5 limit
+            Mock(topic="topic6"),  # 6 topics to test max 5 limit
         ]
         mock_topic_analysis.suggested_domain = "test-domain"
 
         md_file_created = None
 
         try:
-            with patch.object(api._orchestrator, 'run', new_callable=AsyncMock) as mock_run, \
-                 patch('cognivault.store.topic_manager.TopicManager') as mock_topic_manager_class:
-
+            with (
+                patch.object(
+                    api._orchestrator, "run", new_callable=AsyncMock
+                ) as mock_run,
+                patch(
+                    "cognivault.store.topic_manager.TopicManager"
+                ) as mock_topic_manager_class,
+            ):
                 mock_run.return_value = mock_context
 
                 # Mock the TopicManager instance
                 mock_topic_manager_instance = AsyncMock()
-                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(return_value=mock_topic_analysis)
+                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(
+                    return_value=mock_topic_analysis
+                )
                 mock_topic_manager_class.return_value = mock_topic_manager_instance
 
                 # Act
@@ -405,7 +461,8 @@ class TestMarkdownDatabasePersistence:
 
                 # Retrieve document from database
                 stmt = select(HistorianDocument).where(
-                    HistorianDocument.document_metadata['workflow_id'].astext == result.workflow_id
+                    HistorianDocument.document_metadata["workflow_id"].astext
+                    == result.workflow_id
                 )
                 db_result = await integration_db_session.execute(stmt)
                 doc = db_result.scalar_one_or_none()
@@ -417,43 +474,59 @@ class TestMarkdownDatabasePersistence:
 
                 # Required keys
                 required_keys = [
-                    'workflow_id',
-                    'correlation_id',
-                    'topics',
-                    'domain',
-                    'export_timestamp',
-                    'agents_executed'
+                    "workflow_id",
+                    "correlation_id",
+                    "topics",
+                    "domain",
+                    "export_timestamp",
+                    "agents_executed",
                 ]
 
                 for key in required_keys:
                     assert key in metadata, f"Metadata should contain '{key}'"
 
                 # Verify types
-                assert isinstance(metadata['workflow_id'], str), "workflow_id should be string"
-                assert isinstance(metadata['correlation_id'], str), "correlation_id should be string"
-                assert isinstance(metadata['topics'], list), "topics should be list"
-                assert isinstance(metadata['domain'], str), "domain should be string"
-                assert isinstance(metadata['export_timestamp'], str), "export_timestamp should be string"
-                assert isinstance(metadata['agents_executed'], list), "agents_executed should be list"
+                assert isinstance(metadata["workflow_id"], str), (
+                    "workflow_id should be string"
+                )
+                assert isinstance(metadata["correlation_id"], str), (
+                    "correlation_id should be string"
+                )
+                assert isinstance(metadata["topics"], list), "topics should be list"
+                assert isinstance(metadata["domain"], str), "domain should be string"
+                assert isinstance(metadata["export_timestamp"], str), (
+                    "export_timestamp should be string"
+                )
+                assert isinstance(metadata["agents_executed"], list), (
+                    "agents_executed should be list"
+                )
 
                 # Verify values
-                assert metadata['workflow_id'] == result.workflow_id
-                assert metadata['correlation_id'] == sample_workflow_request.correlation_id
-                assert len(metadata['topics']) <= 5, "Should have max 5 topics"
-                assert metadata['domain'] == "test-domain"
+                assert metadata["workflow_id"] == result.workflow_id
+                assert (
+                    metadata["correlation_id"] == sample_workflow_request.correlation_id
+                )
+                assert len(metadata["topics"]) <= 5, "Should have max 5 topics"
+                assert metadata["domain"] == "test-domain"
 
                 # Verify ISO timestamp format
                 try:
-                    parsed_timestamp = datetime.fromisoformat(metadata['export_timestamp'])
+                    parsed_timestamp = datetime.fromisoformat(
+                        metadata["export_timestamp"]
+                    )
                     # Verify it's recent (within last minute)
                     now = datetime.now(timezone.utc)
-                    time_diff = (now - parsed_timestamp.replace(tzinfo=timezone.utc)).total_seconds()
+                    time_diff = (
+                        now - parsed_timestamp.replace(tzinfo=timezone.utc)
+                    ).total_seconds()
                     assert abs(time_diff) < 60, "Timestamp should be recent"
                 except ValueError:
                     pytest.fail("export_timestamp should be valid ISO 8601 format")
 
                 # Verify agents_executed contains all agents from mock_agent_outputs
-                assert set(metadata['agents_executed']) == set(mock_agent_outputs.keys())
+                assert set(metadata["agents_executed"]) == set(
+                    mock_agent_outputs.keys()
+                )
 
         finally:
             # Cleanup markdown file
@@ -465,7 +538,7 @@ class TestMarkdownDatabasePersistence:
         self,
         integration_db_session: AsyncSession,
         sample_workflow_request: WorkflowRequest,
-        mock_agent_outputs: Dict[str, str]
+        mock_agent_outputs: Dict[str, str],
     ) -> None:
         """Verify no markdown or database persistence when export_md=False."""
         # Arrange
@@ -479,7 +552,9 @@ class TestMarkdownDatabasePersistence:
         mock_context.agent_outputs = mock_agent_outputs
 
         try:
-            with patch.object(api._orchestrator, 'run', new_callable=AsyncMock) as mock_run:
+            with patch.object(
+                api._orchestrator, "run", new_callable=AsyncMock
+            ) as mock_run:
                 mock_run.return_value = mock_context
 
                 # Act
@@ -488,17 +563,22 @@ class TestMarkdownDatabasePersistence:
                 # Assert
                 assert result is not None
                 assert result.status == "completed"
-                assert result.markdown_export is None, "Should not have markdown_export when export_md=False"
+                assert result.markdown_export is None, (
+                    "Should not have markdown_export when export_md=False"
+                )
 
                 # Verify no database record was created for markdown
                 # (Note: Workflow execution record is still created, but not markdown document)
                 stmt = select(HistorianDocument).where(
-                    HistorianDocument.document_metadata['workflow_id'].astext == result.workflow_id
+                    HistorianDocument.document_metadata["workflow_id"].astext
+                    == result.workflow_id
                 )
                 db_result = await integration_db_session.execute(stmt)
                 doc = db_result.scalar_one_or_none()
 
-                assert doc is None, "Should not create HistorianDocument when export_md=False"
+                assert doc is None, (
+                    "Should not create HistorianDocument when export_md=False"
+                )
 
         finally:
             await api.shutdown()
@@ -507,7 +587,7 @@ class TestMarkdownDatabasePersistence:
         self,
         sample_workflow_request: WorkflowRequest,
         mock_agent_outputs: Dict[str, str],
-        caplog: pytest.LogCaptureFixture
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Verify workflow completes even if markdown export itself fails."""
         # Arrange
@@ -523,27 +603,40 @@ class TestMarkdownDatabasePersistence:
         mock_topic_analysis.suggested_domain = "test-domain"
 
         try:
-            with patch.object(api._orchestrator, 'run', new_callable=AsyncMock) as mock_run, \
-                 patch('cognivault.store.wiki_adapter.MarkdownExporter') as mock_exporter_class, \
-                 patch('cognivault.store.topic_manager.TopicManager') as mock_topic_manager_class:
-
+            with (
+                patch.object(
+                    api._orchestrator, "run", new_callable=AsyncMock
+                ) as mock_run,
+                patch(
+                    "cognivault.store.wiki_adapter.MarkdownExporter"
+                ) as mock_exporter_class,
+                patch(
+                    "cognivault.store.topic_manager.TopicManager"
+                ) as mock_topic_manager_class,
+            ):
                 mock_run.return_value = mock_context
 
                 # Mock the TopicManager instance to avoid LLM calls
                 mock_topic_manager_instance = AsyncMock()
-                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(return_value=mock_topic_analysis)
+                mock_topic_manager_instance.analyze_and_suggest_topics = AsyncMock(
+                    return_value=mock_topic_analysis
+                )
                 mock_topic_manager_class.return_value = mock_topic_manager_instance
 
                 # Mock the MarkdownExporter instance
                 mock_exporter_instance = Mock()
-                mock_exporter_instance.export = Mock(side_effect=Exception("Markdown export failed"))
+                mock_exporter_instance.export = Mock(
+                    side_effect=Exception("Markdown export failed")
+                )
                 mock_exporter_class.return_value = mock_exporter_instance
 
                 # Act
                 result = await api.execute_workflow(sample_workflow_request)
 
                 # Assert
-                assert result is not None, "Workflow should complete despite markdown export failure"
+                assert result is not None, (
+                    "Workflow should complete despite markdown export failure"
+                )
                 assert result.status == "completed"
 
                 # Verify error was captured in markdown_export
