@@ -341,10 +341,17 @@ class HistorianAgent(BaseAgent):
             config = get_config()
             search_limit = getattr(config.testing, "historian_search_limit", 10)
 
-            # Check if hybrid search is enabled using agent config first, then fallback to testing config
-            enable_hybrid_search = self.config.hybrid_search_enabled or getattr(
-                config.testing, "enable_hybrid_search", True
-            )
+            # Check if hybrid search is enabled
+            # Agent config takes precedence over testing config
+            # Only use testing config if agent config is at default (True)
+            if self.config.hybrid_search_enabled is False:
+                # Explicitly disabled in agent config
+                enable_hybrid_search = False
+            else:
+                # Use testing config as fallback
+                enable_hybrid_search = getattr(
+                    config.testing, "enable_hybrid_search", True
+                )
 
             self.logger.info(
                 f"[{self.name}] [DEBUG] Search strategy - "
@@ -682,6 +689,31 @@ class HistorianAgent(BaseAgent):
             filtered_results = [
                 search_results[i] for i in relevant_indices if i < len(search_results)
             ]
+
+            # SAFEGUARD: If LLM filtered out ALL results but search found documents,
+            # keep the top N results based on original search scores
+            if len(filtered_results) == 0 and len(search_results) > 0:
+                min_threshold = min(
+                    self.config.minimum_results_threshold, len(search_results)
+                )
+                filtered_results = sorted(
+                    search_results, key=lambda r: r.relevance_score, reverse=True
+                )[:min_threshold]
+
+                self.logger.warning(
+                    f"[{self.name}] LLM relevance filter removed ALL results. "
+                    f"SAFEGUARD ACTIVATED: Keeping top {len(filtered_results)} results "
+                    f"based on search scores (threshold: {self.config.minimum_results_threshold})"
+                )
+                self.logger.info(
+                    f"[{self.name}] Safeguard kept results: "
+                    + ", ".join(
+                        [
+                            f"{r.title[:50]}... (score: {r.relevance_score:.2f})"
+                            for r in filtered_results
+                        ]
+                    )
+                )
 
             relevance_time = (time.time() - relevance_start) * 1000
             self.logger.info(

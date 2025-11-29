@@ -253,6 +253,12 @@ class HistorianConfig(BaseModel):
         le=1.0,
         description="Similarity threshold for result deduplication (0.0-1.0)",
     )
+    minimum_results_threshold: int = Field(
+        3,
+        ge=1,
+        le=10,
+        description="Minimum number of results to keep when LLM filters all results",
+    )
 
     # Nested configurations
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
@@ -292,6 +298,8 @@ class HistorianConfig(BaseModel):
             config["search_timeout_seconds"] = int(env_val)
         if env_val := os.getenv(f"{prefix}_DEDUPLICATION_THRESHOLD"):
             config["deduplication_threshold"] = float(env_val)
+        if env_val := os.getenv(f"{prefix}_MINIMUM_RESULTS_THRESHOLD"):
+            config["minimum_results_threshold"] = int(env_val)
 
         return cls(**config)
 
@@ -307,6 +315,7 @@ class HistorianConfig(BaseModel):
             "database_relevance_boost": str(self.database_relevance_boost),
             "search_timeout_seconds": str(self.search_timeout_seconds),
             "deduplication_threshold": str(self.deduplication_threshold),
+            "minimum_results_threshold": str(self.minimum_results_threshold),
             "custom_constraints": self.behavioral_config.custom_constraints,
         }
 
