@@ -96,8 +96,17 @@ class MarkdownExporter:
             workflow_metadata,
         )
 
-        # Calculate content metrics
-        content_text = question + " " + " ".join(agent_outputs.values())
+        # Calculate content metrics (handle both string and dict outputs)
+        content_parts = [question]
+        for output in agent_outputs.values():
+            if isinstance(output, str):
+                content_parts.append(output)
+            elif isinstance(output, dict):
+                # Extract text content from structured outputs
+                content_parts.append(str(output))
+            else:
+                content_parts.append(str(output))
+        content_text = " ".join(content_parts)
         frontmatter.calculate_reading_time(content_text)
 
         # Render to YAML
@@ -109,7 +118,45 @@ class MarkdownExporter:
         ]
 
         for agent_name, response in agent_outputs.items():
-            lines.append(f"### {agent_name}\n\n{response}\n")
+            # Handle both string outputs (backward compatible) and structured dict outputs
+            if isinstance(response, str):
+                lines.append(f"### {agent_name}\n\n{response}\n")
+            elif isinstance(response, dict):
+                # Format structured output nicely
+                lines.append(f"### {agent_name}\n\n")
+                # Extract main content field if available, otherwise format all fields
+                main_content_fields = [
+                    "refined_question",
+                    "historical_summary",
+                    "critique",
+                    "final_analysis",
+                    "content",
+                    "output",
+                    "response",
+                ]
+                # Try to find main content field
+                main_content = None
+                for field in main_content_fields:
+                    if field in response:
+                        main_content = response[field]
+                        break
+
+                if main_content:
+                    lines.append(f"{main_content}\n\n")
+                    # Add metadata as details
+                    if len(response) > 1:
+                        lines.append("**Metadata:**\n\n")
+                        for key, value in response.items():
+                            if key not in main_content_fields:
+                                lines.append(f"- **{key}**: {value}\n")
+                        lines.append("\n")
+                else:
+                    # No main content field, format all fields
+                    for key, value in response.items():
+                        lines.append(f"**{key}**: {value}\n\n")
+            else:
+                # Fallback to string representation
+                lines.append(f"### {agent_name}\n\n{str(response)}\n")
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.writelines(line if line.endswith("\n") else line + "\n" for line in lines)

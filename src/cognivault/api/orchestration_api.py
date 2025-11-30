@@ -43,6 +43,37 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
         self._session_factory = get_session_factory()
         self._db_session_factory: Optional[DatabaseSessionFactory] = None
 
+    def _convert_agent_outputs_to_serializable(
+        self, agent_outputs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Convert agent outputs to serializable format.
+
+        Handles Pydantic models by converting them to dicts using model_dump(),
+        while preserving backward compatibility with string outputs.
+
+        Parameters
+        ----------
+        agent_outputs : Dict[str, Any]
+            Raw agent outputs which may contain Pydantic models, strings, or dicts
+
+        Returns
+        -------
+        Dict[str, Any]
+            Serializable dictionary with all Pydantic models converted to dicts
+        """
+        serialized_outputs: Dict[str, Any] = {}
+
+        for agent_name, output in agent_outputs.items():
+            # If it's a Pydantic model, convert to dict
+            if hasattr(output, "model_dump"):
+                serialized_outputs[agent_name] = output.model_dump()
+            # If it's already a dict, string, or other serializable type, keep as-is
+            else:
+                serialized_outputs[agent_name] = output
+
+        return serialized_outputs
+
     @property
     def api_name(self) -> str:
         return "LangGraph Orchestration API"
@@ -212,11 +243,37 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
 
             execution_time = time.time() - start_time
 
+            # PRIORITY: Use structured outputs from execution_state if available
+            # These contain full metadata (processing_time_ms, confidence, etc.)
+            # Falls back to agent_outputs (strings) for backward compatibility
+            structured_outputs = result_context.execution_state.get(
+                "structured_outputs", {}
+            )
+
+            # Merge: prefer structured outputs, fall back to string outputs
+            agent_outputs_to_serialize = {}
+            for agent_name in result_context.agent_outputs:
+                if agent_name in structured_outputs:
+                    # Use the structured dict (already serialized via model_dump())
+                    agent_outputs_to_serialize[agent_name] = structured_outputs[
+                        agent_name
+                    ]
+                else:
+                    # Fall back to string output
+                    agent_outputs_to_serialize[agent_name] = (
+                        result_context.agent_outputs[agent_name]
+                    )
+
+            # Convert agent outputs to serializable format (handles any remaining Pydantic models)
+            serialized_agent_outputs = self._convert_agent_outputs_to_serializable(
+                agent_outputs_to_serialize
+            )
+
             # Convert orchestrator result to API response
             response = WorkflowResponse(
                 workflow_id=workflow_id,
                 status="completed",
-                agent_outputs=result_context.agent_outputs,
+                agent_outputs=serialized_agent_outputs,
                 execution_time_seconds=execution_time,
                 correlation_id=request.correlation_id,
             )
@@ -242,11 +299,11 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                     # Initialize topic manager for auto-tagging
                     topic_manager = TopicManager(llm=llm)
 
-                    # Analyze and suggest topics
+                    # Analyze and suggest topics (use serialized outputs for consistency)
                     try:
                         topic_analysis = await topic_manager.analyze_and_suggest_topics(
                             query=request.query,
-                            agent_outputs=result_context.agent_outputs,
+                            agent_outputs=serialized_agent_outputs,
                         )
                         suggested_topics = [
                             s.topic for s in topic_analysis.suggested_topics
@@ -260,10 +317,10 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                         suggested_topics = []
                         suggested_domain = None
 
-                    # Export with enhanced metadata
+                    # Export with enhanced metadata (use serialized outputs)
                     exporter = MarkdownExporter()
                     md_path = exporter.export(
-                        agent_outputs=result_context.agent_outputs,
+                        agent_outputs=serialized_agent_outputs,
                         question=request.query,
                         topics=suggested_topics,
                         domain=suggested_domain,

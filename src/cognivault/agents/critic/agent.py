@@ -248,7 +248,20 @@ class CriticAgent(BaseAgent):
                 else:
                     raise ValueError(f"Unexpected result type: {type(result)}")
 
+            # SERVER-SIDE PROCESSING TIME INJECTION
+            # CRITICAL FIX: LLMs cannot accurately measure their own processing time
+            # We calculate actual execution time server-side and inject it into the model
             processing_time_ms = (time.time() - start_time) * 1000
+
+            # Inject server-calculated processing time if LLM returned None
+            if structured_result.processing_time_ms is None:
+                # Use model_copy to create new instance with updated processing_time_ms
+                structured_result = structured_result.model_copy(
+                    update={"processing_time_ms": processing_time_ms}
+                )
+                self.logger.info(
+                    f"[{self.name}] Injected server-calculated processing_time_ms: {processing_time_ms:.1f}ms"
+                )
 
             # Store structured output in execution_state for future use
             # This follows a pattern where structured outputs can be accessed later

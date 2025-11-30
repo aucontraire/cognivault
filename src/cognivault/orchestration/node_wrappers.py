@@ -617,9 +617,17 @@ async def refiner_node(
                 "checkpoint_enabled": checkpoint_enabled,
             },
         )
+
+        # Extract structured_outputs from result_context for persistence
+        # This preserves the full Pydantic model data for API/database storage
+        structured_outputs = result_context.execution_state.get(
+            "structured_outputs", {}
+        )
+
         return {
             "refiner": refiner_state,
             "successful_agents": ["refiner"],
+            "structured_outputs": structured_outputs,  # Pass through LangGraph state
         }
 
     except Exception as e:
@@ -795,11 +803,17 @@ async def critic_node(
             },
         )
 
+        # Extract structured_outputs from result_context for persistence
+        structured_outputs = result_context.execution_state.get(
+            "structured_outputs", {}
+        )
+
         # Return state update with agent output and success tracking
         logger.info("Critic node completed successfully")
         return {
             "critic": critic_state,
             "successful_agents": ["critic"],
+            "structured_outputs": structured_outputs,  # Pass through LangGraph state
         }
 
     except Exception as e:
@@ -976,11 +990,17 @@ async def historian_node(
             },
         )
 
+        # Extract structured_outputs from result_context for persistence
+        structured_outputs = result_context.execution_state.get(
+            "structured_outputs", {}
+        )
+
         # Return state update with agent output and success tracking
         logger.info("Historian node completed successfully")
         return {
             "historian": historian_state,
             "successful_agents": ["historian"],
+            "structured_outputs": structured_outputs,  # Pass through LangGraph state
         }
 
     except Exception as e:
@@ -1154,11 +1174,17 @@ async def synthesis_node(
             },
         )
 
+        # Extract structured_outputs from result_context for persistence
+        structured_outputs = result_context.execution_state.get(
+            "structured_outputs", {}
+        )
+
         # Return state update with agent output and success tracking
         logger.info("Synthesis node completed successfully")
         return {
             "synthesis": synthesis_state,
             "successful_agents": ["synthesis"],
+            "structured_outputs": structured_outputs,  # Pass through LangGraph state
         }
 
     except Exception as e:

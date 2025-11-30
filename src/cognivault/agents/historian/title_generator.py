@@ -31,8 +31,9 @@ class TitleGenerator:
         if len(original_title) <= self.max_title_length:
             return original_title
 
-        logger.warning(
-            f"Title too long ({len(original_title)} chars), generating safe alternative"
+        logger.info(
+            f"Optimizing title length: {len(original_title)} → {self.max_title_length} chars max "
+            f"(constraints: SearchResult=500, Database=VARCHAR(500))"
         )
 
         # Use empty dict if metadata is None

@@ -122,6 +122,7 @@ async def test_pattern4_short_content_no_truncation() -> None:
         "errors": [],
         "successful_agents": [],
         "failed_agents": [],
+        "structured_outputs": {},
     }
 
     # Create a properly typed Runtime mock
@@ -262,6 +263,7 @@ async def test_pattern4_long_content_smart_truncation() -> None:
         "errors": [],
         "successful_agents": [],
         "failed_agents": [],
+        "structured_outputs": {},
     }
 
     # Create a properly typed Runtime mock
@@ -404,6 +406,7 @@ async def test_pattern4_medium_content_preserved() -> None:
         "errors": [],
         "successful_agents": [],
         "failed_agents": [],
+        "structured_outputs": {},
     }
 
     # Create a properly typed Runtime mock

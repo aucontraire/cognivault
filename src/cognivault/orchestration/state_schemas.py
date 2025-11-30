@@ -18,6 +18,31 @@ from dataclasses import dataclass
 import operator
 
 
+def merge_structured_outputs(
+    left: Dict[str, Any], right: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Merge two structured output dicts for concurrent LangGraph updates.
+
+    This reducer allows multiple agents (e.g., critic and historian) to
+    write to structured_outputs in parallel without conflicts. The right
+    dict values override left dict values for matching keys.
+
+    Parameters
+    ----------
+    left : Dict[str, Any]
+        Existing structured outputs
+    right : Dict[str, Any]
+        New structured outputs to merge
+
+    Returns
+    -------
+    Dict[str, Any]
+        Merged structured outputs with right values taking precedence
+    """
+    return {**left, **right}
+
+
 class RefinerState(TypedDict):
     """
     Output schema for the RefinerAgent.
@@ -221,6 +246,10 @@ class CogniVaultState(TypedDict):
     failed_agents: Annotated[List[str], operator.add]
     """List of agents that failed during execution."""
 
+    # Structured outputs (for API/database persistence)
+    structured_outputs: Annotated[Dict[str, Any], merge_structured_outputs]
+    """Full Pydantic model outputs from agents for database/API persistence."""
+
 
 # Type aliases for improved clarity
 LangGraphState = CogniVaultState
@@ -268,6 +297,7 @@ def create_initial_state(
         errors=[],
         successful_agents=[],
         failed_agents=[],
+        structured_outputs={},
     )
 
 
@@ -507,4 +537,5 @@ __all__ = [
     "get_agent_state",
     "set_agent_state",
     "record_agent_error",
+    "merge_structured_outputs",
 ]

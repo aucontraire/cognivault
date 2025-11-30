@@ -384,7 +384,33 @@ class LangGraphOrchestrator:
                 }
             )
 
-            # Emit workflow completed event
+            # Emit workflow completed event (with truncated outputs for logging)
+            # Helper to extract main content from structured or string outputs
+            def truncate_output(output: Any) -> str:
+                """Extract and truncate output for logging purposes."""
+                if isinstance(output, str):
+                    return output[:200] + "..." if len(output) > 200 else output
+                elif isinstance(output, dict):
+                    # Extract main content field if available
+                    main_fields = [
+                        "refined_question",
+                        "historical_summary",
+                        "critique",
+                        "final_analysis",
+                    ]
+                    for field in main_fields:
+                        if field in output:
+                            content = str(output[field])
+                            return (
+                                content[:200] + "..." if len(content) > 200 else content
+                            )
+                    # Fallback to string representation
+                    content = str(output)
+                    return content[:200] + "..." if len(content) > 200 else content
+                else:
+                    content = str(output)
+                    return content[:200] + "..." if len(content) > 200 else content
+
             await emit_workflow_completed(
                 workflow_id=execution_id,
                 status=(
@@ -394,11 +420,7 @@ class LangGraphOrchestrator:
                 ),
                 execution_time_seconds=total_time_ms / 1000,
                 agent_outputs={
-                    agent: (
-                        str(output)[:200] + "..."
-                        if len(str(output)) > 200
-                        else str(output)
-                    )
+                    agent: truncate_output(output)
                     for agent, output in agent_context.agent_outputs.items()
                 },
                 successful_agents=list(final_state["successful_agents"]),
@@ -548,6 +570,15 @@ class LangGraphOrchestrator:
         """
         # Create AgentContext
         context = AgentContext(query=final_state["query"])
+
+        # Extract structured_outputs from LangGraph state if available
+        # This contains the full Pydantic model dumps from agents
+        if "structured_outputs" in final_state:
+            context.execution_state["structured_outputs"] = final_state[
+                "structured_outputs"
+            ]
+        else:
+            context.execution_state["structured_outputs"] = {}
 
         # Add agent outputs
         if final_state.get("refiner"):
