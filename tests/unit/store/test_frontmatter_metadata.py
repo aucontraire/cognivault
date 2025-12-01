@@ -43,7 +43,9 @@ class TestMetadataExtraction:
             ambiguities_resolved=["Unclear scope"],
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("refiner", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "refiner", output
+        )
 
         assert result.status == AgentStatus.REFINED
         assert result.confidence == 0.9  # HIGH = 0.9
@@ -64,7 +66,9 @@ class TestMetadataExtraction:
             was_unchanged=True,
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("refiner", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "refiner", output
+        )
 
         assert result.status == AgentStatus.PASSTHROUGH
         assert result.changes_made is False
@@ -83,7 +87,7 @@ class TestMetadataExtraction:
             bias_details=[
                 BiasDetail(
                     bias_type=BiasType.TEMPORAL,
-                    explanation="Focuses on current AI without historical context"
+                    explanation="Focuses on current AI without historical context",
                 )
             ],
             alternate_framings=["Consider historical precedents"],
@@ -92,7 +96,9 @@ class TestMetadataExtraction:
             no_issues_found=False,
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("critic", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "critic", output
+        )
 
         assert result.status == AgentStatus.ANALYZED
         assert result.confidence == 0.7  # MEDIUM = 0.7
@@ -113,7 +119,9 @@ class TestMetadataExtraction:
             no_issues_found=True,
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("critic", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "critic", output
+        )
 
         assert result.status == AgentStatus.INSUFFICIENT_CONTENT
         assert result.changes_made is False
@@ -131,7 +139,7 @@ class TestMetadataExtraction:
                     source_id="doc1",
                     title="AI History",
                     relevance_score=0.9,
-                    content_snippet="Historical context about AI..."
+                    content_snippet="Historical context about AI...",
                 )
             ],
             historical_synthesis="Historical analysis of AI development shows patterns of adoption and resistance across multiple decades, reflecting broader societal transformations.",
@@ -143,14 +151,18 @@ class TestMetadataExtraction:
             no_relevant_context=False,
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("historian", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "historian", output
+        )
 
         assert result.status == AgentStatus.FOUND_MATCHES
         assert result.confidence == 0.9  # HIGH = 0.9
         assert result.processing_time_ms == 500
         assert result.changes_made is True
         assert result.metadata["sources_searched"] == 10
-        assert result.metadata["relevant_sources_found"] == 1  # Matches len(relevant_sources)
+        assert (
+            result.metadata["relevant_sources_found"] == 1
+        )  # Matches len(relevant_sources)
         assert result.metadata["themes_identified"] == 2
 
     def test_extract_metadata_from_historian_no_matches(self) -> None:
@@ -165,7 +177,9 @@ class TestMetadataExtraction:
             no_relevant_context=True,
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("historian", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "historian", output
+        )
 
         assert result.status == AgentStatus.NO_MATCHES
         assert result.changes_made is False
@@ -191,7 +205,9 @@ class TestMetadataExtraction:
             word_count=len(synthesis_text.split()),
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("synthesis", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "synthesis", output
+        )
 
         assert result.status == AgentStatus.INTEGRATED
         assert result.confidence == 0.9  # HIGH = 0.9
@@ -216,7 +232,9 @@ class TestMetadataExtraction:
             "fallback_used": False,
         }
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("refiner", output_dict)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "refiner", output_dict
+        )
 
         assert result.status == AgentStatus.REFINED
         assert result.confidence == 0.9
@@ -227,7 +245,9 @@ class TestMetadataExtraction:
         """Test extracting metadata from legacy string outputs (backward compatibility)."""
         output = "This is a legacy string output from an agent."
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("legacy_agent", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "legacy_agent", output
+        )
 
         # Should fall back to defaults
         assert result.status == AgentStatus.INTEGRATED
@@ -247,7 +267,9 @@ class TestMetadataExtraction:
             # processing_time_ms intentionally omitted
         )
 
-        result = MarkdownExporter._extract_metadata_from_structured_output("refiner", output)
+        result = MarkdownExporter._extract_metadata_from_structured_output(
+            "refiner", output
+        )
 
         assert result.processing_time_ms is None  # Should handle gracefully
 
@@ -277,11 +299,15 @@ class TestSummaryGeneration:
             ),
         }
 
-        summary = MarkdownExporter._generate_summary_from_outputs("AI and society", agent_outputs)
+        summary = MarkdownExporter._generate_summary_from_outputs(
+            "AI and society", agent_outputs
+        )
 
         assert "Refined query:" in summary
         assert "What are the long-term implications" in summary
-        assert "Artificial intelligence represents a transformative technology" in summary
+        assert (
+            "Artificial intelligence represents a transformative technology" in summary
+        )
 
     def test_generate_summary_from_dict_outputs(self) -> None:
         """Test generating summary from dict representations."""
@@ -295,7 +321,9 @@ class TestSummaryGeneration:
             },
         }
 
-        summary = MarkdownExporter._generate_summary_from_outputs("climate", agent_outputs)
+        summary = MarkdownExporter._generate_summary_from_outputs(
+            "climate", agent_outputs
+        )
 
         assert "Refined query:" in summary
         assert "climate change affect biodiversity" in summary
@@ -359,7 +387,9 @@ class TestBackwardCompatibility:
             "legacy_agent": "String output for backward compatibility",
         }
 
-        filepath = exporter.export(agent_outputs=agent_outputs, question="Test question")
+        filepath = exporter.export(
+            agent_outputs=agent_outputs, question="Test question"
+        )
 
         # Verify file was created
         assert tmp_path / filepath.split("/")[-1]
@@ -432,5 +462,7 @@ class TestIntegrationWithEnhancedFrontmatter:
         )
 
         # Verify summary was generated intelligently
-        assert frontmatter.summary != "Generated response from CogniVault agents"  # Not default
+        assert (
+            frontmatter.summary != "Generated response from CogniVault agents"
+        )  # Not default
         assert "intelligent summary" in frontmatter.summary
