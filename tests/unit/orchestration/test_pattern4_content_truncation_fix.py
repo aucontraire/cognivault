@@ -343,7 +343,8 @@ async def test_pattern4_long_content_smart_truncation() -> None:
                 assert event_length > 200, (
                     "Should be more generous than old 200 char limit"
                 )
-            assert event_length <= 1000, "Should respect reasonable upper limit"
+            # Historical summary content type has a 1500 char limit (see content_truncation.py)
+            assert event_length <= 1500, "Should respect reasonable upper limit for historical_summary (1500 chars)"
 
             # HistorianAgent uses fallback content instead of mock LLM content
             # This is expected behavior - focus on testing the truncation logic

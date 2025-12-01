@@ -36,8 +36,9 @@ class TestHistorianHybridSearch:
 
         mock_get_config.return_value = MockConfig()
 
-        # Create agent
+        # Create agent and explicitly enable hybrid search in agent config
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = True  # Ensure hybrid search is enabled
 
         # Mock file search results
         file_results = [
@@ -167,8 +168,9 @@ class TestHistorianHybridSearch:
 
         mock_get_config.return_value = MockConfig()
 
-        # Create agent
+        # Create agent and explicitly enable hybrid search in agent config
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = True  # Ensure hybrid search is enabled
 
         # Mock identical results from both sources (should be deduplicated)
         duplicate_result = SearchResult(
@@ -222,8 +224,9 @@ class TestHistorianHybridSearch:
 
         mock_get_config.return_value = MockConfig()
 
-        # Create agent
+        # Create agent and explicitly enable hybrid search in agent config
         agent = HistorianAgent(llm=None)
+        agent.config.hybrid_search_enabled = True  # Ensure hybrid search is enabled
 
         # Mock file search success and database search failure
         file_results = [
