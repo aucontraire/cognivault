@@ -692,7 +692,9 @@ class TestCIParameterRegressionPrevention:
         """CI regression prevention framework"""
         return CIParameterRegressionPrevention()
 
-    def test_codebase_scanning_detects_issues(self, ci_framework: CIParameterRegressionPrevention) -> None:
+    def test_codebase_scanning_detects_issues(
+        self, ci_framework: CIParameterRegressionPrevention
+    ) -> None:
         """Test that codebase scanning detects parameter compatibility issues"""
 
         # Create temporary test files with known issues
@@ -743,7 +745,9 @@ def bad_function():
             if test_file.exists():
                 test_file.unlink()
 
-    def test_parameter_transformation_validation(self, ci_framework: CIParameterRegressionPrevention) -> None:
+    def test_parameter_transformation_validation(
+        self, ci_framework: CIParameterRegressionPrevention
+    ) -> None:
         """Test parameter transformation validation"""
 
         validation_results = ci_framework.validate_parameter_transformation_functions()
@@ -775,7 +779,9 @@ def bad_function():
             f"✅ Parameter transformation validation passed: {len(validation_results['transformation_tests'])} tests"
         )
 
-    def test_deployment_blocking_logic(self, ci_framework: CIParameterRegressionPrevention) -> None:
+    def test_deployment_blocking_logic(
+        self, ci_framework: CIParameterRegressionPrevention
+    ) -> None:
         """Test that critical issues block deployment correctly"""
 
         # Mock analysis results with critical issues
@@ -819,7 +825,9 @@ def bad_function():
 
         print("✅ Deployment blocking logic validation passed")
 
-    def test_git_change_analysis(self, ci_framework: CIParameterRegressionPrevention) -> None:
+    def test_git_change_analysis(
+        self, ci_framework: CIParameterRegressionPrevention
+    ) -> None:
         """Test analysis of git changes for parameter impact"""
 
         git_analysis = ci_framework.check_git_changes_for_parameter_impact()
@@ -844,7 +852,9 @@ def bad_function():
         else:
             print("⚠️  Git not available for change analysis")
 
-    def test_comprehensive_ci_report_generation(self, ci_framework: CIParameterRegressionPrevention) -> Dict[str, Any]:
+    def test_comprehensive_ci_report_generation(
+        self, ci_framework: CIParameterRegressionPrevention
+    ) -> Dict[str, Any]:
         """Test comprehensive CI report generation"""
 
         report = ci_framework.generate_ci_report()
@@ -993,7 +1003,10 @@ def multiple_issues():
         ],
     )
     def test_parameter_issue_detection_scenarios(
-        self, ci_framework: CIParameterRegressionPrevention, file_content: str, expected_issues: int
+        self,
+        ci_framework: CIParameterRegressionPrevention,
+        file_content: str,
+        expected_issues: int,
     ) -> None:
         """Test various parameter issue detection scenarios"""
 

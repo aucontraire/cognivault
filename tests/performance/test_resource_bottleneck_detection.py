@@ -26,7 +26,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from unittest.mock import patch, Mock
 import logging
 
-from cognivault.services.langchain_service import LangChainService, StructuredOutputResult
+from cognivault.services.langchain_service import (
+    LangChainService,
+    StructuredOutputResult,
+)
 from cognivault.services.llm_pool import LLMServicePool
 from cognivault.agents.models import RefinerOutput
 from cognivault.observability import get_logger
@@ -180,7 +183,9 @@ class TestNetworkBottlenecks:
         return ResourceMonitor()
 
     @pytest.mark.asyncio
-    async def test_api_connection_latency(self, resource_monitor: ResourceMonitor) -> None:
+    async def test_api_connection_latency(
+        self, resource_monitor: ResourceMonitor
+    ) -> None:
         """Test API connection establishment latency."""
 
         # Test different connection scenarios
@@ -572,7 +577,9 @@ class TestCPUBottlenecks:
                 tasks.append(asyncio.create_task(asyncio.to_thread(blocking_operation)))
 
             # Add our performance test
-            async def performance_test() -> Union[RefinerOutput, StructuredOutputResult]:
+            async def performance_test() -> Union[
+                RefinerOutput, StructuredOutputResult
+            ]:
                 service = LangChainService(
                     model="gpt-4o-mini", use_pool=False, use_discovery=False
                 )
@@ -705,7 +712,9 @@ class TestConcurrencyBottlenecks:
             semaphore_tasks: List[Any] = [semaphore_task(i) for i in range(10)]
 
             # Add our performance test
-            async def performance_test() -> Union[RefinerOutput, StructuredOutputResult]:
+            async def performance_test() -> Union[
+                RefinerOutput, StructuredOutputResult
+            ]:
                 async with semaphore:  # This will also compete for semaphore
                     service = LangChainService(
                         model="gpt-4o-mini", use_pool=False, use_discovery=False

@@ -90,7 +90,9 @@ class TestStructuredOutputTimeouts:
     """Test timeout patterns in structured output calls."""
 
     @pytest.mark.asyncio
-    async def test_native_openai_timeout_patterns(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
+    async def test_native_openai_timeout_patterns(
+        self, timeout_analyzer: TimeoutLatencyAnalyzer
+    ) -> None:
         """Test for systematic timeouts in native OpenAI parse calls."""
 
         # Mock OpenAI client to simulate various timeout scenarios
@@ -120,7 +122,7 @@ class TestStructuredOutputTimeouts:
                         processing_mode="native",
                         original_query="Original question",
                         refined_query="Test question",
-                        confidence=0.8
+                        confidence=0.8,
                     )
                     return mock_response
                 else:
@@ -187,7 +189,9 @@ class TestStructuredOutputTimeouts:
             )
 
     @pytest.mark.asyncio
-    async def test_langchain_with_structured_output_timeouts(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
+    async def test_langchain_with_structured_output_timeouts(
+        self, timeout_analyzer: TimeoutLatencyAnalyzer
+    ) -> None:
         """Test timeout patterns in LangChain's with_structured_output method."""
 
         service = LangChainService(model="gpt-5", use_pool=False, use_discovery=False)
@@ -212,7 +216,7 @@ class TestStructuredOutputTimeouts:
                         processing_mode="native",
                         original_query="Original question",
                         refined_query="Test",
-                        confidence=0.8
+                        confidence=0.8,
                     )
 
                 with patch.object(
@@ -261,7 +265,9 @@ class TestFallbackLatencyAnalysis:
     """Analyze latency in the fallback chain causing the 4x slowdown."""
 
     @pytest.mark.asyncio
-    async def test_complete_fallback_chain_latency(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
+    async def test_complete_fallback_chain_latency(
+        self, timeout_analyzer: TimeoutLatencyAnalyzer
+    ) -> None:
         """Measure latency through the complete fallback chain."""
 
         service = LangChainService(model="gpt-5", use_pool=False, use_discovery=False)
@@ -350,7 +356,9 @@ class TestFallbackLatencyAnalysis:
         )
 
     @pytest.mark.asyncio
-    async def test_retry_multiplication_effect(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
+    async def test_retry_multiplication_effect(
+        self, timeout_analyzer: TimeoutLatencyAnalyzer
+    ) -> None:
         """Test how retries multiply the timeout effect."""
 
         service = LangChainService(model="gpt-5", use_pool=False, use_discovery=False)
@@ -419,7 +427,9 @@ class TestIntegrationLatencyProfile:
     """Profile integration layer latency contributions."""
 
     @pytest.mark.asyncio
-    async def test_service_initialization_latency_breakdown(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
+    async def test_service_initialization_latency_breakdown(
+        self, timeout_analyzer: TimeoutLatencyAnalyzer
+    ) -> None:
         """Break down service initialization latency by component."""
 
         # Test different initialization paths
@@ -500,7 +510,9 @@ class TestSystemicLatencyValidation:
     """Validate the complete systemic latency issue."""
 
     @pytest.mark.asyncio
-    async def test_end_to_end_regression_validation(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
+    async def test_end_to_end_regression_validation(
+        self, timeout_analyzer: TimeoutLatencyAnalyzer
+    ) -> None:
         """Validate the complete end-to-end regression pattern."""
 
         # Simulate the exact scenario where RefinerAgent takes 82s instead of 15s
@@ -603,9 +615,7 @@ class TestSystemicLatencyValidation:
             )
 
             # Identify primary contributor
-            max_phase = max(
-                phase_breakdown.items(), key=lambda x: x[1]
-            )
+            max_phase = max(phase_breakdown.items(), key=lambda x: x[1])
             logger.error(
                 f"PRIMARY BOTTLENECK: {max_phase[0]} contributes {max_phase[1]:.1f}s ({max_phase[1] / total_time * 100:.1f}%)"
             )

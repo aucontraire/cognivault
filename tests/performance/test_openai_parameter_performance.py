@@ -579,7 +579,10 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_basic_parameter_performance_validation(
-        self, performance_tester: OpenAIParameterPerformanceTester, gpt5_models: List[str], performance_thresholds: PerformanceThresholds
+        self,
+        performance_tester: OpenAIParameterPerformanceTester,
+        gpt5_models: List[str],
+        performance_thresholds: PerformanceThresholds,
     ) -> None:
         """Test that basic parameter fixes meet performance targets"""
 
@@ -605,7 +608,10 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_structured_output_performance_validation(
-        self, performance_tester: OpenAIParameterPerformanceTester, gpt5_models: List[str], performance_thresholds: PerformanceThresholds
+        self,
+        performance_tester: OpenAIParameterPerformanceTester,
+        gpt5_models: List[str],
+        performance_thresholds: PerformanceThresholds,
     ) -> None:
         """Test structured output performance with fixed parameters"""
 
@@ -636,7 +642,9 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_concurrent_performance_no_degradation(
-        self, performance_tester: OpenAIParameterPerformanceTester, performance_thresholds: PerformanceThresholds
+        self,
+        performance_tester: OpenAIParameterPerformanceTester,
+        performance_thresholds: PerformanceThresholds,
     ) -> None:
         """Test that concurrent requests don't degrade performance significantly"""
 
@@ -667,7 +675,9 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_agent_integration_performance_targets(
-        self, performance_tester: OpenAIParameterPerformanceTester, performance_thresholds: PerformanceThresholds
+        self,
+        performance_tester: OpenAIParameterPerformanceTester,
+        performance_thresholds: PerformanceThresholds,
     ) -> None:
         """Test performance with CogniVault agent integration"""
 
@@ -706,7 +716,9 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_performance_regression_boundaries(
-        self, performance_tester: OpenAIParameterPerformanceTester, performance_thresholds: PerformanceThresholds
+        self,
+        performance_tester: OpenAIParameterPerformanceTester,
+        performance_thresholds: PerformanceThresholds,
     ) -> None:
         """Test performance boundaries and regression detection"""
 
@@ -739,9 +751,9 @@ class TestOpenAIParameterPerformance:
         ]
 
         for scenario in edge_case_scenarios:
-            scenario_name: str = str(scenario['name'])
-            scenario_params: Dict[str, Any] = dict(scenario['params'])
-            scenario_max_ms: float = float(scenario['max_response_ms'])
+            scenario_name: str = str(scenario["name"])
+            scenario_params: Dict[str, Any] = dict(scenario["params"])
+            scenario_max_ms: float = float(scenario["max_response_ms"])
             print(f"\n🧪 Testing edge case: {scenario_name}")
 
             # Run multiple iterations for each edge case
@@ -775,7 +787,9 @@ class TestOpenAIParameterPerformance:
                     f"  ✅ {scenario_name}: {success_rate:.1%} success, {avg_response_time:.0f}ms avg"
                 )
 
-    def test_performance_targets_definition_validation(self, performance_thresholds: PerformanceThresholds) -> None:
+    def test_performance_targets_definition_validation(
+        self, performance_thresholds: PerformanceThresholds
+    ) -> None:
         """Test that performance targets are correctly defined and achievable"""
 
         # Validate threshold consistency
@@ -994,6 +1008,4 @@ class TestPerformanceRegressionPrevention:
                 f"Regression detection failed for {scenario_name}: expected {scenario_expected_severity}, got {detected_severity}"
             )
 
-            print(
-                f"✅ Regression detection for {scenario_name}: {detected_severity}"
-            )
+            print(f"✅ Regression detection for {scenario_name}: {detected_severity}")

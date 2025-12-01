@@ -474,7 +474,9 @@ def get_performance_monitor() -> PerformanceMonitor:
     return _global_monitor
 
 
-def monitor_performance(operation_name: Optional[str] = None) -> PerformanceTestDecorator:
+def monitor_performance(
+    operation_name: Optional[str] = None,
+) -> PerformanceTestDecorator:
     """Decorator for automatic performance monitoring."""
     return PerformanceTestDecorator(get_performance_monitor(), operation_name)
 

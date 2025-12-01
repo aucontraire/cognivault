@@ -169,7 +169,9 @@ class TestOpenAIParameterCompatibility:
                     f"Temperature changed incorrectly for {model}"
                 )
 
-    def test_temperature_parameter_filtering_for_gpt5(self, gpt5_models: List[str]) -> None:
+    def test_temperature_parameter_filtering_for_gpt5(
+        self, gpt5_models: List[str]
+    ) -> None:
         """Test temperature parameter filtering for GPT-5 models"""
 
         temperature_test_cases = [
@@ -194,7 +196,9 @@ class TestOpenAIParameterCompatibility:
                         "temperature": test_case["input"],
                     }
 
-                    def mock_filter_temperature(params: Dict[str, Any]) -> Dict[str, Any]:
+                    def mock_filter_temperature(
+                        params: Dict[str, Any],
+                    ) -> Dict[str, Any]:
                         filtered = params.copy()
                         if "gpt-5" in params.get("model", "").lower():
                             filtered["temperature"] = 1.0  # GPT-5 only supports 1.0
@@ -233,7 +237,9 @@ class TestOpenAIParameterCompatibility:
                     "temperature": 0.7,  # Should be filtered
                 }
 
-                def mock_prepare_structured_params(params: Dict[str, Any]) -> Dict[str, Any]:
+                def mock_prepare_structured_params(
+                    params: Dict[str, Any],
+                ) -> Dict[str, Any]:
                     prepared = params.copy()
                     if "gpt-5" in params.get("model", "").lower():
                         # Apply GPT-5 compatibility fixes
@@ -328,7 +334,9 @@ class TestOpenAIParameterCompatibility:
             ("gpt-3.5-turbo", False),
         ],
     )
-    def test_parameter_transformation_detection(self, model: str, expected_transform: bool) -> None:
+    def test_parameter_transformation_detection(
+        self, model: str, expected_transform: bool
+    ) -> None:
         """Test that GPT-5 models are correctly identified for parameter transformation"""
 
         def is_gpt5_model(model_name: str) -> bool:
@@ -342,7 +350,9 @@ class TestOpenAIParameterCompatibility:
             f"Model {model} transformation detection incorrect"
         )
 
-    def test_performance_regression_prevention(self, mock_openai_client: Mock, gpt5_models: List[str]) -> None:
+    def test_performance_regression_prevention(
+        self, mock_openai_client: Mock, gpt5_models: List[str]
+    ) -> None:
         """Test that fixed parameters meet performance targets"""
 
         # Performance targets based on validated results
@@ -499,7 +509,9 @@ class TestOpenAIParameterCompatibility:
             for model in gpt5_models:
                 if test_case["model_pattern"] in model:
                     # Mock the parameter transformation function
-                    def mock_apply_compatibility_fixes(params: Dict[str, Any]) -> Dict[str, Any]:
+                    def mock_apply_compatibility_fixes(
+                        params: Dict[str, Any],
+                    ) -> Dict[str, Any]:
                         fixed = params.copy()
 
                         # Apply all known fixes
@@ -556,7 +568,9 @@ class TestOpenAIParameterCompatibility:
             for model in gpt5_models:
                 with patch("cognivault.agents.base_agent.BaseAgent") as mock_agent:
 
-                    def mock_prepare_llm_params(agent_params: Dict[str, Any], model_name: str) -> Dict[str, Any]:
+                    def mock_prepare_llm_params(
+                        agent_params: Dict[str, Any], model_name: str
+                    ) -> Dict[str, Any]:
                         """Simulate the agent's parameter preparation"""
                         prepared = agent_params.copy()
                         prepared["model"] = model_name
