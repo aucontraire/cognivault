@@ -23,6 +23,7 @@ try:
         SynthesisOutput,
         BaseAgentOutput,
     )
+
     STRUCTURED_OUTPUTS_AVAILABLE = True
 except ImportError:
     STRUCTURED_OUTPUTS_AVAILABLE = False
@@ -210,7 +211,11 @@ class MarkdownExporter:
             # Extract common fields
             confidence_map = {"high": 0.9, "medium": 0.7, "low": 0.5}
             confidence = confidence_map.get(
-                output.confidence.lower() if hasattr(output, "confidence") else "medium",
+                (
+                    output.confidence.lower()
+                    if hasattr(output, "confidence")
+                    else "medium"
+                ),
                 0.7,
             )
             processing_time_ms = getattr(output, "processing_time_ms", None)
@@ -316,22 +321,30 @@ class MarkdownExporter:
                 )
             elif "sources_searched" in output:  # HistorianOutput
                 no_context = output.get("no_relevant_context", False)
-                status = AgentStatus.NO_MATCHES if no_context else AgentStatus.FOUND_MATCHES
+                status = (
+                    AgentStatus.NO_MATCHES if no_context else AgentStatus.FOUND_MATCHES
+                )
                 changes_made = output.get("relevant_sources_found", 0) > 0
                 metadata.update(
                     {
                         "sources_searched": output["sources_searched"],
-                        "relevant_sources_found": output.get("relevant_sources_found", 0),
+                        "relevant_sources_found": output.get(
+                            "relevant_sources_found", 0
+                        ),
                         "themes_identified": len(output.get("themes_identified", [])),
                     }
                 )
-            elif "key_themes" in output or "contributing_agents" in output:  # SynthesisOutput
+            elif (
+                "key_themes" in output or "contributing_agents" in output
+            ):  # SynthesisOutput
                 status = AgentStatus.INTEGRATED
                 changes_made = True
                 metadata.update(
                     {
                         "themes_count": len(output.get("key_themes", [])),
-                        "contributing_agents": len(output.get("contributing_agents", [])),
+                        "contributing_agents": len(
+                            output.get("contributing_agents", [])
+                        ),
                         "word_count": output.get("word_count", 0),
                     }
                 )
@@ -371,7 +384,9 @@ class MarkdownExporter:
         # Try to extract refined query from RefinerOutput
         refiner_output = agent_outputs.get("refiner")
         if refiner_output:
-            if STRUCTURED_OUTPUTS_AVAILABLE and isinstance(refiner_output, RefinerOutput):
+            if STRUCTURED_OUTPUTS_AVAILABLE and isinstance(
+                refiner_output, RefinerOutput
+            ):
                 refined_query = refiner_output.refined_query
                 summary_parts.append(f"Refined query: {refined_query[:100]}...")
             elif isinstance(refiner_output, dict) and "refined_query" in refiner_output:
@@ -381,7 +396,9 @@ class MarkdownExporter:
         # Try to extract synthesis from SynthesisOutput
         synthesis_output = agent_outputs.get("synthesis")
         if synthesis_output:
-            if STRUCTURED_OUTPUTS_AVAILABLE and isinstance(synthesis_output, SynthesisOutput):
+            if STRUCTURED_OUTPUTS_AVAILABLE and isinstance(
+                synthesis_output, SynthesisOutput
+            ):
                 synthesis_text = synthesis_output.final_synthesis
                 # Extract first sentence or first 150 chars
                 first_sentence = synthesis_text.split(".")[0] + "."
@@ -390,7 +407,10 @@ class MarkdownExporter:
                     if len(first_sentence) < 150
                     else synthesis_text[:150] + "..."
                 )
-            elif isinstance(synthesis_output, dict) and "final_synthesis" in synthesis_output:
+            elif (
+                isinstance(synthesis_output, dict)
+                and "final_synthesis" in synthesis_output
+            ):
                 synthesis_text = synthesis_output["final_synthesis"]
                 first_sentence = synthesis_text.split(".")[0] + "."
                 summary_parts.append(
@@ -427,7 +447,11 @@ class MarkdownExporter:
 
         # Create base frontmatter with generated summary
         frontmatter = EnhancedFrontmatter(
-            title=question, date=timestamp, filename=filename, source="cli", summary=summary
+            title=question,
+            date=timestamp,
+            filename=filename,
+            source="cli",
+            summary=summary,
         )
 
         # Add agent results - extract from structured outputs if not provided
@@ -437,7 +461,9 @@ class MarkdownExporter:
         else:
             # Extract metadata from structured agent outputs
             for agent_name, output in agent_outputs.items():
-                result = self._extract_metadata_from_structured_output(agent_name, output)
+                result = self._extract_metadata_from_structured_output(
+                    agent_name, output
+                )
                 frontmatter.add_agent_result(agent_name, result)
 
         # Add topics and domain

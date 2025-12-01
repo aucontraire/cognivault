@@ -21,6 +21,27 @@ from pydantic import (
 )
 
 
+def _get_project_root() -> Path:
+    """
+    Find the project root by looking for pyproject.toml.
+
+    Searches upward from the current file's directory to find the project root,
+    which contains pyproject.toml. Falls back to current working directory if
+    pyproject.toml is not found.
+
+    Returns
+    -------
+    Path
+        Absolute path to the project root directory
+    """
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        if (parent / "pyproject.toml").exists():
+            return parent
+    # Fallback to current working directory
+    return Path.cwd()
+
+
 class LogLevel(Enum):
     """Enumeration for log levels."""
 
@@ -167,11 +188,22 @@ class FileConfig(BaseModel):
     @field_validator("notes_directory", "logs_directory")
     @classmethod
     def validate_directory_paths(cls, v: str) -> str:
-        """Validate directory path format."""
+        """
+        Validate and resolve directory paths.
+
+        Relative paths are resolved against the project root (where pyproject.toml
+        is located) to prevent nested directory creation when scripts run from
+        subdirectories.
+        """
         if not v.strip():
             raise ValueError("Directory path cannot be empty")
-        # Allow relative and absolute paths
-        return v.strip()
+        path = Path(v.strip())
+        # If already absolute, return as-is
+        if path.is_absolute():
+            return str(path)
+        # Resolve relative paths against project root
+        project_root = _get_project_root()
+        return str(project_root / path)
 
     @field_validator("filename_separator")
     @classmethod

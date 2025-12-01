@@ -306,12 +306,18 @@ class TestOpenAIParameterCompatibility:
                 return Mock(choices=[Mock(message=Mock(content="success"))])
 
             # Test that bad parameters fail
-            bad_params_with_model = {**scenario["bad_params"], "model": scenario["model"]}
+            bad_params_with_model = {
+                **scenario["bad_params"],
+                "model": scenario["model"],
+            }
             with pytest.raises(Exception, match="Unsupported parameter"):
                 mock_bad_call(bad_params_with_model)
 
             # Test that fixed parameters work
-            good_params_with_model = {**scenario["good_params"], "model": scenario["model"]}
+            good_params_with_model = {
+                **scenario["good_params"],
+                "model": scenario["model"],
+            }
             result = mock_good_call(good_params_with_model)
             assert result is not None, (
                 f"Fixed parameters failed for {scenario['description']}"
@@ -365,9 +371,7 @@ class TestOpenAIParameterCompatibility:
 
                 return {
                     "success": True,
-                    "response": Mock(
-                        choices=[Mock(message=Mock(content="success"))]
-                    ),
+                    "response": Mock(choices=[Mock(message=Mock(content="success"))]),
                     "duration_ms": duration_ms,
                     "parameters_used": params,
                 }
@@ -392,11 +396,8 @@ class TestOpenAIParameterCompatibility:
                 # Validate performance
                 assert result["success"], f"Optimized parameters failed for {model}"
                 assert (
-                    result["duration_ms"]
-                    <= PERFORMANCE_TARGETS["max_response_time_ms"]
-                ), (
-                    f"Response time {result['duration_ms']}ms exceeds target for {model}"
-                )
+                    result["duration_ms"] <= PERFORMANCE_TARGETS["max_response_time_ms"]
+                ), f"Response time {result['duration_ms']}ms exceeds target for {model}"
                 assert (
                     PERFORMANCE_TARGETS["optimal_range_min_ms"]
                     <= result["duration_ms"]
@@ -667,7 +668,11 @@ class TestPerformanceValidation:
             {"success": True, "duration_ms": 950},  # Optimal
             {"success": True, "duration_ms": 820},  # Optimal
             {"success": True, "duration_ms": 740},  # Optimal
-            {"success": False, "duration_ms": 5000, "error": "timeout"},  # Rare failure (1 in 20)
+            {
+                "success": False,
+                "duration_ms": 5000,
+                "error": "timeout",
+            },  # Rare failure (1 in 20)
         ]
 
         success_count = sum(1 for result in simulated_results if result["success"])
