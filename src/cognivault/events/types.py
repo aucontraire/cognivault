@@ -426,12 +426,16 @@ class WorkflowCompletedEvent(WorkflowEvent):
             # Validate string outputs (legacy format)
             if isinstance(output, str):
                 if len(output.strip()) == 0:
-                    raise ValueError(f"Output for agent '{agent_name}' cannot be empty string")
+                    raise ValueError(
+                        f"Output for agent '{agent_name}' cannot be empty string"
+                    )
 
             # Validate dict outputs (structured format)
             elif isinstance(output, dict):
                 if len(output) == 0:
-                    raise ValueError(f"Output for agent '{agent_name}' cannot be empty dict")
+                    raise ValueError(
+                        f"Output for agent '{agent_name}' cannot be empty dict"
+                    )
 
             # Allow other types (Pydantic models, etc.) for flexibility
             else:
