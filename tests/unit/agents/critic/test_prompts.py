@@ -112,7 +112,8 @@ def test_critic_system_prompt_downstream_integration() -> None:
 def test_critic_system_prompt_length() -> None:
     """Test that the system prompt is substantial but not excessively long."""
     # Should be comprehensive but not overwhelming
-    assert 2000 <= len(CRITIC_SYSTEM_PROMPT) <= 8000, (
+    # Updated to allow for structured output format instructions
+    assert 2000 <= len(CRITIC_SYSTEM_PROMPT) <= 10000, (
         f"Prompt length: {len(CRITIC_SYSTEM_PROMPT)}"
     )
 
@@ -146,3 +147,22 @@ def test_critic_system_prompt_role_consistency() -> None:
     # Should not claim to do things outside its scope
     assert "DO NOT answer the question" in CRITIC_SYSTEM_PROMPT
     assert "DO NOT rewrite" in CRITIC_SYSTEM_PROMPT
+
+
+def test_critic_system_prompt_structured_output_format() -> None:
+    """Test that the system prompt includes structured output format instructions."""
+    # Check for structured output section
+    assert "STRUCTURED OUTPUT FORMAT" in CRITIC_SYSTEM_PROMPT
+
+    # Check for BiasDetail instructions
+    assert "bias_details" in CRITIC_SYSTEM_PROMPT
+    assert "BiasDetail" in CRITIC_SYSTEM_PROMPT
+    assert "bias_type" in CRITIC_SYSTEM_PROMPT
+
+    # Check for field descriptions
+    assert "assumptions" in CRITIC_SYSTEM_PROMPT
+    assert "logical_gaps" in CRITIC_SYSTEM_PROMPT
+    assert "biases" in CRITIC_SYSTEM_PROMPT
+
+    # Check for structured output examples in JSON format
+    assert "```json" in CRITIC_SYSTEM_PROMPT

@@ -10,7 +10,7 @@ import time
 from typing import Optional, Type, TypeVar, Dict, Any, Callable, cast
 from pydantic import BaseModel
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 
 from .llm_interface import LLMInterface
 from cognivault.observability import get_logger, get_observability_context
@@ -64,7 +64,7 @@ class PydanticAIWrapper:
         if self._is_mock:
             self.model = model_name  # Store as string for mock
         else:
-            self.model = OpenAIModel(model_name)
+            self.model = OpenAIChatModel(model_name)
 
         # Cache agents to avoid recreation
         self._agent_cache: Dict[str, Agent[None, Any]] = {}
@@ -80,7 +80,7 @@ class PydanticAIWrapper:
             agent_system_prompt = system_prompt if system_prompt is not None else ""
             self._agent_cache[cache_key] = Agent(
                 model=self.model,
-                result_type=response_model,
+                output_type=response_model,
                 system_prompt=agent_system_prompt,
             )
 
@@ -293,7 +293,7 @@ class PydanticAIWrapper:
                 )
 
                 return StructuredLLMResponse(
-                    content=result.data,
+                    content=result.output,
                     raw_response=getattr(result, "raw_response", None),
                     tokens_used=tokens_used,
                     cost_usd=cost_usd,

@@ -10,6 +10,7 @@ import pytest
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from cognivault.validation.base import ValidationSeverity
 from cognivault.workflows.validators import (
     WorkflowValidator,
     WorkflowValidationConfig,
@@ -76,15 +77,16 @@ class TestValidationIssue:
     def test_basic_creation(self) -> None:
         """Test basic ValidationIssue creation."""
         issue = ValidationIssue(
-            issue_type=ValidationIssueType.ERROR,
-            severity=8,
+            severity=ValidationSeverity.ERROR,
+            severity_level=8,
+            issue_type=ValidationIssueType.ERROR.value,
             message="Test error message",
             location="workflow.nodes",
             rule_id="TEST_001",
         )
 
-        assert issue.issue_type == ValidationIssueType.ERROR
-        assert issue.severity == 8
+        assert issue.issue_type == ValidationIssueType.ERROR.value
+        assert issue.severity_level == 8
         assert issue.message == "Test error message"
         assert issue.location == "workflow.nodes"
         assert issue.rule_id == "TEST_001"
@@ -93,8 +95,9 @@ class TestValidationIssue:
     def test_with_suggestion(self) -> None:
         """Test ValidationIssue with suggestion."""
         issue = ValidationIssue(
-            issue_type=ValidationIssueType.WARNING,
-            severity=4,
+            severity=ValidationSeverity.WARNING,
+            severity_level=4,
+            issue_type=ValidationIssueType.WARNING.value,
             message="Warning message",
             location="workflow.flow",
             suggestion="Consider adding terminal nodes",
@@ -106,23 +109,25 @@ class TestValidationIssue:
     def test_severity_validation(self) -> None:
         """Test severity validation (1-10 range)."""
         # Valid severities
-        for severity in [1, 5, 10]:
+        for severity_level in [1, 5, 10]:
             issue = ValidationIssue(
-                issue_type=ValidationIssueType.INFO,
-                severity=severity,
+                severity=ValidationSeverity.INFO,
+                severity_level=severity_level,
+                issue_type=ValidationIssueType.INFO.value,
                 message="Test",
                 location="test",
                 rule_id="TEST_001",
             )
-            assert issue.severity == severity
+            assert issue.severity_level == severity_level
 
         # Invalid severities should raise ValidationError
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
             ValidationIssue(
-                issue_type=ValidationIssueType.ERROR,
-                severity=0,  # Below minimum
+                severity=ValidationSeverity.ERROR,
+                severity_level=0,
+                issue_type=ValidationIssueType.ERROR.value,  # Below minimum
                 message="Test",
                 location="test",
                 rule_id="TEST_001",
@@ -130,8 +135,9 @@ class TestValidationIssue:
 
         with pytest.raises(ValidationError):
             ValidationIssue(
-                issue_type=ValidationIssueType.ERROR,
-                severity=11,  # Above maximum
+                severity=ValidationSeverity.ERROR,
+                severity_level=11,
+                issue_type=ValidationIssueType.ERROR.value,  # Above maximum
                 message="Test",
                 location="test",
                 rule_id="TEST_001",
@@ -157,15 +163,17 @@ class TestWorkflowValidationResult:
         """Test ValidationResult with issues."""
         issues = [
             ValidationIssue(
-                issue_type=ValidationIssueType.ERROR,
-                severity=9,
+                severity=ValidationSeverity.ERROR,
+                severity_level=9,
+                issue_type=ValidationIssueType.ERROR.value,
                 message="Critical error",
                 location="workflow.nodes",
                 rule_id="ERR_001",
             ),
             ValidationIssue(
-                issue_type=ValidationIssueType.WARNING,
-                severity=5,
+                severity=ValidationSeverity.WARNING,
+                severity_level=5,
+                issue_type=ValidationIssueType.WARNING.value,
                 message="Warning message",
                 location="workflow.flow",
                 rule_id="WARN_001",
@@ -193,8 +201,9 @@ class TestWorkflowValidationResult:
 
         # With errors
         error_issue = ValidationIssue(
-            issue_type=ValidationIssueType.ERROR,
-            severity=8,
+            severity=ValidationSeverity.ERROR,
+            severity_level=8,
+            issue_type=ValidationIssueType.ERROR.value,
             message="Error",
             location="test",
             rule_id="ERR_001",
@@ -216,8 +225,9 @@ class TestWorkflowValidationResult:
 
         # With warnings
         warning_issue = ValidationIssue(
-            issue_type=ValidationIssueType.WARNING,
-            severity=4,
+            severity=ValidationSeverity.WARNING,
+            severity_level=4,
+            issue_type=ValidationIssueType.WARNING.value,
             message="Warning",
             location="test",
             rule_id="WARN_001",
@@ -233,22 +243,25 @@ class TestWorkflowValidationResult:
         """Test get_issues_by_type() method."""
         issues = [
             ValidationIssue(
-                issue_type=ValidationIssueType.ERROR,
-                severity=8,
+                severity=ValidationSeverity.ERROR,
+                severity_level=8,
+                issue_type=ValidationIssueType.ERROR.value,
                 message="Error",
                 location="test",
                 rule_id="ERR_001",
             ),
             ValidationIssue(
-                issue_type=ValidationIssueType.WARNING,
-                severity=4,
+                severity=ValidationSeverity.WARNING,
+                severity_level=4,
+                issue_type=ValidationIssueType.WARNING.value,
                 message="Warning 1",
                 location="test",
                 rule_id="WARN_001",
             ),
             ValidationIssue(
-                issue_type=ValidationIssueType.WARNING,
-                severity=3,
+                severity=ValidationSeverity.WARNING,
+                severity_level=3,
+                issue_type=ValidationIssueType.WARNING.value,
                 message="Warning 2",
                 location="test",
                 rule_id="WARN_002",
@@ -282,22 +295,25 @@ class TestWorkflowValidationResult:
         # With issues
         issues = [
             ValidationIssue(
-                issue_type=ValidationIssueType.WARNING,
-                severity=4,
+                severity=ValidationSeverity.WARNING,
+                severity_level=4,
+                issue_type=ValidationIssueType.WARNING.value,
                 message="Warning",
                 location="test",
                 rule_id="WARN_001",
             ),
             ValidationIssue(
-                issue_type=ValidationIssueType.ERROR,
-                severity=9,
+                severity=ValidationSeverity.ERROR,
+                severity_level=9,
+                issue_type=ValidationIssueType.ERROR.value,
                 message="Error",
                 location="test",
                 rule_id="ERR_001",
             ),
             ValidationIssue(
-                issue_type=ValidationIssueType.INFO,
-                severity=2,
+                severity=ValidationSeverity.INFO,
+                severity_level=2,
+                issue_type=ValidationIssueType.INFO.value,
                 message="Info",
                 location="test",
                 rule_id="INFO_001",
@@ -765,7 +781,8 @@ class TestAdvancedValidationFeatures:
         assert len(errors) > 0
 
         for error in errors:
-            assert error.severity >= 7  # Errors should have high severity
+            assert error.severity_level is not None
+            assert error.severity_level >= 7  # Errors should have high severity
             assert error.rule_id is not None
             assert error.location is not None
             assert error.message is not None

@@ -117,15 +117,24 @@ class WorkflowResponse(BaseModel):
         pattern=r"^(completed|failed|running|cancelled)$",
         json_schema_extra={"example": "completed"},
     )
-    agent_outputs: Dict[str, str] = Field(
+    agent_outputs: Dict[str, Any] = Field(
         ...,
-        description="Outputs from each executed agent",
+        description="Outputs from each executed agent (structured Pydantic models or strings for backward compatibility)",
         json_schema_extra={
             "example": {
-                "refiner": "Refined and clarified query",
-                "historian": "Relevant historical context",
-                "critic": "Critical analysis and evaluation",
-                "synthesis": "Comprehensive synthesis of insights",
+                "refiner": {
+                    "refined_question": "Refined and clarified query",
+                    "topics": ["topic1", "topic2"],
+                    "confidence": 0.95,
+                    "processing_time_ms": 1234.5,
+                },
+                "historian": {
+                    "historical_summary": "Relevant historical context",
+                    "retrieved_notes": ["note1", "note2"],
+                    "confidence": 0.88,
+                },
+                "critic": "Critical analysis and evaluation",  # Backward compatible string
+                "synthesis": "Comprehensive synthesis of insights",  # Backward compatible string
             }
         },
     )
@@ -175,13 +184,41 @@ class WorkflowResponse(BaseModel):
 
     @field_validator("agent_outputs")
     @classmethod
-    def validate_agent_outputs(cls, v: Dict[str, str]) -> Dict[str, str]:
-        """Validate agent outputs."""
+    def validate_agent_outputs(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate agent outputs.
+
+        Supports both structured outputs (dict/Pydantic models) and legacy string outputs
+        for backward compatibility.
+        """
         for agent_name, output in v.items():
-            if not isinstance(output, str):
-                raise ValueError(f"Output for agent '{agent_name}' must be a string")
-            if len(output.strip()) == 0:
-                raise ValueError(f"Output for agent '{agent_name}' cannot be empty")
+            # Allow structured outputs (dicts), strings, or Pydantic models
+            if output is None:
+                raise ValueError(f"Output for agent '{agent_name}' cannot be None")
+
+            # If it's a string, ensure it's not empty
+            if isinstance(output, str):
+                if len(output.strip()) == 0:
+                    raise ValueError(
+                        f"Output for agent '{agent_name}' cannot be empty string"
+                    )
+
+            # If it's a dict (structured output), validate it has content
+            elif isinstance(output, dict):
+                if len(output) == 0:
+                    raise ValueError(
+                        f"Output for agent '{agent_name}' cannot be empty dict"
+                    )
+
+            # If it's a Pydantic model, convert to dict for storage
+            elif hasattr(output, "model_dump"):
+                # This will be handled during serialization, just verify it exists
+                pass
+
+            # For any other type, we'll allow it but log a warning in production
+            else:
+                # Allow other types for flexibility
+                pass
 
         return v
 

@@ -40,10 +40,10 @@ from cognivault.orchestration.state_bridge import AgentContextStateBridge
 from cognivault.orchestration.state_schemas import (
     CogniVaultState,
     CogniVaultContext,
-    RefinerOutput,
-    CriticOutput,
-    HistorianOutput,
-    SynthesisOutput,
+    RefinerState,
+    CriticState,
+    HistorianState,
+    SynthesisState,
     create_initial_state,
     validate_state_integrity,
 )
@@ -384,7 +384,33 @@ class LangGraphOrchestrator:
                 }
             )
 
-            # Emit workflow completed event
+            # Emit workflow completed event (with truncated outputs for logging)
+            # Helper to extract main content from structured or string outputs
+            def truncate_output(output: Any) -> str:
+                """Extract and truncate output for logging purposes."""
+                if isinstance(output, str):
+                    return output[:200] + "..." if len(output) > 200 else output
+                elif isinstance(output, dict):
+                    # Extract main content field if available
+                    main_fields = [
+                        "refined_question",
+                        "historical_summary",
+                        "critique",
+                        "final_analysis",
+                    ]
+                    for field in main_fields:
+                        if field in output:
+                            content = str(output[field])
+                            return (
+                                content[:200] + "..." if len(content) > 200 else content
+                            )
+                    # Fallback to string representation
+                    content = str(output)
+                    return content[:200] + "..." if len(content) > 200 else content
+                else:
+                    content = str(output)
+                    return content[:200] + "..." if len(content) > 200 else content
+
             await emit_workflow_completed(
                 workflow_id=execution_id,
                 status=(
@@ -394,11 +420,7 @@ class LangGraphOrchestrator:
                 ),
                 execution_time_seconds=total_time_ms / 1000,
                 agent_outputs={
-                    agent: (
-                        str(output)[:200] + "..."
-                        if len(str(output)) > 200
-                        else str(output)
-                    )
+                    agent: truncate_output(output)
                     for agent, output in agent_context.agent_outputs.items()
                 },
                 successful_agents=list(final_state["successful_agents"]),
@@ -549,9 +571,18 @@ class LangGraphOrchestrator:
         # Create AgentContext
         context = AgentContext(query=final_state["query"])
 
+        # Extract structured_outputs from LangGraph state if available
+        # This contains the full Pydantic model dumps from agents
+        if "structured_outputs" in final_state:
+            context.execution_state["structured_outputs"] = final_state[
+                "structured_outputs"
+            ]
+        else:
+            context.execution_state["structured_outputs"] = {}
+
         # Add agent outputs
         if final_state.get("refiner"):
-            refiner_output: Optional[RefinerOutput] = final_state["refiner"]
+            refiner_output: Optional[RefinerState] = final_state["refiner"]
             if refiner_output is not None:
                 context.add_agent_output("refiner", refiner_output["refined_question"])
                 context.execution_state["refiner_topics"] = refiner_output["topics"]
@@ -560,7 +591,7 @@ class LangGraphOrchestrator:
                 ]
 
         if final_state.get("critic"):
-            critic_output: Optional[CriticOutput] = final_state["critic"]
+            critic_output: Optional[CriticState] = final_state["critic"]
             if critic_output is not None:
                 context.add_agent_output("critic", critic_output["critique"])
                 context.execution_state["critic_suggestions"] = critic_output[
@@ -569,7 +600,7 @@ class LangGraphOrchestrator:
                 context.execution_state["critic_severity"] = critic_output["severity"]
 
         if final_state.get("historian"):
-            historian_output: Optional[HistorianOutput] = final_state["historian"]
+            historian_output: Optional[HistorianState] = final_state["historian"]
             if historian_output is not None:
                 context.add_agent_output(
                     "historian", historian_output["historical_summary"]
@@ -588,7 +619,7 @@ class LangGraphOrchestrator:
                 ]
 
         if final_state.get("synthesis"):
-            synthesis_output: Optional[SynthesisOutput] = final_state["synthesis"]
+            synthesis_output: Optional[SynthesisState] = final_state["synthesis"]
             if synthesis_output is not None:
                 context.add_agent_output(
                     "synthesis", synthesis_output["final_analysis"]

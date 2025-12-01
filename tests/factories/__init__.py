@@ -2,7 +2,7 @@
 
 Factory Organization:
 - agent_context_factories: AgentContext factory methods for reducing test boilerplate
-- agent_output_factories: RefinerOutput, CriticOutput, SynthesisOutput, HistorianOutput
+- agent_output_factories: RefinerState, CriticState, SynthesisState, HistorianState
 - agent_config_factories: Configuration factory methods for RefinerConfig, CriticConfig, etc.
 - api_model_factories: WorkflowRequest, WorkflowResponse via APIModelPatterns facade eliminating execution_config unfilled parameter warnings
 - mock_llm_factories: Mock LLM infrastructure eliminating 118+ repetitive mock setups
@@ -36,10 +36,10 @@ from .agent_context_factories import (
 
 # Agent output factories
 from .agent_output_factories import (
-    RefinerOutputFactory,
-    CriticOutputFactory,
-    SynthesisOutputFactory,
-    HistorianOutputFactory,
+    RefinerStateFactory,
+    CriticStateFactory,
+    SynthesisStateFactory,
+    HistorianStateFactory,
 )
 
 # Agent configuration factories
@@ -136,10 +136,10 @@ __all__ = [
     "AgentContextFactory",
     "AgentContextPatterns",
     # Agent outputs
-    "RefinerOutputFactory",
-    "CriticOutputFactory",
-    "SynthesisOutputFactory",
-    "HistorianOutputFactory",
+    "RefinerStateFactory",
+    "CriticStateFactory",
+    "SynthesisStateFactory",
+    "HistorianStateFactory",
     # Agent configuration factories
     "PromptConfigFactory",
     "BehavioralConfigFactory",

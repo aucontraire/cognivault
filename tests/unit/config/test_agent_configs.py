@@ -91,7 +91,7 @@ class TestBaseConfigurations:
         """Test AgentExecutionConfig default values."""
         # # Using factory for default testing
         config = AgentExecutionConfigFactory.generate_minimal_data()
-        assert config.timeout_seconds == 30
+        assert config.timeout_seconds == 60  # Updated for GPT-5 timeout fixes
         assert config.max_retries == 3
         assert config.enable_caching is True
 

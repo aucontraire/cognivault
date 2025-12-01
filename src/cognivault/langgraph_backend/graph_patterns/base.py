@@ -9,44 +9,6 @@ execution flow between them.
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
-
-
-class GraphEdge(BaseModel):
-    """
-    Represents an edge in the graph.
-
-    Migrated from dataclass to Pydantic BaseModel for enhanced validation,
-    serialization, and integration with the CogniVault Pydantic ecosystem.
-    """
-
-    from_node: str = Field(
-        ...,
-        description="Source node in the graph edge",
-        min_length=1,
-        max_length=100,
-        json_schema_extra={"example": "refiner"},
-    )
-    to_node: str = Field(
-        ...,
-        description="Target node in the graph edge",
-        min_length=1,
-        max_length=100,
-        json_schema_extra={"example": "historian"},
-    )
-    edge_type: str = Field(
-        default="standard",
-        description="Type of edge connection",
-        pattern="^(standard|conditional|parallel)$",
-        json_schema_extra={"example": "standard"},
-    )
-
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-        str_strip_whitespace=True,
-    )
-
 
 class GraphPattern(ABC):
     """

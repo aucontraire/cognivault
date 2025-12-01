@@ -106,11 +106,12 @@ class TestAgentRegistry:
         """Test creating agent that doesn't require LLM."""
         registry = AgentRegistry()
 
-        # Create historian agent (doesn't require LLM)
-        agent = registry.create_agent("historian")
+        # All core agents now require LLM for structured output support
+        # This test should fail with a ValueError
+        with pytest.raises(ValueError) as exc_info:
+            registry.create_agent("historian")
 
-        assert agent is not None
-        assert agent.name == "historian"
+        assert "Agent 'historian' requires an LLM interface" in str(exc_info.value)
 
     def test_create_agent_with_llm(self) -> None:
         """Test creating agent that requires LLM."""
@@ -149,13 +150,14 @@ class TestAgentRegistry:
 
         llm_agents = registry.get_agents_requiring_llm()
 
-        # Refiner and Critic require LLM
+        # All core agents require LLM for structured output support
         assert "refiner" in llm_agents
         assert "critic" in llm_agents
+        assert "historian" in llm_agents
+        assert "synthesis" in llm_agents
 
-        # Historian and Synthesis don't require LLM
-        assert "historian" not in llm_agents
-        assert "synthesis" not in llm_agents
+        # Should have exactly 4 core agents
+        assert len(llm_agents) == CORE_AGENT_COUNT
 
     def test_validate_pipeline_valid_agents(self) -> None:
         """Test pipeline validation with valid agents."""
@@ -309,12 +311,16 @@ class TestRegistryWithOrchestrator:
 
         # Test historian metadata
         historian_meta = registry.get_agent_info("historian")
-        assert historian_meta.requires_llm is False
+        assert (
+            historian_meta.requires_llm is True
+        )  # Now requires LLM for structured output
         assert "historical" in historian_meta.description.lower()
 
         # Test synthesis metadata
         synthesis_meta = registry.get_agent_info("synthesis")
-        assert synthesis_meta.requires_llm is False
+        assert (
+            synthesis_meta.requires_llm is True
+        )  # Now requires LLM for structured output
         assert "synthesizes" in synthesis_meta.description.lower()
 
     def test_all_core_agents_can_be_created(self) -> None:

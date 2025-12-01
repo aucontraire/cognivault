@@ -9,8 +9,12 @@ from cognivault.llm.llm_interface import LLMInterface
 from cognivault.config.app_config import get_config
 from .prompts import REFINER_SYSTEM_PROMPT
 
+# Structured output imports
+from cognivault.agents.models import RefinerOutput, ProcessingMode, ConfidenceLevel
+from cognivault.services.langchain_service import LangChainService
+
 # Configuration system imports
-from typing import Optional
+from typing import Optional, Union
 from cognivault.config.agent_configs import RefinerConfig
 from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 
@@ -45,17 +49,59 @@ class RefinerAgent(BaseAgent):
             Configuration for agent behavior. If None, uses default configuration.
             Maintains backward compatibility - existing code continues to work.
         """
-        super().__init__("refiner")
-        self.llm: LLMInterface = llm
-
         # Configuration system - backward compatible
         # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else RefinerConfig()
+
+        # Pass timeout from config to BaseAgent
+        super().__init__(
+            "refiner", timeout_seconds=self.config.execution_config.timeout_seconds
+        )
+
+        self.llm: LLMInterface = llm
+
+        # Initialize structured output service
+        self.structured_service: Optional[LangChainService] = None
+        self._setup_structured_service()
+
         self._prompt_composer = PromptComposer()
         self._composed_prompt: Optional[ComposedPrompt]
 
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
+
+    def _setup_structured_service(self) -> None:
+        """Setup LangChain structured output service with model discovery."""
+        try:
+            # Get API key from LLM interface
+            api_key = getattr(self.llm, "api_key", None)
+
+            # Create LangChain service with model discovery for RefinerAgent
+            # This will automatically select the best model (preferring gpt-5-nano/mini)
+            self.structured_service = LangChainService(
+                model=None,  # Let discovery service choose
+                api_key=api_key,
+                temperature=0.1,  # Low temperature for consistent refinement
+                agent_name="refiner",  # Critical: enables agent-specific model selection
+                use_discovery=True,  # Enable model discovery
+            )
+
+            # Log the selected model
+            selected_model = self.structured_service.model_name
+            logger.info(
+                f"[{self.name}] Structured output service initialized with discovered model: {selected_model}"
+            )
+
+            # Special handling for ultra-fast models
+            if "nano" in selected_model.lower() or "mini" in selected_model.lower():
+                logger.info(
+                    f"[{self.name}] Using optimized fast model '{selected_model}' for improved performance"
+                )
+        except Exception as e:
+            logger.warning(
+                f"[{self.name}] Could not initialize structured output service: {e}"
+            )
+            self.structured_service = None
 
     def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
@@ -103,7 +149,8 @@ class RefinerAgent(BaseAgent):
         Execute the refinement process on the provided agent context.
 
         Transforms the raw user query into a structured, clarified prompt using
-        the RefinerAgent system prompt to guide the LLM behavior.
+        the RefinerAgent system prompt to guide the LLM behavior. Uses structured
+        output when available for improved consistency and content pollution prevention.
 
         Parameters
         ----------
@@ -122,54 +169,198 @@ class RefinerAgent(BaseAgent):
         query = context.query.strip()
         logger.info(f"[{self.name}] Processing query: {query}")
 
-        # Generate refined query using configured system prompt
         system_prompt = self._get_system_prompt()
-        response = self.llm.generate(prompt=query, system_prompt=system_prompt)
 
-        if not hasattr(response, "text"):
-            raise ValueError("LLMResponse missing 'text' field")
-
-        refined_query = response.text.strip()
-
-        # Format output to show the refinement
-        if refined_query.startswith("[Unchanged]"):
-            refined_output = refined_query
+        # Try structured output first, fallback to traditional method
+        if self.structured_service:
+            try:
+                refined_output = await self._run_structured(
+                    query, system_prompt, context
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[{self.name}] Structured output failed, falling back to traditional: {e}"
+                )
+                refined_output = await self._run_traditional(
+                    query, system_prompt, context
+                )
         else:
-            refined_output = f"Refined query: {refined_query}"
+            refined_output = await self._run_traditional(query, system_prompt, context)
 
         logger.debug(f"[{self.name}] Output: {refined_output}")
 
         # Add agent output
         context.add_agent_output(self.name, refined_output)
 
-        # Record token usage if available from LLM response
-        if hasattr(response, "tokens_used") and response.tokens_used is not None:
-            # Use detailed token breakdown if available, otherwise fall back to total
-            input_tokens = getattr(response, "input_tokens", None) or 0
-            output_tokens = getattr(response, "output_tokens", None) or 0
-            total_tokens = response.tokens_used
-
-            # Ensure consistency: if we have detailed breakdown, use it for total
-            if input_tokens and output_tokens:
-                total_tokens = input_tokens + output_tokens
-
-            context.add_agent_token_usage(
-                agent_name=self.name,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                total_tokens=total_tokens,
-            )
-            logger.debug(
-                f"[{self.name}] Token usage recorded - "
-                f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
-            )
-        else:
-            logger.debug(
-                f"[{self.name}] No token usage information available from LLM response"
-            )
-
         context.log_trace(self.name, input_data=query, output_data=refined_output)
         return context
+
+    async def _run_structured(
+        self, query: str, system_prompt: str, context: AgentContext
+    ) -> str:
+        """Run with structured output using LangChain service."""
+        import time
+
+        start_time = time.time()
+
+        if not self.structured_service:
+            raise ValueError("Structured service not available")
+
+        try:
+            # Build the refinement prompt
+            prompt = f"Original query: {query}\n\nPlease refine this query according to the system instructions."
+
+            # Get structured output
+            result = await self.structured_service.get_structured_output(
+                prompt=prompt,
+                output_class=RefinerOutput,
+                system_prompt=system_prompt,
+                max_retries=3,
+            )
+
+            # Handle both RefinerOutput and StructuredOutputResult types
+            if isinstance(result, RefinerOutput):
+                structured_result = result
+            else:
+                # It's a StructuredOutputResult, extract the parsed result
+                from cognivault.services.langchain_service import StructuredOutputResult
+
+                if isinstance(result, StructuredOutputResult):
+                    parsed_result = result.parsed
+                    if not isinstance(parsed_result, RefinerOutput):
+                        raise ValueError(
+                            f"Expected RefinerOutput, got {type(parsed_result)}"
+                        )
+                    structured_result = parsed_result
+                else:
+                    raise ValueError(f"Unexpected result type: {type(result)}")
+
+            # SERVER-SIDE PROCESSING TIME INJECTION
+            # CRITICAL FIX: LLMs cannot accurately measure their own processing time
+            # We calculate actual execution time server-side and inject it into the model
+            processing_time_ms = (time.time() - start_time) * 1000
+
+            # Inject server-calculated processing time if LLM returned None
+            if structured_result.processing_time_ms is None:
+                # Use model_copy to create new instance with updated processing_time_ms
+                structured_result = structured_result.model_copy(
+                    update={"processing_time_ms": processing_time_ms}
+                )
+                logger.info(
+                    f"[{self.name}] Injected server-calculated processing_time_ms: {processing_time_ms:.1f}ms"
+                )
+
+            # Store structured output in execution_state for future use
+            if "structured_outputs" not in context.execution_state:
+                context.execution_state["structured_outputs"] = {}
+            context.execution_state["structured_outputs"][self.name] = (
+                structured_result.model_dump()
+            )
+
+            # Store structured metadata if available (backward compatibility)
+            if hasattr(context, "execution_metadata"):
+                context.execution_metadata["agent_outputs"] = (
+                    context.execution_metadata.get("agent_outputs", {})
+                )
+                context.execution_metadata["agent_outputs"][self.name] = (
+                    structured_result.dict()
+                )
+
+            # Record token usage - for structured output, we need to record some usage
+            # Since structured output doesn't directly expose token usage from LangChain,
+            # we'll check if we can get it from the underlying LLM response or estimate
+            token_usage_recorded = False
+
+            # Try to get token usage from LangChain service metrics
+            if hasattr(self.structured_service, "get_metrics"):
+                metrics = self.structured_service.get_metrics()
+                logger.debug(f"[{self.name}] Service metrics: {metrics}")
+
+            # For testing scenarios where mock LLMs are used, we need to ensure token usage is recorded
+            # Check if this is a fallback scenario where traditional LLM was used
+            if hasattr(structured_result, "_token_usage"):
+                # If the structured result carries token usage info, use it
+                usage = structured_result._token_usage
+                context.add_agent_token_usage(
+                    agent_name=self.name,
+                    input_tokens=usage.get("input_tokens", 0),
+                    output_tokens=usage.get("output_tokens", 0),
+                    total_tokens=usage.get("total_tokens", 0),
+                )
+                token_usage_recorded = True
+                logger.debug(
+                    f"[{self.name}] Token usage from structured result: {usage}"
+                )
+
+            # If we're in a testing scenario and structured output failed,
+            # the fallback to traditional would have been used
+            # In that case, token usage should already be recorded by _run_traditional
+
+            if not token_usage_recorded:
+                # For structured output without explicit token usage, record minimal usage
+                # This ensures event emission doesn't fail
+                context.add_agent_token_usage(
+                    agent_name=self.name,
+                    input_tokens=0,  # LangChain structured output doesn't expose detailed tokens
+                    output_tokens=0,
+                    total_tokens=0,
+                )
+                logger.debug(
+                    f"[{self.name}] Recorded zero token usage for structured output (token details not available)"
+                )
+
+            logger.info(
+                f"[{self.name}] Structured output successful - "
+                f"processing_time: {processing_time_ms:.1f}ms, "
+                f"confidence: {structured_result.confidence}, "
+                f"changes_made: {len(structured_result.changes_made)}"
+            )
+
+            # Format output based on refinement results
+            if structured_result.was_unchanged:
+                return "[Unchanged] " + structured_result.refined_query
+            else:
+                return f"Refined query: {structured_result.refined_query}"
+
+        except Exception as e:
+            logger.error(f"[{self.name}] Structured output processing failed: {e}")
+            raise
+
+    async def _run_traditional(
+        self, query: str, system_prompt: str, context: AgentContext
+    ) -> str:
+        """Fallback to traditional LLM interface."""
+        logger.info(f"[{self.name}] Using traditional LLM interface")
+
+        response = self.llm.generate(prompt=query, system_prompt=system_prompt)
+
+        if not hasattr(response, "text"):
+            raise ValueError("LLMResponse missing 'text' field")
+
+        # Record token usage from traditional LLM response
+        input_tokens = getattr(response, "input_tokens", None) or 0
+        output_tokens = getattr(response, "output_tokens", None) or 0
+        total_tokens = getattr(response, "tokens_used", None) or 0
+
+        context.add_agent_token_usage(
+            agent_name=self.name,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+        )
+
+        logger.debug(
+            f"[{self.name}] Traditional LLM token usage - "
+            f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
+        )
+
+        refined_query = response.text.strip()
+
+        # Format output to show the refinement
+        if refined_query.startswith("[Unchanged]"):
+            return refined_query
+        else:
+            return f"Refined query: {refined_query}"
 
     def define_node_metadata(self) -> Dict[str, Any]:
         """

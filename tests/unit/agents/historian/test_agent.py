@@ -207,6 +207,10 @@ class TestHistorianAgentExecution:
         # Create agent with mock LLM and mock search
         agent = HistorianAgent(llm=mock_llm)
 
+        # Disable structured service to avoid the extra LLM call
+        # This preserves the original test behavior
+        agent.structured_service = None
+
         # Mock the search engine
         agent.search_engine = AsyncMock()
         agent.search_engine.search.return_value = self.mock_search_results
@@ -1113,3 +1117,373 @@ class TestHistorianAgentIntegration:
             result_context.retrieved_notes is not None
             and len(result_context.retrieved_notes) <= 5
         )
+
+
+class TestHistorianAgentLLMRelevanceFilterSafeguard:
+    """Test the LLM relevance filter safeguard that prevents over-aggressive filtering."""
+
+    @pytest.mark.asyncio
+    async def test_safeguard_activates_when_llm_filters_all_results(self) -> None:
+        """Test that safeguard keeps top N results when LLM filters everything."""
+        from cognivault.config.agent_configs import HistorianConfig
+
+        # Disable hybrid search to ensure predictable test behavior
+        config = HistorianConfig(hybrid_search_enabled=False)
+
+        # Mock LLM that returns "NONE" to filter all results
+        mock_llm = MockLLM({"relevance": "NONE", "synthesis": "Test synthesis"})
+        agent = HistorianAgent(llm=mock_llm, config=config)
+        # Disable structured output for this test to test traditional path
+        agent.structured_service = None
+
+        # Create realistic search results
+        search_results = [
+            SearchResult(
+                filepath="/result1.md",
+                filename="result1.md",
+                title="Highly Relevant Document",
+                date="2024-01-01T10:00:00",
+                relevance_score=0.95,
+                match_type="content",
+                matched_terms=["relevant", "document"],
+                excerpt="This document is highly relevant...",
+                metadata={"topics": ["test", "relevance"]},
+            ),
+            SearchResult(
+                filepath="/result2.md",
+                filename="result2.md",
+                title="Moderately Relevant Document",
+                date="2024-01-02T10:00:00",
+                relevance_score=0.75,
+                match_type="content",
+                matched_terms=["moderate"],
+                excerpt="This document is moderately relevant...",
+                metadata={"topics": ["test"]},
+            ),
+            SearchResult(
+                filepath="/result3.md",
+                filename="result3.md",
+                title="Less Relevant Document",
+                date="2024-01-03T10:00:00",
+                relevance_score=0.55,
+                match_type="tag",
+                matched_terms=["less"],
+                excerpt="This document is less relevant...",
+                metadata={"topics": ["other"]},
+            ),
+        ]
+
+        # Mock the file search directly by patching ResilientSearchProcessor at import location
+        with patch(
+            "cognivault.agents.historian.resilient_search.ResilientSearchProcessor"
+        ) as mock_processor_class:
+            mock_processor = AsyncMock()
+            mock_processor.process_search_with_recovery.return_value = (
+                search_results,
+                Mock(
+                    failed_validations=0,
+                    recovered_validations=0,
+                    data_quality_insights=[],
+                ),
+            )
+            mock_processor_class.return_value = mock_processor
+
+            context = AgentContextPatterns.simple_query("test query")
+
+            # Execute
+            result_context = await agent.run(context)
+
+        # Verify safeguard activated
+        # Should have retrieved notes despite LLM filtering all results
+        assert result_context.retrieved_notes is not None
+        assert (
+            len(result_context.retrieved_notes) == 3
+        )  # Default minimum_results_threshold
+
+        # Should have kept top results by relevance score
+        assert result_context.retrieved_notes[0] == "/result1.md"
+        assert result_context.retrieved_notes[1] == "/result2.md"
+        assert result_context.retrieved_notes[2] == "/result3.md"
+
+        # Should still produce historical synthesis
+        assert agent.name in result_context.agent_outputs
+        assert len(result_context.agent_outputs[agent.name]) > 0
+
+    @pytest.mark.asyncio
+    async def test_safeguard_respects_custom_threshold(self) -> None:
+        """Test that safeguard respects custom minimum_results_threshold."""
+        from cognivault.config.agent_configs import HistorianConfig
+
+        # Create config with custom threshold and disable hybrid search
+        config = HistorianConfig(
+            minimum_results_threshold=2, hybrid_search_enabled=False
+        )
+
+        # Mock LLM that returns "NONE"
+        mock_llm = MockLLM({"relevance": "NONE", "synthesis": "Test synthesis"})
+        agent = HistorianAgent(llm=mock_llm, config=config)
+        # Disable structured output for this test
+        agent.structured_service = None
+
+        # Create search results
+        search_results = [
+            SearchResult(
+                filepath=f"/result{i}.md",
+                filename=f"result{i}.md",
+                title=f"Document {i}",
+                date=f"2024-01-{i:02d}T10:00:00",
+                relevance_score=0.9 - (i * 0.1),
+                match_type="content",
+                matched_terms=["term"],
+                excerpt=f"Excerpt {i}...",
+                metadata={"topics": ["test"]},
+            )
+            for i in range(1, 6)
+        ]
+
+        # Mock the file search  directly by patching ResilientSearchProcessor at import location
+        with patch(
+            "cognivault.agents.historian.resilient_search.ResilientSearchProcessor"
+        ) as mock_processor_class:
+            mock_processor = AsyncMock()
+            mock_processor.process_search_with_recovery.return_value = (
+                search_results,
+                Mock(
+                    failed_validations=0,
+                    recovered_validations=0,
+                    data_quality_insights=[],
+                ),
+            )
+            mock_processor_class.return_value = mock_processor
+
+            context = AgentContextPatterns.simple_query("test query")
+
+            # Execute
+            result_context = await agent.run(context)
+
+        # Should keep only 2 results (custom threshold)
+        assert result_context.retrieved_notes is not None
+        assert len(result_context.retrieved_notes) == 2
+
+    @pytest.mark.asyncio
+    async def test_safeguard_does_not_activate_when_llm_returns_results(self) -> None:
+        """Test that safeguard does NOT activate when LLM returns valid results."""
+        from cognivault.config.agent_configs import HistorianConfig
+
+        # Disable hybrid search to ensure predictable test behavior
+        config = HistorianConfig(hybrid_search_enabled=False)
+
+        # Mock LLM that returns valid indices
+        mock_llm = MockLLM({"relevance": "0,2", "synthesis": "Test synthesis"})
+        agent = HistorianAgent(llm=mock_llm, config=config)
+        # Disable structured output for this test
+        agent.structured_service = None
+
+        search_results = [
+            SearchResult(
+                filepath=f"/result{i}.md",
+                filename=f"result{i}.md",
+                title=f"Document {i}",
+                date=f"2024-01-{i:02d}T10:00:00",
+                relevance_score=0.8,
+                match_type="content",
+                matched_terms=["term"],
+                excerpt=f"Excerpt {i}...",
+                metadata={"topics": ["test"]},
+            )
+            for i in range(5)
+        ]
+
+        # Mock the file search directly by patching ResilientSearchProcessor at import location
+        with patch(
+            "cognivault.agents.historian.resilient_search.ResilientSearchProcessor"
+        ) as mock_processor_class:
+            mock_processor = AsyncMock()
+            mock_processor.process_search_with_recovery.return_value = (
+                search_results,
+                Mock(
+                    failed_validations=0,
+                    recovered_validations=0,
+                    data_quality_insights=[],
+                ),
+            )
+            mock_processor_class.return_value = mock_processor
+
+            context = AgentContextPatterns.simple_query("test query")
+
+            # Execute
+            result_context = await agent.run(context)
+
+        # Should have only the LLM-selected results (indices 0, 2)
+        assert result_context.retrieved_notes is not None
+        assert len(result_context.retrieved_notes) == 2
+        assert result_context.retrieved_notes[0] == "/result0.md"
+        assert result_context.retrieved_notes[1] == "/result2.md"
+
+    @pytest.mark.asyncio
+    async def test_safeguard_handles_fewer_results_than_threshold(self) -> None:
+        """Test safeguard when search returns fewer results than threshold."""
+        from cognivault.config.agent_configs import HistorianConfig
+
+        config = HistorianConfig(
+            minimum_results_threshold=5, hybrid_search_enabled=False
+        )
+        mock_llm = MockLLM({"relevance": "NONE", "synthesis": "Test synthesis"})
+        agent = HistorianAgent(llm=mock_llm, config=config)
+        # Disable structured output for this test
+        agent.structured_service = None
+
+        # Only 2 search results
+        search_results = [
+            SearchResult(
+                filepath="/result1.md",
+                filename="result1.md",
+                title="Document 1",
+                date="2024-01-01T10:00:00",
+                relevance_score=0.9,
+                match_type="content",
+                matched_terms=["term"],
+                excerpt="Excerpt 1...",
+                metadata={"topics": ["test"]},
+            ),
+            SearchResult(
+                filepath="/result2.md",
+                filename="result2.md",
+                title="Document 2",
+                date="2024-01-02T10:00:00",
+                relevance_score=0.7,
+                match_type="content",
+                matched_terms=["term"],
+                excerpt="Excerpt 2...",
+                metadata={"topics": ["test"]},
+            ),
+        ]
+
+        # Mock the file search directly by patching ResilientSearchProcessor at import location
+        with patch(
+            "cognivault.agents.historian.resilient_search.ResilientSearchProcessor"
+        ) as mock_processor_class:
+            mock_processor = AsyncMock()
+            mock_processor.process_search_with_recovery.return_value = (
+                search_results,
+                Mock(
+                    failed_validations=0,
+                    recovered_validations=0,
+                    data_quality_insights=[],
+                ),
+            )
+            mock_processor_class.return_value = mock_processor
+
+            context = AgentContextPatterns.simple_query("test query")
+
+            # Execute
+            result_context = await agent.run(context)
+
+        # Should keep all 2 results (min of threshold and available results)
+        assert result_context.retrieved_notes is not None
+        assert len(result_context.retrieved_notes) == 2
+
+    @pytest.mark.asyncio
+    async def test_safeguard_sorts_by_relevance_score(self) -> None:
+        """Test that safeguard keeps results sorted by relevance score."""
+        from cognivault.config.agent_configs import HistorianConfig
+
+        # Disable hybrid search to ensure predictable test behavior
+        config = HistorianConfig(hybrid_search_enabled=False)
+
+        mock_llm = MockLLM({"relevance": "NONE", "synthesis": "Test synthesis"})
+        agent = HistorianAgent(llm=mock_llm, config=config)
+        # Disable structured output for this test
+        agent.structured_service = None
+
+        # Create unsorted search results
+        search_results = [
+            SearchResult(
+                filepath="/low.md",
+                filename="low.md",
+                title="Low Relevance",
+                date="2024-01-01T10:00:00",
+                relevance_score=0.3,
+                match_type="content",
+                matched_terms=["term"],
+                excerpt="Low...",
+                metadata={"topics": ["test"]},
+            ),
+            SearchResult(
+                filepath="/high.md",
+                filename="high.md",
+                title="High Relevance",
+                date="2024-01-02T10:00:00",
+                relevance_score=0.95,
+                match_type="content",
+                matched_terms=["term"],
+                excerpt="High...",
+                metadata={"topics": ["test"]},
+            ),
+            SearchResult(
+                filepath="/medium.md",
+                filename="medium.md",
+                title="Medium Relevance",
+                date="2024-01-03T10:00:00",
+                relevance_score=0.6,
+                match_type="content",
+                matched_terms=["term"],
+                excerpt="Medium...",
+                metadata={"topics": ["test"]},
+            ),
+        ]
+
+        agent.search_engine = AsyncMock()
+        agent.search_engine.search.return_value = search_results
+
+        context = AgentContextPatterns.simple_query("test query")
+
+        # Execute
+        result_context = await agent.run(context)
+
+        # Should be sorted by relevance score (high to low)
+        assert result_context.retrieved_notes is not None
+        assert result_context.retrieved_notes[0] == "/high.md"
+        assert result_context.retrieved_notes[1] == "/medium.md"
+        assert result_context.retrieved_notes[2] == "/low.md"
+
+    @pytest.mark.asyncio
+    async def test_safeguard_logging(self, caplog: Any) -> None:
+        """Test that safeguard activation is properly logged."""
+        import logging
+        from cognivault.config.agent_configs import HistorianConfig
+
+        caplog.set_level(logging.WARNING)
+
+        # Disable hybrid search to ensure predictable test behavior
+        config = HistorianConfig(hybrid_search_enabled=False)
+
+        mock_llm = MockLLM({"relevance": "NONE", "synthesis": "Test synthesis"})
+        agent = HistorianAgent(llm=mock_llm, config=config)
+        # Disable structured output for this test
+        agent.structured_service = None
+
+        search_results = [
+            SearchResult(
+                filepath="/result.md",
+                filename="result.md",
+                title="Document",
+                date="2024-01-01T10:00:00",
+                relevance_score=0.9,
+                match_type="content",
+                matched_terms=["term"],
+                excerpt="Excerpt...",
+                metadata={"topics": ["test"]},
+            )
+        ]
+
+        agent.search_engine = AsyncMock()
+        agent.search_engine.search.return_value = search_results
+
+        context = AgentContextPatterns.simple_query("test query")
+
+        # Execute
+        await agent.run(context)
+
+        # Check that warning was logged
+        assert any("SAFEGUARD ACTIVATED" in record.message for record in caplog.records)

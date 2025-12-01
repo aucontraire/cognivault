@@ -13,6 +13,7 @@ from enum import Enum
 from functools import wraps
 
 from pydantic import BaseModel, Field, ConfigDict
+from cognivault.common import CircuitState
 
 logger = logging.getLogger(__name__)
 
@@ -200,20 +201,12 @@ class LangGraphExecutionError(Exception):
         self.timestamp = time.time()
 
 
-class CircuitBreakerState(Enum):
-    """Circuit breaker states."""
-
-    CLOSED = "closed"  # Normal operation
-    OPEN = "open"  # Failing, blocking requests
-    HALF_OPEN = "half_open"  # Testing if service recovered
-
-
 class CircuitBreaker:
     """Circuit breaker implementation for node resilience."""
 
     def __init__(self, config: CircuitBreakerConfig) -> None:
         self.config = config
-        self.state = CircuitBreakerState.CLOSED
+        self.state = CircuitState.CLOSED
         self.failure_count = 0
         self.success_count = 0
         self.last_failure_time = 0.0
@@ -221,16 +214,16 @@ class CircuitBreaker:
 
     def can_execute(self) -> bool:
         """Check if execution is allowed."""
-        if self.state == CircuitBreakerState.CLOSED:
+        if self.state == CircuitState.CLOSED:
             return True
-        elif self.state == CircuitBreakerState.OPEN:
+        elif self.state == CircuitState.OPEN:
             # Check if timeout has elapsed
             if time.time() - self.last_failure_time >= self.config.timeout_seconds:
-                self.state = CircuitBreakerState.HALF_OPEN
+                self.state = CircuitState.HALF_OPEN
                 self.half_open_calls = 1  # Count this transition as the first call
                 return True
             return False
-        elif self.state == CircuitBreakerState.HALF_OPEN:
+        elif self.state == CircuitState.HALF_OPEN:
             can_proceed = self.half_open_calls < self.config.half_open_max_calls
             if can_proceed:
                 self.half_open_calls += 1
@@ -240,13 +233,13 @@ class CircuitBreaker:
 
     def record_success(self) -> None:
         """Record a successful execution."""
-        if self.state == CircuitBreakerState.HALF_OPEN:
+        if self.state == CircuitState.HALF_OPEN:
             self.success_count += 1
             if self.success_count >= self.config.success_threshold:
-                self.state = CircuitBreakerState.CLOSED
+                self.state = CircuitState.CLOSED
                 self.failure_count = 0
                 self.success_count = 0
-        elif self.state == CircuitBreakerState.CLOSED:
+        elif self.state == CircuitState.CLOSED:
             self.failure_count = 0  # Reset failure count on success
 
     def record_failure(self) -> None:
@@ -254,11 +247,11 @@ class CircuitBreaker:
         self.failure_count += 1
         self.last_failure_time = time.time()
 
-        if self.state == CircuitBreakerState.CLOSED:
+        if self.state == CircuitState.CLOSED:
             if self.failure_count >= self.config.failure_threshold:
-                self.state = CircuitBreakerState.OPEN
-        elif self.state == CircuitBreakerState.HALF_OPEN:
-            self.state = CircuitBreakerState.OPEN
+                self.state = CircuitState.OPEN
+        elif self.state == CircuitState.HALF_OPEN:
+            self.state = CircuitState.OPEN
             self.half_open_calls = 0
 
 
@@ -297,13 +290,13 @@ class ErrorPolicyManager:
         historian_cb_config = CircuitBreakerConfig(
             failure_threshold=3,
             success_threshold=2,
-            timeout_seconds=30.0,
+            timeout_seconds=45.0,
         )
         self.policies["historian"] = ErrorPolicy(
             policy_type=ErrorPolicyType.CIRCUIT_BREAKER,
             circuit_breaker_config=historian_cb_config,
             fallback_strategy=FallbackStrategy.USE_CACHED_RESULT,
-            timeout_seconds=25.0,
+            timeout_seconds=45.0,
         )
         # Initialize circuit breaker for historian
         self.circuit_breakers["historian"] = CircuitBreaker(historian_cb_config)

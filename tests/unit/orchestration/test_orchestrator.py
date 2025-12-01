@@ -9,10 +9,10 @@ from cognivault.orchestration.orchestrator import LangGraphOrchestrator
 from cognivault.orchestration.node_wrappers import NodeExecutionError
 from cognivault.orchestration.state_schemas import (
     create_initial_state,
-    RefinerOutput as LangGraphRefinerOutput,
-    CriticOutput as LangGraphCriticOutput,
-    HistorianOutput as LangGraphHistorianOutput,
-    SynthesisOutput as LangGraphSynthesisOutput,
+    RefinerState as LangGraphRefinerOutput,
+    CriticState as LangGraphCriticOutput,
+    HistorianState as LangGraphHistorianOutput,
+    SynthesisState as LangGraphSynthesisOutput,
 )
 
 

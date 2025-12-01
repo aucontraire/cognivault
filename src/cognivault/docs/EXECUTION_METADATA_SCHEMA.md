@@ -15,7 +15,7 @@ The `execution_metadata` field in the `questions` table stores structured inform
 
 ## Schema Structure
 
-### ExecutionMetadata (Root Schema)
+### DatabaseExecutionMetadata (Root Schema)
 
 ```python
 {
@@ -267,8 +267,8 @@ print(f"Confidence: {structured_output.confidence}")
 ### Storing in Database
 
 ```python
-# The ExecutionMetadata is automatically serialized to JSONB
-execution_metadata = ExecutionMetadata(
+# The DatabaseExecutionMetadata is automatically serialized to JSONB
+execution_metadata = DatabaseExecutionMetadata(
     execution_id="exec_123",
     total_execution_time_ms=3500.0,
     nodes_executed=["refiner", "critic"],
@@ -281,7 +281,7 @@ execution_metadata = ExecutionMetadata(
 # Store in database
 question = await repo.create_question(
     query="What is AI?",
-    execution_metadata=execution_metadata.model_dump()  # Convert to dict
+    execution_metadata=execution_metadata.model_dump()  # Convert to dict for JSONB storage
 )
 ```
 

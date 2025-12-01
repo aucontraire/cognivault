@@ -9,26 +9,15 @@ The validation layer is optional and can be bypassed for maximum flexibility.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional, Set, Any
-from enum import Enum
 
+# Import from base validation module - all validation types are now centralized
+from cognivault.validation.base import (
+    ValidationSeverity,
+    SemanticValidationIssue,
+)
 
-class ValidationSeverity(Enum):
-    """Severity levels for validation results."""
-
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
-
-
-@dataclass
-class ValidationIssue:
-    """Individual validation issue with details."""
-
-    severity: ValidationSeverity
-    message: str
-    agent: Optional[str] = None
-    suggestion: Optional[str] = None
-    code: Optional[str] = None
+# Backward compatibility alias - ValidationIssue maps to SemanticValidationIssue
+ValidationIssue = SemanticValidationIssue
 
 
 @dataclass
@@ -36,7 +25,7 @@ class SemanticValidationResult:
     """Result of semantic validation with detailed feedback."""
 
     is_valid: bool
-    issues: List[ValidationIssue]
+    issues: List[SemanticValidationIssue]
 
     @property
     def has_errors(self) -> bool:
@@ -78,7 +67,7 @@ class SemanticValidationResult:
     ) -> None:
         """Add a validation issue."""
         self.issues.append(
-            ValidationIssue(
+            SemanticValidationIssue(
                 severity=severity,
                 message=message,
                 agent=agent,
@@ -417,3 +406,16 @@ def create_default_validator(strict_mode: bool = False) -> CogniVaultValidator:
         Configured validator instance
     """
     return CogniVaultValidator(strict_mode=strict_mode)
+
+
+# Export public API
+__all__ = [
+    "ValidationSeverity",  # Re-exported from base module
+    "SemanticValidationIssue",  # Re-exported from base module
+    "ValidationIssue",  # Backward compatibility alias
+    "SemanticValidationResult",
+    "WorkflowSemanticValidator",
+    "CogniVaultValidator",
+    "ValidationError",
+    "create_default_validator",
+]

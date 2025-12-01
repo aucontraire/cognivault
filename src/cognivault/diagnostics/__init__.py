@@ -10,7 +10,11 @@ from .health import HealthChecker, HealthStatus, ComponentHealth
 from .metrics import MetricsCollector, MetricType, PerformanceMetrics
 from .diagnostics import DiagnosticsManager, SystemDiagnostics
 from .cli import DiagnosticsCLI
-from .execution_tracer import ExecutionTracer, TraceLevel, ExecutionState
+from .execution_tracer import (
+    ExecutionTracer,
+    TraceLevel,
+    ExecutionStatus,
+)
 from .dag_explorer import InteractiveDAGExplorer
 from .profiler import PerformanceProfiler
 from .pattern_validator import PatternValidationFramework
@@ -28,7 +32,7 @@ __all__ = [
     "DiagnosticsCLI",
     "ExecutionTracer",
     "TraceLevel",
-    "ExecutionState",
+    "ExecutionStatus",
     "InteractiveDAGExplorer",
     "PerformanceProfiler",
     "PatternValidationFramework",

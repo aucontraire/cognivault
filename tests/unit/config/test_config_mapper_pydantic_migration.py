@@ -537,7 +537,9 @@ class TestConfigMapperEdgeCases:
             # Should fall back to default values due to invalid input
             assert result.refinement_level == "standard"  # Default fallback
             assert result.output_config.confidence_threshold == 0.7  # Default fallback
-            assert result.execution_config.timeout_seconds == 30  # Default fallback
+            assert (
+                result.execution_config.timeout_seconds == 60
+            )  # Default fallback (updated for GPT-5)
 
             # Should have logged debug messages about validation attempts
             debug_calls = [

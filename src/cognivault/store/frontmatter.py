@@ -251,7 +251,7 @@ class EnhancedFrontmatter(BaseModel):
 
 def create_basic_frontmatter(
     title: str,
-    agent_outputs: Dict[str, str],
+    agent_outputs: Dict[str, Any],
     timestamp: Optional[str] = None,
     filename: Optional[str] = None,
 ) -> EnhancedFrontmatter:
@@ -260,6 +260,8 @@ def create_basic_frontmatter(
 
     This provides a migration path from the old simple frontmatter
     to the new enhanced schema.
+
+    agent_outputs supports both strings and structured dicts for backward compatibility.
     """
     if timestamp is None:
         timestamp = datetime.now().isoformat()

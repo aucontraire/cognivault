@@ -1,7 +1,7 @@
 """Factory functions for creating state container test data objects.
 
 This module provides factory functions for creating complete CogniVault state
-containers that combine agent outputs with orchestration metadata. These
+containers that combine agent states with orchestration metadata. These
 factories reduce test code duplication for full state workflow testing.
 
 Design Principles:
@@ -36,10 +36,10 @@ from typing import Optional, Any
 
 from cognivault.orchestration.state_schemas import CogniVaultState
 from .agent_output_factories import (
-    RefinerOutputFactory,
-    CriticOutputFactory,
-    SynthesisOutputFactory,
-    HistorianOutputFactory,
+    RefinerStateFactory,
+    CriticStateFactory,
+    SynthesisStateFactory,
+    HistorianStateFactory,
 )
 
 
@@ -66,19 +66,19 @@ class CogniVaultStateFactory:
         return state
 
     @staticmethod
-    def with_refiner_output(
+    def with_refiner_state(
         query: str = "What is AI?",
         execution_id: str = "exec-123",
-        refiner_output: Optional[Any] = None,
+        refiner_state: Optional[Any] = None,
         **overrides: Any,
     ) -> CogniVaultState:
         """Create state with refiner output populated."""
         state = CogniVaultStateFactory.initial_state(query, execution_id, **overrides)
 
-        if refiner_output is None:
-            refiner_output = RefinerOutputFactory.generate_valid_data()
+        if refiner_state is None:
+            refiner_state = RefinerStateFactory.generate_valid_data()
 
-        state["refiner"] = refiner_output
+        state["refiner"] = refiner_state
         state["successful_agents"] = ["refiner"]
 
         return state
@@ -92,14 +92,14 @@ class CogniVaultStateFactory:
         """Create state representing complete successful workflow."""
         state = CogniVaultStateFactory.initial_state(query, execution_id, **overrides)
 
-        # Add all agent outputs
-        state["refiner"] = RefinerOutputFactory.generate_with_current_timestamp(
+        # Add all agent states
+        state["refiner"] = RefinerStateFactory.generate_with_current_timestamp(
             refined_question="What is artificial intelligence?",
             topics=["AI", "technology"],
             processing_notes="Expanded abbreviation",
         )
 
-        state["critic"] = CriticOutputFactory.generate_with_current_timestamp(
+        state["critic"] = CriticStateFactory.generate_with_current_timestamp(
             critique="Good question expansion",
             suggestions=["Consider historical context"],
             severity="low",
@@ -107,13 +107,13 @@ class CogniVaultStateFactory:
             weaknesses=["Could be more specific"],
         )
 
-        state["historian"] = HistorianOutputFactory.generate_with_current_timestamp(
+        state["historian"] = HistorianStateFactory.generate_with_current_timestamp(
             historical_summary="AI has evolved significantly over decades",
             retrieved_notes=["ai_history.md", "ml_evolution.md"],
             topics_found=["artificial intelligence", "machine learning"],
         )
 
-        state["synthesis"] = SynthesisOutputFactory.complete_analysis(
+        state["synthesis"] = SynthesisStateFactory.complete_analysis(
             timestamp=datetime.now(timezone.utc).isoformat()
         )
 
@@ -131,18 +131,18 @@ class CogniVaultStateFactory:
         state = CogniVaultStateFactory.initial_state(query, execution_id, **overrides)
 
         # Successful refiner
-        state["refiner"] = RefinerOutputFactory.generate_with_current_timestamp(
+        state["refiner"] = RefinerStateFactory.generate_with_current_timestamp(
             refined_question="Complex refined query",
             topics=["complex"],
             confidence=0.7,
             processing_notes=None,
         )
 
-        # Failed critic (no output, but error recorded)
+        # Failed critic (no state, but error recorded)
         state["critic"] = None
 
         # Successful synthesis despite critic failure
-        state["synthesis"] = SynthesisOutputFactory.generate_with_current_timestamp(
+        state["synthesis"] = SynthesisStateFactory.generate_with_current_timestamp(
             final_analysis="Analysis without critic input",
             key_insights=["Limited insights"],
             sources_used=["refiner"],

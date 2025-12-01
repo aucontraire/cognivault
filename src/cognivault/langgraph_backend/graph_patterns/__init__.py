@@ -5,7 +5,6 @@ This module provides graph pattern implementations for different execution strat
 """
 
 from .base import (
-    GraphEdge,
     GraphPattern,
     StandardPattern,
     ParallelPattern,
@@ -15,7 +14,6 @@ from .base import (
 from .conditional import EnhancedConditionalPattern, ConditionalPatternValidator
 
 __all__ = [
-    "GraphEdge",
     "GraphPattern",
     "StandardPattern",
     "ParallelPattern",

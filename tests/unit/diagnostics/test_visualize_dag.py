@@ -201,8 +201,8 @@ class TestDAGVisualizer:
         assert "%% State Flow Information:" in annotations
         assert "%% - Initial state contains query and metadata" in annotations
         # Should contain agent-specific annotations
-        assert '%% - Refiner adds RefinerOutput to state["refiner"]' in annotations
-        assert '%% - Critic adds CriticOutput to state["critic"]' in annotations
+        assert '%% - Refiner adds RefinerState to state["refiner"]' in annotations
+        assert '%% - Critic adds CriticState to state["critic"]' in annotations
 
     def test_generate_node_styling(self) -> None:
         """Test node styling generation."""
@@ -280,7 +280,7 @@ class TestDAGVisualizer:
         diagram = visualizer.generate_mermaid_diagram(agents)
 
         assert "%% Enhanced State Flow Information (Phase 2.2):" in diagram
-        assert '%% - Refiner adds RefinerOutput to state["refiner"]' in diagram
+        assert '%% - Refiner adds RefinerState to state["refiner"]' in diagram
 
     def test_generate_mermaid_diagram_without_state_flow(self) -> None:
         """Test mermaid diagram generation without state flow."""

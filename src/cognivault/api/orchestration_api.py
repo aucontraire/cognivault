@@ -22,6 +22,7 @@ from cognivault.observability import get_logger
 from cognivault.events import emit_workflow_started, emit_workflow_completed
 from cognivault.database.connection import get_session_factory
 from cognivault.database.repositories.question_repository import QuestionRepository
+from cognivault.database.session_factory import DatabaseSessionFactory
 
 logger = get_logger(__name__)
 
@@ -40,6 +41,38 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
         self._active_workflows: Dict[str, Dict[str, Any]] = {}
         self._total_workflows = 0
         self._session_factory = get_session_factory()
+        self._db_session_factory: Optional[DatabaseSessionFactory] = None
+
+    def _convert_agent_outputs_to_serializable(
+        self, agent_outputs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Convert agent outputs to serializable format.
+
+        Handles Pydantic models by converting them to dicts using model_dump(),
+        while preserving backward compatibility with string outputs.
+
+        Parameters
+        ----------
+        agent_outputs : Dict[str, Any]
+            Raw agent outputs which may contain Pydantic models, strings, or dicts
+
+        Returns
+        -------
+        Dict[str, Any]
+            Serializable dictionary with all Pydantic models converted to dicts
+        """
+        serialized_outputs: Dict[str, Any] = {}
+
+        for agent_name, output in agent_outputs.items():
+            # If it's a Pydantic model, convert to dict
+            if hasattr(output, "model_dump"):
+                serialized_outputs[agent_name] = output.model_dump()
+            # If it's already a dict, string, or other serializable type, keep as-is
+            else:
+                serialized_outputs[agent_name] = output
+
+        return serialized_outputs
 
     @property
     def api_name(self) -> str:
@@ -210,11 +243,37 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
 
             execution_time = time.time() - start_time
 
+            # PRIORITY: Use structured outputs from execution_state if available
+            # These contain full metadata (processing_time_ms, confidence, etc.)
+            # Falls back to agent_outputs (strings) for backward compatibility
+            structured_outputs = result_context.execution_state.get(
+                "structured_outputs", {}
+            )
+
+            # Merge: prefer structured outputs, fall back to string outputs
+            agent_outputs_to_serialize = {}
+            for agent_name in result_context.agent_outputs:
+                if agent_name in structured_outputs:
+                    # Use the structured dict (already serialized via model_dump())
+                    agent_outputs_to_serialize[agent_name] = structured_outputs[
+                        agent_name
+                    ]
+                else:
+                    # Fall back to string output
+                    agent_outputs_to_serialize[agent_name] = (
+                        result_context.agent_outputs[agent_name]
+                    )
+
+            # Convert agent outputs to serializable format (handles any remaining Pydantic models)
+            serialized_agent_outputs = self._convert_agent_outputs_to_serializable(
+                agent_outputs_to_serialize
+            )
+
             # Convert orchestrator result to API response
             response = WorkflowResponse(
                 workflow_id=workflow_id,
                 status="completed",
-                agent_outputs=result_context.agent_outputs,
+                agent_outputs=serialized_agent_outputs,
                 execution_time_seconds=execution_time,
                 correlation_id=request.correlation_id,
             )
@@ -240,11 +299,11 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                     # Initialize topic manager for auto-tagging
                     topic_manager = TopicManager(llm=llm)
 
-                    # Analyze and suggest topics
+                    # Analyze and suggest topics (use serialized outputs for consistency)
                     try:
                         topic_analysis = await topic_manager.analyze_and_suggest_topics(
                             query=request.query,
-                            agent_outputs=result_context.agent_outputs,
+                            agent_outputs=serialized_agent_outputs,
                         )
                         suggested_topics = [
                             s.topic for s in topic_analysis.suggested_topics
@@ -258,10 +317,10 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
                         suggested_topics = []
                         suggested_domain = None
 
-                    # Export with enhanced metadata
+                    # Export with enhanced metadata (use serialized outputs)
                     exporter = MarkdownExporter()
                     md_path = exporter.export(
-                        agent_outputs=result_context.agent_outputs,
+                        agent_outputs=serialized_agent_outputs,
                         question=request.query,
                         topics=suggested_topics,
                         domain=suggested_domain,
@@ -282,13 +341,71 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
 
                     logger.info(f"Markdown export successful: {md_path_obj.name}")
 
+                    # Persist markdown to database
+                    try:
+                        db_session_factory = (
+                            await self._get_or_create_db_session_factory()
+                        )
+
+                        if db_session_factory:
+                            async with (
+                                db_session_factory.get_repository_factory() as repo_factory
+                            ):
+                                doc_repo = repo_factory.historian_documents
+
+                                # Read markdown content
+                                with open(
+                                    md_path_obj, "r", encoding="utf-8"
+                                ) as md_file:
+                                    markdown_content = md_file.read()
+
+                                # Extract topics from response metadata
+                                topics_list = (
+                                    suggested_topics[:5] if suggested_topics else []
+                                )
+
+                                # Create document with metadata
+                                await doc_repo.get_or_create_document(
+                                    title=request.query[:200],  # Truncate to 200 chars
+                                    content=markdown_content,
+                                    source_path=str(md_path_obj.absolute()),
+                                    document_metadata={
+                                        "workflow_id": workflow_id,
+                                        "correlation_id": request.correlation_id,
+                                        "topics": topics_list,
+                                        "domain": suggested_domain,
+                                        "export_timestamp": datetime.now(
+                                            timezone.utc
+                                        ).isoformat(),
+                                        "agents_executed": list(
+                                            result_context.agent_outputs.keys()
+                                        ),
+                                    },
+                                )
+
+                                logger.info(
+                                    f"Workflow {workflow_id} markdown persisted to database: {md_path_obj.name}"
+                                )
+                        else:
+                            logger.warning(
+                                f"Database not available, skipping markdown persistence for workflow {workflow_id}"
+                            )
+
+                    except Exception as db_persist_error:
+                        # Don't fail the entire workflow if database persistence fails
+                        logger.error(
+                            f"Failed to persist markdown to database for workflow {workflow_id}: {db_persist_error}"
+                        )
+
                 except Exception as md_error:
+                    # Use str() to avoid any logging format issues with exception objects
+                    error_msg = str(md_error)
                     logger.warning(
-                        f"Markdown export failed for workflow {workflow_id}: {md_error}"
+                        f"Markdown export failed for workflow {workflow_id}: {error_msg}"
                     )
                     response.markdown_export = {
                         "error": "Export failed",
-                        "message": str(md_error),
+                        "message": error_msg,
                         "export_timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
@@ -429,6 +546,23 @@ class LangGraphOrchestrationAPI(OrchestrationAPI):
             del self._active_workflows[workflow_id]
 
         return True
+
+    async def _get_or_create_db_session_factory(
+        self,
+    ) -> Optional[DatabaseSessionFactory]:
+        """Get or create database session factory for document persistence."""
+        if self._db_session_factory is None:
+            try:
+                self._db_session_factory = DatabaseSessionFactory()
+                await self._db_session_factory.initialize()
+                logger.info(
+                    "Database session factory initialized for markdown persistence"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to initialize database session factory: {e}")
+                self._db_session_factory = None
+
+        return self._db_session_factory
 
     async def _persist_workflow_to_database(
         self,

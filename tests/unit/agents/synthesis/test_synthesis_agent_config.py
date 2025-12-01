@@ -179,7 +179,7 @@ class TestSynthesisAgentConfig:
 
         # Should complete without errors and preserve existing behavior
         assert "synthesis" in result_context.agent_outputs
-        assert isinstance(result_context.agent_outputs["synthesis"], str)
+        assert isinstance(result_context.agent_outputs["synthesis"], (str, dict))
         assert len(result_context.agent_outputs["synthesis"]) > 0
 
     @pytest.mark.asyncio

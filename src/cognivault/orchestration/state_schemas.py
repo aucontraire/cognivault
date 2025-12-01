@@ -18,7 +18,32 @@ from dataclasses import dataclass
 import operator
 
 
-class RefinerOutput(TypedDict):
+def merge_structured_outputs(
+    left: Dict[str, Any], right: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Merge two structured output dicts for concurrent LangGraph updates.
+
+    This reducer allows multiple agents (e.g., critic and historian) to
+    write to structured_outputs in parallel without conflicts. The right
+    dict values override left dict values for matching keys.
+
+    Parameters
+    ----------
+    left : Dict[str, Any]
+        Existing structured outputs
+    right : Dict[str, Any]
+        New structured outputs to merge
+
+    Returns
+    -------
+    Dict[str, Any]
+        Merged structured outputs with right values taking precedence
+    """
+    return {**left, **right}
+
+
+class RefinerState(TypedDict):
     """
     Output schema for the RefinerAgent.
 
@@ -42,7 +67,7 @@ class RefinerOutput(TypedDict):
     """ISO timestamp when refinement was completed."""
 
 
-class CriticOutput(TypedDict):
+class CriticState(TypedDict):
     """
     Output schema for the CriticAgent.
 
@@ -72,7 +97,7 @@ class CriticOutput(TypedDict):
     """ISO timestamp when critique was completed."""
 
 
-class HistorianOutput(TypedDict):
+class HistorianState(TypedDict):
     """
     Output schema for the HistorianAgent.
 
@@ -111,7 +136,7 @@ class HistorianOutput(TypedDict):
     """ISO timestamp when historical analysis was completed."""
 
 
-class SynthesisOutput(TypedDict):
+class SynthesisState(TypedDict):
     """
     Output schema for the SynthesisAgent.
 
@@ -181,11 +206,11 @@ class CogniVaultState(TypedDict):
 
     State Flow:
     1. Initial state created with query and metadata
-    2. Refiner adds RefinerOutput to state["refiner"]
+    2. Refiner adds RefinerState to state["refiner"]
     3. Critic and Historian run in parallel after refiner
-    4. Critic adds CriticOutput to state["critic"]
-    5. Historian adds HistorianOutput to state["historian"]
-    6. Synthesis adds SynthesisOutput to state["synthesis"]
+    4. Critic adds CriticState to state["critic"]
+    5. Historian adds HistorianState to state["historian"]
+    6. Synthesis adds SynthesisState to state["synthesis"]
     7. Final state contains all agent outputs
     """
 
@@ -194,16 +219,16 @@ class CogniVaultState(TypedDict):
     """The original user query to process."""
 
     # Agent outputs (populated during execution)
-    refiner: Optional[RefinerOutput]
-    """Output from the RefinerAgent (populated after refiner node)."""
+    refiner: Optional[RefinerState]
+    """RefinerState from the RefinerAgent (populated after refiner node)."""
 
-    critic: Optional[CriticOutput]
+    critic: Optional[CriticState]
     """Output from the CriticAgent (populated after critic node)."""
 
-    historian: Optional[HistorianOutput]
+    historian: Optional[HistorianState]
     """Output from the HistorianAgent (populated after historian node)."""
 
-    synthesis: Optional[SynthesisOutput]
+    synthesis: Optional[SynthesisState]
     """Output from the SynthesisAgent (populated after synthesis node)."""
 
     # Execution tracking
@@ -221,12 +246,16 @@ class CogniVaultState(TypedDict):
     failed_agents: Annotated[List[str], operator.add]
     """List of agents that failed during execution."""
 
+    # Structured outputs (for API/database persistence)
+    structured_outputs: Annotated[Dict[str, Any], merge_structured_outputs]
+    """Full Pydantic model outputs from agents for database/API persistence."""
+
 
 # Type aliases for improved clarity
 LangGraphState = CogniVaultState
 """Alias for CogniVaultState to improve code readability."""
 
-AgentOutput = Union[RefinerOutput, CriticOutput, HistorianOutput, SynthesisOutput]
+AgentStateUnion = Union[RefinerState, CriticState, HistorianState, SynthesisState]
 """Union type for any agent output schema."""
 
 
@@ -268,6 +297,7 @@ def create_initial_state(
         errors=[],
         successful_agents=[],
         failed_agents=[],
+        structured_outputs={},
     )
 
 
@@ -304,7 +334,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
 
         # Validate agent outputs if present
         if state.get("refiner"):
-            refiner: Optional[RefinerOutput] = state["refiner"]
+            refiner: Optional[RefinerState] = state["refiner"]
             if (
                 refiner is None
                 or not refiner.get("refined_question")
@@ -313,7 +343,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
                 return False
 
         if state.get("critic"):
-            critic: Optional[CriticOutput] = state["critic"]
+            critic: Optional[CriticState] = state["critic"]
             if (
                 critic is None
                 or not critic.get("critique")
@@ -322,7 +352,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
                 return False
 
         if state.get("historian"):
-            historian: Optional[HistorianOutput] = state["historian"]
+            historian: Optional[HistorianState] = state["historian"]
             if (
                 historian is None
                 or not historian.get("historical_summary")
@@ -331,7 +361,7 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
                 return False
 
         if state.get("synthesis"):
-            synthesis: Optional[SynthesisOutput] = state["synthesis"]
+            synthesis: Optional[SynthesisState] = state["synthesis"]
             if (
                 synthesis is None
                 or not synthesis.get("final_analysis")
@@ -345,9 +375,11 @@ def validate_state_integrity(state: CogniVaultState) -> bool:
         return False
 
 
-def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentOutput]:
+def get_agent_state(
+    state: CogniVaultState, agent_name: str
+) -> Optional[AgentStateUnion]:
     """
-    Get typed agent output from state.
+    Get typed agent state from state.
 
     Parameters
     ----------
@@ -358,8 +390,8 @@ def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentO
 
     Returns
     -------
-    AgentOutput or None
-        Typed agent output if available
+    AgentState or None
+        Typed agent state if available
     """
     agent_name = agent_name.lower()
 
@@ -375,11 +407,11 @@ def get_agent_output(state: CogniVaultState, agent_name: str) -> Optional[AgentO
         return None
 
 
-def set_agent_output(
-    state: CogniVaultState, agent_name: str, output: AgentOutput
+def set_agent_state(
+    state: CogniVaultState, agent_name: str, output: AgentStateUnion
 ) -> CogniVaultState:
     """
-    Set typed agent output in state.
+    Set typed agent state in state.
 
     Parameters
     ----------
@@ -387,13 +419,13 @@ def set_agent_output(
         Current state
     agent_name : str
         Name of agent ('refiner', 'critic', 'historian', 'synthesis')
-    output : AgentOutput
-        Typed agent output to set
+    output : AgentState
+        Typed agent state to set
 
     Returns
     -------
     CogniVaultState
-        Updated state with agent output
+        Updated state with agent state
     """
     # Create a deep copy to avoid mutations
     new_state = state.copy()
@@ -493,16 +525,17 @@ class CogniVaultContext:
 __all__ = [
     "CogniVaultState",
     "LangGraphState",
-    "RefinerOutput",
-    "CriticOutput",
-    "HistorianOutput",
-    "SynthesisOutput",
-    "AgentOutput",
+    "RefinerState",
+    "CriticState",
+    "HistorianState",
+    "SynthesisState",
+    "AgentStateUnion",
     "ExecutionMetadata",
     "CogniVaultContext",
     "create_initial_state",
     "validate_state_integrity",
-    "get_agent_output",
-    "set_agent_output",
+    "get_agent_state",
+    "set_agent_state",
     "record_agent_error",
+    "merge_structured_outputs",
 ]

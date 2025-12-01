@@ -89,7 +89,7 @@ class AgentExecutionConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
     timeout_seconds: int = Field(
-        30, ge=1, le=300, description="Maximum execution time in seconds"
+        60, ge=1, le=300, description="Maximum execution time in seconds"
     )
     max_retries: int = Field(
         3, ge=0, le=10, description="Maximum retry attempts on failure"
@@ -177,7 +177,9 @@ class CriticConfig(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
-    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=120)
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "CriticConfig":
@@ -253,12 +255,20 @@ class HistorianConfig(BaseModel):
         le=1.0,
         description="Similarity threshold for result deduplication (0.0-1.0)",
     )
+    minimum_results_threshold: int = Field(
+        3,
+        ge=1,
+        le=10,
+        description="Minimum number of results to keep when LLM filters all results",
+    )
 
     # Nested configurations
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
-    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=90)
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "HistorianConfig":
@@ -290,6 +300,8 @@ class HistorianConfig(BaseModel):
             config["search_timeout_seconds"] = int(env_val)
         if env_val := os.getenv(f"{prefix}_DEDUPLICATION_THRESHOLD"):
             config["deduplication_threshold"] = float(env_val)
+        if env_val := os.getenv(f"{prefix}_MINIMUM_RESULTS_THRESHOLD"):
+            config["minimum_results_threshold"] = int(env_val)
 
         return cls(**config)
 
@@ -305,6 +317,7 @@ class HistorianConfig(BaseModel):
             "database_relevance_boost": str(self.database_relevance_boost),
             "search_timeout_seconds": str(self.search_timeout_seconds),
             "deduplication_threshold": str(self.deduplication_threshold),
+            "minimum_results_threshold": str(self.minimum_results_threshold),
             "custom_constraints": self.behavioral_config.custom_constraints,
         }
 
@@ -334,7 +347,9 @@ class SynthesisConfig(BaseModel):
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
     behavioral_config: BehavioralConfig = Field(default_factory=BehavioralConfig)
     output_config: OutputConfig = Field(default_factory=OutputConfig)
-    execution_config: AgentExecutionConfig = Field(default_factory=AgentExecutionConfig)
+    execution_config: AgentExecutionConfig = Field(
+        default_factory=lambda: AgentExecutionConfig(timeout_seconds=300)
+    )
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> "SynthesisConfig":

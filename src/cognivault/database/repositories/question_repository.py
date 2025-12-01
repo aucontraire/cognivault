@@ -371,6 +371,86 @@ class QuestionRepository(BaseRepository[Question]):
             logger.error(f"Failed to query questions by agent confidence: {e}")
             raise
 
+    async def get_questions_by_numeric_confidence(
+        self,
+        agent_name: str,
+        min_confidence: float,
+        max_confidence: float = 1.0,
+        limit: int = 50,
+    ) -> list[Question]:
+        """
+        Get questions where a specific agent had a numeric confidence within a range.
+
+        Note: This method only works with legacy data that stored numeric confidence values.
+        For current structured outputs that use ConfidenceLevel enums ("high", "medium", "low"),
+        use get_questions_by_agent_confidence() instead.
+
+        Args:
+            agent_name: Name of the agent (e.g., "critic", "refiner")
+            min_confidence: Minimum confidence level (0.0 - 1.0)
+            max_confidence: Maximum confidence level (0.0 - 1.0)
+            limit: Maximum number of questions to return
+
+        Returns:
+            List of questions matching the criteria
+
+        Raises:
+            ValueError: If database contains non-numeric confidence values
+        """
+        try:
+            # Use PostgreSQL's safe casting with error handling
+            # CASE WHEN for safe numeric conversion, filtering out non-numeric values
+            from sqlalchemy import case, and_
+
+            # Create a safe numeric cast that returns NULL for non-numeric strings
+            safe_confidence_cast = case(
+                # Only cast if the value matches a numeric pattern
+                (
+                    Question.execution_metadata["agent_outputs"][agent_name][
+                        "confidence"
+                    ].astext.op("~")(r"^[0-9]*\.?[0-9]+$"),
+                    cast(
+                        Question.execution_metadata["agent_outputs"][agent_name][
+                            "confidence"
+                        ].astext,
+                        Float,
+                    ),
+                ),
+                else_=None,
+            )
+
+            stmt = (
+                select(Question)
+                .where(
+                    and_(
+                        safe_confidence_cast.is_not(
+                            None
+                        ),  # Only include rows with numeric confidence
+                        safe_confidence_cast >= min_confidence,
+                        safe_confidence_cast <= max_confidence,
+                    )
+                )
+                .order_by(desc(Question.created_at))
+                .limit(limit)
+            )
+
+            result = await self.session.execute(stmt)
+            questions = list(result.scalars().all())
+
+            logger.debug(
+                f"Found {len(questions)} questions with {agent_name} numeric confidence between {min_confidence} and {max_confidence}"
+            )
+            return questions
+
+        except Exception as e:
+            logger.error(f"Failed to query questions by numeric confidence: {e}")
+            # Re-raise as a more specific error for better handling
+            raise ValueError(
+                f"Cannot query numeric confidence for agent '{agent_name}'. "
+                f"Database may contain non-numeric confidence values (ConfidenceLevel enums). "
+                f"Use get_questions_by_agent_confidence() for enum values instead."
+            ) from e
+
     async def get_questions_with_issues(
         self, min_issues: int = 1, agent_name: str = "critic"
     ) -> list[Question]:

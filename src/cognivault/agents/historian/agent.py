@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 from typing import Dict, Any, List, Optional, Union
 
 from cognivault.agents.base_agent import (
@@ -12,6 +13,7 @@ from cognivault.context import AgentContext
 from cognivault.config.app_config import get_config
 from cognivault.llm.llm_interface import LLMInterface
 from cognivault.agents.historian.search import SearchFactory, SearchResult
+from cognivault.agents.historian.title_generator import TitleGenerator
 
 # Configuration system imports
 from cognivault.config.agent_configs import HistorianConfig
@@ -20,6 +22,10 @@ from cognivault.workflows.prompt_composer import PromptComposer, ComposedPrompt
 # Database repository imports
 from cognivault.database.session_factory import DatabaseSessionFactory
 from cognivault.database.repositories import RepositoryFactory
+
+# Structured output imports
+from cognivault.agents.models import HistorianOutput, HistoricalReference
+from cognivault.services.langchain_service import LangChainService
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +62,15 @@ class HistorianAgent(BaseAgent):
         search_type: str = "hybrid",
         config: Optional[HistorianConfig] = None,
     ) -> None:
-        super().__init__("historian")
-
         # Configuration system - backward compatible
         # All config classes have sensible defaults via Pydantic Field definitions
         self.config = config if config is not None else HistorianConfig()
+
+        # Pass timeout from config to BaseAgent
+        super().__init__(
+            "historian", timeout_seconds=self.config.execution_config.timeout_seconds
+        )
+
         self._prompt_composer = PromptComposer()
         self._composed_prompt: Optional[ComposedPrompt]
 
@@ -82,6 +92,13 @@ class HistorianAgent(BaseAgent):
         self._db_session_factory: Optional[DatabaseSessionFactory] = None
         self._repository_factory: Optional[RepositoryFactory] = None
 
+        # Initialize title generator for database search title handling
+        self._title_generator = TitleGenerator(llm_client=self.llm)
+
+        # Initialize LangChain service for structured output (following RefinerAgent pattern)
+        self.structured_service: Optional[LangChainService] = None
+        self._setup_structured_service()
+
         # Compose the prompt on initialization for performance
         self._update_composed_prompt()
 
@@ -101,6 +118,46 @@ class HistorianAgent(BaseAgent):
         except Exception as e:
             logger.warning(f"Failed to create OpenAI LLM: {e}. Using mock LLM.")
             return None
+
+    def _setup_structured_service(self) -> None:
+        """Initialize the LangChain service for structured output support."""
+        try:
+            # Only set up if we have an LLM
+            if self.llm is None:
+                self.logger.info(
+                    f"[{self.name}] No LLM available, structured service disabled"
+                )
+                self.structured_service = None
+                return
+
+            # Get API key from LLM interface
+            api_key = getattr(self.llm, "api_key", None)
+
+            # Let discovery service choose the best model for HistorianAgent
+            # Discovery will prefer GPT-4o for its superior json_schema support
+            self.logger.info(
+                f"[{self.name}] Initializing structured output service with discovery"
+            )
+
+            self.structured_service = LangChainService(
+                model=None,  # Let discovery service choose
+                api_key=api_key,
+                temperature=0.1,  # Use low temperature for consistent historical analysis
+                agent_name="historian",  # Enable agent-specific model selection
+                use_discovery=True,  # Enable model discovery
+            )
+
+            # Log the selected model
+            selected_model = self.structured_service.model_name
+            self.logger.info(
+                f"[{self.name}] Structured output service initialized with discovered model: {selected_model}"
+            )
+        except Exception as e:
+            self.logger.warning(
+                f"[{self.name}] Failed to initialize structured service: {e}. "
+                f"Will use traditional LLM interface only."
+            )
+            self.structured_service = None
 
     def _update_composed_prompt(self) -> None:
         """Update the composed prompt based on current configuration."""
@@ -185,6 +242,9 @@ class HistorianAgent(BaseAgent):
         """
         Executes the enhanced Historian agent with intelligent search and LLM analysis.
 
+        Uses structured output when available for improved consistency and content
+        pollution prevention, with graceful fallback to traditional implementation.
+
         Parameters
         ----------
         context : AgentContext
@@ -195,7 +255,12 @@ class HistorianAgent(BaseAgent):
         AgentContext
             The updated context object with the Historian's output and retrieved notes.
         """
+        overall_start = time.time()
         query = context.query.strip()
+        self.logger.info(
+            f"[{self.name}] [DEBUG] Starting Historian execution - "
+            f"query: {query[:50]}{'...' if len(query) > 50 else ''}"
+        )
         self.logger.info(f"[{self.name}] Received query: {query}")
 
         # Use configurable simulation delay if enabled
@@ -207,31 +272,35 @@ class HistorianAgent(BaseAgent):
         context.start_agent_execution(self.name)
 
         try:
-            # Step 1: Search for relevant historical content
-            search_results = await self._search_historical_content(query, context)
+            # Try structured output first, fallback to traditional method
+            if self.structured_service:
+                try:
+                    historical_summary = await self._run_structured(query, context)
+                except Exception as e:
+                    self.logger.warning(
+                        f"[{self.name}] Structured output failed, falling back to traditional: {e}"
+                    )
+                    historical_summary = await self._run_traditional(query, context)
+            else:
+                historical_summary = await self._run_traditional(query, context)
 
-            # Step 2: Analyze and filter results with LLM
-            filtered_results = await self._analyze_relevance(
-                query, search_results, context
-            )
-
-            # Step 3: Synthesize findings into contextual summary
-            historical_summary = await self._synthesize_historical_context(
-                query, filtered_results, context
-            )
-
-            # Step 4: Update context with results
-            context.retrieved_notes = [result.filepath for result in filtered_results]
+            # Add agent output
             context.add_agent_output(self.name, historical_summary)
 
             # Log successful execution
+            num_notes = len(context.retrieved_notes) if context.retrieved_notes else 0
             self.logger.info(
-                f"[{self.name}] Found {len(filtered_results)} relevant historical notes"
+                f"[{self.name}] Found {num_notes} relevant historical notes"
             )
             context.log_trace(
                 self.name, input_data=query, output_data=historical_summary
             )
             context.complete_agent_execution(self.name, success=True)
+
+            overall_time = (time.time() - overall_start) * 1000
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Historian execution completed in {overall_time:.1f}ms"
+            )
 
             return context
 
@@ -261,6 +330,7 @@ class HistorianAgent(BaseAgent):
         self, query: str, context: AgentContext
     ) -> List[SearchResult]:
         """Search for relevant historical content using hybrid file + database search."""
+        search_start = time.time()
         all_results: List[SearchResult] = []
 
         # Initialize search_limit with default value for exception handler
@@ -271,19 +341,39 @@ class HistorianAgent(BaseAgent):
             config = get_config()
             search_limit = getattr(config.testing, "historian_search_limit", 10)
 
-            # Check if hybrid search is enabled using agent config first, then fallback to testing config
-            enable_hybrid_search = self.config.hybrid_search_enabled or getattr(
-                config.testing, "enable_hybrid_search", True
+            # Check if hybrid search is enabled
+            # Agent config takes precedence over testing config
+            # Only use testing config if agent config is at default (True)
+            if self.config.hybrid_search_enabled is False:
+                # Explicitly disabled in agent config
+                enable_hybrid_search = False
+            else:
+                # Use testing config as fallback
+                enable_hybrid_search = getattr(
+                    config.testing, "enable_hybrid_search", True
+                )
+
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Search strategy - "
+                f"hybrid_enabled: {enable_hybrid_search}, search_limit: {search_limit}"
             )
 
             if not enable_hybrid_search:
                 # Legacy mode: file-only search for backward compatibility
+                self.logger.info(
+                    f"[{self.name}] [DEBUG] Using file-only search (hybrid disabled)"
+                )
                 return await self._search_file_content(query, search_limit)
 
             # Calculate split between file and database search using configurable ratio
             file_ratio = self.config.hybrid_search_file_ratio
             file_limit = max(1, int(search_limit * file_ratio))
             db_limit = max(1, search_limit - file_limit)
+
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Hybrid search split - "
+                f"file_limit: {file_limit}, db_limit: {db_limit}, ratio: {file_ratio:.2f}"
+            )
 
             # Step 1: File-based search using existing resilient processor
             file_results = await self._search_file_content(query, file_limit)
@@ -301,6 +391,12 @@ class HistorianAgent(BaseAgent):
                 deduplicated_results, key=lambda r: r.relevance_score, reverse=True
             )[:search_limit]
 
+            search_time = (time.time() - search_start) * 1000
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Hybrid search completed in {search_time:.1f}ms - "
+                f"file: {len(file_results)}, db: {len(db_results)}, "
+                f"total: {len(final_results)} (after dedup)"
+            )
             self.logger.debug(
                 f"[{self.name}] Hybrid search: {len(file_results)} file + {len(db_results)} db = "
                 f"{len(final_results)} total results (after deduplication)"
@@ -315,7 +411,12 @@ class HistorianAgent(BaseAgent):
 
     async def _search_file_content(self, query: str, limit: int) -> List[SearchResult]:
         """Search file-based content using existing resilient processor."""
+        file_search_start = time.time()
         try:
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Starting file search - limit: {limit}"
+            )
+
             # Import resilient processor
             from cognivault.agents.historian.resilient_search import (
                 ResilientSearchProcessor,
@@ -330,6 +431,12 @@ class HistorianAgent(BaseAgent):
                 validation_report,
             ) = await processor.process_search_with_recovery(
                 self.search_engine, query, limit=limit
+            )
+
+            file_search_time = (time.time() - file_search_start) * 1000
+            self.logger.info(
+                f"[{self.name}] [DEBUG] File search completed in {file_search_time:.1f}ms - "
+                f"results: {len(search_results)}, recovered: {validation_report.recovered_validations}"
             )
 
             self.logger.debug(
@@ -358,7 +465,12 @@ class HistorianAgent(BaseAgent):
         self, query: str, limit: int
     ) -> List[SearchResult]:
         """Search database content using repository pattern."""
+        db_search_start = time.time()
         try:
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Starting database search - limit: {limit}"
+            )
+
             # Ensure database connection
             session_factory = await self._ensure_database_connection()
             if session_factory is None:
@@ -374,8 +486,6 @@ class HistorianAgent(BaseAgent):
                 analytics_repo = repo_factory.historian_search_analytics
 
                 # Perform fulltext search
-                import time
-
                 start_time = time.time()
 
                 documents = await doc_repo.fulltext_search(query, limit=limit)
@@ -411,8 +521,15 @@ class HistorianAgent(BaseAgent):
                     # Create SearchResult compatible with existing code
                     # Ensure content is not None before indexing or measuring length
                     content_text = doc.content or ""
+
+                    # Generate safe title using TitleGenerator to avoid validation errors
+                    original_title = doc.title or "Untitled Document"
+                    safe_title = await self._title_generator.generate_safe_title(
+                        original_title, content_text, metadata
+                    )
+
                     search_result = SearchResult(
-                        title=doc.title,
+                        title=safe_title,  # Use safe title instead of raw doc.title
                         excerpt=(
                             content_text[:200] + "..."
                             if len(content_text) > 200
@@ -431,6 +548,11 @@ class HistorianAgent(BaseAgent):
                     )
                     search_results.append(search_result)
 
+                db_search_time = (time.time() - db_search_start) * 1000
+                self.logger.info(
+                    f"[{self.name}] [DEBUG] Database search completed in {db_search_time:.1f}ms - "
+                    f"results: {len(search_results)}, query_time: {execution_time_ms}ms"
+                )
                 self.logger.debug(
                     f"[{self.name}] Database search: {len(search_results)} results in {execution_time_ms}ms"
                 )
@@ -510,6 +632,7 @@ class HistorianAgent(BaseAgent):
         self, query: str, search_results: List[SearchResult], context: AgentContext
     ) -> List[SearchResult]:
         """Use LLM to analyze relevance and filter search results."""
+        relevance_start = time.time()
         if not search_results:
             return []
 
@@ -518,6 +641,10 @@ class HistorianAgent(BaseAgent):
             return search_results[:5]  # Return top 5 results
 
         try:
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Starting relevance analysis - "
+                f"search_results: {len(search_results)}"
+            )
             # Prepare relevance analysis prompt
             relevance_prompt = self._build_relevance_prompt(query, search_results)
 
@@ -563,6 +690,36 @@ class HistorianAgent(BaseAgent):
                 search_results[i] for i in relevant_indices if i < len(search_results)
             ]
 
+            # SAFEGUARD: If LLM filtered out ALL results but search found documents,
+            # keep the top N results based on original search scores
+            if len(filtered_results) == 0 and len(search_results) > 0:
+                min_threshold = min(
+                    self.config.minimum_results_threshold, len(search_results)
+                )
+                filtered_results = sorted(
+                    search_results, key=lambda r: r.relevance_score, reverse=True
+                )[:min_threshold]
+
+                self.logger.warning(
+                    f"[{self.name}] LLM relevance filter removed ALL results. "
+                    f"SAFEGUARD ACTIVATED: Keeping top {len(filtered_results)} results "
+                    f"based on search scores (threshold: {self.config.minimum_results_threshold})"
+                )
+                self.logger.info(
+                    f"[{self.name}] Safeguard kept results: "
+                    + ", ".join(
+                        [
+                            f"{r.title[:50]}... (score: {r.relevance_score:.2f})"
+                            for r in filtered_results
+                        ]
+                    )
+                )
+
+            relevance_time = (time.time() - relevance_start) * 1000
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Relevance analysis completed in {relevance_time:.1f}ms - "
+                f"filtered: {len(search_results)} -> {len(filtered_results)}"
+            )
             self.logger.debug(
                 f"[{self.name}] LLM filtered {len(search_results)} to {len(filtered_results)} results"
             )
@@ -577,6 +734,7 @@ class HistorianAgent(BaseAgent):
         self, query: str, filtered_results: List[SearchResult], context: AgentContext
     ) -> str:
         """Synthesize historical findings into a contextual summary."""
+        synthesis_start = time.time()
         if not filtered_results:
             return f"No relevant historical context found for: {query}"
 
@@ -585,6 +743,10 @@ class HistorianAgent(BaseAgent):
             return self._create_basic_summary(query, filtered_results)
 
         try:
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Starting synthesis - "
+                f"filtered_results: {len(filtered_results)}"
+            )
             # Prepare synthesis prompt
             synthesis_prompt = self._build_synthesis_prompt(query, filtered_results)
 
@@ -621,6 +783,11 @@ class HistorianAgent(BaseAgent):
                     f"input: {input_tokens}, output: {output_tokens}, total: {total_tokens}"
                 )
 
+            synthesis_time = (time.time() - synthesis_start) * 1000
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Synthesis completed in {synthesis_time:.1f}ms - "
+                f"summary_length: {len(historical_summary)} chars"
+            )
             self.logger.debug(
                 f"[{self.name}] Generated historical summary: {len(historical_summary)} characters"
             )
@@ -749,6 +916,179 @@ HISTORICAL SYNTHESIS:"""
             summary_parts.append("")
 
         return "\n".join(summary_parts)
+
+    async def _run_structured(self, query: str, context: AgentContext) -> str:
+        """
+        Run with structured output using LangChain service.
+
+        This method orchestrates the entire historian process using structured output,
+        returning a properly formatted HistorianOutput that prevents content pollution.
+        """
+        start_time = time.time()
+
+        if not self.structured_service:
+            raise ValueError("Structured service not available")
+
+        self.logger.info(f"[{self.name}] [DEBUG] Starting structured output workflow")
+
+        try:
+            # Step 1: Search for relevant historical content (same as before)
+            search_results = await self._search_historical_content(query, context)
+
+            # Step 2: Analyze and filter results with LLM (same as before)
+            filtered_results = await self._analyze_relevance(
+                query, search_results, context
+            )
+
+            # Step 3: Prepare historical references for structured output
+            # Note: HistoricalReference model is simpler than our SearchResult
+            # We'll include the rich metadata in the prompt for synthesis
+
+            # Create structured prompt for historical synthesis
+            system_prompt = self._get_system_prompt()
+
+            # Build comprehensive prompt with all context
+            historical_context = self._format_historical_context(filtered_results)
+            prompt = f"""Query: {query}
+
+Historical Context Found:
+{historical_context}
+
+Number of Sources Searched: {len(search_results)}
+Number of Relevant Sources: {len(filtered_results)}
+
+Please provide a comprehensive historical synthesis according to the system instructions.
+Focus on the content synthesis only - do not describe your analysis process."""
+
+            # Get structured output
+            llm_call_start = time.time()
+            context_size = len(prompt) + len(system_prompt)
+            self.logger.info(
+                f"[{self.name}] [DEBUG] Starting LLM structured output call - "
+                f"context_size: {context_size}, search_results: {len(search_results)}, "
+                f"filtered_results: {len(filtered_results)}"
+            )
+
+            from cognivault.services.langchain_service import StructuredOutputResult
+
+            result = await self.structured_service.get_structured_output(
+                prompt=prompt,
+                output_class=HistorianOutput,
+                system_prompt=system_prompt,
+                max_retries=3,
+            )
+
+            llm_call_time = (time.time() - llm_call_start) * 1000
+            self.logger.info(
+                f"[{self.name}] [DEBUG] LLM structured output completed in {llm_call_time:.1f}ms"
+            )
+
+            # Handle both HistorianOutput and StructuredOutputResult types
+            if isinstance(result, HistorianOutput):
+                structured_result = result
+            else:
+                # It's a StructuredOutputResult, extract the parsed result
+                if isinstance(result, StructuredOutputResult):
+                    parsed_result = result.parsed
+                    if not isinstance(parsed_result, HistorianOutput):
+                        raise ValueError(
+                            f"Expected HistorianOutput, got {type(parsed_result)}"
+                        )
+                    structured_result = parsed_result
+                else:
+                    raise ValueError(f"Unexpected result type: {type(result)}")
+
+            # SERVER-SIDE PROCESSING TIME INJECTION
+            # CRITICAL FIX: LLMs cannot accurately measure their own processing time
+            # We calculate actual execution time server-side and inject it into the model
+            processing_time_ms = (time.time() - start_time) * 1000
+
+            # Inject server-calculated processing time if LLM returned None
+            if structured_result.processing_time_ms is None:
+                # Use model_copy to create new instance with updated processing_time_ms
+                structured_result = structured_result.model_copy(
+                    update={"processing_time_ms": processing_time_ms}
+                )
+                self.logger.info(
+                    f"[{self.name}] Injected server-calculated processing_time_ms: {processing_time_ms:.1f}ms"
+                )
+
+            # Store structured output in execution_state for future use
+            if "structured_outputs" not in context.execution_state:
+                context.execution_state["structured_outputs"] = {}
+            context.execution_state["structured_outputs"][self.name] = (
+                structured_result.model_dump()
+            )
+
+            # Update context with retrieved notes (backward compatibility)
+            context.retrieved_notes = [result.filepath for result in filtered_results]
+
+            # Record token usage for structured output
+            # Since structured output doesn't directly expose token usage,
+            # we record minimal usage to ensure event emission doesn't fail
+            existing_usage = context.get_agent_token_usage(self.name)
+            context.add_agent_token_usage(
+                agent_name=self.name,
+                input_tokens=existing_usage[
+                    "input_tokens"
+                ],  # Keep existing from search/filter
+                output_tokens=existing_usage["output_tokens"],  # Keep existing
+                total_tokens=existing_usage["total_tokens"],  # Keep existing
+            )
+
+            self.logger.info(
+                f"[{self.name}] Structured output successful - "
+                f"processing_time: {processing_time_ms:.1f}ms, "
+                f"sources_searched: {structured_result.sources_searched}, "
+                f"relevant_sources: {len(structured_result.relevant_sources)}, "
+                f"themes: {len(structured_result.themes_identified)}"
+            )
+
+            # Return the historical synthesis for backward compatibility
+            return structured_result.historical_synthesis
+
+        except Exception as e:
+            self.logger.error(f"[{self.name}] Structured output failed: {e}")
+            raise  # Let caller handle fallback
+
+    async def _run_traditional(self, query: str, context: AgentContext) -> str:
+        """
+        Run with traditional LLM interface (original implementation).
+
+        This is the fallback method that uses the existing implementation
+        when structured output is not available or fails.
+        """
+        # Step 1: Search for relevant historical content
+        search_results = await self._search_historical_content(query, context)
+
+        # Step 2: Analyze and filter results with LLM
+        filtered_results = await self._analyze_relevance(query, search_results, context)
+
+        # Step 3: Synthesize findings into contextual summary
+        historical_summary = await self._synthesize_historical_context(
+            query, filtered_results, context
+        )
+
+        # Step 4: Update context with results
+        context.retrieved_notes = [result.filepath for result in filtered_results]
+
+        return historical_summary
+
+    def _format_historical_context(self, filtered_results: List[SearchResult]) -> str:
+        """Format historical search results for structured output prompt."""
+        if not filtered_results:
+            return "No relevant historical context found."
+
+        context_parts = []
+        for i, result in enumerate(filtered_results, 1):
+            context_parts.append(
+                f"{i}. {result.title} ({result.date})\n"
+                f"   Topics: {', '.join(result.topics)}\n"
+                f"   Excerpt: {result.excerpt}\n"
+                f"   Source: {result.filename}"
+            )
+
+        return "\n\n".join(context_parts)
 
     async def _create_fallback_output(self, query: str, mock_history: List[str]) -> str:
         """Create fallback output using mock history data."""
