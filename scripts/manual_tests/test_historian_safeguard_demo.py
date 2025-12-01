@@ -151,15 +151,16 @@ async def demo_safeguard_activation() -> None:
             match_type="content",
             matched_terms=["supervised", "learning", "algorithms"],
             excerpt="Supervised learning algorithms learn from labeled training data. This overview covers classification and regression techniques including decision trees and SVMs...",
-            metadata={"topics": ["ML", "supervised learning", "algorithms"], "word_count": 2100},
+            metadata={
+                "topics": ["ML", "supervised learning", "algorithms"],
+                "word_count": 2100,
+            },
         ),
     ]
 
     print(f"   ✓ Created {len(search_results)} search results:")
     for i, result in enumerate(search_results, 1):
-        print(
-            f"     {i}. {result.title[:50]}... (score: {result.relevance_score:.2f})"
-        )
+        print(f"     {i}. {result.title[:50]}... (score: {result.relevance_score:.2f})")
 
     # Mock the search engine
     from unittest.mock import AsyncMock

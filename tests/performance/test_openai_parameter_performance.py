@@ -28,11 +28,13 @@ import json
 try:
     from cognivault.services.langchain_service import LangChainService
     from cognivault.services.llm_pool import LLMServicePool
-    from cognivault.agents.refiner.schemas import RefinerOutput
-    from cognivault.agents.critic.schemas import CriticOutput
-    from cognivault.agents.historian.schemas import HistorianOutput
-    from cognivault.agents.synthesis.schemas import SynthesisOutput
-    from cognivault.exceptions.llm_errors import LLMTimeoutError, LLMParameterError
+    from cognivault.agents.models import (
+        RefinerOutput,
+        CriticOutput,
+        HistorianOutput,
+        SynthesisOutput,
+    )
+    from cognivault.exceptions.llm_errors import LLMTimeoutError
 except ImportError as e:
     pytest.skip(
         f"Performance test dependencies not available: {e}", allow_module_level=True
@@ -64,7 +66,7 @@ class PerformanceResult:
     meets_targets: Dict[str, bool] = field(init=False)
     timestamp: float = field(default_factory=time.time)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         thresholds = PerformanceThresholds()
 
         # Categorize performance
@@ -139,7 +141,7 @@ class PerformanceBenchmark:
 
     @property
     def performance_distribution(self) -> Dict[str, float]:
-        categories = {}
+        categories: Dict[str, int] = {}
         for result in self.results:
             category = result.performance_category
             categories[category] = categories.get(category, 0) + 1
@@ -154,7 +156,7 @@ class PerformanceBenchmark:
 class OpenAIParameterPerformanceTester:
     """Performance testing framework for OpenAI parameter compatibility fixes"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.thresholds = PerformanceThresholds()
         self.benchmarks: List[PerformanceBenchmark] = []
 
@@ -252,7 +254,7 @@ class OpenAIParameterPerformanceTester:
             print(f"  Round {round_num + 1}/{iterations}...")
 
             # Create concurrent tasks
-            async def single_concurrent_request(request_id: int):
+            async def single_concurrent_request(request_id: int) -> PerformanceResult:
                 test_params = self._get_optimized_parameters(model, "concurrent")
                 return await self._execute_performance_test(
                     model=model,
@@ -288,7 +290,7 @@ class OpenAIParameterPerformanceTester:
         return benchmark
 
     async def benchmark_agent_integration_performance(
-        self, model: str, agent_types: List[str] = None, iterations: int = 10
+        self, model: str, agent_types: Optional[List[str]] = None, iterations: int = 10
     ) -> List[PerformanceBenchmark]:
         """Benchmark performance with CogniVault agent integration"""
         if agent_types is None:
@@ -330,10 +332,10 @@ class OpenAIParameterPerformanceTester:
         return agent_benchmarks
 
     def _get_optimized_parameters(
-        self, model: str, test_type: str, schema_type: str = None
+        self, model: str, test_type: str, schema_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get optimized parameters based on compatibility fixes"""
-        base_params = {
+        base_params: Dict[str, Any] = {
             "model": model,
             "messages": [{"role": "user", "content": f"Test request for {test_type}"}],
         }
@@ -359,7 +361,7 @@ class OpenAIParameterPerformanceTester:
 
         # Add structured output format if needed
         if test_type == "structured" and schema_type:
-            schema_map = {
+            schema_map: Dict[str, Dict[str, Any]] = {
                 "refiner": {
                     "type": "json_schema",
                     "json_schema": {"name": "refiner_output"},
@@ -387,18 +389,18 @@ class OpenAIParameterPerformanceTester:
         self, model: str, agent_type: str
     ) -> Dict[str, Any]:
         """Get agent-specific optimized parameters"""
-        agent_configs = {
+        agent_configs: Dict[str, Dict[str, Any]] = {
             "refiner": {"token_limit": 300, "complexity": "medium"},
             "critic": {"token_limit": 400, "complexity": "high"},
             "historian": {"token_limit": 500, "complexity": "high"},
             "synthesis": {"token_limit": 600, "complexity": "very_high"},
         }
 
-        config = agent_configs.get(
+        config: Dict[str, Any] = agent_configs.get(
             agent_type, {"token_limit": 300, "complexity": "medium"}
         )
 
-        params = {
+        params: Dict[str, Any] = {
             "model": model,
             "messages": [
                 {"role": "user", "content": f"{agent_type} agent test request"}
@@ -479,7 +481,7 @@ class OpenAIParameterPerformanceTester:
                 error=str(e),
             )
 
-    def _analyze_benchmark_results(self, benchmark: PerformanceBenchmark):
+    def _analyze_benchmark_results(self, benchmark: PerformanceBenchmark) -> None:
         """Analyze and report benchmark results"""
         print(f"\n📊 {benchmark.test_name} Results for {benchmark.model}:")
         print(
@@ -497,7 +499,7 @@ class OpenAIParameterPerformanceTester:
 
     def generate_performance_report(self) -> Dict[str, Any]:
         """Generate comprehensive performance report"""
-        report = {
+        report: Dict[str, Any] = {
             "test_timestamp": time.time(),
             "performance_thresholds": self.thresholds._asdict(),
             "total_benchmarks": len(self.benchmarks),
@@ -505,9 +507,9 @@ class OpenAIParameterPerformanceTester:
             "summary": {},
         }
 
-        all_results = []
+        all_results: List[PerformanceResult] = []
         for benchmark in self.benchmarks:
-            benchmark_data = {
+            benchmark_data: Dict[str, Any] = {
                 "test_name": benchmark.test_name,
                 "model": benchmark.model,
                 "success_rate": benchmark.success_rate,
@@ -561,24 +563,24 @@ class TestOpenAIParameterPerformance:
     """Performance validation test suite"""
 
     @pytest.fixture
-    def performance_tester(self):
+    def performance_tester(self) -> OpenAIParameterPerformanceTester:
         """Performance testing framework instance"""
         return OpenAIParameterPerformanceTester()
 
     @pytest.fixture
-    def gpt5_models(self):
+    def gpt5_models(self) -> List[str]:
         """GPT-5 models for performance testing"""
         return ["gpt-5-nano", "gpt-5"]
 
     @pytest.fixture
-    def performance_thresholds(self):
+    def performance_thresholds(self) -> PerformanceThresholds:
         """Performance threshold configuration"""
         return PerformanceThresholds()
 
     @pytest.mark.asyncio
     async def test_basic_parameter_performance_validation(
-        self, performance_tester, gpt5_models, performance_thresholds
-    ):
+        self, performance_tester: OpenAIParameterPerformanceTester, gpt5_models: List[str], performance_thresholds: PerformanceThresholds
+    ) -> None:
         """Test that basic parameter fixes meet performance targets"""
 
         for model in gpt5_models:
@@ -603,8 +605,8 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_structured_output_performance_validation(
-        self, performance_tester, gpt5_models, performance_thresholds
-    ):
+        self, performance_tester: OpenAIParameterPerformanceTester, gpt5_models: List[str], performance_thresholds: PerformanceThresholds
+    ) -> None:
         """Test structured output performance with fixed parameters"""
 
         schema_types = ["refiner", "critic", "historian"]
@@ -634,8 +636,8 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_concurrent_performance_no_degradation(
-        self, performance_tester, performance_thresholds
-    ):
+        self, performance_tester: OpenAIParameterPerformanceTester, performance_thresholds: PerformanceThresholds
+    ) -> None:
         """Test that concurrent requests don't degrade performance significantly"""
 
         model = "gpt-5-nano"  # Primary model for concurrent testing
@@ -665,8 +667,8 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_agent_integration_performance_targets(
-        self, performance_tester, performance_thresholds
-    ):
+        self, performance_tester: OpenAIParameterPerformanceTester, performance_thresholds: PerformanceThresholds
+    ) -> None:
         """Test performance with CogniVault agent integration"""
 
         model = "gpt-5-nano"
@@ -704,14 +706,14 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_performance_regression_boundaries(
-        self, performance_tester, performance_thresholds
-    ):
+        self, performance_tester: OpenAIParameterPerformanceTester, performance_thresholds: PerformanceThresholds
+    ) -> None:
         """Test performance boundaries and regression detection"""
 
         model = "gpt-5-nano"
 
         # Test edge cases that could cause regression
-        edge_case_scenarios = [
+        edge_case_scenarios: List[Dict[str, Any]] = [
             {
                 "name": "large_token_limit",
                 "params": {"max_completion_tokens": 1000, "temperature": 1.0},
@@ -737,15 +739,18 @@ class TestOpenAIParameterPerformance:
         ]
 
         for scenario in edge_case_scenarios:
-            print(f"\n🧪 Testing edge case: {scenario['name']}")
+            scenario_name: str = str(scenario['name'])
+            scenario_params: Dict[str, Any] = dict(scenario['params'])
+            scenario_max_ms: float = float(scenario['max_response_ms'])
+            print(f"\n🧪 Testing edge case: {scenario_name}")
 
             # Run multiple iterations for each edge case
-            results = []
+            results: List[PerformanceResult] = []
             for i in range(5):
                 result = await performance_tester._execute_performance_test(
                     model=model,
-                    test_type=scenario["name"],
-                    parameters=scenario["params"],
+                    test_type=scenario_name,
+                    parameters=scenario_params,
                     iteration=i,
                 )
                 results.append(result)
@@ -755,22 +760,22 @@ class TestOpenAIParameterPerformance:
             success_rate = len(successful_results) / len(results)
 
             assert success_rate >= 0.8, (
-                f"Edge case {scenario['name']} success rate {success_rate:.2%} too low"
+                f"Edge case {scenario_name} success rate {success_rate:.2%} too low"
             )
 
             if successful_results:
                 avg_response_time = statistics.mean(
                     [r.duration_ms for r in successful_results]
                 )
-                assert avg_response_time <= scenario["max_response_ms"], (
-                    f"Edge case {scenario['name']} response time {avg_response_time:.0f}ms exceeds limit"
+                assert avg_response_time <= scenario_max_ms, (
+                    f"Edge case {scenario_name} response time {avg_response_time:.0f}ms exceeds limit"
                 )
 
                 print(
-                    f"  ✅ {scenario['name']}: {success_rate:.1%} success, {avg_response_time:.0f}ms avg"
+                    f"  ✅ {scenario_name}: {success_rate:.1%} success, {avg_response_time:.0f}ms avg"
                 )
 
-    def test_performance_targets_definition_validation(self, performance_thresholds):
+    def test_performance_targets_definition_validation(self, performance_thresholds: PerformanceThresholds) -> None:
         """Test that performance targets are correctly defined and achievable"""
 
         # Validate threshold consistency
@@ -805,8 +810,8 @@ class TestOpenAIParameterPerformance:
 
     @pytest.mark.asyncio
     async def test_comprehensive_performance_report_generation(
-        self, performance_tester
-    ):
+        self, performance_tester: OpenAIParameterPerformanceTester
+    ) -> Dict[str, Any]:
         """Test comprehensive performance report generation"""
 
         model = "gpt-5-nano"
@@ -854,7 +859,7 @@ class TestOpenAIParameterPerformance:
 class TestPerformanceRegressionPrevention:
     """Performance regression prevention tests"""
 
-    def test_performance_baseline_establishment(self):
+    def test_performance_baseline_establishment(self) -> None:
         """Test that performance baselines are correctly established"""
 
         # Performance baselines based on documented validation
@@ -901,7 +906,7 @@ class TestPerformanceRegressionPrevention:
         print(f"   Success rate: +{improvement['success_rate_improvement']:.1%}")
         print(f"   Cascade reduction: -{improvement['cascade_reduction']:.1%}")
 
-    def test_performance_monitoring_thresholds(self):
+    def test_performance_monitoring_thresholds(self) -> None:
         """Test performance monitoring threshold definitions"""
 
         # Monitoring thresholds for regression detection
@@ -930,15 +935,15 @@ class TestPerformanceRegressionPrevention:
 
         print("✅ Performance monitoring thresholds validated")
 
-    def test_regression_detection_scenarios(self):
+    def test_regression_detection_scenarios(self) -> None:
         """Test regression detection for various failure scenarios"""
 
         # Scenarios that could indicate regression
-        regression_scenarios = [
+        regression_scenarios: List[Dict[str, Any]] = [
             {
                 "name": "parameter_fix_failure",
                 "metrics": {
-                    "avg_response_ms": 15000,
+                    "avg_response_ms": 15000.0,
                     "success_rate": 0.7,
                     "cascade_rate": 0.3,
                 },
@@ -948,7 +953,7 @@ class TestPerformanceRegressionPrevention:
             {
                 "name": "performance_degradation",
                 "metrics": {
-                    "avg_response_ms": 2500,
+                    "avg_response_ms": 2500.0,
                     "success_rate": 0.88,
                     "cascade_rate": 0.08,
                 },
@@ -958,7 +963,7 @@ class TestPerformanceRegressionPrevention:
             {
                 "name": "intermittent_cascades",
                 "metrics": {
-                    "avg_response_ms": 4000,
+                    "avg_response_ms": 4000.0,
                     "success_rate": 0.92,
                     "cascade_rate": 0.12,
                 },
@@ -967,7 +972,7 @@ class TestPerformanceRegressionPrevention:
             },
         ]
 
-        def detect_regression(metrics):
+        def detect_regression(metrics: Dict[str, float]) -> str:
             if metrics["cascade_rate"] > 0.15 or metrics["avg_response_ms"] > 10000:
                 return "CRITICAL"
             elif metrics["cascade_rate"] > 0.05 or metrics["avg_response_ms"] > 3000:
@@ -976,12 +981,19 @@ class TestPerformanceRegressionPrevention:
                 return "NORMAL"
 
         for scenario in regression_scenarios:
-            detected_severity = detect_regression(scenario["metrics"])
+            scenario_metrics: Dict[str, float] = {
+                "avg_response_ms": float(scenario["metrics"]["avg_response_ms"]),
+                "success_rate": float(scenario["metrics"]["success_rate"]),
+                "cascade_rate": float(scenario["metrics"]["cascade_rate"]),
+            }
+            scenario_expected_severity: str = str(scenario["expected_severity"])
+            scenario_name: str = str(scenario["name"])
+            detected_severity = detect_regression(scenario_metrics)
 
-            assert detected_severity == scenario["expected_severity"], (
-                f"Regression detection failed for {scenario['name']}: expected {scenario['expected_severity']}, got {detected_severity}"
+            assert detected_severity == scenario_expected_severity, (
+                f"Regression detection failed for {scenario_name}: expected {scenario_expected_severity}, got {detected_severity}"
             )
 
             print(
-                f"✅ Regression detection for {scenario['name']}: {detected_severity}"
+                f"✅ Regression detection for {scenario_name}: {detected_severity}"
             )

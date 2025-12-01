@@ -206,7 +206,7 @@ class TestOpenAISchemaGeneration:
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
-            schema = service._prepare_schema_for_openai(model)
+            schema = service._prepare_schema_for_openai(model)  # type: ignore[arg-type]
 
             properties = set(schema.get("properties", {}).keys())
             required = set(schema.get("required", []))
@@ -222,7 +222,7 @@ class TestOpenAISchemaGeneration:
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
-            schema = service._prepare_schema_for_openai(model)
+            schema = service._prepare_schema_for_openai(model)  # type: ignore[arg-type]
 
             def check_refs(obj: Any, path: str = "") -> None:
                 if isinstance(obj, dict):
@@ -245,7 +245,7 @@ class TestOpenAISchemaGeneration:
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
-            schema = service._prepare_schema_for_openai(model)
+            schema = service._prepare_schema_for_openai(model)  # type: ignore[arg-type]
             assert schema.get("additionalProperties") == False, (
                 f"{model.__name__}: additionalProperties must be false"
             )

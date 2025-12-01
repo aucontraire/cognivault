@@ -41,20 +41,20 @@ class PerformanceProfiler:
 
     def __init__(self, operation_name: str):
         self.operation_name = operation_name
-        self.start_time = None
-        self.end_time = None
-        self.cpu_percent_start = None
-        self.cpu_percent_end = None
-        self.memory_start = None
-        self.memory_end = None
+        self.start_time: Optional[float] = None
+        self.end_time: Optional[float] = None
+        self.cpu_percent_start: Optional[float] = None
+        self.cpu_percent_end: Optional[float] = None
+        self.memory_start: Optional[Any] = None
+        self.memory_end: Optional[Any] = None
 
-    def __enter__(self):
+    def __enter__(self) -> "PerformanceProfiler":
         self.start_time = time.time()
         self.cpu_percent_start = psutil.cpu_percent()
         self.memory_start = psutil.Process().memory_info()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.end_time = time.time()
         self.cpu_percent_end = psutil.cpu_percent()
         self.memory_end = psutil.Process().memory_info()
@@ -70,8 +70,8 @@ class PerformanceProfiler:
     def memory_delta_mb(self) -> float:
         """Memory usage change in MB."""
         if self.memory_start and self.memory_end:
-            return (self.memory_end.rss - self.memory_start.rss) / 1024 / 1024
-        return 0
+            return float((self.memory_end.rss - self.memory_start.rss) / 1024 / 1024)
+        return 0.0
 
     def get_summary(self) -> Dict[str, Any]:
         """Get profiling summary."""
@@ -94,7 +94,7 @@ class SystemicPerformanceTest:
     """Comprehensive performance regression testing suite."""
 
     @pytest.fixture(autouse=True)
-    def setup_performance_test(self):
+    def setup_performance_test(self) -> Any:
         """Reset all singletons and state for clean performance testing."""
         # Reset LLM pool to ensure clean state
         LLMServicePool.reset_instance()
@@ -107,7 +107,7 @@ class SystemicPerformanceTest:
         # Cleanup after test
         LLMServicePool.reset_instance()
 
-    def record_performance(self, test_name: str, data: Dict[str, Any]):
+    def record_performance(self, test_name: str, data: Dict[str, Any]) -> None:
         """Record performance data for analysis."""
         if test_name not in self.performance_data:
             self.performance_data[test_name] = []
@@ -134,7 +134,7 @@ class TestAPILatencyIsolation(SystemicPerformanceTest):
     """Isolate whether the issue is OpenAI API latency vs local processing."""
 
     @pytest.mark.asyncio
-    async def test_raw_openai_api_latency(self):
+    async def test_raw_openai_api_latency(self) -> None:
         """Test raw OpenAI API call latency without any CogniVault layers."""
         try:
             from openai import AsyncOpenAI
@@ -191,7 +191,7 @@ class TestAPILatencyIsolation(SystemicPerformanceTest):
                     )
 
     @pytest.mark.asyncio
-    async def test_structured_output_api_latency(self):
+    async def test_structured_output_api_latency(self) -> None:
         """Test OpenAI structured output API latency (beta.chat.completions.parse)."""
         try:
             from openai import AsyncOpenAI
@@ -213,7 +213,7 @@ class TestAPILatencyIsolation(SystemicPerformanceTest):
                             "content": "Refine this question: 'What is AI?' Provide a refined question and confidence.",
                         }
                     ],
-                    response_format={
+                    response_format={  # type: ignore[arg-type]
                         "type": "json_schema",
                         "json_schema": {
                             "name": "RefinerOutput",
@@ -256,7 +256,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
     """Profile the integration layer components to find overhead sources."""
 
     @pytest.mark.asyncio
-    async def test_langchain_service_initialization_overhead(self):
+    async def test_langchain_service_initialization_overhead(self) -> None:
         """Measure LangChainService initialization time."""
 
         # Test traditional initialization (pre-pool)
@@ -299,7 +299,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
             logger.error(f"Pool initialization overhead too high: {overhead:.1f}ms")
 
     @pytest.mark.asyncio
-    async def test_model_discovery_overhead(self):
+    async def test_model_discovery_overhead(self) -> None:
         """Measure model discovery service overhead."""
 
         with PerformanceProfiler("model_discovery") as profiler:
@@ -329,7 +329,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
             logger.error(f"Model discovery too slow: {profiler.duration_ms:.1f}ms")
 
     @pytest.mark.asyncio
-    async def test_schema_preparation_overhead(self):
+    async def test_schema_preparation_overhead(self) -> None:
         """Measure schema preparation computational overhead."""
 
         schemas_to_test = [
@@ -344,7 +344,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
                 )
 
                 # This is the expensive schema preparation step
-                prepared_schema = service._prepare_schema_for_openai(schema_class)
+                prepared_schema = service._prepare_schema_for_openai(schema_class)  # type: ignore[arg-type]
 
             schema_data = profiler.get_summary()
             schema_data.update(
@@ -369,7 +369,7 @@ class TestResourceBottleneckDetection(SystemicPerformanceTest):
     """Detect system resource bottlenecks causing performance issues."""
 
     @pytest.mark.asyncio
-    async def test_concurrent_agent_resource_usage(self):
+    async def test_concurrent_agent_resource_usage(self) -> None:
         """Test resource usage under concurrent agent execution."""
 
         # Simulate concurrent agent creation (like in real workflow)
@@ -448,7 +448,7 @@ class TestResourceBottleneckDetection(SystemicPerformanceTest):
                 f"Resource contention detected - concurrent {concurrent_data['duration_ms']:.1f}ms vs sequential {sequential_data['duration_ms']:.1f}ms"
             )
 
-    def test_memory_leak_detection(self):
+    def test_memory_leak_detection(self) -> None:
         """Test for memory leaks in service creation/destruction."""
 
         initial_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
@@ -486,7 +486,7 @@ class TestFallbackChainAnalysis(SystemicPerformanceTest):
     """Analyze why native methods fail and fallback chains are triggered."""
 
     @pytest.mark.asyncio
-    async def test_native_vs_fallback_success_rates(self):
+    async def test_native_vs_fallback_success_rates(self) -> None:
         """Compare success rates of native structured output vs fallback parser."""
 
         service = LangChainService(model="gpt-5", use_discovery=False, use_pool=False)
@@ -581,7 +581,7 @@ class TestEndToEndPerformanceRegression(SystemicPerformanceTest):
     """End-to-end testing to validate performance regression patterns."""
 
     @pytest.mark.asyncio
-    async def test_refiner_agent_baseline_performance(self):
+    async def test_refiner_agent_baseline_performance(self) -> None:
         """Establish baseline performance for RefinerAgent (the simplest agent)."""
 
         service = LangChainService(
@@ -637,7 +637,7 @@ class TestEndToEndPerformanceRegression(SystemicPerformanceTest):
                 )
 
     @pytest.mark.asyncio
-    async def test_pool_vs_traditional_performance_comparison(self):
+    async def test_pool_vs_traditional_performance_comparison(self) -> None:
         """Compare pooled vs traditional service performance."""
 
         test_prompt = "Refine: 'What is AI?' Provide refined question and confidence."
@@ -706,7 +706,7 @@ class TestEndToEndPerformanceRegression(SystemicPerformanceTest):
 
 
 # Test execution and reporting utilities
-def run_performance_analysis():
+def run_performance_analysis() -> None:
     """
     Run the complete performance analysis suite and generate report.
 
@@ -720,7 +720,7 @@ if __name__ == "__main__":
     # Allow direct execution for debugging
     import asyncio
 
-    async def debug_run():
+    async def debug_run() -> None:
         test_instance = TestAPILatencyIsolation()
         test_instance.setup_performance_test()
 

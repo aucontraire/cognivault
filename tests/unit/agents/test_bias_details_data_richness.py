@@ -277,7 +277,7 @@ class TestMultipleBiasSameType:
         assert len(output.bias_details) == 6
 
         # Count instances per type
-        type_counts = {}
+        type_counts: Dict[BiasType, int] = {}
         for detail in output.bias_details:
             type_counts[detail.bias_type] = type_counts.get(detail.bias_type, 0) + 1
 
@@ -471,7 +471,7 @@ class TestComplexRealWorldQuery:
         assert len(output.bias_details) == 7
 
         # Verify duplicates are captured
-        type_counts = {}
+        type_counts: Dict[BiasType, int] = {}
         for detail in output.bias_details:
             type_counts[detail.bias_type] = type_counts.get(detail.bias_type, 0) + 1
 

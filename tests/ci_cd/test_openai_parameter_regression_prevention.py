@@ -30,7 +30,7 @@ import subprocess
 try:
     from cognivault.services.langchain_service import LangChainService
     from cognivault.services.llm_pool import LLMServicePool
-    from cognivault.exceptions.llm_errors import LLMParameterError
+    from cognivault.exceptions.llm_errors import LLMValidationError
 except ImportError:
     # Handle graceful degradation for CI environments
     pass
@@ -39,11 +39,11 @@ except ImportError:
 class ParameterUsageAnalyzer(ast.NodeVisitor):
     """AST analyzer to detect OpenAI parameter usage patterns in code"""
 
-    def __init__(self):
-        self.parameter_usage = []
-        self.incompatible_patterns = []
-        self.current_file = None
-        self.current_function = None
+    def __init__(self) -> None:
+        self.parameter_usage: List[Dict[str, Any]] = []
+        self.incompatible_patterns: List[Dict[str, Any]] = []
+        self.current_file: Optional[str] = None
+        self.current_function: Optional[str] = None
 
     def analyze_file(self, file_path: Path) -> Dict[str, Any]:
         """Analyze a Python file for parameter usage patterns"""
@@ -65,14 +65,14 @@ class ParameterUsageAnalyzer(ast.NodeVisitor):
             "issues_found": len(self.incompatible_patterns),
         }
 
-    def visit_FunctionDef(self, node):
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """Track function definitions for context"""
         old_function = self.current_function
         self.current_function = node.name
         self.generic_visit(node)
         self.current_function = old_function
 
-    def visit_Call(self, node):
+    def visit_Call(self, node: ast.Call) -> None:
         """Analyze function calls for OpenAI parameter usage"""
         # Check for OpenAI client calls
         if self._is_openai_call(node):
@@ -80,7 +80,7 @@ class ParameterUsageAnalyzer(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-    def visit_Dict(self, node):
+    def visit_Dict(self, node: ast.Dict) -> None:
         """Analyze dictionary literals for parameter patterns"""
         # Look for parameter dictionaries
         if self._looks_like_llm_params(node):
@@ -123,9 +123,9 @@ class ParameterUsageAnalyzer(ast.NodeVisitor):
 
         return len(dict_keys.intersection(llm_param_keys)) >= 2
 
-    def _analyze_openai_call(self, node: ast.Call):
+    def _analyze_openai_call(self, node: ast.Call) -> None:
         """Analyze OpenAI API call for parameter compatibility"""
-        call_info = {
+        call_info: Dict[str, Any] = {
             "type": "openai_call",
             "function": self.current_function,
             "line": node.lineno,
@@ -146,9 +146,9 @@ class ParameterUsageAnalyzer(ast.NodeVisitor):
 
         self.parameter_usage.append(call_info)
 
-    def _analyze_parameter_dict(self, node: ast.Dict):
+    def _analyze_parameter_dict(self, node: ast.Dict) -> None:
         """Analyze parameter dictionary for compatibility issues"""
-        dict_info = {
+        dict_info: Dict[str, Any] = {
             "type": "parameter_dict",
             "function": self.current_function,
             "line": node.lineno,
@@ -170,7 +170,7 @@ class ParameterUsageAnalyzer(ast.NodeVisitor):
 
     def _check_parameter_compatibility(
         self, param_name: str, param_value: Any, line_number: int
-    ):
+    ) -> None:
         """Check individual parameter for compatibility issues"""
 
         # Rule 1: max_tokens usage with GPT-5 models
@@ -232,7 +232,7 @@ class ParameterUsageAnalyzer(ast.NodeVisitor):
             if isinstance(node.func, ast.Attribute):
                 # Handle method calls like client.chat.completions.create
                 parts = []
-                current = node.func
+                current: ast.expr = node.func
                 while isinstance(current, ast.Attribute):
                     parts.append(current.attr)
                     current = current.value
@@ -269,7 +269,7 @@ class ParameterUsageAnalyzer(ast.NodeVisitor):
 class CIParameterRegressionPrevention:
     """CI/CD regression prevention framework for OpenAI parameters"""
 
-    def __init__(self, repo_root: Path = None):
+    def __init__(self, repo_root: Optional[Path] = None) -> None:
         self.repo_root = repo_root or Path.cwd()
         self.analyzer = ParameterUsageAnalyzer()
 
@@ -371,7 +371,7 @@ class CIParameterRegressionPrevention:
         """Validate that parameter transformation functions work correctly"""
         print("🔧 Validating parameter transformation functions...")
 
-        validation_results = {
+        validation_results: Dict[str, Any] = {
             "transformation_tests": [],
             "all_tests_passed": True,
             "critical_failures": [],
@@ -426,7 +426,7 @@ class CIParameterRegressionPrevention:
         ]
 
         for test_case in test_cases:
-            test_result = self._test_parameter_transformation(test_case)
+            test_result: Dict[str, Any] = self._test_parameter_transformation(test_case)
             validation_results["transformation_tests"].append(test_result)
 
             if not test_result["passed"]:
@@ -545,7 +545,7 @@ class CIParameterRegressionPrevention:
             # Filter for Python files
             python_files = [f for f in changed_files if f.endswith(".py")]
 
-            analysis = {
+            analysis: Dict[str, Any] = {
                 "git_available": True,
                 "total_changed_files": len(changed_files),
                 "python_files_changed": len(python_files),
@@ -612,13 +612,12 @@ class CIParameterRegressionPrevention:
                     pass  # Skip content analysis if git diff fails
 
                 if file_risk != "LOW":
-                    analysis["files_requiring_analysis"].append(
-                        {
-                            "file": file_path,
-                            "risk_level": file_risk,
-                            "risk_indicators": risk_indicators,
-                        }
-                    )
+                    file_analysis: Dict[str, Any] = {
+                        "file": file_path,
+                        "risk_level": file_risk,
+                        "risk_indicators": risk_indicators,
+                    }
+                    analysis["files_requiring_analysis"].append(file_analysis)
 
             return analysis
 
@@ -689,11 +688,11 @@ class TestCIParameterRegressionPrevention:
     """CI/CD test suite for parameter compatibility regression prevention"""
 
     @pytest.fixture
-    def ci_framework(self):
+    def ci_framework(self) -> CIParameterRegressionPrevention:
         """CI regression prevention framework"""
         return CIParameterRegressionPrevention()
 
-    def test_codebase_scanning_detects_issues(self, ci_framework):
+    def test_codebase_scanning_detects_issues(self, ci_framework: CIParameterRegressionPrevention) -> None:
         """Test that codebase scanning detects parameter compatibility issues"""
 
         # Create temporary test files with known issues
@@ -744,7 +743,7 @@ def bad_function():
             if test_file.exists():
                 test_file.unlink()
 
-    def test_parameter_transformation_validation(self, ci_framework):
+    def test_parameter_transformation_validation(self, ci_framework: CIParameterRegressionPrevention) -> None:
         """Test parameter transformation validation"""
 
         validation_results = ci_framework.validate_parameter_transformation_functions()
@@ -776,7 +775,7 @@ def bad_function():
             f"✅ Parameter transformation validation passed: {len(validation_results['transformation_tests'])} tests"
         )
 
-    def test_deployment_blocking_logic(self, ci_framework):
+    def test_deployment_blocking_logic(self, ci_framework: CIParameterRegressionPrevention) -> None:
         """Test that critical issues block deployment correctly"""
 
         # Mock analysis results with critical issues
@@ -820,7 +819,7 @@ def bad_function():
 
         print("✅ Deployment blocking logic validation passed")
 
-    def test_git_change_analysis(self, ci_framework):
+    def test_git_change_analysis(self, ci_framework: CIParameterRegressionPrevention) -> None:
         """Test analysis of git changes for parameter impact"""
 
         git_analysis = ci_framework.check_git_changes_for_parameter_impact()
@@ -845,7 +844,7 @@ def bad_function():
         else:
             print("⚠️  Git not available for change analysis")
 
-    def test_comprehensive_ci_report_generation(self, ci_framework):
+    def test_comprehensive_ci_report_generation(self, ci_framework: CIParameterRegressionPrevention) -> Dict[str, Any]:
         """Test comprehensive CI report generation"""
 
         report = ci_framework.generate_ci_report()
@@ -884,11 +883,11 @@ def bad_function():
 
         return report
 
-    def test_performance_regression_detection_in_ci(self):
+    def test_performance_regression_detection_in_ci(self) -> None:
         """Test performance regression detection for CI/CD"""
 
         # Mock performance metrics that would indicate regression
-        performance_scenarios = [
+        performance_scenarios: List[Dict[str, Any]] = [
             {
                 "name": "no_regression",
                 "metrics": {
@@ -927,16 +926,19 @@ def bad_function():
             },
         ]
 
-        def should_block_deployment(metrics):
+        def should_block_deployment(metrics: Dict[str, Any]) -> bool:
             """Determine if performance metrics should block deployment"""
+            avg_response_ms: float = float(metrics["avg_response_ms"])
+            success_rate: float = float(metrics["success_rate"])
+            cascade_rate: float = float(metrics["cascade_rate"])
             return (
-                metrics["avg_response_ms"] > 5000  # 5+ second responses
-                or metrics["success_rate"] < 0.9  # <90% success rate
-                or metrics["cascade_rate"] > 0.15  # >15% cascade rate
+                avg_response_ms > 5000  # 5+ second responses
+                or success_rate < 0.9  # <90% success rate
+                or cascade_rate > 0.15  # >15% cascade rate
             )
 
         for scenario in performance_scenarios:
-            result = should_block_deployment(scenario["metrics"])
+            result: bool = should_block_deployment(scenario["metrics"])
 
             assert result == scenario["should_block"], (
                 f"Performance regression detection failed for {scenario['name']}: expected {scenario['should_block']}, got {result}"
@@ -991,8 +993,8 @@ def multiple_issues():
         ],
     )
     def test_parameter_issue_detection_scenarios(
-        self, ci_framework, file_content, expected_issues
-    ):
+        self, ci_framework: CIParameterRegressionPrevention, file_content: str, expected_issues: int
+    ) -> None:
         """Test various parameter issue detection scenarios"""
 
         # Write test content to temporary file
@@ -1021,7 +1023,7 @@ def multiple_issues():
 class TestCIIntegrationWorkflow:
     """Test CI/CD integration workflow for parameter compatibility"""
 
-    def test_pr_validation_workflow(self):
+    def test_pr_validation_workflow(self) -> None:
         """Test the complete PR validation workflow"""
 
         # Simulate PR validation steps
@@ -1053,11 +1055,11 @@ class TestCIIntegrationWorkflow:
             f"✅ PR validation workflow: {overall_status} with {len(warnings)} warnings"
         )
 
-    def test_deployment_gate_logic(self):
+    def test_deployment_gate_logic(self) -> None:
         """Test deployment gate logic for parameter compatibility"""
 
         # Define deployment gate criteria
-        deployment_gates = {
+        deployment_gates: Dict[str, Dict[str, Any]] = {
             "parameter_compatibility_scan": {"required": True, "weight": 1.0},
             "transformation_function_tests": {"required": True, "weight": 1.0},
             "performance_regression_check": {"required": True, "weight": 0.8},
@@ -1101,9 +1103,10 @@ class TestCIIntegrationWorkflow:
         for scenario in test_scenarios:
             # Calculate deployment decision
             can_deploy = True
+            gate_results: Dict[str, str] = scenario["gate_results"]  # type: ignore[assignment]
 
             for gate_name, gate_config in deployment_gates.items():
-                gate_result = scenario["gate_results"].get(gate_name, "UNKNOWN")
+                gate_result: str = gate_results.get(gate_name, "UNKNOWN")
 
                 if gate_config["required"] and gate_result == "FAIL":
                     can_deploy = False
@@ -1115,11 +1118,11 @@ class TestCIIntegrationWorkflow:
 
             print(f"✅ {scenario['name']}: Deployment decision correct ({can_deploy})")
 
-    def test_rollback_trigger_conditions(self):
+    def test_rollback_trigger_conditions(self) -> None:
         """Test conditions that should trigger automatic rollback"""
 
         # Define rollback trigger conditions
-        rollback_conditions = [
+        rollback_conditions: List[Dict[str, Any]] = [
             {"metric": "cascade_rate", "threshold": 0.10, "window_minutes": 5},
             {"metric": "avg_response_time_ms", "threshold": 10000, "window_minutes": 3},
             {
@@ -1170,17 +1173,17 @@ class TestCIIntegrationWorkflow:
         ]
 
         for scenario_data in production_metrics:
-            triggered_conditions = []
-            metrics = scenario_data["metrics"]
+            triggered_conditions: List[str] = []
+            metrics: Dict[str, Any] = scenario_data["metrics"]  # type: ignore[assignment]
 
             # Check each rollback condition
             for condition in rollback_conditions:
-                metric_name = condition["metric"]
-                threshold = condition["threshold"]
-                comparison = condition.get("comparison", "above")
+                metric_name: str = str(condition["metric"])
+                threshold: float = float(condition["threshold"])
+                comparison: str = str(condition.get("comparison", "above"))
 
                 if metric_name in metrics:
-                    metric_value = metrics[metric_name]
+                    metric_value: float = float(metrics[metric_name])
 
                     if comparison == "above" and metric_value > threshold:
                         triggered_conditions.append(metric_name)

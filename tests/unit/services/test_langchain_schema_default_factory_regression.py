@@ -281,7 +281,7 @@ class TestAgentOutputProcessingTime:
             HistorianOutput,
             SynthesisOutput,
         ]:
-            schema = svc._prepare_schema_for_openai(output_class)
+            schema = svc._prepare_schema_for_openai(output_class)  # type: ignore[arg-type]
             processing_time_def = schema["properties"]["processing_time_ms"]
 
             assert "anyOf" in processing_time_def, (

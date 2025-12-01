@@ -21,12 +21,12 @@ import gc
 import resource
 import socket
 import subprocess
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from unittest.mock import patch, Mock
 import logging
 
-from cognivault.services.langchain_service import LangChainService
+from cognivault.services.langchain_service import LangChainService, StructuredOutputResult
 from cognivault.services.llm_pool import LLMServicePool
 from cognivault.agents.models import RefinerOutput
 from cognivault.observability import get_logger
@@ -37,14 +37,14 @@ logger = get_logger("performance.resource_bottlenecks")
 class ResourceMonitor:
     """Real-time resource monitoring for bottleneck detection."""
 
-    def __init__(self, sample_interval: float = 0.1):
+    def __init__(self, sample_interval: float = 0.1) -> None:
         self.sample_interval = sample_interval
         self.monitoring = False
         self.samples: List[Dict[str, Any]] = []
-        self._monitor_task: Optional[asyncio.Task] = None
+        self._monitor_task: Optional[asyncio.Task[None]] = None
         self.process = psutil.Process()
 
-    async def start_monitoring(self):
+    async def start_monitoring(self) -> None:
         """Start resource monitoring."""
         self.monitoring = True
         self.samples.clear()
@@ -62,7 +62,7 @@ class ResourceMonitor:
 
         return self._analyze_samples()
 
-    async def _monitor_loop(self):
+    async def _monitor_loop(self) -> None:
         """Main monitoring loop."""
         try:
             while self.monitoring:
@@ -176,15 +176,15 @@ class TestNetworkBottlenecks:
     """Test for network-related performance bottlenecks."""
 
     @pytest.fixture
-    def resource_monitor(self):
+    def resource_monitor(self) -> ResourceMonitor:
         return ResourceMonitor()
 
     @pytest.mark.asyncio
-    async def test_api_connection_latency(self, resource_monitor):
+    async def test_api_connection_latency(self, resource_monitor: ResourceMonitor) -> None:
         """Test API connection establishment latency."""
 
         # Test different connection scenarios
-        scenarios = [
+        scenarios: List[Dict[str, Any]] = [
             {"name": "single_connection", "concurrent": 1},
             {"name": "multiple_connections", "concurrent": 5},
             {"name": "high_concurrency", "concurrent": 20},
@@ -196,7 +196,7 @@ class TestNetworkBottlenecks:
             await resource_monitor.start_monitoring()
             start_time = time.time()
 
-            async def create_connection():
+            async def create_connection() -> Dict[str, Any]:
                 """Create a single API connection and measure time."""
                 try:
                     service = LangChainService(
@@ -244,12 +244,12 @@ class TestNetworkBottlenecks:
                 )
 
     @pytest.mark.asyncio
-    async def test_dns_resolution_latency(self):
+    async def test_dns_resolution_latency(self) -> None:
         """Test DNS resolution latency for API endpoints."""
 
         endpoints_to_test = ["api.openai.com", "api.anthropic.com", "api.google.com"]
 
-        dns_timings = {}
+        dns_timings: Dict[str, Dict[str, Any]] = {}
 
         for endpoint in endpoints_to_test:
             start_time = time.time()
@@ -275,7 +275,7 @@ class TestNetworkBottlenecks:
             else:
                 logger.warning(f"DNS {endpoint} failed: {timing['error']}")
 
-    def test_network_connectivity_quality(self):
+    def test_network_connectivity_quality(self) -> None:
         """Test network connectivity quality using ping."""
 
         hosts_to_test = ["api.openai.com", "8.8.8.8", "1.1.1.1"]
@@ -322,11 +322,11 @@ class TestMemoryBottlenecks:
     """Test for memory-related performance bottlenecks."""
 
     @pytest.mark.asyncio
-    async def test_memory_leak_detection(self):
+    async def test_memory_leak_detection(self) -> None:
         """Test for memory leaks in service creation/destruction."""
 
         initial_memory = psutil.Process().memory_info().rss
-        memory_samples = [initial_memory]
+        memory_samples: List[int] = [initial_memory]
 
         # Create and destroy services multiple times
         for cycle in range(20):
@@ -383,13 +383,13 @@ class TestMemoryBottlenecks:
             )
 
     @pytest.mark.asyncio
-    async def test_gc_pressure_impact(self):
+    async def test_gc_pressure_impact(self) -> None:
         """Test impact of garbage collection pressure on performance."""
 
         # Create memory pressure with large objects
-        memory_pressure_objects = []
+        memory_pressure_objects: List[Dict[str, str]] = []
 
-        def create_memory_pressure():
+        def create_memory_pressure() -> None:
             """Create memory pressure to trigger frequent GC."""
             for _ in range(100):
                 # Create large dictionaries to pressure GC
@@ -397,12 +397,12 @@ class TestMemoryBottlenecks:
                 memory_pressure_objects.append(large_dict)
 
         # Test performance with and without memory pressure
-        test_scenarios = [
+        test_scenarios: List[Dict[str, Any]] = [
             {"name": "no_pressure", "create_pressure": False},
             {"name": "high_gc_pressure", "create_pressure": True},
         ]
 
-        performance_results = {}
+        performance_results: Dict[str, Dict[str, Any]] = {}
 
         for scenario in test_scenarios:
             logger.info(f"Testing GC pressure scenario: {scenario['name']}")
@@ -473,10 +473,10 @@ class TestCPUBottlenecks:
     """Test for CPU-related performance bottlenecks."""
 
     @pytest.mark.asyncio
-    async def test_cpu_intensive_operations(self):
+    async def test_cpu_intensive_operations(self) -> None:
         """Test impact of CPU-intensive operations on performance."""
 
-        def cpu_intensive_task():
+        def cpu_intensive_task() -> float:
             """CPU-intensive task to create load."""
             result = 0
             for i in range(1000000):
@@ -484,7 +484,7 @@ class TestCPUBottlenecks:
             return result
 
         # Test scenarios with different CPU loads
-        cpu_scenarios = [
+        cpu_scenarios: List[Dict[str, Any]] = [
             {"name": "no_load", "cpu_tasks": 0},
             {"name": "moderate_load", "cpu_tasks": 2},
             {"name": "high_load", "cpu_tasks": 8},
@@ -546,15 +546,15 @@ class TestCPUBottlenecks:
                 )
 
     @pytest.mark.asyncio
-    async def test_event_loop_blocking(self):
+    async def test_event_loop_blocking(self) -> None:
         """Test for event loop blocking that could cause performance issues."""
 
-        def blocking_operation():
+        def blocking_operation() -> None:
             """Synchronous blocking operation."""
             time.sleep(2.0)  # Simulate blocking I/O
 
         # Test event loop responsiveness with and without blocking
-        blocking_scenarios = [
+        blocking_scenarios: List[Dict[str, Any]] = [
             {"name": "no_blocking", "use_blocking": False},
             {"name": "with_blocking", "use_blocking": True},
         ]
@@ -565,14 +565,14 @@ class TestCPUBottlenecks:
             start_time = time.time()
 
             # Create tasks for concurrent execution
-            tasks = []
+            tasks: List[asyncio.Task[Any]] = []
 
             if scenario["use_blocking"]:
                 # Add blocking operation that will block the event loop
                 tasks.append(asyncio.create_task(asyncio.to_thread(blocking_operation)))
 
             # Add our performance test
-            async def performance_test():
+            async def performance_test() -> Union[RefinerOutput, StructuredOutputResult]:
                 service = LangChainService(
                     model="gpt-4o-mini", use_pool=False, use_discovery=False
                 )
@@ -611,11 +611,11 @@ class TestConcurrencyBottlenecks:
     """Test for concurrency-related performance bottlenecks."""
 
     @pytest.mark.asyncio
-    async def test_thread_pool_exhaustion(self):
+    async def test_thread_pool_exhaustion(self) -> None:
         """Test performance under thread pool exhaustion."""
 
         # Test different thread pool scenarios
-        pool_scenarios = [
+        pool_scenarios: List[Dict[str, Any]] = [
             {"name": "small_pool", "max_workers": 2},
             {"name": "medium_pool", "max_workers": 4},
             {"name": "large_pool", "max_workers": 8},
@@ -624,7 +624,7 @@ class TestConcurrencyBottlenecks:
         for scenario in pool_scenarios:
             logger.info(f"Testing thread pool scenario: {scenario['name']}")
 
-            def thread_task(task_id):
+            def thread_task(task_id: int) -> str:
                 """Task that uses thread pool."""
                 time.sleep(1.0)  # Simulate work
                 return f"task_{task_id}_complete"
@@ -678,11 +678,11 @@ class TestConcurrencyBottlenecks:
                 )
 
     @pytest.mark.asyncio
-    async def test_async_semaphore_contention(self):
+    async def test_async_semaphore_contention(self) -> None:
         """Test performance under async semaphore contention."""
 
         # Test different semaphore limits
-        semaphore_scenarios = [
+        semaphore_scenarios: List[Dict[str, Any]] = [
             {"name": "tight_limit", "limit": 1},
             {"name": "moderate_limit", "limit": 3},
             {"name": "loose_limit", "limit": 10},
@@ -693,7 +693,7 @@ class TestConcurrencyBottlenecks:
 
             semaphore = asyncio.Semaphore(scenario["limit"])
 
-            async def semaphore_task(task_id):
+            async def semaphore_task(task_id: int) -> str:
                 """Task that competes for semaphore."""
                 async with semaphore:
                     await asyncio.sleep(0.5)  # Simulate async work
@@ -702,10 +702,10 @@ class TestConcurrencyBottlenecks:
             start_time = time.time()
 
             # Create many tasks competing for semaphore
-            semaphore_tasks = [semaphore_task(i) for i in range(10)]
+            semaphore_tasks: List[Any] = [semaphore_task(i) for i in range(10)]
 
             # Add our performance test
-            async def performance_test():
+            async def performance_test() -> Union[RefinerOutput, StructuredOutputResult]:
                 async with semaphore:  # This will also compete for semaphore
                     service = LangChainService(
                         model="gpt-4o-mini", use_pool=False, use_discovery=False
@@ -745,7 +745,7 @@ class TestSystemicResourceAnalysis:
     """Comprehensive systemic resource analysis."""
 
     @pytest.mark.asyncio
-    async def test_complete_resource_profile_during_regression(self):
+    async def test_complete_resource_profile_during_regression(self) -> Dict[str, Any]:
         """Profile all resources during a simulated 4x regression scenario."""
 
         logger.info("Starting complete resource profiling for regression scenario...")
@@ -768,7 +768,7 @@ class TestSystemicResourceAnalysis:
             with patch.object(service, "_try_native_structured_output") as mock_native:
                 attempt_count = 0
 
-                async def failing_native(*args, **kwargs):
+                async def failing_native(*args: Any, **kwargs: Any) -> None:
                     nonlocal attempt_count
                     attempt_count += 1
 
@@ -843,7 +843,7 @@ class TestSystemicResourceAnalysis:
         }
 
 
-def run_resource_bottleneck_analysis():
+def run_resource_bottleneck_analysis() -> None:
     """
     Run complete resource bottleneck analysis.
 
@@ -857,7 +857,7 @@ if __name__ == "__main__":
     # Direct execution for debugging
     import asyncio
 
-    async def debug_resource_analysis():
+    async def debug_resource_analysis() -> None:
         test_instance = TestSystemicResourceAnalysis()
         result = await test_instance.test_complete_resource_profile_during_regression()
 

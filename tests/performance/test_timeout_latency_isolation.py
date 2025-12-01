@@ -28,23 +28,23 @@ logger = get_logger("performance.timeout_isolation")
 class TimeoutLatencyAnalyzer:
     """Analyzer for timeout and latency patterns causing the 4x regression."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.timeout_events: List[Dict[str, Any]] = []
         self.latency_measurements: List[Dict[str, Any]] = []
         self.fallback_triggers: List[Dict[str, Any]] = []
         self.api_response_times: List[Dict[str, Any]] = []
 
-    def record_timeout_event(self, event_data: Dict[str, Any]):
+    def record_timeout_event(self, event_data: Dict[str, Any]) -> None:
         """Record a timeout event for analysis."""
         event_data["timestamp"] = time.time()
         self.timeout_events.append(event_data)
 
-    def record_latency_measurement(self, measurement: Dict[str, Any]):
+    def record_latency_measurement(self, measurement: Dict[str, Any]) -> None:
         """Record a latency measurement."""
         measurement["timestamp"] = time.time()
         self.latency_measurements.append(measurement)
 
-    def record_fallback_trigger(self, trigger_data: Dict[str, Any]):
+    def record_fallback_trigger(self, trigger_data: Dict[str, Any]) -> None:
         """Record when and why fallback was triggered."""
         trigger_data["timestamp"] = time.time()
         self.fallback_triggers.append(trigger_data)
@@ -55,7 +55,7 @@ class TimeoutLatencyAnalyzer:
             return {"pattern": "no_timeouts", "analysis": "No timeout events recorded"}
 
         # Group timeouts by stage
-        timeout_stages = {}
+        timeout_stages: Dict[str, List[Dict[str, Any]]] = {}
         for event in self.timeout_events:
             stage = event.get("stage", "unknown")
             if stage not in timeout_stages:
@@ -81,7 +81,7 @@ class TimeoutLatencyAnalyzer:
 
 
 @pytest.fixture
-def timeout_analyzer():
+def timeout_analyzer() -> TimeoutLatencyAnalyzer:
     """Provide timeout analyzer for tests."""
     return TimeoutLatencyAnalyzer()
 
@@ -90,7 +90,7 @@ class TestStructuredOutputTimeouts:
     """Test timeout patterns in structured output calls."""
 
     @pytest.mark.asyncio
-    async def test_native_openai_timeout_patterns(self, timeout_analyzer):
+    async def test_native_openai_timeout_patterns(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
         """Test for systematic timeouts in native OpenAI parse calls."""
 
         # Mock OpenAI client to simulate various timeout scenarios
@@ -106,7 +106,7 @@ class TestStructuredOutputTimeouts:
         for scenario_name, delay, should_succeed in mock_scenarios:
             logger.info(f"Testing scenario: {scenario_name}")
 
-            async def mock_parse_call(*args, **kwargs):
+            async def mock_parse_call(*args: Any, **kwargs: Any) -> Mock:
                 """Mock parse call with controlled delay."""
                 await asyncio.sleep(delay)
 
@@ -116,7 +116,11 @@ class TestStructuredOutputTimeouts:
                     mock_response.choices = [Mock()]
                     mock_response.choices[0].message = Mock()
                     mock_response.choices[0].message.parsed = RefinerOutput(
-                        refined_question="Test question", confidence=0.8
+                        agent_name="refiner",
+                        processing_mode="native",
+                        original_query="Original question",
+                        refined_query="Test question",
+                        confidence=0.8
                     )
                     return mock_response
                 else:
@@ -183,7 +187,7 @@ class TestStructuredOutputTimeouts:
             )
 
     @pytest.mark.asyncio
-    async def test_langchain_with_structured_output_timeouts(self, timeout_analyzer):
+    async def test_langchain_with_structured_output_timeouts(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
         """Test timeout patterns in LangChain's with_structured_output method."""
 
         service = LangChainService(model="gpt-5", use_pool=False, use_discovery=False)
@@ -200,10 +204,16 @@ class TestStructuredOutputTimeouts:
 
             try:
                 # Mock the structured LLM to introduce controlled delays
-                async def mock_slow_invoke(messages):
+                async def mock_slow_invoke(messages: Any) -> RefinerOutput:
                     # Simulate slow API response (longer than timeout)
                     await asyncio.sleep(timeout_threshold + 1.0)
-                    return RefinerOutput(refined_question="Test", confidence=0.8)
+                    return RefinerOutput(
+                        agent_name="refiner",
+                        processing_mode="native",
+                        original_query="Original question",
+                        refined_query="Test",
+                        confidence=0.8
+                    )
 
                 with patch.object(
                     service.llm, "with_structured_output"
@@ -251,7 +261,7 @@ class TestFallbackLatencyAnalysis:
     """Analyze latency in the fallback chain causing the 4x slowdown."""
 
     @pytest.mark.asyncio
-    async def test_complete_fallback_chain_latency(self, timeout_analyzer):
+    async def test_complete_fallback_chain_latency(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
         """Measure latency through the complete fallback chain."""
 
         service = LangChainService(model="gpt-5", use_pool=False, use_discovery=False)
@@ -268,7 +278,7 @@ class TestFallbackLatencyAnalysis:
             # Force native method timeout by mocking
             with patch.object(service, "_try_native_structured_output") as mock_native:
 
-                async def slow_native(*args, **kwargs):
+                async def slow_native(*args: Any, **kwargs: Any) -> None:
                     await asyncio.sleep(8.5)  # Simulate the 8s timeout + overhead
                     raise asyncio.TimeoutError("Simulated 8s timeout")
 
@@ -340,7 +350,7 @@ class TestFallbackLatencyAnalysis:
         )
 
     @pytest.mark.asyncio
-    async def test_retry_multiplication_effect(self, timeout_analyzer):
+    async def test_retry_multiplication_effect(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
         """Test how retries multiply the timeout effect."""
 
         service = LangChainService(model="gpt-5", use_pool=False, use_discovery=False)
@@ -360,7 +370,7 @@ class TestFallbackLatencyAnalysis:
                 ) as mock_native:
                     call_count = 0
 
-                    async def failing_native(*args, **kwargs):
+                    async def failing_native(*args: Any, **kwargs: Any) -> None:
                         nonlocal call_count
                         call_count += 1
                         logger.debug(f"Native attempt {call_count}/{max_retries}")
@@ -409,7 +419,7 @@ class TestIntegrationLatencyProfile:
     """Profile integration layer latency contributions."""
 
     @pytest.mark.asyncio
-    async def test_service_initialization_latency_breakdown(self, timeout_analyzer):
+    async def test_service_initialization_latency_breakdown(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
         """Break down service initialization latency by component."""
 
         # Test different initialization paths
@@ -423,20 +433,23 @@ class TestIntegrationLatencyProfile:
         for path_config in initialization_paths:
             logger.info(f"Testing initialization path: {path_config['name']}")
 
-            component_timings = {}
+            component_timings: Dict[str, float] = {}
 
             # Time service creation
             start_time = time.time()
+            use_pool = path_config.get("use_pool", False)
+            use_discovery = path_config.get("use_discovery", False)
             service = LangChainService(
                 model="gpt-5",
                 agent_name="refiner",
-                **{k: v for k, v in path_config.items() if k not in ["name"]},
+                use_pool=use_pool,  # type: ignore
+                use_discovery=use_discovery,  # type: ignore
             )
             component_timings["service_creation"] = time.time() - start_time
 
             # Time client initialization (if using pool)
             start_time = time.time()
-            if path_config["use_pool"]:
+            if use_pool:
                 await service._ensure_pooled_client()
             component_timings["client_initialization"] = time.time() - start_time
 
@@ -487,7 +500,7 @@ class TestSystemicLatencyValidation:
     """Validate the complete systemic latency issue."""
 
     @pytest.mark.asyncio
-    async def test_end_to_end_regression_validation(self, timeout_analyzer):
+    async def test_end_to_end_regression_validation(self, timeout_analyzer: TimeoutLatencyAnalyzer) -> None:
         """Validate the complete end-to-end regression pattern."""
 
         # Simulate the exact scenario where RefinerAgent takes 82s instead of 15s
@@ -506,12 +519,12 @@ class TestSystemicLatencyValidation:
         # Phase 2: Multiple native attempts with 8s timeouts (observed pattern)
         phase_start = time.time()
         native_attempts = 3  # max_retries = 3
-        native_total_time = 0
+        native_total_time = 0.0
 
         with patch.object(service, "_try_native_structured_output") as mock_native:
             attempt_count = 0
 
-            async def timeout_native(*args, **kwargs):
+            async def timeout_native(*args: Any, **kwargs: Any) -> None:
                 nonlocal attempt_count
                 attempt_count += 1
 
@@ -557,13 +570,14 @@ class TestSystemicLatencyValidation:
         total_time = time.time() - total_start
 
         # Record comprehensive regression analysis
-        regression_data = {
+        phase_breakdown: Dict[str, float] = {
+            "initialization": initialization_time,
+            "native_attempts": native_total_time,
+            "fallback_parser": fallback_time,
+        }
+        regression_data: Dict[str, Any] = {
             "total_regression_time": total_time,
-            "phase_breakdown": {
-                "initialization": initialization_time,
-                "native_attempts": native_total_time,
-                "fallback_parser": fallback_time,
-            },
+            "phase_breakdown": phase_breakdown,
             "native_attempts_count": native_attempts,
             "fallback_success": fallback_success,
             "expected_time": 15.0,  # Expected RefinerAgent time
@@ -590,14 +604,14 @@ class TestSystemicLatencyValidation:
 
             # Identify primary contributor
             max_phase = max(
-                regression_data["phase_breakdown"].items(), key=lambda x: x[1]
+                phase_breakdown.items(), key=lambda x: x[1]
             )
             logger.error(
                 f"PRIMARY BOTTLENECK: {max_phase[0]} contributes {max_phase[1]:.1f}s ({max_phase[1] / total_time * 100:.1f}%)"
             )
 
 
-def run_timeout_latency_analysis():
+def run_timeout_latency_analysis() -> None:
     """
     Entry point for running the complete timeout/latency analysis.
 
@@ -611,7 +625,7 @@ if __name__ == "__main__":
     # Direct execution for debugging
     import asyncio
 
-    async def debug_analysis():
+    async def debug_analysis() -> None:
         analyzer = TimeoutLatencyAnalyzer()
 
         test_instance = TestStructuredOutputTimeouts()

@@ -28,9 +28,8 @@ import statistics
 try:
     from cognivault.services.langchain_service import LangChainService
     from cognivault.services.llm_pool import LLMServicePool
-    from cognivault.agents.refiner.schemas import RefinerOutput
-    from cognivault.agents.critic.schemas import CriticOutput
-    from cognivault.exceptions.llm_errors import LLMParameterError, LLMTimeoutError
+    from cognivault.agents.models import RefinerOutput, CriticOutput
+    from cognivault.exceptions.llm_errors import LLMTimeoutError
     from cognivault.events.emitter import EventEmitter
 except ImportError as e:
     pytest.skip(
@@ -65,9 +64,9 @@ class CascadeResult:
 class TimeoutCascadePreventionFramework:
     """Framework for testing timeout cascade prevention"""
 
-    def __init__(self):
-        self.results = []
-        self.performance_thresholds = {
+    def __init__(self) -> None:
+        self.results: List[CascadeResult] = []
+        self.performance_thresholds: Dict[str, float] = {
             "optimal_max_ms": 990,  # Validated optimal response time
             "good_max_ms": 2000,  # Target response time
             "acceptable_max_ms": 5000,  # Still reasonable
@@ -298,12 +297,12 @@ class TestTimeoutCascadePrevention:
     """Integration tests for timeout cascade prevention"""
 
     @pytest.fixture
-    def cascade_framework(self):
+    def cascade_framework(self) -> TimeoutCascadePreventionFramework:
         """Cascade prevention testing framework"""
         return TimeoutCascadePreventionFramework()
 
     @pytest.fixture
-    def gpt5_test_scenarios(self):
+    def gpt5_test_scenarios(self) -> List[Dict[str, Any]]:
         """Test scenarios covering the documented cascade issues"""
         return [
             {
@@ -349,8 +348,8 @@ class TestTimeoutCascadePrevention:
 
     @pytest.mark.asyncio
     async def test_cascade_prevention_basic(
-        self, cascade_framework, gpt5_test_scenarios
-    ):
+        self, cascade_framework: TimeoutCascadePreventionFramework, gpt5_test_scenarios: List[Dict[str, Any]]
+    ) -> None:
         """Test basic timeout cascade prevention for each scenario"""
 
         for scenario in gpt5_test_scenarios:
@@ -390,7 +389,7 @@ class TestTimeoutCascadePrevention:
             )
 
     @pytest.mark.asyncio
-    async def test_performance_targets_validation(self, cascade_framework):
+    async def test_performance_targets_validation(self, cascade_framework: TimeoutCascadePreventionFramework) -> None:
         """Test that fixed parameters meet all performance targets"""
 
         # Performance targets based on documented validation
@@ -461,7 +460,7 @@ class TestTimeoutCascadePrevention:
             )
 
     @pytest.mark.asyncio
-    async def test_error_recovery_scenarios(self, cascade_framework):
+    async def test_error_recovery_scenarios(self, cascade_framework: TimeoutCascadePreventionFramework) -> None:
         """Test error recovery scenarios that could still trigger cascades"""
 
         error_scenarios = [
@@ -500,7 +499,7 @@ class TestTimeoutCascadePrevention:
             ) as mock_service:
                 mock_instance = mock_service.return_value
 
-                async def mock_error_call(*args, **kwargs):
+                async def mock_error_call(*args: Any, **kwargs: Any) -> None:
                     """Simulate specific error with fast failure"""
                     await asyncio.sleep(0.001)  # 1ms processing time
 
@@ -523,13 +522,16 @@ class TestTimeoutCascadePrevention:
                     pytest.fail(f"Expected {scenario['error_type']} error")
                 except Exception as e:
                     duration_ms = (time.time() - start_time) * 1000
+                    error_type_str: str = str(scenario["error_type"])
+                    max_duration_value: Any = scenario["max_duration_ms"]
+                    max_duration: float = float(max_duration_value) if not isinstance(max_duration_value, float) else max_duration_value
 
                     # Validate fast failure (no cascade)
-                    assert duration_ms <= scenario["max_duration_ms"], (
-                        f"Error handling took {duration_ms}ms, expected <{scenario['max_duration_ms']}ms for {scenario['name']}"
+                    assert duration_ms <= max_duration, (
+                        f"Error handling took {duration_ms}ms, expected <{max_duration}ms for {scenario['name']}"
                     )
                     assert (
-                        scenario["error_type"].lower() in str(e).lower()
+                        error_type_str.lower() in str(e).lower()
                         or "timeout" in str(e).lower()
                     ), f"Unexpected error type for {scenario['name']}: {e}"
 
@@ -538,7 +540,7 @@ class TestTimeoutCascadePrevention:
                     )
 
     @pytest.mark.asyncio
-    async def test_concurrent_request_cascade_prevention(self, cascade_framework):
+    async def test_concurrent_request_cascade_prevention(self, cascade_framework: TimeoutCascadePreventionFramework) -> None:
         """Test that cascade prevention works under concurrent load"""
 
         concurrent_scenarios = [
@@ -552,9 +554,9 @@ class TestTimeoutCascadePrevention:
                 f"\n🔀 Testing concurrent cascade prevention ({scenario['concurrent_requests']} requests)..."
             )
 
-            async def single_request(request_id: int):
+            async def single_request(request_id: int) -> Dict[str, Any]:
                 """Single request with parameter fixes"""
-                parameters = {"max_tokens": 150, "temperature": 0.8}
+                parameters: Dict[str, Any] = {"max_tokens": 150, "temperature": 0.8}
 
                 result = await cascade_framework.test_with_parameter_fixes(
                     "gpt-5-nano", parameters
@@ -602,7 +604,7 @@ class TestTimeoutCascadePrevention:
                 )
 
     @pytest.mark.asyncio
-    async def test_real_agent_integration_cascade_prevention(self, cascade_framework):
+    async def test_real_agent_integration_cascade_prevention(self, cascade_framework: TimeoutCascadePreventionFramework) -> None:
         """Test cascade prevention with real CogniVault agent integration"""
 
         agent_integration_scenarios = [
@@ -627,11 +629,12 @@ class TestTimeoutCascadePrevention:
             print(f"\n🤖 Testing {scenario['agent_type']} cascade prevention...")
 
             # Simulate agent workflow with parameter fixes
+            agent_type_lower: str = str(scenario['agent_type']).lower()
             with patch(
-                f"cognivault.agents.{scenario['agent_type'].lower()}.agent"
+                f"cognivault.agents.{agent_type_lower}.agent"
             ) as mock_agent:
 
-                async def mock_agent_execute_with_fixes(params):
+                async def mock_agent_execute_with_fixes(params: Dict[str, Any]) -> Dict[str, Any]:
                     """Simulate agent execution with parameter fixes applied"""
                     # Apply the same fixes the agent should apply
                     fixed_params = cascade_framework._apply_parameter_fixes(
@@ -649,8 +652,10 @@ class TestTimeoutCascadePrevention:
                         "agent_type": scenario["agent_type"],
                     }
 
+                typical_params_value: Any = scenario["typical_params"]
+                typical_params_dict: Dict[str, Any] = typical_params_value if isinstance(typical_params_value, dict) else {}
                 mock_agent.execute_with_llm.return_value = (
-                    await mock_agent_execute_with_fixes(scenario["typical_params"])
+                    await mock_agent_execute_with_fixes(typical_params_dict)
                 )
                 result = mock_agent.execute_with_llm.return_value
 
@@ -674,11 +679,11 @@ class TestTimeoutCascadePrevention:
 class TestCascadePreventionMetrics:
     """Test metrics and monitoring for cascade prevention"""
 
-    def test_cascade_detection_metrics(self):
+    def test_cascade_detection_metrics(self) -> None:
         """Test that we can detect and measure cascade prevention effectiveness"""
 
         # Simulate metrics collection
-        metrics_data = {
+        metrics_data: Dict[str, Any] = {
             "total_requests": 1000,
             "requests_before_fixes": {
                 "successful": 850,
@@ -695,22 +700,26 @@ class TestCascadePreventionMetrics:
         }
 
         # Calculate improvement metrics
+        total_requests: int = int(metrics_data["total_requests"])
+        before_successful: int = int(metrics_data["requests_before_fixes"]["successful"])
+        after_successful: int = int(metrics_data["requests_after_fixes"]["successful"])
+        before_avg_time: float = float(metrics_data["requests_before_fixes"]["avg_response_time_ms"])
+        after_avg_time: float = float(metrics_data["requests_after_fixes"]["avg_response_time_ms"])
+        before_cascade_rate: float = float(metrics_data["requests_before_fixes"]["cascade_rate"])
+        after_cascade_rate: float = float(metrics_data["requests_after_fixes"]["cascade_rate"])
+
         success_rate_improvement = (
-            metrics_data["requests_after_fixes"]["successful"]
-            / metrics_data["total_requests"]
+            after_successful / total_requests
         ) - (
-            metrics_data["requests_before_fixes"]["successful"]
-            / metrics_data["total_requests"]
+            before_successful / total_requests
         )
 
         response_time_improvement = (
-            metrics_data["requests_before_fixes"]["avg_response_time_ms"]
-            / metrics_data["requests_after_fixes"]["avg_response_time_ms"]
+            before_avg_time / after_avg_time
         )
 
         cascade_reduction = (
-            metrics_data["requests_before_fixes"]["cascade_rate"]
-            - metrics_data["requests_after_fixes"]["cascade_rate"]
+            before_cascade_rate - after_cascade_rate
         )
 
         # Assertions
@@ -723,15 +732,15 @@ class TestCascadePreventionMetrics:
         assert cascade_reduction >= 0.14, (
             f"Cascade reduction {cascade_reduction:.2%} insufficient"
         )
-        assert metrics_data["requests_after_fixes"]["cascade_rate"] <= 0.01, (
-            f"Post-fix cascade rate {metrics_data['requests_after_fixes']['cascade_rate']:.3%} too high"
+        assert after_cascade_rate <= 0.01, (
+            f"Post-fix cascade rate {after_cascade_rate:.3%} too high"
         )
 
-    def test_performance_regression_detection(self):
+    def test_performance_regression_detection(self) -> None:
         """Test that we can detect performance regressions in cascade prevention"""
 
         # Simulate performance monitoring data over time
-        performance_timeline = [
+        performance_timeline: List[Dict[str, Any]] = [
             {"date": "2025-01-01", "avg_response_ms": 850, "cascade_rate": 0.002},
             {"date": "2025-01-02", "avg_response_ms": 900, "cascade_rate": 0.001},
             {"date": "2025-01-03", "avg_response_ms": 920, "cascade_rate": 0.001},
@@ -748,32 +757,35 @@ class TestCascadePreventionMetrics:
         ]
 
         # Regression detection logic
-        baseline_response_time = 1000  # 1 second baseline
-        baseline_cascade_rate = 0.01  # 1% cascade rate baseline
+        baseline_response_time: float = 1000.0  # 1 second baseline
+        baseline_cascade_rate: float = 0.01  # 1% cascade rate baseline
 
-        regressions = []
+        regressions: List[Dict[str, Any]] = []
         for day in performance_timeline:
+            avg_response: float = float(day["avg_response_ms"])
+            cascade_rate: float = float(day["cascade_rate"])
+
             if (
-                day["avg_response_ms"] > baseline_response_time * 2
+                avg_response > baseline_response_time * 2
             ):  # 2x slower than baseline
                 regressions.append(
                     {
                         "date": day["date"],
                         "type": "RESPONSE_TIME_REGRESSION",
                         "severity": (
-                            "HIGH" if day["avg_response_ms"] > 5000 else "MEDIUM"
+                            "HIGH" if avg_response > 5000 else "MEDIUM"
                         ),
                     }
                 )
 
             if (
-                day["cascade_rate"] > baseline_cascade_rate * 2
+                cascade_rate > baseline_cascade_rate * 2
             ):  # 2x higher cascade rate
                 regressions.append(
                     {
                         "date": day["date"],
                         "type": "CASCADE_RATE_REGRESSION",
-                        "severity": "HIGH" if day["cascade_rate"] > 0.05 else "MEDIUM",
+                        "severity": "HIGH" if cascade_rate > 0.05 else "MEDIUM",
                     }
                 )
 

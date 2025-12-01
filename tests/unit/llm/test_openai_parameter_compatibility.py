@@ -17,7 +17,7 @@ SUCCESS CRITERIA:
 """
 
 import pytest
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Generator, Callable
 from unittest.mock import Mock, patch, MagicMock
 import time
 import json
@@ -28,8 +28,8 @@ try:
     from cognivault.services.llm_pool import LLMServicePool
     from cognivault.services.langchain_service import LangChainService
     from cognivault.llm.factory import LLMFactory
-    from cognivault.llm.provider import LLMProvider
-    from cognivault.exceptions.llm_errors import LLMParameterError, LLMTimeoutError
+    from cognivault.llm.provider_enum import LLMProvider
+    from cognivault.exceptions.llm_errors import LLMValidationError, LLMTimeoutError
 except ImportError as e:
     # Handle graceful degradation for testing environment
     pytest.skip(f"LLM service components not available: {e}", allow_module_level=True)
@@ -39,7 +39,7 @@ class TestOpenAIParameterCompatibility:
     """Test suite for OpenAI parameter compatibility fixes"""
 
     @pytest.fixture
-    def mock_openai_client(self):
+    def mock_openai_client(self) -> Generator[Mock, None, None]:
         """Mock OpenAI client for controlled testing"""
         with patch("openai.OpenAI") as mock_client_class:
             mock_client = Mock()
@@ -67,8 +67,8 @@ class TestOpenAIParameterCompatibility:
         return ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
 
     def test_max_tokens_parameter_transformation_for_gpt5(
-        self, mock_openai_client, gpt5_models
-    ):
+        self, mock_openai_client: Mock, gpt5_models: List[str]
+    ) -> None:
         """Test that max_tokens is properly transformed to max_completion_tokens for GPT-5 models"""
 
         for model in gpt5_models:
@@ -95,7 +95,7 @@ class TestOpenAIParameterCompatibility:
                 }
 
                 # Mock the parameter transformation method
-                def mock_transform_parameters(params):
+                def mock_transform_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
                     transformed = params.copy()
                     if "gpt-5" in params.get("model", "").lower():
                         if "max_tokens" in transformed:
@@ -127,8 +127,8 @@ class TestOpenAIParameterCompatibility:
                 )
 
     def test_max_tokens_preserved_for_non_gpt5_models(
-        self, mock_openai_client, non_gpt5_models
-    ):
+        self, mock_openai_client: Mock, non_gpt5_models: List[str]
+    ) -> None:
         """Test that max_tokens is preserved for non-GPT-5 models"""
 
         for model in non_gpt5_models:
@@ -145,7 +145,7 @@ class TestOpenAIParameterCompatibility:
                 }
 
                 # Mock parameter transformation (should be pass-through for non-GPT-5)
-                def mock_transform_parameters(params):
+                def mock_transform_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
                     # Non-GPT-5 models should not be transformed
                     return params.copy()
 
@@ -169,7 +169,7 @@ class TestOpenAIParameterCompatibility:
                     f"Temperature changed incorrectly for {model}"
                 )
 
-    def test_temperature_parameter_filtering_for_gpt5(self, gpt5_models):
+    def test_temperature_parameter_filtering_for_gpt5(self, gpt5_models: List[str]) -> None:
         """Test temperature parameter filtering for GPT-5 models"""
 
         temperature_test_cases = [
@@ -194,7 +194,7 @@ class TestOpenAIParameterCompatibility:
                         "temperature": test_case["input"],
                     }
 
-                    def mock_filter_temperature(params):
+                    def mock_filter_temperature(params: Dict[str, Any]) -> Dict[str, Any]:
                         filtered = params.copy()
                         if "gpt-5" in params.get("model", "").lower():
                             filtered["temperature"] = 1.0  # GPT-5 only supports 1.0
@@ -211,8 +211,8 @@ class TestOpenAIParameterCompatibility:
                     )
 
     def test_structured_output_parameter_compatibility(
-        self, mock_openai_client, gpt5_models
-    ):
+        self, mock_openai_client: Mock, gpt5_models: List[str]
+    ) -> None:
         """Test structured output parameter compatibility for GPT-5 models"""
 
         for model in gpt5_models:
@@ -233,7 +233,7 @@ class TestOpenAIParameterCompatibility:
                     "temperature": 0.7,  # Should be filtered
                 }
 
-                def mock_prepare_structured_params(params):
+                def mock_prepare_structured_params(params: Dict[str, Any]) -> Dict[str, Any]:
                     prepared = params.copy()
                     if "gpt-5" in params.get("model", "").lower():
                         # Apply GPT-5 compatibility fixes
@@ -261,7 +261,7 @@ class TestOpenAIParameterCompatibility:
                     f"Structured output temperature not filtered for {model}"
                 )
 
-    def test_timeout_cascade_prevention(self, mock_openai_client):
+    def test_timeout_cascade_prevention(self, mock_openai_client: Mock) -> None:
         """Test that parameter fixes prevent timeout cascades"""
 
         # Simulate the timeout cascade scenario that was occurring
@@ -295,13 +295,13 @@ class TestOpenAIParameterCompatibility:
                 service = mock_service.return_value
 
                 # Mock the bad parameters causing an error (simulating original issue)
-                def mock_bad_call(params):
+                def mock_bad_call(params: Dict[str, Any]) -> Mock:
                     if "max_tokens" in params and "gpt-5" in params.get("model", ""):
                         raise Exception("Unsupported parameter 'max_tokens' for GPT-5")
                     return Mock(choices=[Mock(message=Mock(content="success"))])
 
                 # Mock the good parameters working correctly
-                def mock_good_call(params):
+                def mock_good_call(params: Dict[str, Any]) -> Mock:
                     return Mock(choices=[Mock(message=Mock(content="success"))])
 
                 service.call_with_bad_params = Mock(side_effect=mock_bad_call)
@@ -328,7 +328,7 @@ class TestOpenAIParameterCompatibility:
             ("gpt-3.5-turbo", False),
         ],
     )
-    def test_parameter_transformation_detection(self, model, expected_transform):
+    def test_parameter_transformation_detection(self, model: str, expected_transform: bool) -> None:
         """Test that GPT-5 models are correctly identified for parameter transformation"""
 
         def is_gpt5_model(model_name: str) -> bool:
@@ -342,7 +342,7 @@ class TestOpenAIParameterCompatibility:
             f"Model {model} transformation detection incorrect"
         )
 
-    def test_performance_regression_prevention(self, mock_openai_client, gpt5_models):
+    def test_performance_regression_prevention(self, mock_openai_client: Mock, gpt5_models: List[str]) -> None:
         """Test that fixed parameters meet performance targets"""
 
         # Performance targets based on validated results
@@ -364,7 +364,7 @@ class TestOpenAIParameterCompatibility:
                     service = mock_service.return_value
 
                     # Mock a successful call with proper parameters
-                    def mock_optimized_call(params):
+                    def mock_optimized_call(params: Dict[str, Any]) -> Dict[str, Any]:
                         start_time = mock_time.return_value
                         # Simulate processing time
                         end_time = start_time + 0.8  # 800ms
@@ -407,7 +407,7 @@ class TestOpenAIParameterCompatibility:
                         f"Response time {result['duration_ms']}ms not in optimal range for {model}"
                     )
 
-    def test_error_classification_and_handling(self):
+    def test_error_classification_and_handling(self) -> None:
         """Test that parameter errors are properly classified and handled"""
 
         error_scenarios = [
@@ -430,10 +430,10 @@ class TestOpenAIParameterCompatibility:
 
         for scenario in error_scenarios:
             with patch(
-                "cognivault.exceptions.llm_errors.LLMParameterError"
+                "cognivault.exceptions.llm_errors.LLMValidationError"
             ) as mock_error:
 
-                def mock_classify_error(error_message):
+                def mock_classify_error(error_message: str) -> str:
                     if "max_tokens" in error_message:
                         return "PARAMETER_INCOMPATIBILITY"
                     elif "temperature" in error_message:
@@ -442,7 +442,7 @@ class TestOpenAIParameterCompatibility:
                         return "TIMEOUT_CASCADE"
                     return "UNKNOWN"
 
-                def mock_get_fix_strategy(classification):
+                def mock_get_fix_strategy(classification: str) -> str:
                     strategies = {
                         "PARAMETER_INCOMPATIBILITY": "transform_to_max_completion_tokens",
                         "TEMPERATURE_ERROR": "filter_temperature_to_1_0",
@@ -460,11 +460,11 @@ class TestOpenAIParameterCompatibility:
                     f"Fix strategy incorrect for: {scenario['error_message']}"
                 )
 
-    def test_regression_prevention_comprehensive(self, gpt5_models):
+    def test_regression_prevention_comprehensive(self, gpt5_models: List[str]) -> None:
         """Comprehensive regression prevention test covering all known issues"""
 
         # All known parameter compatibility issues that caused timeouts
-        regression_test_cases = [
+        regression_test_cases: List[Dict[str, Any]] = [
             {
                 "issue": "max_tokens parameter rejection",
                 "model_pattern": "gpt-5",
@@ -499,7 +499,7 @@ class TestOpenAIParameterCompatibility:
             for model in gpt5_models:
                 if test_case["model_pattern"] in model:
                     # Mock the parameter transformation function
-                    def mock_apply_compatibility_fixes(params):
+                    def mock_apply_compatibility_fixes(params: Dict[str, Any]) -> Dict[str, Any]:
                         fixed = params.copy()
 
                         # Apply all known fixes
@@ -525,11 +525,11 @@ class TestOpenAIParameterCompatibility:
                             f"Regression prevention failed for {test_case['issue']} on {model}"
                         )
 
-    def test_integration_with_cognivault_agents(self, gpt5_models):
+    def test_integration_with_cognivault_agents(self, gpt5_models: List[str]) -> None:
         """Test parameter compatibility fixes work with CogniVault agent workflows"""
 
         # Simulate agent schema requirements
-        agent_scenarios = [
+        agent_scenarios: List[Dict[str, Any]] = [
             {
                 "agent": "RefinerAgent",
                 "schema": "RefinerOutput",
@@ -556,7 +556,7 @@ class TestOpenAIParameterCompatibility:
             for model in gpt5_models:
                 with patch("cognivault.agents.base_agent.BaseAgent") as mock_agent:
 
-                    def mock_prepare_llm_params(agent_params, model_name):
+                    def mock_prepare_llm_params(agent_params: Dict[str, Any], model_name: str) -> Dict[str, Any]:
                         """Simulate the agent's parameter preparation"""
                         prepared = agent_params.copy()
                         prepared["model"] = model_name
@@ -599,7 +599,7 @@ class TestOpenAIParameterCompatibility:
 class TestPerformanceValidation:
     """Performance validation tests for parameter compatibility fixes"""
 
-    def test_response_time_targets_met(self):
+    def test_response_time_targets_met(self) -> None:
         """Test that fixed parameters meet response time targets"""
 
         # Response time validation based on documented results
@@ -643,14 +643,14 @@ class TestPerformanceValidation:
                     "ACCEPTABLE",
                 ], f"Response time {response_time_ms}ms not meeting targets for {model}"
 
-    def test_success_rate_improvement(self):
+    def test_success_rate_improvement(self) -> None:
         """Test that parameter fixes achieve target success rates"""
 
         # Success rate targets based on validation
         SUCCESS_RATE_TARGET = 0.95  # 95% success rate
 
         # Simulate test runs with fixed parameters
-        simulated_results = [
+        simulated_results: List[Dict[str, Any]] = [
             {"success": True, "duration_ms": 750},  # Optimal
             {"success": True, "duration_ms": 890},  # Optimal
             {"success": True, "duration_ms": 1200},  # Good
@@ -670,11 +670,11 @@ class TestPerformanceValidation:
             f"Success rate {success_rate:.2%} below target {SUCCESS_RATE_TARGET:.2%}"
         )
 
-    def test_timeout_cascade_elimination(self):
+    def test_timeout_cascade_elimination(self) -> None:
         """Test that parameter fixes eliminate timeout cascades"""
 
         # Simulate the original timeout cascade pattern
-        cascade_pattern_before_fix = [
+        cascade_pattern_before_fix: List[Dict[str, Any]] = [
             {
                 "method": "native_parse",
                 "duration_ms": 2000,
@@ -712,7 +712,7 @@ class TestPerformanceValidation:
         )
 
         # Simulate behavior after parameter fixes
-        pattern_after_fix = [
+        pattern_after_fix: List[Dict[str, Any]] = [
             {
                 "method": "native_parse",
                 "duration_ms": 800,

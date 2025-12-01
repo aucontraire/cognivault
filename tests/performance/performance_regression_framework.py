@@ -16,7 +16,7 @@ import time
 import statistics
 import asyncio
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, List, Any, Optional, Tuple, Union, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 import logging
@@ -132,7 +132,8 @@ class PerformanceDatabase:
             return {}
 
         with open(self.baselines_file, "r") as f:
-            return json.load(f)
+            data: Dict[str, Dict[str, Any]] = json.load(f)
+            return data
 
     def get_baseline(self, operation_name: str) -> Optional[PerformanceBaseline]:
         """Get baseline for an operation."""
@@ -171,7 +172,8 @@ class PerformanceDatabase:
             return []
 
         with open(self.measurements_file, "r") as f:
-            return json.load(f)
+            data: List[Dict[str, Any]] = json.load(f)
+            return data
 
     def get_recent_measurements(
         self, operation_name: str, hours: int = 24
@@ -190,6 +192,15 @@ class PerformanceDatabase:
                 recent.append(PerformanceMeasurement(**m_data))
 
         return sorted(recent, key=lambda x: x.timestamp)
+
+    def load_regressions(self) -> List[Dict[str, Any]]:
+        """Load detected regressions."""
+        if not self.regressions_file.exists():
+            return []
+
+        with open(self.regressions_file, "r") as f:
+            data: List[Dict[str, Any]] = json.load(f)
+            return data
 
     def save_regression(self, regression: PerformanceRegression) -> None:
         """Save detected regression."""
@@ -346,7 +357,7 @@ class PerformanceMonitor:
         ]
 
         # Group by severity
-        regression_by_severity = {}
+        regression_by_severity: Dict[str, List[Dict[str, Any]]] = {}
         for r in recent_regressions:
             severity = r["severity"]
             if severity not in regression_by_severity:
@@ -373,13 +384,13 @@ class PerformanceTestDecorator:
         self.monitor = monitor
         self.operation_name = operation_name
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Decorator implementation."""
         operation_name = self.operation_name or func.__name__
 
         if asyncio.iscoroutinefunction(func):
 
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 start_time = time.time()
                 error_details = None
                 success = True
@@ -415,7 +426,7 @@ class PerformanceTestDecorator:
             return async_wrapper
         else:
 
-            def sync_wrapper(*args, **kwargs):
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 start_time = time.time()
                 error_details = None
                 success = True
@@ -463,7 +474,7 @@ def get_performance_monitor() -> PerformanceMonitor:
     return _global_monitor
 
 
-def monitor_performance(operation_name: Optional[str] = None):
+def monitor_performance(operation_name: Optional[str] = None) -> PerformanceTestDecorator:
     """Decorator for automatic performance monitoring."""
     return PerformanceTestDecorator(get_performance_monitor(), operation_name)
 
@@ -472,11 +483,11 @@ def monitor_performance(operation_name: Optional[str] = None):
 class CogniVaultPerformanceTests:
     """Performance tests specifically for CogniVault operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.monitor = get_performance_monitor()
 
     @monitor_performance("refiner_agent_structured_output")
-    async def test_refiner_agent_performance(self):
+    async def test_refiner_agent_performance(self) -> Any:
         """Test RefinerAgent performance with monitoring."""
         from cognivault.services.langchain_service import LangChainService
         from cognivault.agents.models import RefinerOutput
@@ -492,59 +503,59 @@ class CogniVaultPerformanceTests:
 
         return result
 
-    def establish_agent_baselines(self):
+    def establish_agent_baselines(self) -> None:
         """Establish performance baselines for all agents."""
         # This would be run during CI/CD to establish baselines
 
         # Example baseline data (would come from actual measurements)
         baseline_data = {
             "refiner_agent_structured_output": [
-                12000,
-                14000,
-                13500,
-                15000,
-                11000,
-                13000,
-                14500,
-                12500,
-                13800,
-                14200,
+                12000.0,
+                14000.0,
+                13500.0,
+                15000.0,
+                11000.0,
+                13000.0,
+                14500.0,
+                12500.0,
+                13800.0,
+                14200.0,
             ],  # ms
             "critic_agent_structured_output": [
-                18000,
-                20000,
-                19500,
-                21000,
-                17000,
-                19000,
-                20500,
-                18500,
-                19800,
-                20200,
+                18000.0,
+                20000.0,
+                19500.0,
+                21000.0,
+                17000.0,
+                19000.0,
+                20500.0,
+                18500.0,
+                19800.0,
+                20200.0,
             ],
             "historian_agent_structured_output": [
-                25000,
-                28000,
-                26500,
-                29000,
-                24000,
-                26000,
-                28500,
-                25500,
-                27800,
-                28200,
+                25000.0,
+                28000.0,
+                26500.0,
+                29000.0,
+                24000.0,
+                26000.0,
+                28500.0,
+                25500.0,
+                27800.0,
+                28200.0,
             ],
             "synthesis_agent_structured_output": [
-                35000,
-                38000,
-                36500,
-                39000,
-                34000,
-                36000,
-                38500,
-                35500,
-                37800,
-                38200,
+                35000.0,
+                38000.0,
+                36500.0,
+                39000.0,
+                34000.0,
+                36000.0,
+                38500.0,
+                35500.0,
+                37800.0,
+                38200.0,
             ],
         }
 
@@ -559,7 +570,7 @@ class CogniVaultPerformanceTests:
                 f"Established baseline for {operation_name}: {baseline.median_duration_ms:.1f}ms median"
             )
 
-    def check_for_regressions(self) -> List[PerformanceRegression]:
+    def check_for_regressions(self) -> List[Dict[str, Any]]:
         """Check for recent performance regressions."""
         summary = self.monitor.get_performance_summary()
 
@@ -585,7 +596,7 @@ class CogniVaultPerformanceTests:
 
 if __name__ == "__main__":
     # Example usage for debugging
-    async def example_usage():
+    async def example_usage() -> None:
         # Initialize performance testing
         perf_tests = CogniVaultPerformanceTests()
 

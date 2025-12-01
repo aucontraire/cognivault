@@ -109,7 +109,7 @@ class OpenAISchemaValidator:
 
         OpenAI requires all properties to be in the required array.
         """
-        errors = []
+        errors: List[str] = []
 
         if "properties" not in schema:
             return errors
@@ -206,7 +206,7 @@ class OpenAISchemaValidator:
 
         ALL properties should be in required array.
         """
-        errors = []
+        errors: List[str] = []
 
         if "$defs" not in schema:
             return errors
@@ -290,7 +290,7 @@ class TestOpenAISchemaTransformation:
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
-            schema = service._prepare_schema_for_openai(model)
+            schema = service._prepare_schema_for_openai(model)  # type: ignore[arg-type]
 
             properties = set(schema.get("properties", {}).keys())
             required = set(schema.get("required", []))
@@ -337,7 +337,7 @@ class TestOpenAISchemaTransformation:
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
-            schema = service._prepare_schema_for_openai(model)
+            schema = service._prepare_schema_for_openai(model)  # type: ignore[arg-type]
 
             def check_refs(obj: Any, path: str = "") -> None:
                 if isinstance(obj, dict):
@@ -360,7 +360,7 @@ class TestOpenAISchemaTransformation:
         models = [CriticOutput, HistorianOutput, RefinerOutput, SynthesisOutput]
 
         for model in models:
-            schema = service._prepare_schema_for_openai(model)
+            schema = service._prepare_schema_for_openai(model)  # type: ignore[arg-type]
 
             # Root level check
             assert schema.get("additionalProperties") == False, (
@@ -458,7 +458,7 @@ class TestOpenAISchemaTransformation:
         all_errors = []
 
         for model_name, model_class in models:
-            schema = service._prepare_schema_for_openai(model_class)
+            schema = service._prepare_schema_for_openai(model_class)  # type: ignore[arg-type]
             errors = validator.validate_schema(schema)
 
             if errors:
@@ -650,7 +650,7 @@ class TestOpenAISchemaIntegration:
             mock_completion.choices[0].message.refusal = None  # No refusal
 
             # Simulate fast API response (< 2 seconds)
-            async def fast_create(*args, **kwargs):
+            async def fast_create(*args: Any, **kwargs: Any) -> Mock:
                 return mock_completion
 
             mock_client.chat.completions.create = fast_create
@@ -888,7 +888,7 @@ class TestPerformanceRegressionPrevention:
 
         for model in models:
             try:
-                schema = service._prepare_schema_for_openai(model)
+                schema = service._prepare_schema_for_openai(model)  # type: ignore[arg-type]
                 assert schema is not None
                 assert "properties" in schema
                 assert "required" in schema
