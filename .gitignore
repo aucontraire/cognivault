@@ -22,6 +22,9 @@ src/cognivault/logs/
 coverage.json
 /src/cognivault/notes/*.md
 
+# Internal documentation (not for public docs)
+/.internal-docs/
+
 # System files
 .DS_Store
 
