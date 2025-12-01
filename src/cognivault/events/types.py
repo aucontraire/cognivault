@@ -381,13 +381,17 @@ class WorkflowCompletedEvent(WorkflowEvent):
         ge=0.0,
         json_schema_extra={"example": 42.5},
     )
-    agent_outputs: Dict[str, str] = Field(
+    agent_outputs: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Outputs from each executed agent",
+        description="Outputs from each executed agent (supports both strings and structured dicts for backward compatibility)",
         json_schema_extra={
             "example": {
-                "refiner": "Refined query output",
-                "critic": "Critical analysis result",
+                "refiner": {
+                    "refined_question": "Refined query output",
+                    "topics": ["topic1", "topic2"],
+                    "confidence": 0.95,
+                },
+                "critic": "Critical analysis result",  # Backward compatible string
             }
         },
     )
@@ -404,13 +408,38 @@ class WorkflowCompletedEvent(WorkflowEvent):
 
     @field_validator("agent_outputs")
     @classmethod
-    def validate_agent_outputs(cls, v: Dict[str, str]) -> Dict[str, str]:
-        """Validate agent outputs structure."""
+    def validate_agent_outputs(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate agent outputs structure.
+
+        Supports both structured outputs (dict) and legacy string outputs
+        for backward compatibility.
+        """
         for agent_name, output in v.items():
             if not isinstance(agent_name, str) or len(agent_name.strip()) == 0:
                 raise ValueError("Agent names must be non-empty strings")
-            if not isinstance(output, str):
-                raise ValueError(f"Output for agent '{agent_name}' must be a string")
+
+            # Allow None to be caught early
+            if output is None:
+                raise ValueError(f"Output for agent '{agent_name}' cannot be None")
+
+            # Validate string outputs (legacy format)
+            if isinstance(output, str):
+                if len(output.strip()) == 0:
+                    raise ValueError(f"Output for agent '{agent_name}' cannot be empty string")
+
+            # Validate dict outputs (structured format)
+            elif isinstance(output, dict):
+                if len(output) == 0:
+                    raise ValueError(f"Output for agent '{agent_name}' cannot be empty dict")
+
+            # Allow other types (Pydantic models, etc.) for flexibility
+            else:
+                # If it has model_dump, it's a Pydantic model - that's valid
+                if not hasattr(output, "model_dump"):
+                    # For unexpected types, we'll be permissive but they should be serializable
+                    pass
+
         return v
 
     def model_post_init(self, __context: Any) -> None:

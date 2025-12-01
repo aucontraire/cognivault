@@ -207,7 +207,7 @@ async def emit_workflow_completed(
     workflow_id: str,
     status: str,
     execution_time_seconds: float,
-    agent_outputs: Optional[Dict[str, str]] = None,
+    agent_outputs: Optional[Dict[str, Any]] = None,
     successful_agents: Optional[List[str]] = None,
     failed_agents: Optional[List[str]] = None,
     error_message: Optional[str] = None,
@@ -215,7 +215,11 @@ async def emit_workflow_completed(
     correlation_id: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Emit workflow completed event."""
+    """
+    Emit workflow completed event.
+
+    agent_outputs supports both strings and structured dicts for backward compatibility.
+    """
     emitter = get_global_event_emitter()
 
     # Auto-infer error_type if error_message is provided but error_type is not

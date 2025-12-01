@@ -636,9 +636,9 @@ class SynthesisOutput(BaseAgentOutput):
             item = item.strip()
             if len(item) < 8:
                 raise ValueError(f"Synthesis item too short: '{item}'")
-            if len(item) > 250:
+            if len(item) > 500:
                 raise ValueError(
-                    f"Synthesis item too long (max 250 chars): '{item[:50]}...'"
+                    f"Synthesis item too long (max 500 chars): '{item[:50]}...'"
                 )
 
             # Check for process pollution

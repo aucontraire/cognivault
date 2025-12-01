@@ -251,7 +251,7 @@ class TestHistorianAgentConfig:
 
                 # Should complete without errors and preserve existing behavior
                 assert "historian" in result_context.agent_outputs
-                assert isinstance(result_context.agent_outputs["historian"], str)
+                assert isinstance(result_context.agent_outputs["historian"], (str, dict))
 
     def test_default_llm_creation_with_config(self) -> None:
         """Test that default LLM creation works with config integration."""

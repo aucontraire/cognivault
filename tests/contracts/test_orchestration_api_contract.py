@@ -53,7 +53,7 @@ class TestOrchestrationAPIContract:
             assert len(response.agent_outputs) == len(request.agents)
             for agent in request.agents:
                 assert agent in response.agent_outputs
-                assert isinstance(response.agent_outputs[agent], str)
+                assert isinstance(response.agent_outputs[agent], (str, dict))
                 assert len(response.agent_outputs[agent]) > 0
 
     @pytest.mark.asyncio
