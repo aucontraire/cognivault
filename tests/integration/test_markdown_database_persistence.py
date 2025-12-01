@@ -18,6 +18,7 @@ from cognivault.api.models import WorkflowRequest, WorkflowResponse
 from cognivault.database.models import HistorianDocument
 from cognivault.database import RepositoryFactory
 from cognivault.database.session_factory import DatabaseSessionFactory
+from cognivault.store.topic_manager import TopicSuggestion, TopicAnalysis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,15 +81,42 @@ class TestMarkdownDatabasePersistence:
         # Mock the orchestrator execution to avoid real LLM calls
         mock_context = Mock()
         mock_context.agent_outputs = mock_agent_outputs
+        mock_context.structured_outputs = {}  # Empty dict - no structured outputs for these tests
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
 
         # Mock topic analysis
-        mock_topic_analysis = Mock()
-        mock_topic_analysis.suggested_topics = [
-            Mock(topic="machine learning"),
-            Mock(topic="artificial intelligence"),
-            Mock(topic="neural networks"),
-        ]
-        mock_topic_analysis.suggested_domain = "computer-science"
+        mock_topic_analysis = TopicAnalysis(
+            suggested_topics=[
+                TopicSuggestion(
+                    topic="machine learning",
+                    confidence=0.9,
+                    source="llm_analysis",
+                    reasoning="Primary topic of the query",
+                ),
+                TopicSuggestion(
+                    topic="artificial intelligence",
+                    confidence=0.85,
+                    source="llm_analysis",
+                    reasoning="Related to ML concepts",
+                ),
+                TopicSuggestion(
+                    topic="neural networks",
+                    confidence=0.8,
+                    source="llm_analysis",
+                    reasoning="Specific ML technique mentioned",
+                ),
+            ],
+            suggested_domain="computer-science",
+            confidence_score=0.85,
+            key_terms=["machine learning", "AI", "neural networks"],
+            themes=["artificial intelligence", "machine learning"],
+            complexity_indicators=["technical", "analytical"],
+        )
 
         try:
             with (
@@ -184,10 +212,26 @@ class TestMarkdownDatabasePersistence:
 
         mock_context = Mock()
         mock_context.agent_outputs = mock_agent_outputs
+        mock_context.structured_outputs = {}  # Empty dict - no structured outputs for these tests
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
 
-        mock_topic_analysis = Mock()
-        mock_topic_analysis.suggested_topics = [Mock(topic="test")]
-        mock_topic_analysis.suggested_domain = "test-domain"
+        mock_topic_analysis = TopicAnalysis(
+            suggested_topics=[
+                TopicSuggestion(
+                    topic="test",
+                    confidence=0.8,
+                    source="llm_analysis",
+                    reasoning="Test topic",
+                )
+            ],
+            suggested_domain="test-domain",
+            confidence_score=0.8,
+            key_terms=["test"],
+            themes=["testing"],
+            complexity_indicators=["simple"],
+        )
 
         md_file_created = None
 
@@ -254,10 +298,26 @@ class TestMarkdownDatabasePersistence:
 
         mock_context = Mock()
         mock_context.agent_outputs = mock_agent_outputs
+        mock_context.structured_outputs = {}  # Empty dict - no structured outputs for these tests
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
 
-        mock_topic_analysis = Mock()
-        mock_topic_analysis.suggested_topics = [Mock(topic="test")]
-        mock_topic_analysis.suggested_domain = "test-domain"
+        mock_topic_analysis = TopicAnalysis(
+            suggested_topics=[
+                TopicSuggestion(
+                    topic="test",
+                    confidence=0.8,
+                    source="llm_analysis",
+                    reasoning="Test topic",
+                )
+            ],
+            suggested_domain="test-domain",
+            confidence_score=0.8,
+            key_terms=["test"],
+            themes=["testing"],
+            complexity_indicators=["simple"],
+        )
 
         md_file_created = None
 
@@ -326,10 +386,26 @@ class TestMarkdownDatabasePersistence:
 
         mock_context = Mock()
         mock_context.agent_outputs = mock_agent_outputs
+        mock_context.structured_outputs = {}  # Empty dict - no structured outputs for these tests
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
 
-        mock_topic_analysis = Mock()
-        mock_topic_analysis.suggested_topics = [Mock(topic="test")]
-        mock_topic_analysis.suggested_domain = "test-domain"
+        mock_topic_analysis = TopicAnalysis(
+            suggested_topics=[
+                TopicSuggestion(
+                    topic="test",
+                    confidence=0.8,
+                    source="llm_analysis",
+                    reasoning="Test topic",
+                )
+            ],
+            suggested_domain="test-domain",
+            confidence_score=0.8,
+            key_terms=["test"],
+            themes=["testing"],
+            complexity_indicators=["simple"],
+        )
 
         md_files_created = []
 
@@ -417,17 +493,56 @@ class TestMarkdownDatabasePersistence:
 
         mock_context = Mock()
         mock_context.agent_outputs = mock_agent_outputs
+        mock_context.structured_outputs = {}  # Empty dict - no structured outputs for these tests
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
 
-        mock_topic_analysis = Mock()
-        mock_topic_analysis.suggested_topics = [
-            Mock(topic="topic1"),
-            Mock(topic="topic2"),
-            Mock(topic="topic3"),
-            Mock(topic="topic4"),
-            Mock(topic="topic5"),
-            Mock(topic="topic6"),  # 6 topics to test max 5 limit
-        ]
-        mock_topic_analysis.suggested_domain = "test-domain"
+        mock_topic_analysis = TopicAnalysis(
+            suggested_topics=[
+                TopicSuggestion(
+                    topic="topic1",
+                    confidence=0.9,
+                    source="llm_analysis",
+                    reasoning="First topic",
+                ),
+                TopicSuggestion(
+                    topic="topic2",
+                    confidence=0.85,
+                    source="llm_analysis",
+                    reasoning="Second topic",
+                ),
+                TopicSuggestion(
+                    topic="topic3",
+                    confidence=0.8,
+                    source="llm_analysis",
+                    reasoning="Third topic",
+                ),
+                TopicSuggestion(
+                    topic="topic4",
+                    confidence=0.75,
+                    source="llm_analysis",
+                    reasoning="Fourth topic",
+                ),
+                TopicSuggestion(
+                    topic="topic5",
+                    confidence=0.7,
+                    source="llm_analysis",
+                    reasoning="Fifth topic",
+                ),
+                TopicSuggestion(
+                    topic="topic6",
+                    confidence=0.65,
+                    source="llm_analysis",
+                    reasoning="Sixth topic",
+                ),  # 6 topics to test max 5 limit
+            ],
+            suggested_domain="test-domain",
+            confidence_score=0.8,
+            key_terms=["topic1", "topic2", "topic3"],
+            themes=["testing"],
+            complexity_indicators=["simple"],
+        )
 
         md_file_created = None
 
@@ -550,6 +665,10 @@ class TestMarkdownDatabasePersistence:
 
         mock_context = Mock()
         mock_context.agent_outputs = mock_agent_outputs
+        mock_context.structured_outputs = {}  # Empty dict - no structured outputs for these tests
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
 
         try:
             with patch.object(
@@ -596,11 +715,27 @@ class TestMarkdownDatabasePersistence:
 
         mock_context = Mock()
         mock_context.agent_outputs = mock_agent_outputs
+        mock_context.structured_outputs = {}  # Empty dict - no structured outputs for these tests
+        mock_context.execution_state = {
+            "structured_outputs": {}
+        }  # Proper dict for execution_state
 
         # Mock topic analysis to avoid LLM calls
-        mock_topic_analysis = Mock()
-        mock_topic_analysis.suggested_topics = [Mock(topic="test-topic")]
-        mock_topic_analysis.suggested_domain = "test-domain"
+        mock_topic_analysis = TopicAnalysis(
+            suggested_topics=[
+                TopicSuggestion(
+                    topic="test-topic",
+                    confidence=0.8,
+                    source="llm_analysis",
+                    reasoning="Test topic",
+                )
+            ],
+            suggested_domain="test-domain",
+            confidence_score=0.8,
+            key_terms=["test"],
+            themes=["testing"],
+            complexity_indicators=["simple"],
+        )
 
         try:
             with (
