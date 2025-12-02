@@ -19,21 +19,21 @@ CogniVault provides a sophisticated orchestration platform grounded in **cogniti
 - **LangGraph Orchestration**: StateGraph-based DAG execution with parallel processing
 - **Advanced Node Types**: Decision, Aggregator, Validator, Terminator nodes for complex workflows
 - **Event-Driven Architecture**: Comprehensive observability with correlation tracking
-- **Multi-Axis Classification**: 6-axis metadata system for intelligent routing (see [AAD-002](src/cognivault/docs/architecture/AAD-002-Multi-Axis-Classification-And-Advanced-Node-Types.md))
+- **Multi-Axis Classification**: 6-axis metadata system for intelligent routing (see [AAD-002](docs/architecture/multi-axis-classification.md))
 - **Configurable Prompt Composition**: YAML-driven agent behavior customization without code changes
 - **Enhanced Routing System**: OPERATIONAL algorithm-driven agent selection with performance optimization and constraint validation
 
 **Status**: V1 fully functional system with complete multi-agent workflows, LangGraph orchestration, configurable prompt composition, and comprehensive observability. **Phase 1A Complete**: FastAPI service layer with WebSocket real-time streaming and Docker development environment.
 
-> **📚 Research Foundations**: See [RESEARCH.md](src/cognivault/docs/RESEARCH.md) for comprehensive cognitive science foundations including distributed cognition theory, dual-process theory, and society of mind principles that inform the architecture.
+> **📚 Research Foundations**: See [RESEARCH.md](docs/advanced/research.md) for comprehensive cognitive science foundations including distributed cognition theory, dual-process theory, and society of mind principles that inform the architecture.
 > 
-> **🌍 Strategic Position**: See [LANDSCAPE.md](src/cognivault/docs/LANDSCAPE.md) for competitive analysis and strategic positioning within the multi-agent ecosystem.
+> **🌍 Strategic Position**: See [LANDSCAPE.md](docs/advanced/landscape.md) for competitive analysis and strategic positioning within the multi-agent ecosystem.
 >
-> **🎯 Pattern Documentation**: See [PATTERN_REGISTRY.md](src/cognivault/docs/PATTERN_REGISTRY.md) for comprehensive pattern documentation with validation framework and certification standards.
+> **🎯 Pattern Documentation**: See [PATTERN_REGISTRY.md](docs/advanced/pattern-registry.md) for comprehensive pattern documentation with validation framework and certification standards.
 >
-> **📊 Observability Guide**: See [OBSERVABILITY.md](src/cognivault/docs/OBSERVABILITY.md) for comprehensive observability architecture including event-driven monitoring and production deployment strategies.
+> **📊 Observability Guide**: See [OBSERVABILITY.md](docs/advanced/observability.md) for comprehensive observability architecture including event-driven monitoring and production deployment strategies.
 >
-> **🗄️ Database Exploration**: See [DATABASE_EXPLORATION.md](src/cognivault/docs/DATABASE_EXPLORATION.md) for complete guide to querying Pydantic AI integration data, JSONB analytics, and agent performance metrics.
+> **🗄️ Database Exploration**: See [DATABASE_EXPLORATION.md](docs/user-guide/database-exploration.md) for complete guide to querying Pydantic AI integration data, JSONB analytics, and agent performance metrics.
 >
 > **🔍 Hybrid Search System**: The HistorianAgent features a production-ready hybrid search system combining PostgreSQL full-text search with file-based retrieval, configurable search ratios, intelligent deduplication, and comprehensive fallback mechanisms.
 
@@ -105,9 +105,9 @@ make test-pydantic-ai         # Test structured LLM responses with database
 make db-explore               # Explore stored agent data and performance metrics
 ```
 
-See [🖥️ Usage](#️usage) for running specific agents and debugging options, or check the [📖 Comprehensive CLI Usage Guide](src/cognivault/docs/CLI_USAGE.md) for detailed command reference including configurable prompt composition examples.
+See [🖥️ Usage](#️usage) for running specific agents and debugging options, or check the [📖 Comprehensive CLI Usage Guide](docs/user-guide/cli-usage.md) for detailed command reference including configurable prompt composition examples.
 
-> **🔍 Semantic Validation**: See [SEMANTIC_VALIDATION_USAGE.md](src/cognivault/docs/SEMANTIC_VALIDATION_USAGE.md) for comprehensive workflow validation capabilities and usage examples.
+> **🔍 Semantic Validation**: See [SEMANTIC_VALIDATION_USAGE.md](docs/user-guide/semantic-validation.md) for comprehensive workflow validation capabilities and usage examples.
 
 ---
 
@@ -135,7 +135,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 📊 **DAG visualization**: Mermaid diagram generation (`--visualize-dag`) for pipeline analysis and debugging
 - 🔀 **Performance comparison**: Statistical benchmarking between execution modes (`--compare-modes`)
 - 🧪 **Comprehensive testing**: Full test suite with 86% coverage and 3,454+ tests for reliability
-- 🧩 **Pattern validation framework**: OPERATIONAL built-in validation, testing, and certification tools for custom graph patterns (see [Pattern Registry](src/cognivault/docs/PATTERN_REGISTRY.md) for comprehensive pattern documentation)
+- 🧩 **Pattern validation framework**: OPERATIONAL built-in validation, testing, and certification tools for custom graph patterns (see [Pattern Registry](docs/advanced/pattern-registry.md) for comprehensive pattern documentation)
 - 🎯 **Pydantic AI Testing**: Integrated testing tools (`scripts/validate_pydantic_ai_setup.py`, `scripts/test_pydantic_ai_integration.py`)
 - 📤 **Trace export**: JSON export of detailed execution metadata (`--export-trace`) for monitoring
 - 🌐 **API Manual Testing**: Comprehensive testing guide for API scenarios and WebSocket connections
@@ -161,7 +161,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🔍 **Context complexity analysis**: Automated query analysis for optimal routing decisions and performance prediction
 - 📊 **Routing decision framework**: Comprehensive decision tracking with confidence scoring and detailed reasoning
 - 🖥️ **Interactive CLI tools**: DAG structure explorer, performance profiler, and pattern benchmark suite
-- 🔍 **Structured logging**: OPERATIONAL comprehensive logging with automatic correlation ID tracking and context propagation (see [Observability Guide](src/cognivault/docs/OBSERVABILITY.md) for comprehensive observability architecture)
+- 🔍 **Structured logging**: OPERATIONAL comprehensive logging with automatic correlation ID tracking and context propagation (see [Observability Guide](docs/advanced/observability.md) for comprehensive observability architecture)
 - 📈 **Performance metrics**: Real-time collection of execution statistics, token usage, and success rates
 - 🖥️ **Machine-readable output**: Multiple export formats (JSON, CSV) for monitoring integration
 - 🔗 **LangGraph compatibility**: Complete DAG-ready architecture with node interfaces and graph builders
@@ -178,7 +178,7 @@ See [🖥️ Usage](#️usage) for running specific agents and debugging options
 - 🌐 **Fully Functional**: Complete CLI tooling and diagnostic capabilities
 - 🎯 **CLI Integration**: Full command suite - `cognivault main`, `diagnostics`, comprehensive options
 - 🎛️ **Configurable Prompt Composition**: OPERATIONAL YAML-driven agent behavior customization with 662-line PromptComposer
-- 🔍 **Semantic Validation**: OPERATIONAL comprehensive workflow validation (see [Semantic Validation Usage](src/cognivault/docs/SEMANTIC_VALIDATION_USAGE.md))
+- 🔍 **Semantic Validation**: OPERATIONAL comprehensive workflow validation (see [Semantic Validation Usage](docs/user-guide/semantic-validation.md))
 - 🌐 **API Service Layer**: 9 FastAPI endpoints functional with comprehensive test coverage
 - ⚡ **WebSocket Real-Time Streaming**: Live workflow progress with correlation ID filtering and event integration
 - 🐳 **Docker Development**: Containerized environment for development
@@ -248,7 +248,7 @@ CogniVault provides sophisticated multi-agent orchestration with comprehensive o
 **Current Implementation**
 - **167+ Passing Tests**: Comprehensive API coverage with real workflow integration
 - **Real LLM Integration**: All endpoints work with actual workflow execution data
-- **Manual Testing Guide**: [Complete API testing documentation](src/cognivault/docs/API_MANUAL_TESTING_GUIDE.md) for all endpoints and WebSocket scenarios
+- **Manual Testing Guide**: [Complete API testing documentation](docs/user-guide/api-testing.md) for all endpoints and WebSocket scenarios
 - **External Integration**: Platform ready for external consumer integration
 
 **Developer Testing Tools**
@@ -269,7 +269,7 @@ CogniVault provides sophisticated multi-agent orchestration with comprehensive o
 
 ### 🎯 **Advanced Pydantic Migration** (OPERATIONAL)
 
-CogniVault features comprehensive **advanced Pydantic data models** throughout the entire codebase (see [ADR-006](src/cognivault/docs/architecture/ADR-006-Configurable-Prompt-Composition-Architecture.md)), providing enhanced validation, type safety, and modern Python architecture.
+CogniVault features comprehensive **advanced Pydantic data models** throughout the entire codebase (see [ADR-006](docs/architecture/adrs/006-configurable-prompts.md)), providing enhanced validation, type safety, and modern Python architecture.
 
 #### Pydantic Configuration System (OPERATIONAL)
 
@@ -335,7 +335,7 @@ nodes:
 
 ## 🧱 Architecture
 
-CogniVault is organized into focused modules following cognitive science principles (see [RESEARCH.md](src/cognivault/docs/RESEARCH.md)) and strategic positioning within the multi-agent ecosystem (see [LANDSCAPE.md](src/cognivault/docs/LANDSCAPE.md)):
+CogniVault is organized into focused modules following cognitive science principles (see [RESEARCH.md](docs/advanced/research.md)) and strategic positioning within the multi-agent ecosystem (see [LANDSCAPE.md](docs/advanced/landscape.md)):
 
 - **`agents/`** - Complete 4-agent system (Refiner, Critic, Historian, Synthesis) with real LLM integration
 - **`langgraph_backend/`** - LangGraph StateGraph orchestration with DAG execution and parallel processing
@@ -346,7 +346,7 @@ CogniVault is organized into focused modules following cognitive science princip
 - **`context/`** - Advanced context management with snapshots and memory optimization
 - **`cli/`** - Full-featured command-line interface with comprehensive options
 
-> **🏛️ Architecture Documentation**: See [ARCHITECTURE.md](src/cognivault/docs/architecture/ARCHITECTURE.md) and the complete [ADR collection](src/cognivault/docs/architecture/) for detailed architectural decisions, patterns, and implementation strategies.
+> **🏛️ Architecture Documentation**: See [ARCHITECTURE.md](docs/architecture/overview.md) and the complete [ADR collection](docs/architecture/adrs/) for detailed architectural decisions, patterns, and implementation strategies.
 
 ---
 
@@ -354,7 +354,7 @@ CogniVault is organized into focused modules following cognitive science princip
 
 ## 🌊 Event-Driven Architecture
 
-CogniVault features a comprehensive OPERATIONAL event system for observability and future service extraction (see [ADR-005](src/cognivault/docs/architecture/ADR-005-Event-Driven-Architecture-Implementation.md)):
+CogniVault features a comprehensive OPERATIONAL event system for observability and future service extraction (see [ADR-005](docs/architecture/adrs/005-event-driven.md)):
 
 ### Event Types
 
@@ -385,13 +385,13 @@ from cognivault.events import (
 # Custom event sinks can be configured for monitoring integration
 ```
 
-Events include comprehensive metadata from the 6-axis classification system and are essential for comprehensive observability. See [OBSERVABILITY.md](src/cognivault/docs/OBSERVABILITY.md) for comprehensive observability architecture and deployment strategies.
+Events include comprehensive metadata from the 6-axis classification system and are essential for comprehensive observability. See [OBSERVABILITY.md](docs/advanced/observability.md) for comprehensive observability architecture and deployment strategies.
 
 ---
 
 ## 🧠 Agent Roles
 
-Each agent in CogniVault plays a distinct role in the cognitive reflection and synthesis pipeline (grounded in cognitive science research detailed in [RESEARCH.md](src/cognivault/docs/RESEARCH.md)):
+Each agent in CogniVault plays a distinct role in the cognitive reflection and synthesis pipeline (grounded in cognitive science research detailed in [RESEARCH.md](docs/advanced/research.md)):
 
 - ### 🔍 Refiner
   The **RefinerAgent** takes the initial user input and clarifies intent, rephrases vague language, and ensures the prompt is structured for deeper analysis by the rest of the system. It uses a comprehensive system prompt with passive and active modes to guide its reasoning process. See [`prompts.py`](./src/cognivault/agents/refiner/prompts.py) for implementation details.
@@ -496,7 +496,7 @@ This ensures CogniVault can handle long-running conversations and complex multi-
 
 ### 🔗 LangGraph Compatibility Layer (OPERATIONAL)
 
-CogniVault features a complete OPERATIONAL LangGraph compatibility layer (see [ADR-001](src/cognivault/docs/architecture/ADR-001-Graph-Pattern-Architecture.md)) that provides DAG-ready architecture while maintaining full backward compatibility with existing workflows.
+CogniVault features a complete OPERATIONAL LangGraph compatibility layer (see [ADR-001](docs/architecture/adrs/001-graph-patterns.md)) that provides DAG-ready architecture while maintaining full backward compatibility with existing workflows.
 
 #### LangGraph Node Interface
 
@@ -575,7 +575,7 @@ The compatibility layer provides:
 
 ### 🔀 Failure Propagation & Conditional Execution (OPERATIONAL)
 
-CogniVault features a sophisticated OPERATIONAL failure propagation system (see [ADR-002](src/cognivault/docs/architecture/ADR-002-Conditional-Patterns-And-Developer-Tooling.md)) designed for LangGraph DAG compatibility.
+CogniVault features a sophisticated OPERATIONAL failure propagation system (see [ADR-002](docs/architecture/adrs/002-conditional-patterns.md)) designed for LangGraph DAG compatibility.
 
 #### Failure Propagation Strategies
 
@@ -635,7 +635,7 @@ The failure propagation system is designed for seamless LangGraph migration:
 
 ### 🏗️ API Boundary Implementation (OPERATIONAL)
 
-CogniVault features a sophisticated OPERATIONAL API boundary implementation following [ADR-004](src/cognivault/docs/architecture/ADR-004-API-Boundary-Implementation-Strategy.md) specifications that establishes clear external/internal API separation and enables future service extraction.
+CogniVault features a sophisticated OPERATIONAL API boundary implementation following [ADR-004](.internal-docs/architecture/ADR-004-API-Boundary-Implementation-Strategy.md) specifications that establishes clear external/internal API separation and enables future service extraction.
 
 #### BaseAPI Interface Pattern
 
@@ -1039,7 +1039,7 @@ This approach allows you to cleanly swap or combine LLMs in the future with mini
 
 ## 🖥️ Usage
 
-> **📖 For comprehensive CLI documentation, see the [CLI Usage Guide](src/cognivault/docs/CLI_USAGE.md)**
+> **📖 For comprehensive CLI documentation, see the [CLI Usage Guide](docs/user-guide/cli-usage.md)**
 > 
 > The CLI Usage Guide provides detailed information on all commands, options, troubleshooting, and use cases.
 
@@ -1248,7 +1248,7 @@ make run QUESTION="Your question" EXECUTION_MODE=langgraph-real
 make run QUESTION="Your question" EXECUTION_MODE=langgraph
 ```
 
-**Legacy Mode (DEPRECATED - REMOVED)**: The original `AgentOrchestrator` has been deprecated (see [ADR-003](src/cognivault/docs/architecture/ADR-003-Legacy-Cleanup-And-Future-Ready-Architecture.md))
+**Legacy Mode (DEPRECATED - REMOVED)**: The original `AgentOrchestrator` has been deprecated (see [ADR-003](.internal-docs/architecture/ADR-003-Legacy-Cleanup-And-Future-Ready-Architecture.md))
 ```bash
 # NOT RECOMMENDED - Use default LangGraph mode instead
 make run QUESTION="Your question" EXECUTION_MODE=legacy
@@ -1325,7 +1325,7 @@ The visualization generates professional Mermaid diagrams showing:
 
 ### 🏗️ **Advanced Graph Architecture**
 
-**GraphFactory & Pattern System**: Extensible graph execution patterns with intelligent caching (see [Pattern Registry](src/cognivault/docs/PATTERN_REGISTRY.md))
+**GraphFactory & Pattern System**: Extensible graph execution patterns with intelligent caching (see [Pattern Registry](docs/advanced/pattern-registry.md))
 - **Pattern-Based Construction**: Standard, parallel, and conditional graph patterns
 - **Performance Optimization**: LRU cache with TTL for compiled graphs (~90% performance improvement)
 - **Thread-Safe Operations**: Comprehensive validation and memory management
@@ -1408,7 +1408,7 @@ The checkpointing system prepares CogniVault for **long-running workflows**, **m
 
 ## 📊 CLI Diagnostics & Observability
 
-> **📖 For complete CLI command documentation, see the [CLI Usage Guide](src/cognivault/docs/CLI_USAGE.md)**
+> **📖 For complete CLI command documentation, see the [CLI Usage Guide](docs/user-guide/cli-usage.md)**
 
 CogniVault includes comprehensive diagnostics capabilities accessible via the `cognivault diagnostics` command suite, enhanced with advanced developer experience tools:
 
@@ -1726,7 +1726,7 @@ Future directions: wiki export, browser UI, plugin support (Obsidian, Notion).
 
 ## 🌍 How CogniVault Differs
 
-Unlike typical LLM assistants or AutoGPT-style agents, CogniVault focuses on *structured introspection* rather than task completion (see [LANDSCAPE.md](src/cognivault/docs/LANDSCAPE.md) for competitive positioning). While tools like LangGraph or Reflexion optimize for task-solving or dynamic planning, CogniVault enables long-term insight formation across modular agent roles grounded in cognitive science research (see [RESEARCH.md](src/cognivault/docs/RESEARCH.md)).
+Unlike typical LLM assistants or AutoGPT-style agents, CogniVault focuses on *structured introspection* rather than task completion (see [LANDSCAPE.md](docs/advanced/landscape.md) for competitive positioning). While tools like LangGraph or Reflexion optimize for task-solving or dynamic planning, CogniVault enables long-term insight formation across modular agent roles grounded in cognitive science research (see [RESEARCH.md](docs/advanced/research.md)).
 
 It’s designed as a memory-enhanced thinking partner that integrates cleanly with personal wikis, supports test-driven CLI use, and remains light enough for future microservice deployment or API integration.
 
@@ -1752,7 +1752,7 @@ It’s designed as a memory-enhanced thinking partner that integrates cleanly wi
 - [x] **API Manual Testing Guide**: Complete testing documentation for real-world scenarios
 
 ### ✅ **Phase 1B Complete** - Database Integration & Structured Data Pipeline
-*See [PHASE_1B_DATABASE_COMPLETION.md](src/cognivault/docs/github/PHASE_1B_DATABASE_COMPLETION.md) for comprehensive completion documentation*
+*See [PHASE_1B_DATABASE_COMPLETION.md](.internal-docs/github/PHASE_1B_DATABASE_COMPLETION.md) for comprehensive completion documentation*
 
 - [x] **PostgreSQL + pgvector Integration**: Production-ready database layer with vector embeddings
 - [x] **Pydantic AI Structured Data Pipeline**: Type-safe agent outputs with JSONB analytics
