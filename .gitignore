@@ -25,6 +25,9 @@ coverage.json
 # Internal documentation (not for public docs)
 /.internal-docs/
 
+# MkDocs generated site
+/site/
+
 # System files
 .DS_Store
 

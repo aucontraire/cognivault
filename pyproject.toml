@@ -7,7 +7,7 @@ license = "AGPL-3.0"
 readme = "README.md"
 homepage = "https://github.com/aucontraire/cognivault"
 repository = "https://github.com/aucontraire/cognivault"
-documentation = "https://github.com/aucontraire/cognivault/src/corgnivault/docs"
+documentation = "https://aucontraire.github.io/cognivault/"
 keywords = ["dag", "orchestration", "platform", "agents", "workflows", "langgraph", "async", "ai"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -86,6 +86,12 @@ ruff = "*"
 black = "*"
 isort = "*"
 mypy = "*"
+
+# Documentation
+mkdocs = ">=1.6.0"
+mkdocs-material = ">=9.0.0"
+mkdocstrings = {extras = ["python"], version = ">=0.24.0"}
+pymdown-extensions = ">=10.0.0"
 
 # Type Hints
 types-psutil = "*"
