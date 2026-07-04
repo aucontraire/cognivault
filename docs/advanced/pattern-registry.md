@@ -415,10 +415,10 @@ def test_custom_pattern():
 This pattern registry integrates comprehensively with CogniVault's production architecture:
 
 ### Core Documentation References
-- **[ADR-001: Graph Pattern Architecture](./architecture/ADR-001-Graph-Pattern-Architecture.md)** - Foundational pattern design principles (HISTORICAL REFERENCE - Principles Integrated)
-- **[ADR-002: Conditional Patterns and Enhanced Developer Tooling](./architecture/ADR-002-Conditional-Patterns-And-Enhanced-Developer-Tooling.md)** - Enhanced routing implementation (HISTORICAL REFERENCE - Implementation Complete)
-- **[ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - Overall system architecture and pattern integration
-- **[CLI_USAGE.md](./CLI_USAGE.md)** - Pattern validation and diagnostic CLI commands
+- **[ADR-001: Graph Pattern Architecture](../architecture/adrs/001-graph-patterns.md)** - Foundational pattern design principles (HISTORICAL REFERENCE - Principles Integrated)
+- **[ADR-002: Conditional Patterns and Enhanced Developer Tooling](../architecture/adrs/002-conditional-patterns.md)** - Enhanced routing implementation (HISTORICAL REFERENCE - Implementation Complete)
+- **[ARCHITECTURE.md](../architecture/overview.md)** - Overall system architecture and pattern integration
+- **[CLI_USAGE.md](../user-guide/cli-usage.md)** - Pattern validation and diagnostic CLI commands
 
 ### Integration Points
 - **LangGraph Backend**: Full integration with `cognivault.langgraph_backend.graph_patterns`

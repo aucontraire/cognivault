@@ -717,6 +717,6 @@ cognivault --show-completion
 ```
 
 For additional support:
-- Check the [troubleshooting section](../../../README.md#troubleshooting) in the main README
+- Check the troubleshooting section *(see repository root: README.md)* in the main README
 - Review the [architecture documentation](../architecture/)
 - File issues at the project repository

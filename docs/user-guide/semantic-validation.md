@@ -430,10 +430,10 @@ subprocess.run([
 This semantic validation system integrates comprehensively with CogniVault's production architecture:
 
 ### Core Documentation References
-- **[ADR-001: Graph Pattern Architecture](./architecture/ADR-001-Graph-Pattern-Architecture.md)** - Pattern validation foundations (HISTORICAL REFERENCE - Principles Integrated)
-- **[ADR-002: Conditional Patterns and Enhanced Developer Tooling](./architecture/ADR-002-Conditional-Patterns-And-Enhanced-Developer-Tooling.md)** - Enhanced routing validation (HISTORICAL REFERENCE - Implementation Complete)
-- **[PATTERN_REGISTRY.md](./PATTERN_REGISTRY.md)** - Pattern system integration and validation rules
-- **[CLI_USAGE.md](./CLI_USAGE.md)** - CLI validation commands and workflow examples
+- **[ADR-001: Graph Pattern Architecture](../architecture/adrs/001-graph-patterns.md)** - Pattern validation foundations (HISTORICAL REFERENCE - Principles Integrated)
+- **[ADR-002: Conditional Patterns and Enhanced Developer Tooling](../architecture/adrs/002-conditional-patterns.md)** - Enhanced routing validation (HISTORICAL REFERENCE - Implementation Complete)
+- **[PATTERN_REGISTRY.md](../advanced/pattern-registry.md)** - Pattern system integration and validation rules
+- **[CLI_USAGE.md](cli-usage.md)** - CLI validation commands and workflow examples
 
 ### Integration Points
 - **LangGraph Backend**: Full validation integration with `cognivault.langgraph_backend`

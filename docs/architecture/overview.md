@@ -5,11 +5,11 @@
 **Last Updated**: July 29, 2025  
 **Target Audience**: Software Engineers, System Architects, Technical Leads
 
-> **📚 Research Foundations**: This architecture is grounded in cognitive science research detailed in [RESEARCH.md](../RESEARCH.md), including distributed cognition theory, dual-process theory, and society of mind principles.
+> **📚 Research Foundations**: This architecture is grounded in cognitive science research detailed in [RESEARCH.md](../advanced/research.md), including distributed cognition theory, dual-process theory, and society of mind principles.
 >
-> **🌍 Strategic Context**: See [LANDSCAPE.md](../LANDSCAPE.md) for competitive positioning and strategic differentiation within the multi-agent ecosystem.
+> **🌍 Strategic Context**: See [LANDSCAPE.md](../advanced/landscape.md) for competitive positioning and strategic differentiation within the multi-agent ecosystem.
 >
-> **📊 Observability**: See [OBSERVABILITY.md](../OBSERVABILITY.md) for comprehensive observability architecture and production deployment strategies.
+> **📊 Observability**: See [OBSERVABILITY.md](../advanced/observability.md) for comprehensive observability architecture and production deployment strategies.
 
 ---
 
@@ -17,14 +17,14 @@
 
 CogniVault is a production-ready multi-agent workflow orchestration platform that combines LLM integration with directed acyclic graph (DAG) execution. The system provides sophisticated agent coordination, parallel processing capabilities, and comprehensive observability for complex knowledge processing workflows.
 
-The architecture is informed by cognitive science research (see [RESEARCH.md](../RESEARCH.md)) and positioned strategically within the multi-agent ecosystem (see [LANDSCAPE.md](../LANDSCAPE.md)).
+The architecture is informed by cognitive science research (see [RESEARCH.md](../advanced/research.md)) and positioned strategically within the multi-agent ecosystem (see [LANDSCAPE.md](../advanced/landscape.md)).
 
 **Key Capabilities:**
 - Multi-agent pipeline with parallel execution (4 core agents) grounded in cognitive science research
-- LangGraph 0.6.4-based DAG orchestration with Runtime Context API and advanced node types (see [AAD-002](AAD-002-Multi-Axis-Classification-And-Advanced-Node-Types.md))
-- YAML-driven configurable agent behaviors (see [ADR-006](ADR-006-Configurable-Prompt-Composition-Architecture.md))
-- Event-driven architecture with comprehensive observability (see [ADR-005](ADR-005-Event-Driven-Architecture-Implementation.md))
-- External/internal API boundaries for service extraction readiness (see [ADR-004](ADR-004-API-Boundary-Implementation-Strategy.md))
+- LangGraph 0.6.4-based DAG orchestration with Runtime Context API and advanced node types (see [AAD-002](adrs/002-conditional-patterns.md))
+- YAML-driven configurable agent behaviors (see [ADR-006](adrs/006-configurable-prompts.md))
+- Event-driven architecture with comprehensive observability (see [ADR-005](adrs/005-event-driven.md))
+- External/internal API boundaries for service extraction readiness (see ADR-004 *(Internal development documentation)*)
 - Enterprise-grade CLI tooling with diagnostic capabilities
 - **FastAPI Service Layer**: 9 functional endpoints with WebSocket real-time streaming (Phase 1A Complete)
 - **Docker Production Environment**: Multi-stage containerized setup with health checks (Phase 1B Complete)
@@ -51,7 +51,7 @@ The platform architecture is grounded in cognitive science principles including:
 - **Dual-Process Theory**: Fast (System 1) and slow (System 2) thinking patterns
 - **Society of Mind**: Specialized agents working in coordination
 
-See [RESEARCH.md](../RESEARCH.md) for detailed theoretical foundations.
+See [RESEARCH.md](../advanced/research.md) for detailed theoretical foundations.
 
 ### 2.1 Core Functionality
 
@@ -68,7 +68,7 @@ The platform executes a 4-agent pipeline:
 - **Content Generation**: Multi-agent collaboration for comprehensive content creation
 - **Decision Support**: Critical evaluation and historical context integration
 
-See [LANDSCAPE.md](../LANDSCAPE.md) for positioning relative to other multi-agent systems and competitive analysis.
+See [LANDSCAPE.md](../advanced/landscape.md) for positioning relative to other multi-agent systems and competitive analysis.
 
 ### 2.3 Current Operational Status
 
@@ -201,16 +201,16 @@ The following sections describe each major component in detail, starting from th
 ### 4.1 Orchestration Layer
 
 #### LangGraphOrchestrator
-**Purpose**: Production StateGraph execution engine (see [ADR-001](ADR-001-Graph-Pattern-Architecture.md))  
+**Purpose**: Production StateGraph execution engine (see [ADR-001](adrs/001-graph-patterns.md))  
 **Key Features**:
 - StateGraph-based DAG execution with real LangGraph 0.6.4 integration
 - **Runtime Context API**: Thread-scoped execution tracking with enhanced observability
 - Parallel processing of independent agents
 - Type-safe state management with comprehensive TypedDict schemas
-- Circuit breaker patterns and robust error handling (see [ADR-003](ADR-003-Legacy-Cleanup-And-Future-Ready-Architecture.md))
+- Circuit breaker patterns and robust error handling (see ADR-003 *(Internal development documentation)*)
 - Memory checkpointing with optional LangGraph MemorySaver integration
 - Performance monitoring with execution timing and success tracking
-- Event emission for comprehensive observability (see [ADR-005](ADR-005-Event-Driven-Architecture-Implementation.md))
+- Event emission for comprehensive observability (see [ADR-005](adrs/005-event-driven.md))
 
 #### AdvancedOrchestrator
 **Purpose**: Sophisticated conditional routing and failure recovery  
@@ -235,7 +235,7 @@ CogniVault agents are classified across six dimensions to enable intelligent wor
 
 The classification system supports dynamic workflow composition, intelligent event routing, and service extraction readiness through clear architectural boundaries.
 
-*For complete technical specifications including classification tables, node interoperability matrices, event integration patterns, and implementation examples, see [Multi-Axis Classification and Advanced Node Types](AAD-002-Multi-Axis-Classification-And-Advanced-Node-Types.md).*
+*For complete technical specifications including classification tables, node interoperability matrices, event integration patterns, and implementation examples, see [Multi-Axis Classification and Advanced Node Types](adrs/002-conditional-patterns.md).*
 
 #### Core Agent Types
 
@@ -288,7 +288,7 @@ CogniVault supports five advanced node types for complex DAG-based workflow orch
 - Standard agent execution pattern (default behavior for existing agents)
 - Single-input, single-output processing with event emission
 
-*Technical implementation details including node interoperability rules, fallback patterns, event integration, and concrete implementation examples are provided in the [Multi-Axis Classification specification](AAD-002-Multi-Axis-Classification-And-Advanced-Node-Types.md).*
+*Technical implementation details including node interoperability rules, fallback patterns, event integration, and concrete implementation examples are provided in the [Multi-Axis Classification specification](adrs/002-conditional-patterns.md).*
 
 ### 4.3 Configuration System
 

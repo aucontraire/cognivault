@@ -263,7 +263,7 @@ curl -X GET "http://localhost:8000/api/workflows/academic_research"
 
 ## 🔄 WebSocket Real-Time Testing
 
-> **📚 Detailed Documentation**: For comprehensive information about the dual event emission architecture and event types, see [WebSocket Event Streams Documentation](./WEBSOCKET_EVENT_STREAMS.md).
+> **📚 Detailed Documentation**: For comprehensive information about the dual event emission architecture and event types, see [WebSocket Event Streams Documentation](websocket-streaming.md).
 
 ### **Live Workflow Progress Streaming** ⚡ **REAL-TIME FEATURE**
 

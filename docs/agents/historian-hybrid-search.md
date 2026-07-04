@@ -345,10 +345,10 @@ config = HistorianConfig(
 
 ## 📚 Additional Resources
 
-- **[Hybrid Search Flow Diagram](./HYBRID_SEARCH_FLOW.md)**: Visual architecture guide
-- **[Performance Tuning](./PERFORMANCE_TUNING.md)**: Optimization strategies  
-- **[Deployment Guide](./DEPLOYMENT_GUIDE.md)**: Production deployment steps
-- **[API Reference](./API_REFERENCE.md)**: Complete API documentation
+- **Hybrid Search Flow Diagram *(documentation pending)***: Visual architecture guide
+- **Performance Tuning *(documentation pending)***: Optimization strategies  
+- **Deployment Guide *(documentation pending)***: Production deployment steps
+- **API Reference *(documentation pending)***: Complete API documentation
 
 ---
 

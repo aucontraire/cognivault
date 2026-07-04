@@ -187,10 +187,10 @@ The system supports production deployment with:
 This observability system integrates with broader CogniVault architecture:
 
 ### Related Documentation
-- **[ADR-005: Event-Driven Architecture](./architecture/ADR-005-Event-Driven-Architecture-Implementation.md)** - Event system integration
-- **[ARCHITECTURE.md](./architecture/ARCHITECTURE.md)** - Overall system architecture and component relationships
-- **[CLI_USAGE.md](./CLI_USAGE.md)** - Diagnostic CLI commands and usage examples
-- **[ROADMAP.md](../ROADMAP.md)** - Strategic development timeline and observability enhancements
+- **[ADR-005: Event-Driven Architecture](../architecture/adrs/005-event-driven.md)** - Event system integration
+- **[ARCHITECTURE.md](../architecture/overview.md)** - Overall system architecture and component relationships
+- **[CLI_USAGE.md](../user-guide/cli-usage.md)** - Diagnostic CLI commands and usage examples
+- **ROADMAP.md *(see repository root: ROADMAP.md)*** - Strategic development timeline and observability enhancements
 
 ### System Positioning
 - **Current State**: Comprehensive observability operational with LangGraph 0.6.4 integration

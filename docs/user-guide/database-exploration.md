@@ -324,4 +324,4 @@ ORDER BY created_at DESC LIMIT 100
 - **Monitoring**: Set up alerts based on execution time and error rates
 - **Data Export**: Create scripts to export structured data for analysis
 
-For more information on the repository layer, see the [Database Architecture Documentation](ARCHITECTURE.md).
+For more information on the repository layer, see the Database Architecture Documentation *(documentation pending)*.
