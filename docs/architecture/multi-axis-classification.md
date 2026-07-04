@@ -1,5 +1,9 @@
 # AAD-002: Multi-Axis Classification and Advanced Node Types Integration
 
+!!! info "Status (2026-07): Accurate, with a caveat"
+
+    The classification axes documented here exist exactly as described in `agents/metadata.py`. However, they are currently **descriptive metadata only** — no orchestration or routing logic consumes them. Making them load-bearing is spec `003-adaptive-cognitive-execution`.
+
 ## Document Type
 **Architectural Analysis Document (AAD)**
 

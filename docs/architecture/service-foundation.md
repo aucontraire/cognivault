@@ -1,5 +1,9 @@
 # Service Architecture Foundation - LLMService Implementation Guide
 
+!!! warning "Status (2026-07): Partially aspirational"
+
+    The service container pattern and API boundary design are real. The sophisticated provider selection, cost-optimized routing, and health-monitoring behaviors described are not implemented.
+
 **Document Type**: Implementation Specification  
 **Related ADRs**: ADR-014 (LLMService Foundational Architecture), ADR-012 (Service Boundary Preparation)  
 **Target Audience**: Development Team, Architecture Team  

@@ -1,5 +1,9 @@
 # Enhanced Fields Cognitive Integration Architecture
 
+!!! warning "Status (2026-07): Aspirational design — not implemented"
+
+    The adaptive/meta-cognitive capabilities described here (mode selectors, cognitive load management, learning frameworks) do not exist in the codebase. Current structured outputs are the basic `RefinerOutput`/`CriticOutput`/`HistorianOutput`/`SynthesisOutput` models.
+
 **Document Type**: Cognitive Architecture Enhancement Guide  
 **Status**: Proposed - ADR-016 Implementation  
 **Last Updated**: August 20, 2025  

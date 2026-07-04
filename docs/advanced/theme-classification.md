@@ -1,5 +1,9 @@
 # Theme Classification Cognitive Architecture Integration
 
+!!! warning "Status (2026-07): Aspirational design — not implemented"
+
+    The theme classification axis and dual-process coordination described here are not present in the codebase. The existing 6-axis classification is stored as metadata only and does not drive orchestration.
+
 **Document Type**: Cognitive Architecture Enhancement Guide  
 **Status**: Current - Phase 1C Implementation  
 **Last Updated**: August 20, 2025  

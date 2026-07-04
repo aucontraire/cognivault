@@ -1,4 +1,8 @@
 # ISD-001: Cognitive Architecture Implementation Strategy
+
+!!! warning "Status (2026-07): Forward-looking roadmap — not current state"
+
+    This document describes a phased future strategy. Knowledge-graph services, the cognitive database layer, and semantic intelligence described here are not implemented. The API layer (Phase 1B) is real.
 **Bridging Vision to Practical Execution**
 
 **Status**: Proposed  

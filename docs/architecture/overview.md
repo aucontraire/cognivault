@@ -1,5 +1,9 @@
 # CogniVault System Architecture
 
+!!! info "Status (2026-07): Scope note"
+
+    The 4-agent pipeline, LangGraph orchestration, event system, API layer, and hybrid search described here are implemented and tested. References to cognitive intelligence, knowledge evolution, and semantic relationships describe direction, not current runtime behavior.
+
 **Version**: 1.1  
 **Document Status**: Current  
 **Last Updated**: July 29, 2025  

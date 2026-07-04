@@ -1,5 +1,9 @@
 # Cognitive Database Layer
 
+!!! warning "Status (2026-07): Partially aspirational"
+
+    The PostgreSQL + pgvector infrastructure is real. However, the cognitive tables (`cognitive_assessments`, `experience_patterns`, `knowledge_evolution`, etc.), the `CognitiveService`, embedding generation, and all GraphRAG sections describe unimplemented designs. `find_similar_by_embedding` exists but has no callers.
+
 **Advanced Intelligence Storage and Analytics for CogniVault**
 
 The Cognitive Database Layer provides sophisticated cognitive data storage, semantic intelligence, and analytics capabilities built on PostgreSQL 17 with pgvector integration. This system enables experience-based learning, knowledge evolution tracking, and comprehensive intelligence monitoring.
