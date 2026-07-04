@@ -11,6 +11,8 @@
 
 CogniVault is a **sophisticated multi-agent workflow orchestration system** that combines real LLM integration with LangGraph-based DAG orchestration, advanced node types, and comprehensive observability for intelligent agent coordination.
 
+📖 **Documentation:** Full guides, architecture, and API reference are available at **[aucontraire.github.io/cognivault](https://aucontraire.github.io/cognivault/)** — built with [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/).
+
 ## 🧠 **Core Innovation**: Multi-Agent DAG Platform
 
 CogniVault provides a sophisticated orchestration platform grounded in **cognitive science research** and validated through comprehensive testing:
