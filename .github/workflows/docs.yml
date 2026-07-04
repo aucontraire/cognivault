@@ -35,9 +35,7 @@ jobs:
         uses: snok/install-poetry@v1
 
       - name: Install dependencies
-        run: |
-          poetry install --no-interaction
-          poetry install --with docs --no-interaction
+        run: poetry install --no-interaction
 
       - name: Build documentation
         run: poetry run mkdocs build --strict
