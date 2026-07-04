@@ -22,6 +22,12 @@ src/cognivault/logs/
 coverage.json
 /src/cognivault/notes/*.md
 
+# Internal documentation (not for public docs)
+/.internal-docs/
+
+# MkDocs generated site
+/site/
+
 # System files
 .DS_Store
 
@@ -30,3 +36,6 @@ scripts/agents/refiner/outputs/*
 !scripts/agents/refiner/outputs/.gitkeep
 scripts/agents/critic/outputs/*
 !scripts/agents/critic/outputs/.gitkeep
+
+# Internal-only assessment docs (kept on disk, never committed)
+docs/assessments/

@@ -271,7 +271,7 @@ class TestOpenAIParameterCompatibility:
         """Test that parameter fixes prevent timeout cascades"""
 
         # Simulate the timeout cascade scenario that was occurring
-        cascade_scenarios = [
+        cascade_scenarios: list[Dict[str, Any]] = [
             {
                 "model": "gpt-5-nano",
                 "bad_params": {"max_tokens": 150, "temperature": 0.7},

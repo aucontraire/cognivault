@@ -1,0 +1,217 @@
+site_name: CogniVault
+site_description: Multi-agent workflow orchestration platform with LangGraph, cognitive intelligence, and real-time streaming
+site_author: CogniVault Contributors
+site_url: https://aucontraire.github.io/cognivault/
+
+repo_name: aucontraire/cognivault
+repo_url: https://github.com/aucontraire/cognivault
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_bases: true
+            show_submodules: false
+            members_order: source
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 88
+            merge_init_into_class: true
+            docstring_section_style: table
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - def_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+# Navigation organized per Diátaxis (https://diataxis.fr):
+# Tutorials (learning) / How-to guides (tasks) / Reference (information) / Explanation (understanding)
+nav:
+  - Home: index.md
+  - Tutorials:
+      - Quick Start: getting-started/quickstart.md
+      - Installation: getting-started/installation.md
+      - Your First Workflow: getting-started/first-workflow.md
+      - Configuration Basics: getting-started/configuration.md
+  - How-to Guides:
+      - Using CogniVault:
+          - CLI Usage: user-guide/cli-usage.md
+          - API Usage: user-guide/api-usage.md
+          - API Testing: user-guide/api-testing.md
+          - WebSocket Streaming: user-guide/websocket-streaming.md
+          - Markdown Export: user-guide/markdown-export.md
+          - Database Exploration: user-guide/database-exploration.md
+          - Semantic Validation: user-guide/semantic-validation.md
+          - Recipes:
+              - Translation: user-guide/recipes/translation.md
+      - Developing:
+          - Overview: development/index.md
+          - Setup Guide: development/setup.md
+          - Development Workflows: development/workflows.md
+          - Testing Guide: development/testing.md
+          - Code Quality: development/code-quality.md
+          - Contributing: development/contributing.md
+      - Maintaining:
+          - Release Process: maintaining/release-process.md
+          - Versioning: maintaining/versioning.md
+          - Security: maintaining/security.md
+          - Documentation Governance: DOCUMENTATION_GOVERNANCE.md
+  - Reference:
+      - API Reference:
+          - Overview: api/index.md
+          - Agents:
+              - Base Agent: api/agents/base.md
+              - Refiner: api/agents/refiner.md
+              - Historian: api/agents/historian.md
+              - Critic: api/agents/critic.md
+              - Synthesis: api/agents/synthesis.md
+          - Orchestration:
+              - Orchestrator: api/orchestration/orchestrator.md
+              - Workflow State: api/orchestration/state.md
+          - Database:
+              - Repository: api/database/repository.md
+              - Wiki Adapter: api/database/wiki.md
+          - Services:
+              - LangChain Service: api/services/langchain.md
+              - Event System: api/services/events.md
+      - Schemas & Requirements:
+          - Metadata Schema: api/metadata-schema.md
+          - OpenAI Schema Requirements: api/openai-requirements.md
+      - Agents:
+          - Overview: agents/overview.md
+          - Refiner Agent: agents/refiner.md
+          - Historian Agent: agents/historian.md
+          - Historian Hybrid Search: agents/historian-hybrid-search.md
+          - Historian Search Flow: agents/historian-search-flow.md
+          - Critic Agent: agents/critic.md
+          - Synthesis Agent: agents/synthesis.md
+          - Agent Configuration: agents/configuration.md
+      - Standards:
+          - Type Safety Standards: development/type-safety.md
+  - Explanation:
+      - Architecture:
+          - Overview: architecture/overview.md
+          - Cognitive Foundation: architecture/cognitive-foundation.md
+          - Multi-Agent System: architecture/multi-agent-system.md
+          - Multi-Axis Classification: architecture/multi-axis-classification.md
+          - Agent Taxonomy: architecture/agent-taxonomy.md
+          - Event-Driven Architecture: architecture/event-driven.md
+          - LangGraph Integration: architecture/langgraph.md
+          - Service Foundation: architecture/service-foundation.md
+          - Implementation Strategy: architecture/implementation-strategy.md
+          - Onboarding: architecture/onboarding.md
+      - Architectural Decisions:
+          - ADR Index: architecture/adrs.md
+          - ADR-001 Graph Patterns: architecture/adrs/001-graph-patterns.md
+          - ADR-002 Conditional Patterns: architecture/adrs/002-conditional-patterns.md
+          - ADR-005 Event-Driven: architecture/adrs/005-event-driven.md
+          - ADR-006 Configurable Prompts: architecture/adrs/006-configurable-prompts.md
+          - ADR-013 Strategic Evolution: architecture/adrs/013-strategic-evolution.md
+          - ADR-018 Model Selection: architecture/adrs/018-model-selection.md
+          - Decisions Register: development/DECISIONS.md
+          - Lessons Learned: development/LESSONS_LEARNED.md
+      - Advanced Topics:
+          - GraphRAG Integration: advanced/graphrag.md
+          - Cognitive Database Layer: advanced/cognitive-database.md
+          - Enhanced Fields: advanced/enhanced-fields.md
+          - Theme Classification: advanced/theme-classification.md
+          - Observability System: advanced/observability.md
+          - Pattern Registry: advanced/pattern-registry.md
+          - Research Foundations: advanced/research.md
+          - Competitive Landscape: advanced/landscape.md
+          - Performance Optimization: advanced/performance.md
+          - Performance Benchmarks: advanced/performance-benchmarks.md
+      - Assessments & Direction:
+          - Project Roadmap: maintaining/roadmap.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/aucontraire/cognivault
+  version:
+    provider: mike
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: This page was helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: This page could be improved
+          data: 0
+          note: >-
+            Thanks for your feedback! Help us improve by
+            <a href="https://github.com/aucontraire/cognivault/issues/new/?title=[Docs]+{title}+-+{url}" target="_blank" rel="noopener">opening an issue</a>.

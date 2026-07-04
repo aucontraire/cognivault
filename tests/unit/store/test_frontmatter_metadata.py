@@ -8,6 +8,8 @@ Tests verify that:
 4. Agent-specific metadata fields are properly captured
 """
 
+from pathlib import Path
+
 import pytest
 from typing import Dict, Any
 from cognivault.store.wiki_adapter import MarkdownExporter
@@ -372,7 +374,7 @@ class TestSummaryGeneration:
 class TestBackwardCompatibility:
     """Test backward compatibility with existing code."""
 
-    def test_exporter_handles_mixed_output_types(self, tmp_path) -> None:
+    def test_exporter_handles_mixed_output_types(self, tmp_path: Path) -> None:
         """Test that exporter handles mix of string and structured outputs."""
         exporter = MarkdownExporter(output_dir=str(tmp_path))
 
@@ -414,7 +416,7 @@ class TestBackwardCompatibility:
 class TestIntegrationWithEnhancedFrontmatter:
     """Test integration with the enhanced frontmatter system."""
 
-    def test_build_frontmatter_uses_extracted_metadata(self, tmp_path) -> None:
+    def test_build_frontmatter_uses_extracted_metadata(self, tmp_path: Path) -> None:
         """Test that _build_enhanced_frontmatter uses extracted metadata."""
         exporter = MarkdownExporter(output_dir=str(tmp_path))
 
@@ -444,7 +446,7 @@ class TestIntegrationWithEnhancedFrontmatter:
         assert refiner_result.confidence == 0.9
         assert refiner_result.processing_time_ms == 150
 
-    def test_build_frontmatter_uses_generated_summary(self, tmp_path) -> None:
+    def test_build_frontmatter_uses_generated_summary(self, tmp_path: Path) -> None:
         """Test that _build_enhanced_frontmatter uses generated summary."""
         exporter = MarkdownExporter(output_dir=str(tmp_path))
 
