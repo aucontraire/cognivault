@@ -15,12 +15,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from cognivault.database.repositories.factory import RepositoryFactory
 from cognivault.database.session_factory import (
     DatabaseSessionFactory,
     get_database_session_factory,
 )
 from cognivault.events.emitter import emit_agent_execution_completed
 from cognivault.knowledge.config import KnowledgePersistenceConfig
+from cognivault.knowledge.embedding import EmbeddingError, EmbeddingService
 from cognivault.observability import get_logger
 from cognivault.store.topic_manager import TopicManager, TopicSuggestion
 
@@ -48,20 +50,33 @@ class KnowledgePersistenceService:
         session_factory: DatabaseSessionFactory,
         topic_manager: TopicManager,
         config: KnowledgePersistenceConfig,
+        embedding_service: Optional[EmbeddingService] = None,
     ) -> None:
         self._session_factory = session_factory
         self._topic_manager = topic_manager
         self._config = config
+        self._embedding_service = embedding_service
 
     @classmethod
     def from_defaults(cls) -> "KnowledgePersistenceService":
         """Build with the process-wide session factory, a default TopicManager, and
         ``KnowledgePersistenceConfig.from_env`` — cheap and side-effect-free (no DB
-        connection until ``persist_run``)."""
+        connection until ``persist_run``). The embedding service is optional: with no
+        API key configured, topics persist with null embeddings (recoverable via backfill).
+        """
+        embedding_service: Optional[EmbeddingService] = None
+        try:
+            embedding_service = EmbeddingService.from_env()
+        except Exception:
+            logger.info(
+                "Embedding service unavailable (no OPENAI_API_KEY?); "
+                "topics will persist without embeddings"
+            )
         return cls(
             session_factory=get_database_session_factory(),
             topic_manager=TopicManager(),
             config=KnowledgePersistenceConfig.from_env(),
+            embedding_service=embedding_service,
         )
 
     async def persist_run(
@@ -135,14 +150,25 @@ class KnowledgePersistenceService:
             topic_ids: List[UUID] = []
             primary_id: Optional[UUID] = None
             best_confidence = -1.0
+            new_topics: List[tuple[UUID, str]] = []  # (id, embedding input text)
             for suggestion in qualifying:
-                topic, _created = await repo.topics.get_or_create_by_canonical_name(
+                topic, created = await repo.topics.get_or_create_by_canonical_name(
                     suggestion.topic, description=suggestion.reasoning
                 )
                 topic_ids.append(topic.id)
+                if created:
+                    text = suggestion.topic
+                    if suggestion.reasoning:
+                        text = f"{suggestion.topic} — {suggestion.reasoning}"
+                    new_topics.append((topic.id, text))
                 if suggestion.confidence > best_confidence:
                     best_confidence = suggestion.confidence
                     primary_id = topic.id
+
+            # Embed newly created topics (FR-004); failures leave null for backfill.
+            embeddings_written, embeddings_deferred = await self._embed_new_topics(
+                repo, new_topics
+            )
 
             # Persist the question (linked to the primary topic).
             question = await repo.questions.create_question(
@@ -174,10 +200,41 @@ class KnowledgePersistenceService:
                 primary_topic_id=primary_id,
                 wiki_entry_id=wiki_id,
                 suggestions_filtered=len(filtered),
+                embeddings_written=embeddings_written,
+                embeddings_deferred=embeddings_deferred,
             )
 
         await self._emit_event(result, filtered, correlation_id, execution_id)
         return result
+
+    async def _embed_new_topics(
+        self, repo: RepositoryFactory, new_topics: List[tuple[UUID, str]]
+    ) -> tuple[int, int]:
+        """Embed newly created topics, capped per run. Returns (written, deferred).
+
+        On embedding failure the topics are left with null embeddings, recoverable via
+        the backfill command (FR-004). Topics beyond the per-run cap are also deferred.
+        """
+        if self._embedding_service is None or not new_topics:
+            return 0, len(new_topics)
+        capped = new_topics[: self._config.max_embedding_calls_per_run]
+        deferred = len(new_topics) - len(capped)
+        try:
+            results = await self._embedding_service.embed_batch(
+                [text for _id, text in capped]
+            )
+        except EmbeddingError as exc:
+            logger.warning(
+                f"Embedding failed; {len(new_topics)} topics left null for backfill: {exc}"
+            )
+            return 0, len(new_topics)
+        written = 0
+        for (topic_id, _text), embedding in zip(capped, results):
+            if await repo.topics.update_embedding(topic_id, embedding.vector):
+                written += 1
+            else:
+                deferred += 1
+        return written, deferred
 
     @staticmethod
     def _extract_synthesis(

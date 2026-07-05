@@ -6,6 +6,7 @@ legacy orchestration, declarative workflows, and system diagnostics.
 """
 
 import typer
+from .knowledge_commands import knowledge_app
 from .workflow_commands import workflow_app
 
 # Import and re-export all functions needed for backward compatibility
@@ -51,6 +52,7 @@ app = typer.Typer(
 
 # Add command groups
 app.add_typer(workflow_app, name="workflow", help="Declarative workflow operations")
+app.add_typer(knowledge_app, name="knowledge", help="Knowledge-base maintenance")
 
 
 # Add main commands directly to root (for backward compatibility)
