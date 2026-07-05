@@ -383,6 +383,25 @@ class HistorianAgent(BaseAgent):
             db_results = await self._search_database_content(query, db_limit)
             all_results.extend(db_results)
 
+            # Step 2b: Semantic (topic-embedding) search — additive and flag-gated.
+            # When disabled (the default) this block is skipped ENTIRELY, so results are
+            # byte-for-byte identical to today's keyword-only hybrid search: zero
+            # regression risk. SemanticSearch never raises (degrades to empty), so even
+            # when enabled it can only add results, never break the run.
+            if self.config.semantic_search_enabled:
+                from cognivault.agents.historian.search import SemanticSearch
+
+                semantic_limit = max(
+                    1, round(search_limit * self.config.semantic_search_weight)
+                )
+                semantic_results = await SemanticSearch().search(query, semantic_limit)
+                all_results.extend(semantic_results)
+                self.logger.info(
+                    f"[{self.name}] [DEBUG] Semantic search added "
+                    f"{len(semantic_results)} results (weight="
+                    f"{self.config.semantic_search_weight:.2f})"
+                )
+
             # Step 3: Remove duplicates and rank by relevance
             deduplicated_results = self._deduplicate_search_results(all_results)
 
