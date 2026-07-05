@@ -28,7 +28,7 @@ class TestDatabaseEnvironment:
     LOCAL_TEST_URL = (
         "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
     )
-    DOCKER_TEST_URL = "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5435/cognivault"  # Docker container port
+    DOCKER_TEST_URL = "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5440/cognivault"  # Docker container port
     CI_TEST_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/test_db"
 
     # Environment-specific configurations
@@ -185,7 +185,7 @@ class TestDatabaseConfigFactory:
         if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
             return "ci"
 
-        # Check if Docker database is available (port 5435)
+        # Check if Docker database is available (port 5440)
         docker_url = TestDatabaseEnvironment.DOCKER_TEST_URL
         if cls._is_database_available(docker_url):
             return "docker"

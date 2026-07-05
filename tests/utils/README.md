@@ -68,10 +68,10 @@ async def setup_test_database():
 - **Use Case**: Local PostgreSQL instance
 
 ### Docker Container
-- **URL**: `postgresql+asyncpg://cognivault:cognivault_dev@localhost:5435/cognivault`
+- **URL**: `postgresql+asyncpg://cognivault:cognivault_dev@localhost:5440/cognivault`
 - **Pool Size**: 3 connections  
 - **SSL**: Disabled
-- **Use Case**: Docker Compose test database (port 5435)
+- **Use Case**: Docker Compose test database (port 5440)
 
 ### CI/GitHub Actions
 - **URL**: `postgresql+asyncpg://postgres:postgres@localhost:5432/test_db`
@@ -84,7 +84,7 @@ async def setup_test_database():
 The system automatically detects the appropriate environment:
 
 1. **CI Detection**: Checks for `CI` or `GITHUB_ACTIONS` environment variables
-2. **Docker Detection**: Tests connectivity to port 5435 (Docker container)
+2. **Docker Detection**: Tests connectivity to port 5440 (Docker container)
 3. **Local Fallback**: Uses local PostgreSQL on port 5432
 
 ## Environment Variable Overrides
@@ -209,7 +209,7 @@ Test database connectivity directly:
 psql -h localhost -p 5432 -U cognivault -d cognivault
 
 # Test Docker container
-psql -h localhost -p 5435 -U cognivault -d cognivault
+psql -h localhost -p 5440 -U cognivault -d cognivault
 ```
 
 ## Integration with CI/CD
