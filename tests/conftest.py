@@ -10,36 +10,39 @@ import pytest
 # Note: Database test fixtures removed to avoid import conflicts
 # from tests.infrastructure.test_database_manager import temp_database, database_config
 
-# The local test database (docker-compose.dev.yml postgres, host port 5440). Kept in sync
-# with TestDatabaseEnvironment.DOCKER_TEST_URL.
+# The one database tests may use: the local test container (docker-compose postgres, 5440).
+# Kept in sync with TestDatabaseEnvironment.DOCKER_TEST_URL.
+_TEST_DB_PORT = 5440
 _TEST_DATABASE_URL = (
     "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5440/cognivault"
 )
 
 
 def _looks_like_dev_database(url: str | None) -> bool:
-    """True if the URL points at the local DEV database (localhost:5432/cognivault)."""
+    """True if the URL is a local DEV database — any local Postgres that is NOT the test
+    DB (port 5440) and is not test-named. This intentionally covers BOTH the native dev DB
+    (5432) and the docker dev DB (5441): tests must never write to either."""
     if not url:
         return False
     from urllib.parse import urlparse
 
     parsed = urlparse(url)
+    if parsed.hostname not in ("localhost", "127.0.0.1"):
+        return False  # remote (e.g. CI) → assume intentional
     dbname = (parsed.path or "").lstrip("/")
-    return (
-        parsed.hostname in ("localhost", "127.0.0.1")
-        and parsed.port == 5432
-        and "test" not in dbname
-    )
+    if "test" in dbname:
+        return False  # explicitly a test database
+    return parsed.port != _TEST_DB_PORT
 
 
 def _guard_test_database() -> None:
     """Refuse to run tests against the DEV database, and default DB access to the test DB.
 
     Without this, an unset ``DATABASE_URL`` (app path) or unset ``TEST_DATABASE_URL``
-    (test-config path) both fall back to the dev database (localhost:5432/cognivault), so
-    DB-writing tests silently pollute real data. This guards both paths: it fails fast if
-    either var explicitly points at the dev DB, and otherwise defaults both to the local
-    test DB (5440) so nothing falls back to dev. Set COGNIVAULT_ALLOW_DEV_DB=1 to override.
+    (test-config path) both fall back to a dev database, so DB-writing tests silently
+    pollute real data. This guards both paths: it fails fast if either var points at a dev
+    database (the native 5432 or the docker 5441 dev DB), and otherwise defaults both to
+    the local test DB (5440) so nothing falls back to dev. Override: COGNIVAULT_ALLOW_DEV_DB=1.
     """
     import os
 
@@ -48,10 +51,10 @@ def _guard_test_database() -> None:
     for var in ("DATABASE_URL", "TEST_DATABASE_URL"):
         if _looks_like_dev_database(os.environ.get(var)):
             pytest.exit(
-                f"Refusing to run: {var} points at the DEV database "
-                f"(localhost:5432/cognivault). Tests would pollute real data. Unset it to "
-                f"use the local test DB (5440, `make db-test-setup`), point it at a test "
-                f"database, or set COGNIVAULT_ALLOW_DEV_DB=1 to override.",
+                f"Refusing to run: {var}={os.environ.get(var)!r} points at a DEV database "
+                f"(not the test DB on port {_TEST_DB_PORT}). Tests would pollute real data. "
+                f"Unset it to use the local test DB (5440, `make db-test-setup`), point it "
+                f"at a test database, or set COGNIVAULT_ALLOW_DEV_DB=1 to override.",
                 returncode=3,
             )
     # Default both resolution paths to the test DB so nothing falls back to dev.

@@ -82,11 +82,10 @@ class DatabaseConfig:
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
             # Provide default for development, but warn
-            database_url = (
-                "postgresql+asyncpg://postgres:postgres@localhost:5432/cognivault"
-            )
+            database_url = "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5441/cognivault"
             logger.warning(
-                "DATABASE_URL not set, using development default: postgresql+asyncpg://localhost:5432/cognivault"
+                "DATABASE_URL not set, using development default (docker dev DB): "
+                "postgresql+asyncpg://localhost:5441/cognivault"
             )
 
         # Validate database URL format
