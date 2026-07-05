@@ -2,9 +2,11 @@
 Topic repository with semantic search and hierarchical operations.
 """
 
+import re
 from uuid import UUID
 
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +16,18 @@ from cognivault.observability import get_logger
 from .base import BaseRepository
 
 logger = get_logger(__name__)
+
+
+def canonicalize(name: str) -> str:
+    """Canonical dedup key for a topic name.
+
+    Strip, case-fold, collapse internal whitespace, and truncate to the 255-char
+    column width. Raises ValueError if the result is empty (FR-002; data-model §3).
+    """
+    canonical = re.sub(r"\s+", " ", name.strip().casefold())[:255]
+    if not canonical:
+        raise ValueError(f"Topic name canonicalizes to empty: {name!r}")
+    return canonical
 
 
 class TopicRepository(BaseRepository[Topic]):
@@ -48,6 +62,7 @@ class TopicRepository(BaseRepository[Topic]):
         """
         return await self.create(
             name=name,
+            canonical_name=canonicalize(name),
             description=description,
             parent_topic_id=parent_topic_id,
             embedding=embedding,
@@ -71,6 +86,44 @@ class TopicRepository(BaseRepository[Topic]):
         except Exception as e:
             logger.error(f"Failed to get topic by name {name}: {e}")
             raise
+
+    async def get_by_canonical_name(self, canonical_name: str) -> Topic | None:
+        """Get a topic by its canonical (deduplication) name."""
+        stmt = select(Topic).where(Topic.canonical_name == canonical_name)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_or_create_by_canonical_name(
+        self,
+        name: str,
+        description: str | None = None,
+        embedding: list[float] | None = None,
+    ) -> tuple[Topic, bool]:
+        """Return ``(topic, created)``, deduplicating by canonical name.
+
+        Concurrency-safe (FR-002 / FR-012): if a racing writer inserts the same
+        canonical name first, the resulting unique-constraint ``IntegrityError`` is
+        caught, the session rolled back, and the existing row re-fetched — so
+        concurrent runs of the same topic resolve to exactly one row (SC-005).
+        """
+        canonical = canonicalize(name)
+        existing = await self.get_by_canonical_name(canonical)
+        if existing is not None:
+            return existing, False
+        try:
+            topic = await self.create(
+                name=name,
+                canonical_name=canonical,
+                description=description,
+                embedding=embedding,
+            )
+            return topic, True
+        except IntegrityError:
+            await self.session.rollback()
+            existing = await self.get_by_canonical_name(canonical)
+            if existing is None:
+                raise
+            return existing, False
 
     async def search_by_name(self, query: str, limit: int = 10) -> list[Topic]:
         """
