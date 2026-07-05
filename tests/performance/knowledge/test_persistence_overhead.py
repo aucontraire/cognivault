@@ -82,9 +82,9 @@ async def test_persistence_step_overhead_within_budget() -> None:
             f"median={median_ms:.1f}ms p95={p95_ms:.1f}ms "
             f"(budget {OVERHEAD_BUDGET_MS:.0f}ms)"
         )
-        assert (
-            median_ms < OVERHEAD_BUDGET_MS
-        ), f"persistence step median {median_ms:.1f}ms exceeds budget"
+        assert median_ms < OVERHEAD_BUDGET_MS, (
+            f"persistence step median {median_ms:.1f}ms exceeds budget"
+        )
     finally:
         async with get_database_session() as session:
             for cid in correlations:
