@@ -65,7 +65,7 @@ class TestDatabaseConfig:
 
         # Should use development default URL
         assert "postgresql+asyncpg" in config.database_url
-        assert "localhost:5432/cognivault" in config.database_url
+        assert "localhost:5441/cognivault" in config.database_url
         assert config.echo_sql is False
         assert config.pool_size == 20  # default
         assert config.max_overflow == 30  # default
@@ -306,5 +306,5 @@ class TestGlobalDatabaseConfig:
 
         # Should create config with development defaults
         assert "postgresql+asyncpg" in config.database_url
-        assert "localhost:5432/cognivault" in config.database_url
+        assert "localhost:5441/cognivault" in config.database_url
         assert config.pool_size == 20
