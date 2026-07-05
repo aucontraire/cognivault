@@ -5,16 +5,21 @@ This file ensures that tests run in a safe environment without making
 real API calls or depending on external services.
 """
 
+import os
+
 import pytest
 
 # Note: Database test fixtures removed to avoid import conflicts
 # from tests.infrastructure.test_database_manager import temp_database, database_config
 
-# The one database tests may use: the local test container (docker-compose postgres, 5440).
-# Kept in sync with TestDatabaseEnvironment.DOCKER_TEST_URL.
-_TEST_DB_PORT = 5440
+# The one database tests may use: the local test container (docker-compose `postgres`
+# service). Port + credentials come from the same POSTGRES_* vars docker-compose uses, so
+# overriding them keeps the guard, the app, and the container in sync.
+_TEST_DB_PORT = int(os.getenv("POSTGRES_TEST_PORT", "5440"))
 _TEST_DATABASE_URL = (
-    "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5440/cognivault"
+    f"postgresql+asyncpg://{os.getenv('POSTGRES_USER', 'cognivault')}:"
+    f"{os.getenv('POSTGRES_PASSWORD', 'cognivault_dev')}@localhost:"
+    f"{_TEST_DB_PORT}/{os.getenv('POSTGRES_DB', 'cognivault')}"
 )
 
 
@@ -44,8 +49,6 @@ def _guard_test_database() -> None:
     database (the native 5432 or the docker 5441 dev DB), and otherwise defaults both to
     the local test DB (5440) so nothing falls back to dev. Override: COGNIVAULT_ALLOW_DEV_DB=1.
     """
-    import os
-
     if os.environ.get("COGNIVAULT_ALLOW_DEV_DB") == "1":
         return
     for var in ("DATABASE_URL", "TEST_DATABASE_URL"):
@@ -97,8 +100,6 @@ def safe_test_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # Set environment variables before any modules are imported
-import os
-
 # Enable event system for all tests to ensure consistent behavior
 os.environ["COGNIVAULT_EVENTS_ENABLED"] = "true"
 os.environ["COGNIVAULT_EVENTS_IN_MEMORY"] = "true"

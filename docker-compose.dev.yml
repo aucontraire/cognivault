@@ -14,7 +14,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cognivault}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cognivault_dev}
     ports:
-      - "5440:5432"
+      - "${POSTGRES_TEST_PORT:-5440}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -33,7 +33,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cognivault}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cognivault_dev}
     ports:
-      - "5441:5432"
+      - "${POSTGRES_DEV_PORT:-5441}:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

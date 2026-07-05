@@ -26,6 +26,23 @@ embeddings with `cognivault knowledge backfill-embeddings [--dry-run] [--limit N
 [Historian Hybrid Search guide](../agents/historian-hybrid-search.md#semantic-search-optional-tier)
 for the semantic tier.
 
+### Database Connection
+
+Both the dev and test databases run as Docker containers (`docker-compose.dev.yml`). Point
+the app at any database with `DATABASE_URL` (and tests with `TEST_DATABASE_URL`) for full
+control; otherwise these `POSTGRES_*` vars set the defaults for the containers **and** the
+app, so they stay in sync:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `POSTGRES_DEV_PORT` | `5441` | Host port for the dev database container. |
+| `POSTGRES_TEST_PORT` | `5440` | Host port for the test database container (tests refuse any other local DB). |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `cognivault` / `cognivault_dev` / `cognivault` | Credentials + name shared by the containers and the app default. |
+
+Override a port when 5440/5441 are taken, e.g.
+`POSTGRES_DEV_PORT=6441 docker compose -f docker-compose.dev.yml up postgres-dev -d`, and
+keep the same value in the shell that runs the app/tests so they resolve to the same port.
+
 Other environment variables — content to be added.
 
 ## Configuration Files

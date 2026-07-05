@@ -1,5 +1,9 @@
 .PHONY: install test run run-safe lint format typecheck typecheck-strict typecheck-tests typecheck-tests-strict check check-strict clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore db-test-start db-test-stop db-test-status db-test-setup test-integration test-pydantic-ai
 
+# Test database host port (override: `make db-test-setup POSTGRES_TEST_PORT=5450`).
+# Must match POSTGRES_TEST_PORT used by docker-compose.dev.yml.
+POSTGRES_TEST_PORT ?= 5440
+
 install:
 	bash scripts/setup.sh
 
@@ -78,7 +82,7 @@ db-test-start:
 	docker compose -f docker-compose.dev.yml up postgres -d
 	@echo "⏳ Waiting for database to be healthy..."
 	@timeout 30 sh -c 'until docker compose -f docker-compose.dev.yml ps postgres | grep -q "healthy"; do sleep 1; done'
-	@echo "✅ Test database ready on port 5440!"
+	@echo "✅ Test database ready on port $(POSTGRES_TEST_PORT)!"
 
 db-test-stop:
 	@echo "🛑 Stopping test database container..."
@@ -90,11 +94,11 @@ db-test-status:
 	@docker compose -f docker-compose.dev.yml ps postgres
 
 db-test-setup:
-	@echo "🔧 Setting up test database (start + apply migrations on port 5440)..."
+	@echo "🔧 Setting up test database (start + apply migrations on port $(POSTGRES_TEST_PORT))..."
 	@$(MAKE) db-test-start
 	@echo "⏳ Applying migrations to the test database..."
-	DATABASE_URL="postgresql+asyncpg://cognivault:cognivault_dev@localhost:5440/cognivault" TESTING=false DB_POOL_SIZE=20 poetry run alembic upgrade head
-	@echo "✅ Test database ready with schema on port 5440!"
+	DATABASE_URL="postgresql+asyncpg://cognivault:cognivault_dev@localhost:$(POSTGRES_TEST_PORT)/cognivault" TESTING=false DB_POOL_SIZE=20 poetry run alembic upgrade head
+	@echo "✅ Test database ready with schema on port $(POSTGRES_TEST_PORT)!"
 
 db-check-deps:
 	@echo "🔍 Checking system dependencies..."
