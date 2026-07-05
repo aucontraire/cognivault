@@ -237,14 +237,16 @@ class TopicRepository(BaseRepository[Topic]):
             # Convert embedding to pgvector format
             embedding_str = "[" + ",".join(map(str, embedding)) + "]"
 
-            # Use cosine similarity (1 - cosine_distance)
+            # Use cosine similarity (1 - cosine_distance). Use CAST(... AS vector)
+            # rather than the `::vector` shorthand: SQLAlchemy text() would otherwise
+            # misparse `::` and treat `:vector` as a bind parameter.
             stmt = text(
                 """
                 SELECT topics.*,
-                       (1 - (embedding <=> :embedding::vector)) as similarity
+                       (1 - (embedding <=> CAST(:embedding AS vector))) as similarity
                 FROM topics
                 WHERE embedding IS NOT NULL
-                AND (1 - (embedding <=> :embedding::vector)) >= :threshold
+                AND (1 - (embedding <=> CAST(:embedding AS vector))) >= :threshold
                 ORDER BY similarity DESC
                 LIMIT :limit
             """
