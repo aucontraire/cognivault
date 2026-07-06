@@ -17,7 +17,11 @@ flowchart TD
     
     F --> G[📄 File Search Task]
     F --> H[🗄️ Database Search Task]
-    
+    F --> SS{🧠 Semantic Search Enabled?}
+
+    SS -->|"true (opt-in)"| ST[🧠 Semantic Search<br/>topic-embedding matches<br/>empty on any failure]
+    SS -->|false| SK[⏭️ Skip semantic tier]
+
     G --> I{✅ File Results?}
     H --> J{✅ DB Results?}
     
@@ -30,6 +34,8 @@ flowchart TD
     M --> O
     L --> O
     N --> O
+    ST --> O
+    SK --> O
     
     O --> P[📈 Rank by Relevance Score]
     P --> Q[✂️ Apply Total Result Limit]
@@ -51,6 +57,10 @@ flowchart TD
 ### Hybrid Search Configuration
 - **`hybrid_search_enabled=False`**: Legacy mode, files-only search
 - **`hybrid_search_enabled=True`** (recommended): Hybrid execution with configurable file/database split
+
+### Semantic Search Tier (optional)
+- **`semantic_search_enabled=False`** (default): the tier is skipped entirely — results are byte-for-byte identical to keyword-only hybrid search (zero regression).
+- **`semantic_search_enabled=True`**: after the file/database tiers, the query is embedded and matched against persisted topic embeddings (pgvector); matched content is blended into the ranked results (`semantic_search_weight` controls its share). Requires `OPENAI_API_KEY` and topics that already have embeddings. It degrades to an empty contribution on any failure (no key, provider down, DB unreachable) — it never raises into the Historian.
 
 ### Fallback Mechanisms
 1. **Database Failure** → Continue with markdown results only

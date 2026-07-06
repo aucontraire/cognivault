@@ -2,7 +2,7 @@
 
 !!! warning "Status (2026-07): Partially aspirational"
 
-    The PostgreSQL + pgvector infrastructure is real. However, the cognitive tables (`cognitive_assessments`, `experience_patterns`, `knowledge_evolution`, etc.), the `CognitiveService`, embedding generation, and all GraphRAG sections describe unimplemented designs. `find_similar_by_embedding` exists but has no callers.
+    The PostgreSQL + pgvector infrastructure is real, and feature 002 added topic-level **embedding generation** (`EmbeddingService` in the `knowledge` module) plus semantic retrieval — `find_similar_by_embedding` now has a caller (the Historian's `SemanticSearch`). The cognitive tables (`cognitive_assessments`, `experience_patterns`, `knowledge_evolution`, etc.), the `CognitiveService`, and the GraphRAG sections on this page remain unimplemented designs.
 
 **Advanced Intelligence Storage and Analytics for CogniVault**
 
