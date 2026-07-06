@@ -85,6 +85,13 @@ def safe_test_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_MODEL", "gpt-3.5-turbo")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
+    # Neutralize opt-in feature flags so a developer's local .env (auto-loaded via
+    # load_dotenv at import) can't change test behavior — e.g. persisting during
+    # orchestration tests. Tests that exercise these set explicit config objects
+    # (KnowledgePersistenceConfig / HistorianConfig) instead of relying on the env var.
+    monkeypatch.setenv("KNOWLEDGE_PERSISTENCE_ENABLED", "false")
+    monkeypatch.setenv("HISTORIAN_SEMANTIC_SEARCH_ENABLED", "false")
+
     # Enable event system for all tests to ensure consistent behavior
     monkeypatch.setenv("COGNIVAULT_EVENTS_ENABLED", "true")
     monkeypatch.setenv("COGNIVAULT_EVENTS_IN_MEMORY", "true")
