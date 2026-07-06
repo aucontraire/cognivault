@@ -36,7 +36,7 @@ from cognivault.observability import get_logger
 logger = get_logger("performance.systemic_regression")
 
 
-class PerformanceProfiler:
+class ProfilingContext:
     """Context manager for detailed performance profiling."""
 
     def __init__(self, operation_name: str):
@@ -48,7 +48,7 @@ class PerformanceProfiler:
         self.memory_start: Optional[Any] = None
         self.memory_end: Optional[Any] = None
 
-    def __enter__(self) -> "PerformanceProfiler":
+    def __enter__(self) -> "ProfilingContext":
         self.start_time = time.time()
         self.cpu_percent_start = psutil.cpu_percent()
         self.memory_start = psutil.Process().memory_info()
@@ -147,7 +147,7 @@ class TestAPILatencyIsolation(SystemicPerformanceTest):
         models_to_test = ["gpt-4o-mini", "gpt-4o", "gpt-5"]
 
         for model in models_to_test:
-            with PerformanceProfiler(f"raw_api_{model}") as profiler:
+            with ProfilingContext(f"raw_api_{model}") as profiler:
                 try:
                     # Simple completion to measure pure API latency
                     completion = await client.chat.completions.create(
@@ -203,7 +203,7 @@ class TestAPILatencyIsolation(SystemicPerformanceTest):
         # Test with RefinerOutput schema (simplest agent schema)
         refiner_schema = RefinerOutput.model_json_schema()
 
-        with PerformanceProfiler("structured_api_refiner") as profiler:
+        with ProfilingContext("structured_api_refiner") as profiler:
             try:
                 completion = await client.beta.chat.completions.parse(
                     model="gpt-5",
@@ -260,7 +260,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
         """Measure LangChainService initialization time."""
 
         # Test traditional initialization (pre-pool)
-        with PerformanceProfiler("langchain_traditional_init") as profiler:
+        with ProfilingContext("langchain_traditional_init") as profiler:
             service = LangChainService(
                 model="gpt-4o-mini",
                 temperature=0.1,
@@ -274,7 +274,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
         self.record_performance("langchain_init", traditional_data)
 
         # Test pooled initialization
-        with PerformanceProfiler("langchain_pooled_init") as profiler:
+        with ProfilingContext("langchain_pooled_init") as profiler:
             service_pooled = LangChainService(
                 model=None,  # Let pool choose
                 agent_name="refiner",
@@ -302,7 +302,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
     async def test_model_discovery_overhead(self) -> None:
         """Measure model discovery service overhead."""
 
-        with PerformanceProfiler("model_discovery") as profiler:
+        with ProfilingContext("model_discovery") as profiler:
             discovery_service = ModelDiscoveryService(
                 enable_discovery=True, fallback_on_error=True
             )
@@ -338,7 +338,7 @@ class TestIntegrationLayerProfiling(SystemicPerformanceTest):
         ]
 
         for schema_name, schema_class in schemas_to_test:
-            with PerformanceProfiler(f"schema_prep_{schema_name}") as profiler:
+            with ProfilingContext(f"schema_prep_{schema_name}") as profiler:
                 service = LangChainService(
                     model="gpt-5", use_discovery=False, use_pool=False
                 )
@@ -396,7 +396,7 @@ class TestResourceBottleneckDetection(SystemicPerformanceTest):
         agents = ["refiner", "historian", "critic", "synthesis"]
 
         # Test sequential vs concurrent creation
-        with PerformanceProfiler("sequential_agent_creation") as profiler:
+        with ProfilingContext("sequential_agent_creation") as profiler:
             sequential_results = []
             for agent in agents:
                 result = await create_agent_service(agent)
@@ -415,7 +415,7 @@ class TestResourceBottleneckDetection(SystemicPerformanceTest):
         # Reset pool for fair comparison
         LLMServicePool.reset_instance()
 
-        with PerformanceProfiler("concurrent_agent_creation") as profiler:
+        with ProfilingContext("concurrent_agent_creation") as profiler:
             concurrent_results = await asyncio.gather(
                 *[create_agent_service(agent) for agent in agents],
                 return_exceptions=True,
@@ -499,7 +499,7 @@ class TestFallbackChainAnalysis(SystemicPerformanceTest):
         native_durations = []
 
         for i in range(native_attempts):
-            with PerformanceProfiler(f"native_attempt_{i}") as profiler:
+            with ProfilingContext(f"native_attempt_{i}") as profiler:
                 try:
                     # Force native method by mocking fallback
                     with patch.object(
@@ -522,7 +522,7 @@ class TestFallbackChainAnalysis(SystemicPerformanceTest):
         fallback_durations = []
 
         for i in range(fallback_attempts):
-            with PerformanceProfiler(f"fallback_attempt_{i}") as profiler:
+            with ProfilingContext(f"fallback_attempt_{i}") as profiler:
                 try:
                     # Force fallback by mocking native method
                     with patch.object(
@@ -598,7 +598,7 @@ class TestEndToEndPerformanceRegression(SystemicPerformanceTest):
         ]
 
         for i, test_case in enumerate(test_cases):
-            with PerformanceProfiler(f"refiner_baseline_{i}") as profiler:
+            with ProfilingContext(f"refiner_baseline_{i}") as profiler:
                 try:
                     result = await service.get_structured_output(
                         f"Refine this question: '{test_case}'. Provide a refined question and confidence score.",
@@ -643,7 +643,7 @@ class TestEndToEndPerformanceRegression(SystemicPerformanceTest):
         test_prompt = "Refine: 'What is AI?' Provide refined question and confidence."
 
         # Traditional approach (pre-pool)
-        with PerformanceProfiler("traditional_approach") as profiler:
+        with ProfilingContext("traditional_approach") as profiler:
             traditional_service = LangChainService(
                 model="gpt-5", agent_name="refiner", use_pool=False, use_discovery=False
             )
@@ -666,7 +666,7 @@ class TestEndToEndPerformanceRegression(SystemicPerformanceTest):
         LLMServicePool.reset_instance()
 
         # Pooled approach (current)
-        with PerformanceProfiler("pooled_approach") as profiler:
+        with ProfilingContext("pooled_approach") as profiler:
             pooled_service = LangChainService(
                 model=None,  # Let pool choose
                 agent_name="refiner",

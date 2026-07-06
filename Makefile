@@ -1,4 +1,4 @@
-.PHONY: install test run run-safe lint format typecheck typecheck-strict typecheck-tests typecheck-tests-strict check check-strict clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore db-test-start db-test-stop db-test-status db-test-setup test-integration test-pydantic-ai
+.PHONY: install test run run-safe lint format typecheck typecheck-strict typecheck-tests typecheck-tests-strict check check-strict check-class-conflicts clean coverage-all coverage coverage-one test-agent-% run-agent-cli-% db-setup db-create db-drop db-reset db-status db-check-deps db-explore db-test-start db-test-stop db-test-status db-test-setup test-integration test-pydantic-ai
 
 # Test database host port (override: `make db-test-setup POSTGRES_TEST_PORT=5450`).
 # Must match POSTGRES_TEST_PORT used by docker-compose.dev.yml.
@@ -53,6 +53,10 @@ typecheck-tests-strict:
 check:
 	$(MAKE) format
 	$(MAKE) typecheck
+	$(MAKE) check-class-conflicts
+
+check-class-conflicts:
+	python scripts/check_class_conflicts.py
 
 check-strict:
 	$(MAKE) format
