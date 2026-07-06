@@ -14,9 +14,28 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-cognivault}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cognivault_dev}
     ports:
-      - "5435:5432"
+      - "${POSTGRES_TEST_PORT:-5440}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cognivault} -d ${POSTGRES_DB:-cognivault}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Dev database (persistent). Migrated off the shared native Postgres so both dev and
+  # test databases live in Docker. PG17 to match the source server version.
+  postgres-dev:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cognivault}
+      POSTGRES_USER: ${POSTGRES_USER:-cognivault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cognivault_dev}
+    ports:
+      - "${POSTGRES_DEV_PORT:-5441}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cognivault} -d ${POSTGRES_DB:-cognivault}"]
@@ -79,6 +98,7 @@ services:
 
 volumes:
   postgres_data:
+  postgres_dev_data:
 
 networks:
   default:

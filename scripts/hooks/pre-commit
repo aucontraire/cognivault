@@ -19,4 +19,12 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "✅ Type check complete. Proceeding with commit."
+
+echo "🗂️  Pre-commit hook: Regenerating class registry..."
+if poetry run python .claude/tools/generate_class_registry.py --include-tests >/dev/null 2>&1; then
+  echo "✅ Class registry regenerated."
+else
+  echo "⚠️  Class registry regeneration failed (non-blocking) — run 'poetry run python .claude/tools/generate_class_registry.py --include-tests' manually."
+fi
+
 exit 0

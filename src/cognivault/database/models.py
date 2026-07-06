@@ -23,6 +23,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
@@ -49,6 +50,9 @@ class Topic(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Canonicalized name (strip + casefold + collapse internal whitespace) — the
+    # concurrency-safe dedup key enforced by a DB unique constraint (FR-002 / FR-012).
+    canonical_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
 
     # Hierarchical topic organization (GraphRAG prep)
@@ -57,7 +61,7 @@ class Topic(Base):
     )
     parent = relationship("Topic", remote_side=[id], backref="children")
 
-    # Vector embedding for semantic similarity (text-embedding-3-large)
+    # Vector embedding for semantic similarity (text-embedding-3-small, 1536-dim)
     embedding: Mapped[Optional[Vector]] = mapped_column(Vector(1536), nullable=True)
 
     # Metadata and timestamps
@@ -71,6 +75,7 @@ class Topic(Base):
     # Performance indexes
     __table_args__ = (
         Index("idx_topics_name", "name"),
+        UniqueConstraint("canonical_name", name="uq_topics_canonical_name"),
         Index("idx_topics_parent", "parent_topic_id"),
         Index(
             "idx_topics_embedding",

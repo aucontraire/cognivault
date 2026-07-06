@@ -20,7 +20,7 @@ from cognivault.agents.historian.search import (
     TagBasedSearch,
     KeywordSearch,
     HybridSearch,
-    SemanticSearchPlaceholder,
+    SemanticSearch,
     SearchFactory,
 )
 
@@ -928,41 +928,60 @@ class TestHybridSearch:
             assert len(comprehensive_result.matched_terms) > 0
 
 
-class TestSemanticSearchPlaceholder:
-    """Test SemanticSearchPlaceholder functionality."""
-
-    def setup_method(self) -> None:
-        """Set up test environment."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.notes_dir = Path(self.temp_dir) / "notes"
-        self.notes_dir.mkdir()
-
-    def teardown_method(self) -> None:
-        """Clean up test directory."""
-        shutil.rmtree(self.temp_dir)
+class TestSemanticSearch:
+    """SemanticSearch degrades to empty on every failure path — never raises into the
+    Historian (FR-006 / FR-010). Covers: no key/import failure, provider down, DB down.
+    """
 
     @pytest.mark.asyncio
-    async def test_semantic_search_fallback(self) -> None:
-        """Test that semantic search falls back to hybrid search."""
-        # Create a simple test note
-        import yaml
+    async def test_no_api_key_or_import_failure_returns_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _raise() -> None:
+            raise EnvironmentError("OPENAI_API_KEY is not set")
 
-        frontmatter = {"title": "Test Note", "topics": ["test"], "uuid": "test-uuid"}
-        content = "This is a test note for semantic search fallback."
+        monkeypatch.setattr(
+            "cognivault.knowledge.embedding.EmbeddingService.from_env", _raise
+        )
+        assert await SemanticSearch().search("anything", limit=5) == []
 
-        filepath = self.notes_dir / "test.md"
-        frontmatter_yaml = yaml.dump(frontmatter)
-        full_content = f"---\n{frontmatter_yaml}---\n{content}"
+    @pytest.mark.asyncio
+    async def test_provider_down_returns_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from cognivault.knowledge.embedding import EmbeddingError
 
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(full_content)
+        class _Down:
+            async def embed(self, text: str) -> None:
+                raise EmbeddingError("provider unreachable")
 
-        search = SemanticSearchPlaceholder()
-        results = await search.search("test", limit=10)
+        monkeypatch.setattr(
+            "cognivault.knowledge.embedding.EmbeddingService.from_env", lambda: _Down()
+        )
+        assert await SemanticSearch().search("anything", limit=5) == []
 
-        # Should get results from hybrid search fallback
-        # The exact results depend on hybrid search implementation
-        assert isinstance(results, list)
+    @pytest.mark.asyncio
+    async def test_database_unreachable_returns_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from cognivault.knowledge.embedding import EmbeddingResult
+
+        class _Emb:
+            async def embed(self, text: str) -> EmbeddingResult:
+                return EmbeddingResult(vector=[0.0] * 1536, model="f", input_tokens=1)
+
+        class _Factory:
+            async def initialize(self) -> None:
+                raise OSError("connection refused")
+
+        monkeypatch.setattr(
+            "cognivault.knowledge.embedding.EmbeddingService.from_env", lambda: _Emb()
+        )
+        monkeypatch.setattr(
+            "cognivault.database.session_factory.get_database_session_factory",
+            lambda: _Factory(),
+        )
+        assert await SemanticSearch().search("anything", limit=5) == []
 
 
 class TestSearchFactory:
@@ -984,9 +1003,9 @@ class TestSearchFactory:
         assert isinstance(search, HybridSearch)
 
     def test_create_semantic_search(self) -> None:
-        """Test creating semantic search (placeholder)."""
+        """Test creating semantic search."""
         search = SearchFactory.create_search("semantic", "/test/dir")
-        assert isinstance(search, SemanticSearchPlaceholder)
+        assert isinstance(search, SemanticSearch)
 
     def test_create_default_search(self) -> None:
         """Test creating default search (should be hybrid)."""

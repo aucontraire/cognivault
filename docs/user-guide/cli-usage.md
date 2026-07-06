@@ -56,6 +56,17 @@ bash setup.sh
 ```bash
 cognivault main [QUERY] [OPTIONS]
 cognivault diagnostics [COMMAND] [OPTIONS]
+cognivault knowledge [COMMAND] [OPTIONS]
+```
+
+### Knowledge Base Commands
+
+Maintenance for the persisted knowledge base (feature 002). Requires the database and, for embeddings, `OPENAI_API_KEY`.
+
+```bash
+# Generate embeddings for topics that have none yet (idempotent; --dry-run writes nothing).
+cognivault knowledge backfill-embeddings --dry-run
+cognivault knowledge backfill-embeddings --limit 500
 ```
 
 ### Basic Agent Execution

@@ -2,7 +2,7 @@
 
 !!! warning "Status (2026-07): Forward-looking roadmap — not current state"
 
-    This document describes a phased future strategy. Knowledge-graph services, the cognitive database layer, and semantic intelligence described here are not implemented. The API layer (Phase 1B) is real.
+    This document describes a phased future strategy. The API layer (Phase 1B) is real, and feature 002 shipped opt-in **knowledge persistence** and **topic-level semantic retrieval** (topic embeddings + the Historian's semantic tier). The cognitive database layer and knowledge-graph **traversal** / services described here remain unimplemented.
 **Bridging Vision to Practical Execution**
 
 **Status**: Proposed  

@@ -118,6 +118,32 @@ historian = HistorianAgent(config=config)
 - **0.8**: 80% file results, 20% database results (file-heavy)
 - **0.4**: 40% file results, 60% database results (database-heavy)
 
+### Semantic Search (Optional Tier)
+
+An optional third retrieval tier blends **topic-embedding** matches into hybrid search,
+surfacing conceptually related content even when it shares no keywords with the query.
+
+- **`semantic_search_enabled: False`** (default) — the Historian behaves *exactly* as the
+  keyword-only hybrid search documented above. The semantic code path is not even entered,
+  so there is **zero change** to results (byte-for-byte, including ordering) when off.
+- **`semantic_search_enabled: True`** — after the file/database tiers, the query is
+  embedded (`text-embedding-3-small`, 1536-dim) and matched against persisted topic
+  embeddings; the linked content is merged into the ranked results.
+- **`semantic_search_weight`** (0.0–1.0, default 0.5) — share of the result budget given
+  to semantic hits when enabled.
+
+**Requirements & degradation**: the semantic tier needs an `OPENAI_API_KEY` and topics
+that already have embeddings (written by the knowledge-persistence feature, or backfilled
+with `cognivault knowledge backfill-embeddings`). If the key is missing, the embedding
+provider is down, the database is unreachable, or no topics have embeddings yet, the tier
+contributes **nothing** and the Historian falls back to keyword hybrid search — it never
+raises. Enable it only after topics have been embedded, or results will be unchanged.
+
+```bash
+export HISTORIAN_SEMANTIC_SEARCH_ENABLED=true
+export HISTORIAN_SEMANTIC_SEARCH_WEIGHT=0.5
+```
+
 ### Performance Tuning
 
 #### For Large Corpora (10K+ documents)
@@ -163,6 +189,10 @@ export HISTORIAN_HYBRID_SEARCH_FILE_RATIO=0.6
 export HISTORIAN_DATABASE_RELEVANCE_BOOST=0.2
 export HISTORIAN_SEARCH_TIMEOUT_SECONDS=10
 export HISTORIAN_DEDUPLICATION_THRESHOLD=0.8
+
+# Optional semantic tier (topic-embedding retrieval) — default OFF
+export HISTORIAN_SEMANTIC_SEARCH_ENABLED=false
+export HISTORIAN_SEMANTIC_SEARCH_WEIGHT=0.5
 
 # Testing configuration overrides
 export TESTING_ENABLE_HYBRID_SEARCH=true

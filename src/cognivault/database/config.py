@@ -81,12 +81,19 @@ class DatabaseConfig:
         """
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
-            # Provide default for development, but warn
+            # Build the dev default from the same POSTGRES_* vars docker-compose uses, so
+            # overriding a port or credential keeps the app and container in sync. Full
+            # override is still DATABASE_URL.
+            user = os.getenv("POSTGRES_USER", "cognivault")
+            password = os.getenv("POSTGRES_PASSWORD", "cognivault_dev")
+            port = os.getenv("POSTGRES_DEV_PORT", "5441")
+            db = os.getenv("POSTGRES_DB", "cognivault")
             database_url = (
-                "postgresql+asyncpg://postgres:postgres@localhost:5432/cognivault"
+                f"postgresql+asyncpg://{user}:{password}@localhost:{port}/{db}"
             )
             logger.warning(
-                "DATABASE_URL not set, using development default: postgresql+asyncpg://localhost:5432/cognivault"
+                "DATABASE_URL not set, using development default (docker dev DB on port "
+                f"{port}): postgresql+asyncpg://localhost:{port}/{db}"
             )
 
         # Validate database URL format

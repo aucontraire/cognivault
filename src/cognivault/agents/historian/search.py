@@ -16,6 +16,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from cognivault.config.app_config import get_config
+from cognivault.observability import get_logger
+
+logger = get_logger(__name__)
 
 
 class SearchResult(BaseModel):
@@ -696,14 +699,69 @@ class HybridSearch(HistorianSearchInterface):
         return final_results[:limit]
 
 
-class SemanticSearchPlaceholder(HistorianSearchInterface):
-    """Placeholder for future semantic search implementation."""
+class SemanticSearch(HistorianSearchInterface):
+    """Topic-embedding semantic retrieval (FR-006; replaces the old placeholder, FR-010).
+
+    Embeds the query, finds similar topics via pgvector, and returns the content linked
+    to each matched topic as SearchResult rows (match_type="topic").
+
+    Graceful degradation is total (the contract's "never raises into the Historian"):
+    if there is no API key, the embedding provider is down, the database is unreachable,
+    or no topics have embeddings yet, this returns an EMPTY list — never an exception.
+    Semantic retrieval is therefore a purely additive contribution that can only help a
+    run, never break it.
+    """
+
+    def __init__(self, similarity_threshold: float = 0.3) -> None:
+        self._similarity_threshold = similarity_threshold
 
     async def search(self, query: str, limit: int = 10) -> List[SearchResult]:
-        """Placeholder that falls back to hybrid search."""
-        # For now, fall back to hybrid search
-        hybrid_search = HybridSearch()
-        return await hybrid_search.search(query, limit)
+        try:
+            return await self._search(query, limit)
+        except Exception as exc:
+            logger.debug(f"Semantic search unavailable; returning no results: {exc}")
+            return []
+
+    async def _search(self, query: str, limit: int) -> List[SearchResult]:
+        # Lazy imports: keep DB/embedding coupling out of module import, and let any
+        # import/config failure fall through to the empty-result path in search().
+        from cognivault.database.session_factory import get_database_session_factory
+        from cognivault.knowledge.embedding import EmbeddingService
+
+        embedding = await EmbeddingService.from_env().embed(query)
+
+        factory = get_database_session_factory()
+        await factory.initialize()  # raises if DB unreachable → caught by search()
+
+        results: List[SearchResult] = []
+        async with factory.get_repository_factory() as repo:
+            neighbors = await repo.topics.find_similar_by_embedding(
+                embedding.vector,
+                limit=limit,
+                similarity_threshold=self._similarity_threshold,
+            )
+            for topic, similarity in neighbors:
+                wiki = await repo.wiki.get_latest_for_topic(topic.id)
+                excerpt = (wiki.content if wiki else topic.description) or topic.name
+                results.append(
+                    SearchResult(
+                        filepath=f"db://topic/{topic.id}",
+                        filename=f"topic-{topic.id}",
+                        title=topic.name,
+                        date=str(getattr(wiki, "created_at", "") or ""),
+                        # Scale similarity (0-1) onto the keyword score range so the
+                        # blended ranking is meaningful.
+                        relevance_score=round(float(similarity) * 10.0, 4),
+                        match_type="topic",
+                        excerpt=excerpt[:2000],
+                        metadata={
+                            "topic_id": str(topic.id),
+                            "similarity": float(similarity),
+                            "source": "semantic",
+                        },
+                    )
+                )
+        return results
 
 
 # Factory for creating search instances
@@ -734,6 +792,6 @@ class SearchFactory:
         elif search_type == "keyword":
             return KeywordSearch(notes_directory)
         elif search_type == "semantic":
-            return SemanticSearchPlaceholder()
+            return SemanticSearch()
         else:  # default to hybrid
             return HybridSearch(notes_directory)

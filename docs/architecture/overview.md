@@ -2,7 +2,7 @@
 
 !!! info "Status (2026-07): Scope note"
 
-    The 4-agent pipeline, LangGraph orchestration, event system, API layer, and hybrid search described here are implemented and tested. References to cognitive intelligence, knowledge evolution, and semantic relationships describe direction, not current runtime behavior.
+    The 4-agent pipeline, LangGraph orchestration, event system, API layer, and hybrid search described here are implemented and tested. Feature 002 added opt-in **knowledge persistence** and **topic-level semantic retrieval** (topic embeddings + the Historian's semantic tier), also runtime-real. References to cognitive intelligence, knowledge evolution, and knowledge-graph traversal still describe direction, not current runtime behavior.
 
 **Version**: 1.1  
 **Document Status**: Current  
@@ -255,8 +255,8 @@ The classification system supports dynamic workflow composition, intelligent eve
 
 **HistorianAgent**
 - **Purpose**: Context retrieval and memory search with hybrid data source architecture
-- **Capabilities**: Hybrid file + database search, PostgreSQL full-text search, intelligent content deduplication, configurable search ratios, graceful fallback mechanisms
-- **Configuration**: HistorianConfig with hybrid search parameters including file/database ratios, relevance boosting, timeout controls, and similarity thresholds
+- **Capabilities**: Hybrid file + database search, PostgreSQL full-text search, an optional topic-embedding **semantic retrieval** tier (opt-in via `HISTORIAN_SEMANTIC_SEARCH_ENABLED`), intelligent content deduplication, configurable search ratios, graceful fallback mechanisms
+- **Configuration**: HistorianConfig with hybrid search parameters including file/database ratios, relevance boosting, timeout controls, similarity thresholds, and semantic-search enablement/weight
 - **Advanced Features**: Repository pattern with session management, search analytics tracking, and environment-driven configuration
 
 **SynthesisAgent**
@@ -473,6 +473,13 @@ The HistorianAgent implements a sophisticated hybrid search system that combines
 - **Session Management**: Proper async database session handling with cleanup
 - **Environment Configuration**: Runtime configuration through environment variables
 
+**Semantic Search Tier (feature 002, opt-in)**:
+- **Topic-embedding retrieval**: when `HISTORIAN_SEMANTIC_SEARCH_ENABLED=true`, the query is embedded (`text-embedding-3-small`, 1536-dim) and matched against persisted topic embeddings via pgvector; matched content is blended into the ranked hybrid results (`semantic_search_weight` sets its share).
+- **Total graceful degradation**: returns an empty contribution (never raises into the Historian) when there is no API key, the embedding provider is down, the database is unreachable, or no topics have embeddings yet. Default off ⇒ byte-for-byte-identical keyword-only behavior.
+
+**Knowledge Persistence (feature 002, opt-in)**:
+- When `KNOWLEDGE_PERSISTENCE_ENABLED=true`, each completed run persists its refined question, its ≥-threshold topics (deduped by canonical name), and the synthesis as a wiki entry — the corpus the semantic tier later retrieves from. Non-blocking: persistence never fails a run (`src/cognivault/knowledge/persistence.py`).
+
 #### Configuration Management
 ```python
 # Hybrid search configuration example
@@ -481,7 +488,9 @@ config = HistorianConfig(
     hybrid_search_file_ratio=0.6,      # 60% file, 40% database
     database_relevance_boost=0.2,      # +0.2 boost for database results
     search_timeout_seconds=10,          # Database timeout
-    deduplication_threshold=0.8         # 80% similarity threshold
+    deduplication_threshold=0.8,        # 80% similarity threshold
+    semantic_search_enabled=False,      # optional topic-embedding tier (feature 002)
+    semantic_search_weight=0.5,         # share of results from semantic hits when enabled
 )
 ```
 

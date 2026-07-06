@@ -24,11 +24,16 @@ logger = get_logger(__name__)
 class TestDatabaseEnvironment:
     """Immutable test database environment configuration."""
 
-    # Default test database URLs for different environments
+    # Default test database URLs. The local/docker test database is the docker-compose
+    # `postgres` service; host port + credentials come from POSTGRES_* env vars (default
+    # 5440) so they can be overridden per user/machine. (Previously LOCAL pointed at the
+    # dev DB on 5432 — the source of dev-DB test pollution — now removed.)
     LOCAL_TEST_URL = (
-        "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5432/cognivault"
+        f"postgresql+asyncpg://{os.getenv('POSTGRES_USER', 'cognivault')}:"
+        f"{os.getenv('POSTGRES_PASSWORD', 'cognivault_dev')}@localhost:"
+        f"{os.getenv('POSTGRES_TEST_PORT', '5440')}/{os.getenv('POSTGRES_DB', 'cognivault')}"
     )
-    DOCKER_TEST_URL = "postgresql+asyncpg://cognivault:cognivault_dev@localhost:5435/cognivault"  # Docker container port
+    DOCKER_TEST_URL = LOCAL_TEST_URL  # same containerized test DB
     CI_TEST_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/test_db"
 
     # Environment-specific configurations
@@ -185,7 +190,7 @@ class TestDatabaseConfigFactory:
         if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
             return "ci"
 
-        # Check if Docker database is available (port 5435)
+        # Check if Docker database is available (port 5440)
         docker_url = TestDatabaseEnvironment.DOCKER_TEST_URL
         if cls._is_database_available(docker_url):
             return "docker"

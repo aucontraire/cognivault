@@ -384,6 +384,53 @@ class LangGraphOrchestrator:
                 }
             )
 
+            # --- Knowledge persistence (non-blocking; FR-001 / FR-003) -----------
+            # One guarded call after state conversion, before the completed event.
+            # persist_run never raises; the extra guard covers construction/import.
+            try:
+                from cognivault.knowledge.persistence import (
+                    KnowledgePersistenceService,
+                )
+
+                k_structured = agent_context.execution_state.get(
+                    "structured_outputs", {}
+                )
+                refiner_out = k_structured.get("refiner") or {}
+                refined_q = refiner_out.get("refined_query") or query
+                await KnowledgePersistenceService.from_defaults().persist_run(
+                    refined_query=refined_q,
+                    agent_outputs=dict(agent_context.agent_outputs),
+                    structured_outputs=k_structured,
+                    correlation_id=correlation_id,
+                    execution_id=execution_id,
+                    nodes_executed=list(self.agents_to_run),
+                )
+            except Exception as exc:
+                self.logger.warning(
+                    f"Knowledge persistence step failed (non-blocking): {exc}"
+                )
+                # FR-003: persist_run events its own failures internally; this is the
+                # last-resort guard for import/construction failures that occur before
+                # persist_run runs. Emit the same persistence-failure event here so no
+                # failure mode is silent. Eventing itself must never affect the run.
+                try:
+                    from cognivault.events.emitter import (
+                        emit_agent_execution_completed,
+                    )
+
+                    await emit_agent_execution_completed(
+                        workflow_id=execution_id,
+                        agent_name="knowledge_persistence",
+                        success=False,
+                        output_context={},
+                        correlation_id=correlation_id,
+                        error_message=str(exc),
+                        error_type=type(exc).__name__,
+                        metadata={"stage": "orchestrator_guard"},
+                    )
+                except Exception:
+                    pass
+
             # Emit workflow completed event (with truncated outputs for logging)
             # Helper to extract main content from structured or string outputs
             def truncate_output(output: Any) -> str:

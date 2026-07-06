@@ -261,6 +261,16 @@ class HistorianConfig(BaseModel):
         le=10,
         description="Minimum number of results to keep when LLM filters all results",
     )
+    semantic_search_enabled: bool = Field(
+        False,
+        description="Enable topic-embedding semantic retrieval blended into hybrid search",
+    )
+    semantic_search_weight: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Share of the result budget given to semantic hits when enabled",
+    )
 
     # Nested configurations
     prompt_config: PromptConfig = Field(default_factory=PromptConfig)
@@ -302,6 +312,12 @@ class HistorianConfig(BaseModel):
             config["deduplication_threshold"] = float(env_val)
         if env_val := os.getenv(f"{prefix}_MINIMUM_RESULTS_THRESHOLD"):
             config["minimum_results_threshold"] = int(env_val)
+
+        # Semantic search (topic-embedding retrieval)
+        if env_val := os.getenv(f"{prefix}_SEMANTIC_SEARCH_ENABLED"):
+            config["semantic_search_enabled"] = env_val.lower() == "true"
+        if env_val := os.getenv(f"{prefix}_SEMANTIC_SEARCH_WEIGHT"):
+            config["semantic_search_weight"] = float(env_val)
 
         return cls(**config)
 
