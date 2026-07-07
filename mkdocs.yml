@@ -198,8 +198,6 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/aucontraire/cognivault
-  version:
-    provider: mike
   analytics:
     feedback:
       title: Was this page helpful?
